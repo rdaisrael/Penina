@@ -1,0 +1,10 @@
+Ensure that pulling directly from Sefaria endpoint for Hebrew text
+
+
+if Tanakh and Gemara is requested and there is not that word use "any source" and warn that not all words are in the selected resource; ai has generate an alternate context example
+When a source used from Sefaria, should be just Brachot 6b without additional finding information.
+At bottom of printed page should be generated with PeninaPlus 
+
+Make sure "elokenu" is with nikkud (not needed for lists)
+
+generates Hebrew or enlish if not provided.

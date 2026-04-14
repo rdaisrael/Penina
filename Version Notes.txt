@@ -1,0 +1,8 @@
+Notes for future versions:
+
+Create about/how to/ contact / research
+Have button say "generating" when generating from supplied text
+Option for Ashkenaz pronunciation
+How to host / buy name
+put cirle around favicon and make it just white with Pey
+Why show page before generated??

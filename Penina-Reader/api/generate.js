@@ -55,8 +55,17 @@ module.exports = async function handler(req, res) {
             body: JSON.stringify(dictaPayload)
         });
 
-        if (!dictaResponse.ok) {
-            return res.status(500).json({ error: 'Dicta API rejected the request.' });
+       if (!dictaResponse.ok) {
+            const errorText = await dictaResponse.text();
+            console.error(`\n=== DICTA REJECTION DETAILS ===`);
+            console.error(`Status: ${dictaResponse.status}`);
+            console.error(`Error Body: ${errorText}`);
+            console.error(`Payload Sent: ${plainHebrew}`);
+            console.error(`===============================\n`);
+            
+            return res.status(500).json({ 
+                error: `Dicta rejected the request (Status ${dictaResponse.status}). Check your server terminal.` 
+            });
         }
 
         const dictaData = await dictaResponse.json();

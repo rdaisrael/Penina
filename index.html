@@ -3,1031 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Penina 3.1</title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <title>Penina-Hebrew Suite</title>
     <style>
-        /* --- EMBEDDED DYSLEXIC FONT --- */
-        @font-face {
-            font-family: 'Dyslexic-Kriah';
-            src: url('Dyslexic-Kriah.otf') format('opentype');
-            font-weight: normal;
-            font-style: normal;
+        :root {
+            --primary-bg: #fcfaf5;
+            --card-bg: #ffffff;
+            --text-dark: #3a332a;
+            --text-muted: #6b6051;
+            --gold-border: #d4c29e;
+            --silver-border: #c0c0c0;
         }
 
-        body { font-family: Arial, sans-serif; padding: 20px 0; margin: 0; background-color: #f0f4f8; }
-        
-        .control-panel-wrapper { max-width: 900px; margin: 0 auto; padding: 0 20px; }
-        
-        h1 { color: #333; }
-        .copyright { text-align: center; font-style: italic; font-size: 14px; color: #555; margin-bottom: 25px; }
-
-        /* --- HEADER & ABOUT/CREDITS --- */
-        .header-container { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            gap: 0px; 
-            margin-bottom: 0px; 
-        }
-        
-     .app-logo { 
-            max-width: 120px; 
-            height: auto; 
-            display: inline-block;
-            margin-right: -25px; /* (Keep this if it helped the horizontal spacing) */
-            margin-bottom: -10px; /* Pulls the content below it UP */
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Georgia', serif;
+            background: radial-gradient(circle at center, #ffffff 0%, var(--primary-bg) 50%, #f0e9d8 100%);
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
         }
 
-        details.about-details { 
-            background: #e9ecef; 
-            border: 1px solid #ccc; 
-            border-radius: 5px; 
-            padding: 10px 15px; 
-            margin: -10px auto 25px auto; 
-            max-width: 600px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        /* SVG Data URI for faint scattered Hebrew letters background */
+        .bg-pattern {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='20' y='50' font-size='40' font-family='serif' fill='%238b7355'%3Eא%3C/text%3E%3Ctext x='150' y='80' font-size='60' font-family='serif' fill='%238b7355'%3Eפ%3C/text%3E%3Ctext x='250' y='40' font-size='35' font-family='serif' fill='%238b7355'%3Eג%3C/text%3E%3Ctext x='50' y='180' font-size='50' font-family='serif' fill='%238b7355'%3Eש%3C/text%3E%3Ctext x='200' y='220' font-size='45' font-family='serif' fill='%238b7355'%3Eל%3C/text%3E%3Ctext x='100' y='280' font-size='30' font-family='serif' fill='%238b7355'%3Eמ%3C/text%3E%3C/svg%3E");
+            background-repeat: repeat;
         }
-        
-        summary.about-summary { 
-            font-weight: bold; 
-            font-size: 15px; 
-            cursor: pointer; 
-            color: #444; 
-            outline: none; 
+
+        header {
             text-align: center;
-            list-style-position: inside;
+            margin-top: 60px;
+            margin-bottom: 80px;
+            padding: 0 20px;
         }
-        
-        summary.about-summary:hover { color: #000; }
-        
-        .about-content { 
-            margin-top: 15px; 
-            font-size: 14px; 
-            color: #555; 
-            line-height: 1.6; 
-            text-align: left; 
+
+        h1 {
+            font-size: 3.5rem;
+            font-style: italic;
+            font-weight: normal;
+            margin: 0;
+            color: #2c2822;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            display: inline-block;
         }
-        
-        .about-content p { margin: 0 0 10px 0; }
-        
-        .control-panel { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .form-group { margin-bottom: 20px; }
-        label { font-weight: bold; display: block; margin-bottom: 8px; color: #444; }
-        .checkbox-group label { display: inline-flex; align-items: center; margin-right: 20px; font-weight: normal; cursor: pointer; gap: 5px; }
-        
-        select, textarea, input[type="text"] { font-family: inherit; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; transition: background-color 0.2s; }
-        textarea, input[type="text"].hebrew-input { direction: rtl; font-size: 18px; }
-        
-        select:disabled, input[type="range"]:disabled, textarea:disabled, input[type="text"]:disabled { background-color: #e9ecef; cursor: not-allowed; opacity: 0.6; }
 
-        /* --- SLIDERS --- */
-        .slider-group { display: flex; gap: 20px; margin-bottom: 20px; }
-        .slider-container { flex: 1; }
-        .slider-container input[type="range"] { width: 100%; cursor: pointer; }
-
-        /* --- COLOR KEY DROPDOWN STYLES --- */
-        details.color-key-details { background: #fafafa; border: 1px solid #ccc; border-radius: 5px; padding: 10px 15px; margin-bottom: 20px; }
-        summary.color-key-summary { font-weight: bold; font-size: 16px; cursor: pointer; color: #0056b3; outline: none; list-style-position: inside; }
-        summary.color-key-summary:hover { color: #003d82; }
-
-        .vowel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
-        .vowel-item { display: flex; align-items: center; justify-content: space-between; font-size: 16px; background: white; padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px;}
-        .vowel-item input[type="color"] { cursor: pointer; border: none; width: 40px; height: 30px; padding: 0; }
-        .vowel-label { display: flex; align-items: center; gap: 10px; font-weight: normal; cursor: pointer; margin-bottom: 0; }
-        .vowel-text { font-weight: bold; text-shadow: 0px 0px 1px rgba(0,0,0,0.2); }
-
-        .button-group { display: flex; justify-content: center; margin-top: 20px; }
-        button { padding: 12px 25px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; color: white; transition: opacity 0.2s; }
-        button:hover { opacity: 0.9; }
-        button:disabled { background-color: #6c757d !important; cursor: not-allowed; } 
-        
-        /* --- PRINT CONTROLS (THE INTERLOCK) --- */
-        .print-controls-container { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 25px; padding: 15px; background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; }
-        .print-checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 16px; cursor: pointer; color: #2e7d32; margin: 0;}
-        .print-checkbox-label input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
-
-        /* --- THE STACK & GRID CSS --- */
-        .heb-word {
-            display: inline-flex;
-            direction: rtl;
-            unicode-bidi: isolate;
-            white-space: nowrap; 
-            position: relative; 
-            overflow: visible !important;
-            page-break-inside: avoid;
-            break-inside: avoid;
+        h1::after {
+            content: '';
+            display: block;
+            width: 60%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #c7a771, transparent);
+            margin: 15px auto 0;
         }
-        .heb-cluster {
-            display: inline-grid;
-            place-items: center;
-            -webkit-font-smoothing: antialiased;
-            line-height: 1; 
-        }
-        .layer-bottom, .layer-top { grid-area: 1 / 1; }
-        .layer-top { color: black; pointer-events: none; z-index: 2; }
-        .layer-bottom { z-index: 1; }
 
-        /* --- STRUCTURAL ELEMENTS --- */
-        .line-number {
-            letter-spacing: normal !important;
+        .subtitle {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            color: var(--text-muted);
+            font-family: Arial, sans-serif;
+        }
+
+        .cards-container {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(24df,248,242,0.9) 100%);
+            border: 2px solid var(--gold-border);
+            border-radius: 15px;
+            padding: 40px 30px 30px;
+            width: 280px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(5px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card.silver-theme {
+            border-color: var(--silver-border);
+            background: linear-gradient(135deg, #ffffff 0%, #f4f4f4 100%);
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 45px rgba(0,0,0,0.12);
+        }
+
+        /* Adjusting the logo wrappers to zoom into the pearl and crop the black background */
+        .logo-wrapper {
+            width: 130px;
+            height: 130px;
+            position: absolute;
+            top: -65px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo-wrapper img {
+            width: 280%; /* Zoom in to hide the black edges of the original image */
+            height: auto;
             pointer-events: none;
         }
 
-        .penina-footer {
-            display: block;
-            width: 100%; text-align: center;
-            font-family: Arial, sans-serif; font-size: 12px; color: #666;
-            margin-top: 60px; direction: ltr;
-            letter-spacing: normal !important;
+        .card h2 {
+            font-size: 1.6rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            color: #1a1a1a;
+            font-family: Arial, sans-serif;
         }
 
-        .story-body {
-            position: relative;
-            line-height: 2.5; 
-            text-align: right;
-            padding-right: 60px; 
-            orphans: 1;
-            widows: 1;
+        .card p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            line-height: 1.5;
+            margin-bottom: 30px;
+            font-family: Arial, sans-serif;
+            flex-grow: 1;
         }
 
-        /* --- THE VIRTUAL PAPER PARADIGM --- */
-        .paper-viewport {
-            width: 100%;
-            overflow-x: auto; 
-            padding-bottom: 40px;
+        .btn {
+            display: inline-block;
+            padding: 12px 35px;
+            text-decoration: none;
+            color: #333;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 30px;
+            background: linear-gradient(to bottom, #fff, #ebdcb9);
+            border: 2px solid #ceb384;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+            margin-top: auto;
         }
 
-        #story-output {
-            background-color: white;
-            width: 8.5in !important;   
-            min-height: 11in;
-            margin: 0 auto;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            box-sizing: border-box;
-            direction: rtl;
-            text-align: right;
+        .silver-theme .btn {
+            background: linear-gradient(to bottom, #fff, #e0e0e0);
+            border-color: #b0b0b0;
         }
 
-        @media print {
-            body { background: white; padding: 0; }
-            .control-panel-wrapper { display: none; } 
-            
-            .paper-viewport { overflow: visible; padding: 0; }
-            
-            #story-output {
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important; 
-                border: none;
-                box-shadow: none;
-            }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+            filter: brightness(1.05);
+        }
 
-            .story-body {
-                orphans: 1 !important;
-                widows: 1 !important;
+        footer {
+            margin-top: auto;
+            padding: 40px 20px 20px;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 1000px) {
+            .cards-container {
+                gap: 80px 30px;
+                padding-top: 50px;
             }
         }
     </style>
 </head>
 <body>
 
-    <div class="control-panel-wrapper">
-        
-        <div class="header-container">
-            <img src="penina-logo.png" alt="Penina Logo" class="app-logo">
-            <h1 style="margin: 0; margin-top: 15px;">Penina 3.1</h1>
-        </div>
-        <div class="copyright">&copy; 2026 David Israel</div>
+    <div class="bg-pattern"></div>
 
-<details class="about-details">
-            <summary class="about-summary">ℹ️ About & Credits</summary>
-            <div class="about-content">
-                <p><strong>About Penina:</strong><br>
-                Penina is a specialized, AI-assisted text-generation and vocalization tool designed to create formatted, highly accessible, vowelized Hebrew reading materials. Phonetic color-coding for vowels was inspired by the Hebrew Guru system; Penina expands this concept with additional unique color mappings and offers granular control over typography, spacing, and other visual cues to support diverse reading needs.</p>
-                <p><strong>Credits:</strong><br>
-                • Developed by <strong>David Israel</strong><br>
-                • Utilizes the <strong>Gemini API</strong><br>
-                • Vowelization utilizes the <strong>Dicta API</strong> <img src="dicta-logo.png" alt="Dicta Logo" style="height: 1em; vertical-align: middle; margin-left: 4px;"><br>
-                • Dyslexia-friendly typography via <strong>Dyslexic-Kriah</strong></p>
-            </div>
-        </details>
-
-        <div class="control-panel">
-            
-            <div class="form-group" style="text-align: center; margin-bottom: 25px; padding: 20px; background: #eef2f5; border-radius: 8px; border: 1px solid #cdd5df;">
-                <label style="font-size: 18px; margin-bottom: 15px; display: block; color: #2c3e50;">Choose Your Content Source:</label>
-                <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
-                    <label style="font-weight: bold; cursor: pointer; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-                        <input type="radio" name="pathway" id="pathway-a-radio" value="A" checked style="width: 20px; height: 20px;"> 
-                        Produce an original AI-generated Hebrew reading
-                    </label>
-                    <label style="font-weight: bold; cursor: pointer; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-                        <input type="radio" name="pathway" id="pathway-b-radio" value="B" style="width: 20px; height: 20px;"> 
-                        Supply my own text and title
-                    </label>
-                </div>
-            </div>
-
-            <div id="pathway-a-section">
-                <div class="form-group">
-                    <label for="theme">a. נושא הסיפור (Story Prompt/Topic):</label>
-                    <textarea id="theme" rows="2" placeholder="Tell the AI what the story should be about (English or Hebrew)..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="target-input-a">b. מילות מטרה (Target Words to Highlight - Optional):</label>
-                    <textarea id="target-input-a" class="hebrew-input" rows="2" placeholder="Type words separated by commas/newlines (English or Hebrew)..."></textarea>
-                </div>
-                <div class="form-group" style="display: flex; gap: 20px;">
-                    <div style="flex: 1;">
-                        <label for="reading-level">c. רמת קריאה (Reading Level):</label>
-                        <select id="reading-level">
-                            <option value="beginner">Beginner (Easy vocabulary, short sentences)</option>
-                            <option value="intermediate" selected>Intermediate (Standard modern Hebrew)</option>
-                            <option value="advanced">Advanced (Sophisticated vocabulary, complex sentences)</option>
-                        </select>
-                    </div>
-                    <div style="flex: 1;">
-                        <label for="length">d. Story Length:</label>
-                        <select id="length">
-                            <option value="3-paragraph">Short (3 Paragraphs)</option>
-                            <option value="1-page">Medium (1 Page)</option>
-                            <option value="2-page">Long (2 Pages)</option>
-                            <option value="custom">Other (Specify)</option>
-                        </select>
-                        <input type="text" id="custom-length" placeholder="e.g. 5 pages" style="display: none; margin-top: 10px;">
-                    </div>
-                </div>
-            </div>
-
-            <div id="pathway-b-section" style="display: none;">
-                <div class="form-group">
-                    <label for="supplied-text">a. טקסט מוכן (Supplied Text):</label>
-                    <textarea id="supplied-text" class="hebrew-input" rows="4" placeholder="Paste pre-written Hebrew text here..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="supplied-title">b. כותרת (Supply a title for the supplied text):</label>
-                    <input type="text" id="supplied-title" class="hebrew-input" placeholder="Enter a title for your story...">
-                </div>
-                <div class="form-group">
-                    <label for="target-input-b">c. מילות מטרה (Target Words to Highlight - Optional):</label>
-                    <textarea id="target-input-b" class="hebrew-input" rows="2" placeholder="Type words separated by commas/newlines (English or Hebrew)..."></textarea>
-                </div>
-            </div>
-
-            <div class="button-group" style="margin-bottom: 35px; margin-top: 20px;">
-                <button id="generate-btn" style="background-color: #0056b3; font-size: 18px; padding: 15px 40px; width: 100%; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">Generate</button>
-            </div>
-
-            <div class="formatting-section" style="background: #f8f9fa; padding: 25px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 25px;">
-                <h3 style="margin-top: 0; margin-bottom: 20px; color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Word Styling and Formatting</h3>
-                
-                <div class="form-group checkbox-group" style="margin-bottom: 25px;">
-                    <label><input type="checkbox" id="bold-words"> Bold Target Words</label>
-                    <label>
-                        <input type="checkbox" id="highlight-words"> Color Target Words:
-                        <input type="color" id="target-color" value="#1e90ff" style="border:none; width:30px; height:25px; cursor:pointer; padding:0; margin-left:5px;">
-                    </label>
-                    <label><input type="checkbox" id="use-hashem" checked> Use ה׳</label>
-                    <label><input type="checkbox" id="use-elokim" checked> Use אלקינו / אלקים</label>
-                </div>
-
-                <div class="slider-group">
-                    <div class="slider-container">
-                        <label for="font-size">Font Size: <span id="font-size-val">38px</span></label>
-                        <input type="range" id="font-size" min="20" max="80" value="38" class="layout-control">
-                    </div>
-                    <div class="slider-container">
-                        <label for="kerning">Letter Spacing (Kerning): <span id="kerning-val">0px</span></label>
-                        <input type="range" id="kerning" min="0" max="20" value="0" class="layout-control">
-                    </div>
-                </div>
-
-                <div class="form-group" style="display: flex; gap: 20px; margin-bottom: 0;">
-                    <div style="flex: 1;">
-                        <label for="font-choice">Choose Font:</label>
-                        <select id="font-choice" class="layout-control">
-                            <option value="Arial, sans-serif">Arial (Modern)</option>
-                            <option value="'David', serif">David (Classic Book Style)</option>
-                            <option value="'Dyslexic-Kriah', 'Alef', sans-serif">Dyslexia-Friendly (Dyslexic-Kriah)</option>
-                        </select>
-                    </div>
-                    <div style="flex: 1;">
-                        <label for="margin-choice">3-Hole Punch Binding:</label>
-                        <select id="margin-choice" class="layout-control">
-                            <option value="none">No extra margin (Standard)</option>
-                            <option value="right">Right Side (Hebrew standard)</option>
-                            <option value="left">Left Side (English standard)</option>
-                            <option value="alternate-right">Alternating (Starts Right)</option>
-                            <option value="alternate-left">Alternating (Starts Left)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <details class="color-key-details">
-                    <summary class="color-key-summary">🎨 Nikkud (Vowel) Color Settings (Click to Open)</summary>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 10px;">
-                        <p style="margin: 0; font-size: 14px; color: #666; font-style: italic;">Check a box to apply color. Uncheck to leave that vowel the default black color.</p>
-                        <div style="flex-shrink: 0;">
-                            <button type="button" id="select-all-btn" style="padding: 6px 12px; font-size: 13px; margin-right: 5px; background-color: #6c757d; color: white;">Select All</button>
-                            <button type="button" id="unselect-all-btn" style="padding: 6px 12px; font-size: 13px; background-color: #6c757d; color: white;">Unselect All</button>
-                        </div>
-                    </div>
-
-                    <div class="vowel-grid">
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-kamatz"> <span class="vowel-text" id="text-kamatz">Aqua (Kamatz)</span></label>
-                            <input type="color" id="col-kamatz" value="#1e90ff">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-kamatz-katan"> <span class="vowel-text" id="text-kamatz-katan">AUburn (Kamatz Katan)</span></label>
-                            <input type="color" id="col-kamatz-katan" value="#a52a2a">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-patach"> <span class="vowel-text" id="text-patach">Aqua (Patach)</span></label>
-                            <input type="color" id="col-patach" value="#1e90ff">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-segol"> <span class="vowel-text" id="text-segol">rEd (Segol)</span></label>
-                            <input type="color" id="col-segol" value="#ff0000">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-tzere-chaser"> <span class="vowel-text" id="text-tzere-chaser">rEd (Tzere Chaser)</span></label>
-                            <input type="color" id="col-tzere-chaser" value="#ff0000">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-tzere-maleh"> <span class="vowel-text" id="text-tzere-maleh">Acorn (Tzere Maleh)</span></label>
-                            <input type="color" id="col-tzere-maleh" value="#8b4513">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-chirik"> <span class="vowel-text" id="text-chirik">grEEn (Chirik)</span></label>
-                            <input type="color" id="col-chirik" value="#008000">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-cholam"> <span class="vowel-text" id="text-cholam">Orange (Cholam)</span></label>
-                            <input type="color" id="col-cholam" value="#ff5b00">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-shuruk"> <span class="vowel-text" id="text-shuruk">blUE (Shuruk)</span></label>
-                            <input type="color" id="col-shuruk" value="#0000ff">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-kubutz"> <span class="vowel-text" id="text-kubutz">blUE (Kubutz)</span></label>
-                            <input type="color" id="col-kubutz" value="#0000ff">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-shva-nach"> <span class="vowel-text" id="text-shva-nach">Silent (Shva Nach)</span></label>
-                            <input type="color" id="col-shva-nach" value="#9e9e9e">
-                        </div>
-                        <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-shva-na"> <span class="vowel-text" id="text-shva-na">Indigo (Shva Na)</span></label>
-                            <input type="color" id="col-shva-na" value="#8b1ddb">
-                        </div>
-                    </div>
-                </details>
-            </div>
-
-            <div class="print-controls-container">
-                <label class="print-checkbox-label" title="Checking this will lock the layout sliders above to ensure numbers align perfectly.">
-                    <input type="checkbox" id="toggle-line-numbers"> 
-                    Print with Line Numbers
-                </label>
-                <button id="print-btn" onclick="window.print()" style="background-color: #28a745; margin: 0;">Print Story</button>
-            </div>
-            
-        </div>
-    </div> 
+    <header>
+        <h1>Penina-Hebrew Suite</h1>
+        <div class="subtitle">Select a tool to begin your Hebrew journey:</div>
+    </header>
     
-    <div class="paper-viewport">
-        <div id="story-output" dir="rtl"></div>
+    <div class="cards-container">
+        
+        <!-- Penina Hebrew Reader (Silver Theme) -->
+        <div class="card silver-theme">
+            <div class="logo-wrapper">
+                <img src="penina-logo.png" alt="Penina Silver Logo">
+            </div>
+            <h2>Penina<br>Hebrew Reader</h2>
+            <p>A classic foundation for text analysis.</p>
+            <a href="http://www.penina-hebrew.org/Penina-Reader" class="btn">Launch</a>
+        </div>
+
+        <!-- PeninaPlus Hebrew Reader (Gold Theme) -->
+        <div class="card">
+            <div class="logo-wrapper">
+                <img src="peninaplus-logo.png" alt="PeninaPlus Gold Logo">
+            </div>
+            <h2>PeninaPlus<br>Hebrew Reader</h2>
+            <p>Intermediate text analysis with additional insights.</p>
+            <a href="http://www.penina-hebrew.org/PeninaPlus-Reader" class="btn">Launch</a>
+        </div>
+
+        <!-- PeninaPlus Vocabulary Builder (Gold Theme) -->
+        <div class="card">
+            <div class="logo-wrapper">
+                <img src="peninaplus-logo.png" alt="PeninaPlus Gold Logo">
+            </div>
+            <h2>PeninaPlus<br>Vocabulary Builder</h2>
+            <p>Master essential words and roots.</p>
+            <a href="http://www.penina-hebrew.org/vocab-builder" class="btn">Launch</a>
+        </div>
+
     </div>
 
-    <script>
-        // ==========================================
-        //               PENINA 3.1
-        // ==========================================
-        
-        let currentRawStory = ""; 
-
-        // --- PATHWAY TOGGLE LOGIC ---
-        document.getElementById('pathway-a-radio').addEventListener('change', function() {
-            if (this.checked) {
-                document.getElementById('pathway-a-section').style.display = 'block';
-                document.getElementById('pathway-b-section').style.display = 'none';
-            }
-        });
-
-        document.getElementById('pathway-b-radio').addEventListener('change', function() {
-            if (this.checked) {
-                document.getElementById('pathway-a-section').style.display = 'none';
-                document.getElementById('pathway-b-section').style.display = 'block';
-            }
-        });
-
-        // --- SUPPLIED TEXT/TITLE VALIDATION LOGIC ---
-        const suppliedTextInput = document.getElementById('supplied-text');
-        const suppliedTitleInput = document.getElementById('supplied-title');
-        
-        const validateHebrewInput = function() {
-            let val = this.value;
-            // Expanded to include smart quotes, em-dashes, brackets, and invisible right-to-left formatting marks
-            const hebrewRegex = /^[\u0590-\u05FF\s.,?!:;"'()\[\]{}🗣️⬅\-0-9\n\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u200E\u200F\u202A-\u202C]*$/;
-            
-            if (!hebrewRegex.test(val)) {
-                this.value = val.replace(/[^\u0590-\u05FF\s.,?!:;"'()\[\]{}🗣️⬅\-0-9\n\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u200E\u200F\u202A-\u202C]/g, '');
-                if(this.id === 'supplied-text') {
-                    alert("Warning: Only Hebrew text and punctuation are permitted in the Supplied Text field.");
-                }
-            }
-        };
-
-        if (suppliedTextInput) { suppliedTextInput.addEventListener('input', validateHebrewInput); }
-        if (suppliedTitleInput) { suppliedTitleInput.addEventListener('input', validateHebrewInput); }
-
-        function syncUIColors() {
-            const vowelIds = ['kamatz', 'kamatz-katan', 'patach', 'segol', 'tzere-chaser', 'tzere-maleh', 'chirik', 'cholam', 'shuruk', 'kubutz', 'shva-nach', 'shva-na'];
-            vowelIds.forEach(id => {
-                const colorValue = document.getElementById(`col-${id}`).value;
-                document.getElementById(`text-${id}`).style.color = colorValue;
-            });
-        }
-        
-        window.addEventListener('DOMContentLoaded', () => {
-            syncUIColors();
-        });
-
-        document.getElementById('select-all-btn').addEventListener('click', () => {
-            document.querySelectorAll('.vowel-grid input[type="checkbox"]').forEach(cb => cb.checked = true);
-            syncUIColors();
-            renderStoryToScreen();
-        });
-
-        document.getElementById('unselect-all-btn').addEventListener('click', () => {
-            document.querySelectorAll('.vowel-grid input[type="checkbox"]').forEach(cb => cb.checked = false);
-            syncUIColors();
-            renderStoryToScreen();
-        });
-
-        document.getElementById('length').addEventListener('change', function() {
-            const customInput = document.getElementById('custom-length');
-            if (this.value === 'custom') {
-                customInput.style.display = 'block';
-            } else {
-                customInput.style.display = 'none';
-            }
-        });
-
-        // HELPER: Translation API Call mapped to Vercel Backend
-        async function translateText(promptText) {
-            const res = await fetch('/api/translate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ promptText: promptText })
-            });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
-            return data.text;
-        }
-
-        document.getElementById('generate-btn').addEventListener('click', async () => {
-            const outputDiv = document.getElementById('story-output');
-            const isPathwayA = document.getElementById('pathway-a-radio').checked;
-
-            let currentTheme = isPathwayA ? document.getElementById('theme').value : "";
-            let rawSuppliedText = isPathwayA ? "" : document.getElementById('supplied-text').value.trim();
-            let suppliedTitle = isPathwayA ? "" : document.getElementById('supplied-title').value.trim();
-            let currentTargets = isPathwayA ? document.getElementById('target-input-a').value : document.getElementById('target-input-b').value;
-            
-            let length = document.getElementById('length').value;
-            const customLength = document.getElementById('custom-length').value;
-            const readingLevel = document.getElementById('reading-level').value;
-            const btn = document.getElementById('generate-btn');
-            
-            let suppliedText = "";
-            if (!isPathwayA && rawSuppliedText) {
-                suppliedText = suppliedTitle ? (suppliedTitle + "\n" + rawSuppliedText) : rawSuppliedText;
-            }
-
-            if (isPathwayA && !currentTheme && !currentTargets) {
-                alert("Please enter a topic or target words first!");
-                return;
-            }
-
-            if (!isPathwayA && !rawSuppliedText) {
-                alert("Please supply Hebrew text!");
-                return;
-            }
-
-            if (length === 'custom') {
-                length = customLength || "1-page";
-            }
-
-            // AUTO-UNLOCK
-            document.getElementById('toggle-line-numbers').checked = false;
-            toggleLayoutLock(false);
-            clearLineNumbers();
-
-            btn.disabled = true;
-
-            // --- SUPPLIED TEXT WORKFLOW ---
-            if (suppliedText) {
-                if (currentTargets) {
-                    if (/[a-zA-Z]/.test(currentTargets)) {
-                        alert("Warning: English target words are not permitted when using Supplied Text. Please use exact Hebrew matches only.");
-                        btn.disabled = false;
-                        return;
-                    }
-
-                    const targets = currentTargets.split(/[\n\t,]+/).map(w => w.trim()).filter(w => w);
-                    const suppliedTokens = suppliedText.split(/([\s\n]+)/);
-                    
-                    for (let target of targets) {
-                        let targetClean = target.replace(/[\u0591-\u05C7]/g, '').replace(/[.,?!:;"'()\-]/g, '');
-                        let found = false;
-
-                        for (let token of suppliedTokens) {
-                            if (/^[\s\n]+$/.test(token)) continue;
-                            let tokenWithoutNikkud = token.replace(/[\u0591-\u05C7]/g, '');
-                            let cleanToken = tokenWithoutNikkud.replace(/[.,?!:;"'()\-]/g, '');
-                            if (cleanToken === targetClean || cleanToken === 'ה' + targetClean || cleanToken === 'ב' + targetClean) {
-                                found = true;
-                                break;
-                            }
-                        }
-
-                        if (!found) {
-                            alert(`Warning: Target word "${target}" was not found exactly in the supplied text.`);
-                            btn.disabled = false;
-                            return;
-                        }
-                    }
-                }
-
-                btn.innerText = "Applying Nikkud via Dicta... (Please Wait)";
-                outputDiv.innerHTML = "מנקד את הטקסט... (Vowelizing...)";
-                
-                try {
-                    const response = await fetch('/api/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ suppliedText: suppliedText })
-                    });
-                    const data = await response.json();
-                    if (data.error) throw new Error(data.error);
-
-                    currentRawStory = data.text.replace(/\*/g, '');
-                    renderStoryToScreen();
-                } catch (error) {
-                    console.error(error);
-                    outputDiv.innerHTML = `<span style="color:red; font-weight:bold;">שגיאה (Error):</span> ${error.message}`;
-                } finally {
-                    btn.innerText = "Generate";
-                    btn.disabled = false;
-                }
-                return;
-            }
-
-            // --- PRE-FLIGHT TRANSLATION: Check for English letters ---
-            if (/[a-zA-Z]/.test(currentTheme) || /[a-zA-Z]/.test(currentTargets)) {
-                btn.innerText = "Translating... (Please Wait)";
-                try {
-                    const promises = [];
-                    let themeIndex = -1;
-                    let targetIndex = -1;
-
-                    if (/[a-zA-Z]/.test(currentTheme)) {
-                        promises.push(translateText(`Translate this story theme/prompt into Modern Israeli Hebrew. Return ONLY the Hebrew translation, NO extra text: ${currentTheme}`));
-                        themeIndex = promises.length - 1;
-                    }
-                    if (/[a-zA-Z]/.test(currentTargets)) {
-                        promises.push(translateText(`Translate any English words in the following list into Modern Israeli Hebrew. Keep existing Hebrew words as they are. Return the full combined list of ONLY Hebrew words, separated by commas, with NO nikkud, NO english, and NO extra text: ${currentTargets}`));
-                        targetIndex = promises.length - 1;
-                    }
-
-                    const results = await Promise.all(promises);
-                    if (themeIndex !== -1) {
-                        currentTheme = results[themeIndex];
-                        document.getElementById('theme').value = currentTheme;
-                    }
-                    if (targetIndex !== -1) {
-                        currentTargets = results[targetIndex];
-                        if (isPathwayA) {
-                            document.getElementById('target-input-a').value = currentTargets;
-                        } else {
-                            document.getElementById('target-input-b').value = currentTargets;
-                        }
-                    }
-                } catch (error) {
-                    console.error("Translation error:", error);
-                }
-            }
-
-            btn.innerText = "Writing Story... (Wait)";
-            outputDiv.innerHTML = "מכין את הסיפור שלך... (Generating...)";
-
-            let levelInstruction = "";
-            if (readingLevel === 'beginner') {
-                levelInstruction = "CRITICAL: Write at a BEGINNER reading level. Use very simple, common Hebrew words (1-2 syllables where possible), short straightforward sentences, and basic grammar. Avoid complex structures.";
-            } else if (readingLevel === 'intermediate') {
-                levelInstruction = "Write at an INTERMEDIATE reading level. Use standard, everyday Modern Israeli Hebrew with moderate sentence lengths.";
-            } else if (readingLevel === 'advanced') {
-                levelInstruction = "CRITICAL: Write at an ADVANCED reading level. Use sophisticated, high-level Hebrew vocabulary, richer descriptions, idiomatic expressions, and complex sentence structures.";
-            }
-
-            let topicInstruction = currentTheme ? `The theme is: ${currentTheme}.` : "";
-            let wordsInstruction = currentTargets ? `CRITICAL: You MUST make every attempt to prioritize and prominently use these specific target words throughout the course of the story: ${currentTargets}.` : "";
-            const prompt = `Write a ${length} story in strict, everyday Modern Israeli Hebrew.
-            Do NOT use Biblical Hebrew phrasing, archaic syntax, or vav-ha'hipuch.
-            ${levelInstruction}
-            ${topicInstruction} 
-            ${wordsInstruction}
-            CRITICAL INSTRUCTION: Return ONLY plain Hebrew text.
-            Do NOT include any nikkud (vowels). Do NOT include any English.
-            Do NOT wrap target words in asterisks (*) or any markdown formatting. Return plain text only.
-            Provide a descriptive Title for the story on the very first line.
-            Ensure perfect grammar.
-            Return ONLY the Hebrew text, nothing else.`;
-
-            try {
-                const response = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
-                });
-
-                const data = await response.json();
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-
-                currentRawStory = data.text.replace(/\*/g, '');
-                renderStoryToScreen();
-
-            } catch (error) {
-                console.error(error);
-                outputDiv.innerHTML = `<span style="color:red; font-weight:bold;">שגיאה (Error):</span> ${error.message}`;
-            } finally {
-                btn.innerText = "Generate";
-                btn.disabled = false;
-            }
-        });
-
-        // ==========================================
-        //  UI TRIGGERS - CLEAR NUMBERS ON ANY CHANGE
-        // ==========================================
-        function clearLineNumbers() {
-            document.querySelectorAll('.line-number').forEach(e => e.remove());
-        }
-
-        document.getElementById('target-input-a').addEventListener('input', () => { renderStoryToScreen(); });
-        document.getElementById('target-input-b').addEventListener('input', () => { renderStoryToScreen(); });
-        document.getElementById('bold-words').addEventListener('change', () => { renderStoryToScreen(); });
-        document.getElementById('highlight-words').addEventListener('change', () => { renderStoryToScreen(); });
-        document.getElementById('target-color').addEventListener('input', () => { renderStoryToScreen(); });
-        
-        document.getElementById('use-hashem').addEventListener('change', () => { renderStoryToScreen(); });
-        document.getElementById('use-elokim').addEventListener('change', () => { renderStoryToScreen(); });
-
-        document.getElementById('font-size').addEventListener('input', (e) => {
-            document.getElementById('font-size-val').innerText = e.target.value + 'px';
-            applyStyles();
-        });
-        
-        document.getElementById('kerning').addEventListener('input', (e) => {
-            document.getElementById('kerning-val').innerText = e.target.value + 'px';
-            applyStyles();
-        });
-        
-        document.getElementById('margin-choice').addEventListener('change', function() {
-            applyStyles();
-            const lnLabel = document.querySelector('.print-checkbox-label');
-            if (this.value.includes('alternate')) {
-                lnLabel.style.opacity = '0.4';
-                lnLabel.style.cursor = 'not-allowed';
-            } else {
-                lnLabel.style.opacity = '1';
-                lnLabel.style.cursor = 'pointer';
-            }
-        });
-        document.getElementById('font-choice').addEventListener('change', applyStyles);
-
-        document.querySelectorAll('.vowel-grid input').forEach(input => {
-            input.addEventListener('input', () => { syncUIColors(); renderStoryToScreen(); });
-            input.addEventListener('change', () => { syncUIColors(); renderStoryToScreen(); });
-        });
-
-        // ==========================================
-        //    THE INTERLOCK: LINE NUMBER CHECKBOX
-        // ==========================================
-        function toggleLayoutLock(isLocked) {
-            const layoutControls = document.querySelectorAll('.layout-control');
-            layoutControls.forEach(control => {
-                control.disabled = isLocked;
-            });
-        }
-
-        function applyLineNumbers() {
-            clearLineNumbers();
-            const bodyDiv = document.querySelector('.story-body');
-            if (!bodyDiv) return;
-
-            void bodyDiv.offsetHeight;
-            const words = bodyDiv.querySelectorAll('.heb-word');
-            if (words.length === 0) return;
-
-            let baseFontSize = parseInt(document.getElementById('font-size').value);
-            let wrapThreshold = baseFontSize * 1.2; 
-            
-            let lineCount = 1;
-            let currentLineAnchor = words[0].offsetTop; 
-
-            function addNumberToWord(wordElement, number) {
-                let numLabel = document.createElement('div');
-                numLabel.className = 'line-number';
-                numLabel.innerText = number;
-                
-                numLabel.style.position = 'absolute';
-                numLabel.style.right = '-55px'; 
-                numLabel.style.top = '50%';
-                numLabel.style.transform = 'translateY(-50%)'; 
-                numLabel.style.fontSize = '14pt'; 
-                numLabel.style.color = '#888';
-                numLabel.style.fontFamily = 'Arial, sans-serif';
-                numLabel.style.direction = 'ltr';
-                numLabel.style.width = '40px';
-                numLabel.style.textAlign = 'center';
-                
-                wordElement.appendChild(numLabel);
-            }
-
-            addNumberToWord(words[0], lineCount++);
-
-            for (let i = 1; i < words.length; i++) {
-                let top = words[i].offsetTop;
-                if (top > currentLineAnchor + wrapThreshold) {
-                    currentLineAnchor = top; 
-                    addNumberToWord(words[i], lineCount++);
-                }
-            }
-        }
-
-
-// THE INTERCEPTOR: Blocks both mouse clicks and Spacebar toggles
-        document.getElementById('toggle-line-numbers').addEventListener('click', function(e) {
-            const marginChoice = document.getElementById('margin-choice').value;
-            if (marginChoice.includes('alternate')) {
-                e.preventDefault(); 
-                alert("Line numbering is only available with single-sided printing");
-            }
-        });
-
-
-        document.getElementById('toggle-line-numbers').addEventListener('change', function() {
-            const isChecked = this.checked;
-            
-            if (isChecked) {
-                toggleLayoutLock(true);
-                setTimeout(applyLineNumbers, 50); 
-            } else {
-                toggleLayoutLock(false);
-                clearLineNumbers();
-            }
-        });
-
-        function renderStoryToScreen() {
-            if (!currentRawStory) return;
-            const outputDiv = document.getElementById('story-output');
-            const isPathwayA = document.getElementById('pathway-a-radio').checked;
-            const targetInput = isPathwayA ? document.getElementById('target-input-a').value : document.getElementById('target-input-b').value;
-            
-            outputDiv.innerHTML = formatStory(currentRawStory, targetInput);
-            applyStyles();
-            if (document.getElementById('toggle-line-numbers').checked) {
-                applyLineNumbers();
-            }
-        }
-
-        function processTextChunk(textSegment, targetWords, isTitle) {
-            let isBoldCheckbox = document.getElementById('bold-words').checked;
-            let isHighlight = document.getElementById('highlight-words').checked;
-            let targetColorHex = document.getElementById('target-color').value;
-            let fontChoice = document.getElementById('font-choice').value;
-            let isDyslexicFont = fontChoice.includes('Dyslexic-Kriah');
-            const getCol = (id) => document.getElementById(`en-${id}`).checked ? document.getElementById(`col-${id}`).value : '#000000';
-
-            const tokens = textSegment.split(/([\s\n]+)/);
-            let outputHtml = "";
-            tokens.forEach(token => {
-                if (/^[\s\n]+$/.test(token)) {
-                    outputHtml += token.replace(/\n/g, '<br>'); 
-                    return;
-                }
-
-                let pendingYudColor = null;
-                let previousHadShva = false;
-                let lastHebrewIndex = -1; 
-
-                let tokenWithoutNikkud = token.replace(/[\u0591-\u05C7]/g, '');
-                let cleanToken = tokenWithoutNikkud.replace(/[.,?!:;"'()\-]/g, '');
-                
-                let isTarget = targetWords.some(target => {
-                    return cleanToken === target || cleanToken === 'ה' + target || cleanToken === 'ב' + target;
-                });
-
-                let processedWord = token.replace(/([\u05D0-\u05EA])([\u0591-\u05C7]*)/g, (match, letter, marks, offset, fullText) => {
-                    let isFirstInWordSegment = false;
-                    
-                    if (lastHebrewIndex === -1) {
-                        isFirstInWordSegment = true; 
-                    } else {
-                        let textBetween = fullText.substring(lastHebrewIndex + 1, offset);
-                        if (/[-־]/.test(textBetween)) {
-                            isFirstInWordSegment = true;
-                        }
-                    }
-
-                    if (isFirstInWordSegment) { previousHadShva = false; }
-
-                    let newMarks = marks;
-                    if (/^[אגדזחטילמנסעצקרתש]$/.test(letter)) {
-                        newMarks = newMarks.replace(/\u05BC/g, '');
-                    }
-
-                    let hasDagesh = newMarks.includes('\u05BC');
-                    let currentOutline = '';
-
-                    if (letter === 'י' && pendingYudColor) {
-                        currentOutline = `text-shadow: -1px -1px 0 ${pendingYudColor}, 1px -1px 0 ${pendingYudColor}, -1px 1px 0 ${pendingYudColor}, 1px 1px 0 ${pendingYudColor};`;
-                        pendingYudColor = null; 
-                    } else {
-                        pendingYudColor = null;
-                    }
-
-                    let vowelRegex = /[\u05B0-\u05BB\u05C7]/;
-                    let vowelMatch = newMarks.match(vowelRegex);
-                    let vowel = '';
-                    let color = '#000000';
-                    let isShuruk = false; 
-                    let currentHasShva = false;
-                    
-                    if (vowelMatch) {
-                        vowel = vowelMatch[0];
-                        if (vowel === '\u05B8') color = getCol('kamatz');
-                        else if (vowel === '\u05B3') color = getCol('kamatz');
-                        else if (vowel === '\u05C7') color = getCol('kamatz-katan'); 
-                        else if (vowel === '\u05B7') color = getCol('patach');
-                        else if (vowel === '\u05B2') color = getCol('patach'); 
-                        else if (vowel === '\u05B6') color = getCol('segol');
-                        else if (vowel === '\u05B1') color = getCol('segol'); 
-                        else if (vowel === '\u05B4') color = getCol('chirik');
-                        else if (vowel === '\u05B9') color = getCol('cholam');
-                        else if (vowel === '\u05BB') color = getCol('kubutz');
-                        else if (vowel === '\u05B5') {
-                            let nextChar = fullText[offset + match.length];
-                            if (nextChar === 'י') {
-                                color = getCol('tzere-maleh');
-                                if (document.getElementById('en-tzere-maleh').checked) { pendingYudColor = color; }
-                            } else {
-                                color = getCol('tzere-chaser');
-                            }
-                        }
-                        else if (vowel === '\u05B0') {
-                            currentHasShva = true;
-                            if (isFirstInWordSegment) color = getCol('shva-na');
-                            else if (previousHadShva) color = getCol('shva-na'); 
-                            else color = getCol('shva-nach');
-                        }
-                    } else if (letter === 'ו' && hasDagesh) {
-                        vowel = '\u05BC';
-                        color = getCol('shuruk');
-                        isShuruk = true;
-                        if (document.getElementById('en-shuruk').checked) {
-                            currentOutline = `text-shadow: 0px -1px 0 ${color}, 1px -1px 0 ${color}, 1px 0px 0 ${color}, 1px 1px 0 ${color}, 0px 1px 0 ${color};`;
-                        }
-                    }
-
-                    lastHebrewIndex = offset;
-                    previousHadShva = currentHasShva;
-
-                    let structuralDots = (newMarks.match(/[\u05BC\u05C1\u05C2]/g) || []).join('');
-                    if (isShuruk) { structuralDots = structuralDots.replace('\u05BC', ''); }
-
-                    let letterWeight = 'normal';
-                    let extraStyle = '';
-                    
-                    if (isTarget) {
-                        if (isDyslexicFont) {
-                            extraStyle = `font-size: calc(1em + 15px);`;
-                            letterWeight = 'normal'; 
-                        } else if (isBoldCheckbox) {
-                            letterWeight = 'bold';
-                        }
-                    }
-
-                    let defaultTopColor = isTitle ? 'white' : 'black';
-                    let topColor = (isTarget && isHighlight) ? targetColorHex : defaultTopColor;
-                    let topSpanStyle = `color: ${topColor};`;
-                    if (currentOutline) { topSpanStyle += ` ${currentOutline}`; }
-
-                    let bottomContent = `${letter}${newMarks}`;
-                    let customVowelTuck = '';
-                   let applyTuck = (isDyslexicFont && letter === 'ך' && (vowel === '\u05B8' || vowel === '\u05B7' || vowel === '\u05C7' || vowel === '\u05B0'));
-
-                    if (applyTuck) {
-                        bottomContent = bottomContent.replace(vowel, '');
-                        let tuckColor = (color && color !== '#000000') ? color : '#000000';
-                        customVowelTuck = `<span style="position: absolute; margin-right: 0.25em; margin-top: -0.65em; color: ${tuckColor}; z-index: 3; pointer-events: none;">&nbsp;${vowel}</span>`;
-                    }
-
-                    if (!applyTuck && (!color || color === '#000000')) {
-                        return `<span class="heb-cluster" style="font-weight: ${letterWeight}; ${extraStyle}"><span class="layer-top" style="${topSpanStyle}">${letter}${newMarks}</span></span>`;
-                    }
-                    
-                    return `<span class="heb-cluster" style="position: relative; font-weight: ${letterWeight}; ${extraStyle}">
-                                <span class="layer-bottom" style="color: ${color || 'transparent'};">${bottomContent}</span>
-                                <span class="layer-top" style="${topSpanStyle}">${letter}${structuralDots}</span>
-                                ${customVowelTuck}
-                            </span>`;
-                });
-
-                outputHtml += `<span class="heb-word">${processedWord}</span>`;
-            });
-            return outputHtml;
-        }
-
-        function formatStory(text, targetInput) {
-            const targetWords = targetInput.split(/[\n\t,]+/)
-                .map(w => w.replace(/[\u0591-\u05C7]/g, '').trim())
-                .filter(w => w.length > 0);
-                
-            if (document.getElementById('use-hashem').checked) {
-                text = text.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, "ה׳");
-            }
-            if (document.getElementById('use-elokim').checked) {
-                text = text.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*?(?:ו|[\u05B9\u05BA])[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, "$1ק$2");
-            }
-// Fix Daniel to use Modern Nikkud (Tzere under Aleph instead of Yud)
-            text = text.replace(/(ד[\u0591-\u05C7]*)נ[\u0591-\u05C7]*י[\u0591-\u05C7]*א[\u0591-\u05C7]*ל([\u0591-\u05C7]*)/g, "$1נִיאֵל$2");
-
-            let lines = text.split('\n');
-            let titleRaw = lines.length > 0 ? lines[0] : "סיפור";
-            // The .trim() here forces it to delete all blank lines at the top of the body
-            let bodyRaw = lines.length > 1 ? lines.slice(1).join('\n').trim() : "";
-
-            let finalOutput = "";
-            // We also reduced margin-bottom from 25px to 10px to tighten it up visually
-            finalOutput += `<div class="story-title" style="background-color: black; padding: 15px; margin-bottom: 10px; border-radius: 8px; font-size: calc(1em + 15px); text-align: center; color: white;">`;
-            finalOutput += processTextChunk(titleRaw, targetWords, true);
-            finalOutput += `</div>`;
-
-            finalOutput += `<div class="story-body" dir="rtl">`;
-            finalOutput += processTextChunk(bodyRaw, targetWords, false);
-            finalOutput += `</div>`;
-
-            finalOutput += `<div class="penina-footer">Generated with Penina 3.1<br><em>&copy; 2026 David Israel</em></div>`;
-
-            return finalOutput;
-        }
-
-        function applyStyles() {
-            const outputDiv = document.getElementById('story-output');
-            const font = document.getElementById('font-choice').value;
-            const margin = document.getElementById('margin-choice').value;
-            const fontSize = document.getElementById('font-size').value;
-            const kerning = document.getElementById('kerning').value;
-
-            outputDiv.style.fontFamily = font;
-            outputDiv.style.fontSize = fontSize + 'px';
-            outputDiv.style.letterSpacing = kerning + 'px';
-            
-            if (margin === 'right' || margin === 'alternate-right' || margin === 'alternate-left') {
-                outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';
-            } else if (margin === 'left') {
-                outputDiv.style.padding = '0.75in 0.75in 0.75in 1.25in';
-            } else {
-                outputDiv.style.padding = '0.75in';
-            }
-
-            let styleTag = document.getElementById('dynamic-print-style');
-            if (!styleTag) {
-                styleTag = document.createElement('style');
-                styleTag.id = 'dynamic-print-style';
-                document.head.appendChild(styleTag);
-            }
-
-            let pageNumCSS = '@bottom-center { content: counter(page); font-size: 10pt; letter-spacing: normal; }';
-
-            let css = `@media print { @page { size: letter; margin: 0.75in; ${pageNumCSS} } }`;
-            if (margin === 'right') css = `@media print { @page { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; ${pageNumCSS} } }`;
-            if (margin === 'left') css = `@media print { @page { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; ${pageNumCSS} } }`;
-            if (margin === 'alternate-right') css = `@media print { @page:right { margin: 0.75in 1.25in 0.75in 0.75in; ${pageNumCSS} } @page:left { margin: 0.75in 0.75in 0.75in 1.25in; ${pageNumCSS} } }`;
-            if (margin === 'alternate-left') css = `@media print { @page:left { margin: 0.75in 1.25in 0.75in 0.75in; ${pageNumCSS} } @page:right { margin: 0.75in 0.75in 0.75in 1.25in; ${pageNumCSS} } }`;
-            
-            styleTag.innerHTML = css;
-        }
-    </script>
+    <footer>
+        &copy; 2026 David Israel
+    </footer>
 
 </body>
 </html>

@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
 
         let plainHebrew = "";
 
-        // STEP 1: Use Supplied Text or Ask Gemini
+        // STEP 1: Content Generation
         if (suppliedText) {
             plainHebrew = suppliedText;
         } else {
@@ -29,15 +29,16 @@ module.exports = async function handler(req, res) {
 
             const geminiData = await geminiResponse.json();
         
-        if (!geminiResponse.ok || !geminiData.candidates || !geminiData.candidates[0].content) {
-            const errorReason = geminiData.candidates?.[0]?.finishReason || "API returned no content or was blocked.";
-            return res.status(500).json({ error: `Gemini Error: ${errorReason}` });
+            // AUDIT FIX: Safety check for blocked content
+            if (!geminiResponse.ok || !geminiData.candidates || !geminiData.candidates[0].content) {
+                const errorReason = geminiData.candidates?.[0]?.finishReason || "API returned no content or was blocked.";
+                return res.status(500).json({ error: `Gemini Error: ${errorReason}` });
+            }
+
+            plainHebrew = geminiData.candidates[0].content.parts[0].text;
         }
 
-        plainHebrew = geminiData.candidates[0].content.parts[0].text;
-        }
-
-        // STEP 2: Send to Dicta for Nikkud
+        // STEP 2: Vocalization (Dicta API)
         const dictaPayload = {
             task: "nakdan",
             useTokenization: true,
@@ -50,30 +51,25 @@ module.exports = async function handler(req, res) {
             apiKey: DICTA_KEY 
         };
 
-        const dictaResponse = await fetch('https://nikud.dicta.org.il/api/nakdan/addnikud', {
+        // AUDIT FIX: Corrected URL and text/plain header
+        const dictaResponse = await fetch('https://nakdan-5-3.loadbalancer.dicta.org.il/addnikud', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
             body: JSON.stringify(dictaPayload)
         });
 
        if (!dictaResponse.ok) {
             const errorText = await dictaResponse.text();
-            console.error(`\n=== DICTA REJECTION DETAILS ===`);
-            console.error(`Status: ${dictaResponse.status}`);
-            console.error(`Error Body: ${errorText}`);
-            console.error(`Payload Sent: ${plainHebrew}`);
-            console.error(`===============================\n`);
-            
+            console.error(`Status: ${dictaResponse.status}, Error: ${errorText}`);
             return res.status(500).json({ 
-                error: `Dicta rejected the request (Status ${dictaResponse.status}). Check your server terminal.` 
+                error: `Dicta rejected the request (Status ${dictaResponse.status}).` 
             });
         }
 
         const dictaData = await dictaResponse.json();
         
-        // STEP 3: Reconstruct the final text
+        // STEP 3: Reconstruction
         let vowelizedText = "";
-        
         if (dictaData && dictaData.data && Array.isArray(dictaData.data)) {
             dictaData.data.forEach(token => {
                 if (token.sep) {
@@ -81,18 +77,14 @@ module.exports = async function handler(req, res) {
                 } else if (token.nakdan && token.nakdan.options && token.nakdan.options.length > 0) {
                     let wordWithVowels = token.nakdan.options[0].w.replace(/\|/g, '');
                     vowelizedText += wordWithVowels;
-                } else if (token.nakdan && Array.isArray(token.nakdan) && token.nakdan.length > 0) {
-                    let wordWithVowels = token.nakdan[0].w.replace(/\|/g, '');
-                    vowelizedText += wordWithVowels;
                 } else {
                     vowelizedText += token.str || "";
                 }
             });
         } else {
-             return res.status(500).json({ error: 'Dicta API returned an unrecognized data format.' });
+             return res.status(500).json({ error: 'Dicta API returned an unrecognized format.' });
         }
 
-        // STEP 4: Send the perfect text back to the browser
         res.status(200).json({ text: vowelizedText });
 
     } catch (error) {

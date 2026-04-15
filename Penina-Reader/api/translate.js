@@ -6,7 +6,7 @@ module.exports = async function handler(req, res) {
         const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
         if (!GEMINI_KEY) {
-            return res.status(500).json({ error: 'Missing Gemini API Key for translation.' });
+            return res.status(500).json({ error: 'Missing Gemini API Key.' });
         }
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {
@@ -18,8 +18,9 @@ module.exports = async function handler(req, res) {
             })
         });
 
-    const data = await response.json();
+        const data = await response.json();
         
+        // AUDIT FIX: Handle safety blocks or API errors
         if (!response.ok || !data.candidates || !data.candidates[0].content) {
             const errorReason = data.candidates?.[0]?.finishReason || "API returned no content or was blocked.";
             return res.status(500).json({ error: `Gemini Translation Error: ${errorReason}` });

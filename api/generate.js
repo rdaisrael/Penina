@@ -49,14 +49,23 @@ module.exports = async function handler(req, res) {
             apiKey: DICTA_KEY 
         };
 
-        const dictaResponse = await fetch('https://nakdan-5-3.loadbalancer.dicta.org.il/addnikud', {
+        const dictaResponse = await fetch('https://nikud.dicta.org.il/api/nakdan/addnikud', {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dictaPayload)
         });
 
-        if (!dictaResponse.ok) {
-            return res.status(500).json({ error: 'Dicta API rejected the request.' });
+       if (!dictaResponse.ok) {
+            const errorText = await dictaResponse.text();
+            console.error(`\n=== DICTA REJECTION DETAILS ===`);
+            console.error(`Status: ${dictaResponse.status}`);
+            console.error(`Error Body: ${errorText}`);
+            console.error(`Payload Sent: ${plainHebrew}`);
+            console.error(`===============================\n`);
+            
+            return res.status(500).json({ 
+                error: `Dicta rejected the request (Status ${dictaResponse.status}). Check your server terminal.` 
+            });
         }
 
         const dictaData = await dictaResponse.json();

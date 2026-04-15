@@ -1,8 +1,10 @@
 Notes for future versions:
 
+Move logo/version number down
 Create about/how to/ contact / research
 Have button say "generating" when generating from supplied text
+Anything with אלה should have option to be אלק
+Kametz Katan generation especially in supplied text
+Numbering lines will warn only available with single sided printing
 Option for Ashkenaz pronunciation
 How to host / buy name
-put cirle around favicon and make it just white with Pey
-Why show page before generated??

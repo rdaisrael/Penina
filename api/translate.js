@@ -18,12 +18,9 @@ module.exports = async function handler(req, res) {
             })
         });
 
-    const data = await response.json();
+        const data = await response.json();
         
-        if (!response.ok || !data.candidates || !data.candidates[0].content) {
-            const errorReason = data.candidates?.[0]?.finishReason || "API returned no content or was blocked.";
-            return res.status(500).json({ error: `Gemini Translation Error: ${errorReason}` });
-        }
+        if (!response.ok) return res.status(500).json({ error: 'Gemini Translation Error' });
 
         const translatedText = data.candidates[0].content.parts[0].text.trim();
         res.status(200).json({ text: translatedText });

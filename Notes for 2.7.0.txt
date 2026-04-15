@@ -1,0 +1,25 @@
+Notes on 2.7.0
+
+Line numbering corrected
+Supplied text added
+
+Issues:
+Box for "Other" length has disappeared
+Numbers still off, showing up in middle of words
+Need to be able to put in some symbols that are not "Hebrew" like > < *
+
+
+Future development:
+
+Enable changing Shem hashem to ה׳ and אלקים
+
+Credits: gemini, dicta, font, color diacritics
+
+Rearrange the UI to be more intuitive.
+
+Change names of buttons
+
+Ashkenaz pronunciation - Tzere, Kametz
+
+Export to Google
+

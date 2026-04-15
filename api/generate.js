@@ -28,12 +28,13 @@ module.exports = async function handler(req, res) {
             });
 
             const geminiData = await geminiResponse.json();
-            
-            if (!geminiResponse.ok || !geminiData.candidates) {
-                return res.status(500).json({ error: 'Failed to generate story text from Gemini.' });
-            }
+        
+        if (!geminiResponse.ok || !geminiData.candidates || !geminiData.candidates[0].content) {
+            const errorReason = geminiData.candidates?.[0]?.finishReason || "API returned no content or was blocked.";
+            return res.status(500).json({ error: `Gemini Error: ${errorReason}` });
+        }
 
-            plainHebrew = geminiData.candidates[0].content.parts[0].text;
+        plainHebrew = geminiData.candidates[0].content.parts[0].text;
         }
 
         // STEP 2: Send to Dicta for Nikkud

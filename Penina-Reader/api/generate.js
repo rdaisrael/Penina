@@ -29,7 +29,6 @@ module.exports = async function handler(req, res) {
 
             const geminiData = await geminiResponse.json();
         
-            // AUDIT FIX: Safety check for blocked content
             if (!geminiResponse.ok || !geminiData.candidates || !geminiData.candidates[0].content) {
                 const errorReason = geminiData.candidates?.[0]?.finishReason || "API returned no content or was blocked.";
                 return res.status(500).json({ error: `Gemini Error: ${errorReason}` });
@@ -51,7 +50,7 @@ module.exports = async function handler(req, res) {
             apiKey: DICTA_KEY 
         };
 
-        // AUDIT FIX: Corrected URL and text/plain header
+        // FIXED: Corrected URL and specific text/plain header required by Dicta
         const dictaResponse = await fetch('https://nakdan-5-3.loadbalancer.dicta.org.il/addnikud', {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=UTF-8' },

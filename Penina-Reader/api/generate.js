@@ -51,7 +51,7 @@ module.exports = async function handler(req, res) {
 
         const dictaResponse = await fetch('https://nakdan-5-3.loadbalancer.dicta.org.il/addnikud', {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dictaPayload)
         });
 

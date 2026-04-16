@@ -272,6 +272,15 @@
                     <label for="target-input-b">c. מילות מטרה (Target Words to Highlight - Optional):</label>
                     <textarea id="target-input-b" class="hebrew-input" rows="2" placeholder="Type words separated by commas/newlines (English or Hebrew)..."></textarea>
                 </div>
+                <div class="form-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px dashed #ccc;">
+                    <label for="dicta-genre" style="font-size: 14px; color: #666; font-style: italic;">d. Choose guidance for Nikkud:</label>
+                    <select id="dicta-genre" class="layout-control" style="width: 100%; max-width: 300px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background-color: white;">
+                        <option value="modern" selected>Modern</option>
+                        <option value="rabbinic">Rabbinic</option>
+                        <option value="poetry">Poetic</option>
+                        <option value="biblical">Biblical</option>
+                    </select>
+                </div>
             </div>
 
             <div class="button-group" style="margin-bottom: 35px; margin-top: 20px;">
@@ -328,14 +337,7 @@
                 <details class="color-key-details">
                     <summary class="color-key-summary">🎨 Nikkud & Color Settings (Click to Open)</summary>
                     
-                    <div style="margin-top: 10px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #ddd;">
-                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #666; font-style: italic;">Choose guidance for Nikkud</p>
-                        <select id="dicta-genre" class="layout-control" style="width: 100%; max-width: 300px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background-color: white;">
-                            <option value="modern" selected>Modern (Standard Israeli)</option>
-                            <option value="rabbinic">Biblical / Rabbinic</option>
-                            <option value="poetry">Poetry (Piyut)</option>
-                        </select>
-                    </div>
+                   
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 10px;">
                         <p style="margin: 0; font-size: 14px; color: #666; font-style: italic;">Check a box to apply color. Uncheck to leave that vowel the default black color.</p>

@@ -4,8 +4,12 @@ module.exports = async function (req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
     
     const { prompt, suppliedText, dictaGenre } = req.body;
+    
+    // Intercept "biblical" and route it to Dicta's "poetry" model 
+    const targetGenre = dictaGenre === "biblical" ? "poetry" : dictaGenre;
+    
     const validGenres = ["modern", "rabbinic", "poetry"];
-    const genreToUse = validGenres.includes(dictaGenre) ? dictaGenre : "modern";
+    const genreToUse = validGenres.includes(targetGenre) ? targetGenre : "modern";
 
     try {
         let textToVowelize = suppliedText;

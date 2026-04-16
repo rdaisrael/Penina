@@ -6,8 +6,23 @@ module.exports = async function (req, res) {
     const { prompt, suppliedText } = req.body;
 
     try {
-        // --- PATHWAY: Vocalization via Dicta ---
-        if (suppliedText) {
+        let textToVowelize = suppliedText;
+
+        // --- 1. Generation via Gemini (Pathway A) ---
+        if (prompt) {
+            const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+            if (!googleKey) return res.status(500).json({ error: "Missing GOOGLE_GENERATIVE_AI_API_KEY." });
+
+            const genAI = new GoogleGenerativeAI(googleKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const result = await model.generateContent(prompt);
+            
+            // Assign the AI output to be vowelized
+            textToVowelize = result.response.text();
+        }
+
+        // --- 2. Vocalization via Dicta (Pathways A & B) ---
+        if (textToVowelize) {
             const dictaKey = process.env.DICTA_API_KEY;
             
             if (!dictaKey) {
@@ -21,7 +36,7 @@ module.exports = async function (req, res) {
                     task: "nakdan",
                     apiKey: dictaKey,
                     genre: "modern",
-                    data: suppliedText.trim(),
+                    data: textToVowelize.trim(),
                     useTokenization: true,
                     matchpartial: true
                 })
@@ -45,17 +60,6 @@ module.exports = async function (req, res) {
                 }
             }
             return res.status(200).json({ text: finalHebrew });
-        }
-
-        // --- PATHWAY: Generation via Gemini ---
-        if (prompt) {
-            const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-            if (!googleKey) return res.status(500).json({ error: "Missing GOOGLE_GENERATIVE_AI_API_KEY." });
-
-            const genAI = new GoogleGenerativeAI(googleKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-            const result = await model.generateContent(prompt);
-            return res.status(200).json({ text: result.response.text() });
         }
 
         return res.status(400).json({ error: "Invalid Request: No prompt or suppliedText provided." });

@@ -265,8 +265,7 @@
                 </div>
                 
                 <div class="form-group" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #e9ecef; margin-bottom: 20px;">
-                    <label for="dicta-genre" style="margin-bottom: 5px; color: #333;">b. Choose guidance for Nikkud:</label>
-                    <p style="margin: 0 0 10px 0; font-size: 13px; color: #666; font-style: italic;">Select the era/style for Dicta to apply the correct vowels.</p>
+                    <label for="dicta-genre" style="margin-bottom: 10px; color: #333; display: block;">b. Choose guidance for Nikkud <img src="dicta-logo.png" alt="Dicta Logo" style="height: 1.2em; vertical-align: middle; margin-left: 5px;">:</label>
                     <select id="dicta-genre" class="layout-control" style="width: 100%; max-width: 300px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background-color: white;">
                         <option value="modern" selected>Modern</option>
                         <option value="rabbinic">Rabbinic</option>
@@ -299,7 +298,7 @@
                         <input type="color" id="target-color" value="#1e90ff" style="border:none; width:30px; height:25px; cursor:pointer; padding:0; margin-left:5px;">
                     </label>
                     <label><input type="checkbox" id="use-hashem" checked> Use ה׳</label>
-                    <label><input type="checkbox" id="use-elokim" checked> Use אלקינו / אלקים</label>
+                    <label><input type="checkbox" id="use-elokim" checked> Use אֱלֹקֵינוּ / אֱלֹקִים</label>
                 </div>
 
                 <div class="slider-group">
@@ -413,7 +412,7 @@
         </div>
     </div> 
     
-    <div class="paper-viewport">
+    <div class="paper-viewport" style="display: none;">
         <div id="story-output" dir="rtl"></div>
     </div>
 
@@ -579,6 +578,7 @@
                 }
 
                 btn.innerText = "Applying Nikkud via Dicta... (Please Wait)";
+                document.querySelector('.paper-viewport').style.display = 'block';
                 outputDiv.innerHTML = "מנקד את הטקסט... (Vowelizing...)";
                 
                 try {
@@ -641,6 +641,7 @@
             }
 
             btn.innerText = "Writing Story... (Wait)";
+            document.querySelector('.paper-viewport').style.display = 'block';
             outputDiv.innerHTML = "מכין את הסיפור שלך... (Generating...)";
 
             let levelInstruction = "";

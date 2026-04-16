@@ -3,12 +3,12 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 module.exports = async function (req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
     
-    const { prompt, suppliedText } = req.body;
+    const { prompt, suppliedText, dictaGenre } = req.body;
+    const genreToUse = dictaGenre || "modern";
 
     try {
         let textToVowelize = suppliedText;
 
-        // --- 1. Generation via Gemini (Pathway A) ---
         if (prompt) {
             const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
             if (!googleKey) return res.status(500).json({ error: "Missing GOOGLE_GENERATIVE_AI_API_KEY." });
@@ -16,18 +16,12 @@ module.exports = async function (req, res) {
             const genAI = new GoogleGenerativeAI(googleKey);
             const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
             const result = await model.generateContent(prompt);
-            
-            // Assign the AI output to be vowelized
             textToVowelize = result.response.text();
         }
 
-        // --- 2. Vocalization via Dicta (Pathways A & B) ---
         if (textToVowelize) {
             const dictaKey = process.env.DICTA_API_KEY;
-            
-            if (!dictaKey) {
-                return res.status(500).json({ error: "Missing DICTA_API_KEY in Vercel Environment Variables." });
-            }
+            if (!dictaKey) return res.status(500).json({ error: "Missing DICTA_API_KEY." });
 
             const dictaRes = await fetch("https://nakdan-5-3.loadbalancer.dicta.org.il/addnikud", {
                 method: "POST",
@@ -35,7 +29,7 @@ module.exports = async function (req, res) {
                 body: JSON.stringify({
                     task: "nakdan",
                     apiKey: dictaKey,
-                    genre: "modern",
+                    genre: genreToUse,
                     data: textToVowelize.trim(),
                     useTokenization: true,
                     matchpartial: true

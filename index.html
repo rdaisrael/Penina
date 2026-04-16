@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penina-Hebrew Suite</title>
+    <style>
+        :root {
+            --primary-bg: #fcfaf5;
+            --card-bg: #ffffff;
+            --text-dark: #3a332a;
+            --text-muted: #6b6051;
+            --gold-border: #d4c29e;
+            --silver-border: #c0c0c0;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Georgia', serif;
+            background: radial-gradient(circle at center, #ffffff 0%, var(--primary-bg) 50%, #f0e9d8 100%);
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* SVG Data URI for faint scattered Hebrew letters background */
+        .bg-pattern {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='20' y='50' font-size='40' font-family='serif' fill='%238b7355'%3Eא%3C/text%3E%3Ctext x='150' y='80' font-size='60' font-family='serif' fill='%238b7355'%3Eפ%3C/text%3E%3Ctext x='250' y='40' font-size='35' font-family='serif' fill='%238b7355'%3Eג%3C/text%3E%3Ctext x='50' y='180' font-size='50' font-family='serif' fill='%238b7355'%3Eש%3C/text%3E%3Ctext x='200' y='220' font-size='45' font-family='serif' fill='%238b7355'%3Eל%3C/text%3E%3Ctext x='100' y='280' font-size='30' font-family='serif' fill='%238b7355'%3Eמ%3C/text%3E%3C/svg%3E");
+            background-repeat: repeat;
+        }
+
+        header {
+            text-align: center;
+            margin-top: 60px;
+            margin-bottom: 80px;
+            padding: 0 20px;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-style: italic;
+            font-weight: normal;
+            margin: 0;
+            color: #2c2822;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            display: inline-block;
+        }
+
+        h1::after {
+            content: '';
+            display: block;
+            width: 60%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #c7a771, transparent);
+            margin: 15px auto 0;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            color: var(--text-muted);
+            font-family: Arial, sans-serif;
+        }
+
+        .cards-container {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(24df,248,242,0.9) 100%);
+            border: 2px solid var(--gold-border);
+            border-radius: 15px;
+            padding: 40px 30px 30px;
+            width: 280px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(5px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card.silver-theme {
+            border-color: var(--silver-border);
+            background: linear-gradient(135deg, #ffffff 0%, #f4f4f4 100%);
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 45px rgba(0,0,0,0.12);
+        }
+
+        /* Adjusting the logo wrappers to zoom into the pearl and crop the black background */
+        .logo-wrapper {
+            width: 130px;
+            height: 130px;
+            position: absolute;
+            top: -65px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo-wrapper img {
+            width: 280%; /* Zoom in to hide the black edges of the original image */
+            height: auto;
+            pointer-events: none;
+        }
+
+        .card h2 {
+            font-size: 1.6rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            color: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            line-height: 1.5;
+            margin-bottom: 30px;
+            font-family: Arial, sans-serif;
+            flex-grow: 1;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 35px;
+            text-decoration: none;
+            color: #333;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 30px;
+            background: linear-gradient(to bottom, #fff, #ebdcb9);
+            border: 2px solid #ceb384;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+            margin-top: auto;
+        }
+
+        .silver-theme .btn {
+            background: linear-gradient(to bottom, #fff, #e0e0e0);
+            border-color: #b0b0b0;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+            filter: brightness(1.05);
+        }
+
+        footer {
+            margin-top: auto;
+            padding: 40px 20px 20px;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 1000px) {
+            .cards-container {
+                gap: 80px 30px;
+                padding-top: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-pattern"></div>
+
+    <header>
+        <h1>Penina-Hebrew Suite</h1>
+        <div class="subtitle">Select a tool to begin your Hebrew journey:</div>
+    </header>
+    
+    <div class="cards-container">
+        
+        <!-- Penina Hebrew Reader (Silver Theme) -->
+        <div class="card silver-theme">
+            <div class="logo-wrapper">
+                <img src="penina-logo.png" alt="Penina Silver Logo">
+            </div>
+            <h2>Penina<br>Hebrew Reader</h2>
+            <p>A classic foundation for text analysis.</p>
+            <a href="http://www.penina-hebrew.org/Penina-Reader" class="btn">Launch</a>
+        </div>
+
+        <!-- PeninaPlus Hebrew Reader (Gold Theme) -->
+        <div class="card">
+            <div class="logo-wrapper">
+                <img src="peninaplus-logo.png" alt="PeninaPlus Gold Logo">
+            </div>
+            <h2>PeninaPlus<br>Hebrew Reader</h2>
+            <p>Intermediate text analysis with additional insights.</p>
+            <a href="http://www.penina-hebrew.org/PeninaPlus-Reader" class="btn">Launch</a>
+        </div>
+
+        <!-- PeninaPlus Vocabulary Builder (Gold Theme) -->
+        <div class="card">
+            <div class="logo-wrapper">
+                <img src="peninaplus-logo.png" alt="PeninaPlus Gold Logo">
+            </div>
+            <h2>PeninaPlus<br>Vocabulary Builder</h2>
+            <p>Master essential words and roots.</p>
+            <a href="http://www.penina-hebrew.org/vocab-builder" class="btn">Launch</a>
+        </div>
+
+    </div>
+
+    <footer>
+        &copy; 2026 David Israel
+    </footer>
+
+</body>
+</html>

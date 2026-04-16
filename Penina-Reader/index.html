@@ -258,20 +258,32 @@
                     </div>
                 </div>
             </div>
-
-            <div id="pathway-b-section" style="display: none;">
+<div id="pathway-b-section" style="display: none;">
                 <div class="form-group">
                     <label for="supplied-text">a. טקסט מוכן (Supplied Text):</label>
                     <textarea id="supplied-text" class="hebrew-input" rows="4" placeholder="Paste pre-written Hebrew text here..."></textarea>
                 </div>
+                
+                <div class="form-group" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #e9ecef; margin-bottom: 20px;">
+                    <label for="dicta-genre" style="margin-bottom: 5px; color: #333;">b. Choose guidance for Nikkud:</label>
+                    <p style="margin: 0 0 10px 0; font-size: 13px; color: #666; font-style: italic;">Select the era/style for Dicta to apply the correct vowels.</p>
+                    <select id="dicta-genre" class="layout-control" style="width: 100%; max-width: 300px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background-color: white;">
+                        <option value="modern" selected>Modern</option>
+                        <option value="rabbinic">Rabbinic</option>
+                        <option value="poetry">Poetic</option>
+                        <option value="biblical">Biblical</option>
+                    </select>
+                </div>
+
                 <div class="form-group">
-                    <label for="supplied-title">b. כותרת (Supply a title for the supplied text):</label>
+                    <label for="supplied-title">c. כותרת (Supply a title for the supplied text):</label>
                     <input type="text" id="supplied-title" class="hebrew-input" placeholder="Enter a title for your story...">
                 </div>
                 <div class="form-group">
-                    <label for="target-input-b">c. מילות מטרה (Target Words to Highlight - Optional):</label>
+                    <label for="target-input-b">d. מילות מטרה (Target Words to Highlight - Optional):</label>
                     <textarea id="target-input-b" class="hebrew-input" rows="2" placeholder="Type words separated by commas/newlines (English or Hebrew)..."></textarea>
                 </div>
+            </div>
                 <div class="form-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px dashed #ccc;">
                     <label for="dicta-genre" style="font-size: 14px; color: #666; font-style: italic;">d. Choose guidance for Nikkud:</label>
                     <select id="dicta-genre" class="layout-control" style="width: 100%; max-width: 300px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background-color: white;">

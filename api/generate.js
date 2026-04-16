@@ -13,8 +13,8 @@ module.exports = async function (req, res) {
             const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
             if (!googleKey) return res.status(500).json({ error: "Missing GOOGLE_GENERATIVE_AI_API_KEY." });
 
-            const genAI = new GoogleGenerativeAI(googleKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const genAI = new GoogleGenerativeAI(googleKey, { apiVersion: 'v1' });
+          const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
             const result = await model.generateContent(prompt);
             textToVowelize = result.response.text();
         }

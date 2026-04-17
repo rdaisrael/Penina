@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coming Soon</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Georgia', serif;
+            background: radial-gradient(circle at center, #ffffff 0%, #fcfaf5 50%, #f0e9d8 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #3a332a;
+        }
+
+        .bg-pattern {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='20' y='50' font-size='40' font-family='serif' fill='%238b7355'%3Eא%3C/text%3E%3Ctext x='150' y='80' font-size='60' font-family='serif' fill='%238b7355'%3Eפ%3C/text%3E%3Ctext x='250' y='40' font-size='35' font-family='serif' fill='%238b7355'%3Eג%3C/text%3E%3Ctext x='50' y='180' font-size='50' font-family='serif' fill='%238b7355'%3Eש%3C/text%3E%3Ctext x='200' y='220' font-size='45' font-family='serif' fill='%238b7355'%3Eל%3C/text%3E%3Ctext x='100' y='280' font-size='30' font-family='serif' fill='%238b7355'%3Eמ%3C/text%3E%3C/svg%3E");
+            background-repeat: repeat;
+        }
+
+        h1 {
+            font-size: 4rem;
+            font-style: italic;
+            font-weight: normal;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+    <h1>Coming Soon</h1>
+</body>
+</html>

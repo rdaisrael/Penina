@@ -123,7 +123,7 @@
         /* --- SLIDERS --- */
         .slider-group { display: flex; gap: 20px; margin-bottom: 20px; }
         .slider-container { flex: 1; }
-        .slider-container input[type="range"] { width: 100%; cursor: pointer; accent-color: #000000; }
+        .slider-container input[type="range"] { width: 100%; cursor: pointer; accent-color: #5a5248; }
 
         /* --- COLOR KEY DROPDOWN STYLES --- */
         details.color-key-details { background: #fdfbf7; border: 1px solid #dcd3c6; border-radius: 5px; padding: 10px 15px; margin-bottom: 20px; }
@@ -571,6 +571,16 @@
 
             if (!isPathwayA && !rawSuppliedText) {
                 alert("Please supply Hebrew text!");
+                return;
+            }
+
+            if (!isPathwayA && !suppliedTitle) {
+                alert("Please supply a title for your text!");
+                return;
+            }
+
+            if (!isPathwayA && !suppliedTitle) {
+                alert("Please supply a title for your text!");
                 return;
             }
 

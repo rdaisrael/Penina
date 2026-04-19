@@ -1,3 +1,6 @@
+<!--index for Penina Plus Reader-->
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -379,7 +382,7 @@
     <div class="control-panel-wrapper">
         
         <div class="header-container">
-            <img src="/penina-logo.png" alt="Penina Logo" class="app-logo">
+            <img src="/PeninaPlus-logo.png" alt="PeninaPlus Logo" class="app-logo">
             <h1 style="margin: 0; margin-top: 15px;">PeninaPlus</h1>
         </div>
         <div class="copyright">&copy; 2026 David Israel</div>
@@ -888,8 +891,8 @@
             const rulePrompt = `
                 CRITICAL INSTRUCTIONS FOR VOCABULARY AND FOOTNOTES:
                 1. Emphasize and prioritize the defined Mastered Vocabulary.
-                2. Assume the student has mastered: pronouns, possessives (שלי, שלו, etc.), prefixes, suffixes, and standard gender/plural modifications of the provided mastered nouns and adjectives.
-                3. For ANY word used in the generated text that is NOT derived from the Mastered Vocabulary (taking into account the allowed verb binyanim and noun/adjective modifications), you MUST add a numbered footnote reference (e.g., [1]) immediately after the word in the text.
+                2. Assume the student has mastered: pronouns, possessives (שלי, שלו, etc.), standard gender/plural modifications, and ALL standard prefixes (e.g., ו, ה, ב, ל, מ, ש) and suffixes attached to ANY of the mastered words (whether they are verbs, nouns, or adjectives).
+                3. For ANY word used in the generated text that is NOT derived from the Mastered Vocabulary (taking into account the allowed verb binyanim, modifications, and prefixes), you MUST add a numbered footnote reference (e.g., [1]) immediately after the word in the text.
                 4. At the very end of your response, you MUST output exactly "---FOOTNOTES---" on a new line, followed by the numbered list of English translations for the unmastered words you flagged.
             `;
 

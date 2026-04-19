@@ -220,6 +220,30 @@
             padding: 0.75in;
         }
 
+        /* --- WORKSHEET STYLES --- */
+        .worksheet-paper {
+            background-color: #fffefb;
+            width: 8.5in !important;   
+            min-height: 11in;
+            margin: 40px auto 0 auto;
+            box-shadow: 0 8px 20px rgba(139, 115, 85, 0.15);
+            box-sizing: border-box;
+            padding: 0.75in;
+            font-family: Arial, sans-serif;
+        }
+
+        .write-in-line {
+            border-bottom: 1px solid #a39b8e; 
+            margin: 28px 0 0 0; 
+            height: 20px;
+            width: 95%;
+            display: block;
+        }
+        
+        .write-in-line:last-of-type {
+            margin-bottom: 25px;
+        }
+
         @media print {
             body { background: white; padding: 0; }
             .bg-pattern { display: none; }
@@ -238,6 +262,16 @@
             .story-body {
                 orphans: 1 !important;
                 widows: 1 !important;
+            }
+
+            /* Force worksheet to print on a separate page */
+            .worksheet-paper {
+                page-break-before: always;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important; 
+                border: none;
+                box-shadow: none;
             }
         }
 
@@ -553,12 +587,28 @@
                 </label>
                 <button id="print-btn" onclick="window.print()" style="background-color: #28a745; margin: 0;">Print Story</button>
             </div>
+
+            <div id="comprehension-section" style="display: none; margin-top: 25px;" class="panel-secondary">
+                <label class="panel-secondary-label" style="font-size: 18px;">📝 Reading Comprehension Worksheet</label>
+                <p style="font-size: 14px; color: #666; margin-top: 0;">Generate a custom worksheet based on the current story. It will print automatically on a separate page.</p>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <select id="questions-lang" style="flex: 1; margin-bottom: 0;">
+                        <option value="Hebrew">Hebrew Questions</option>
+                        <option value="English">English Questions</option>
+                    </select>
+                    <button id="generate-questions-btn" style="background-color: #17a2b8; margin: 0; flex: 1;">Generate Worksheet</button>
+                </div>
+            </div>
             
         </div>
     </div> 
     
     <div class="paper-viewport" style="display: none;">
         <div id="story-output" dir="rtl"></div>
+    </div>
+
+    <div class="paper-viewport" id="questions-viewport" style="display: none;">
+        <div id="questions-output" class="worksheet-paper"></div>
     </div>
 
     <script>
@@ -778,6 +828,7 @@
             currentRawStory = parts[0].replace(/\*/g, '').trim();
             currentFootnotes = parts[1] ? parts[1].trim() : "";
             renderStoryToScreen();
+            document.getElementById('comprehension-section').style.display = 'block';
         }
 
         // ==========================================
@@ -1059,6 +1110,73 @@
             
             styleTag.innerHTML = css;
         }
+
+        // --- READING COMPREHENSION GENERATOR ---
+        document.getElementById('generate-questions-btn').addEventListener('click', async () => {
+            const lang = document.getElementById('questions-lang').value;
+            const btn = document.getElementById('generate-questions-btn');
+            const qOutput = document.getElementById('questions-output');
+            const qViewport = document.getElementById('questions-viewport');
+            
+            if (!currentRawStory) {
+                alert("Please generate a story first!");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "Writing Questions... (Wait)";
+            qViewport.style.display = 'block';
+            qOutput.innerHTML = "<h2 style='text-align: center; color: #666;'>מכין שאלות... (Preparing Worksheet...)</h2>";
+            
+            const prompt = `Based strictly on the following text, create a reading comprehension worksheet in ${lang}.
+            CRITICAL RULES:
+            1. The first line must be the Title of the worksheet.
+            2. You MUST number every question consecutively (1., 2., 3., etc.).
+            3. Do NOT include the answers anywhere on the worksheet.
+            4. Provide physical writing space for the student. Immediately following EVERY question, you must output the exact token [LINE] on a new line to generate a physical line for them to write on.
+            5. For a question requiring a short answer, output:
+            [LINE]
+            [LINE]
+            6. For a question requiring a longer paragraph answer, output:
+            [LINE]
+            [LINE]
+            [LINE]
+            [LINE]
+            7. Format as plain text without markdown symbols (no ** or ##).
+
+            Text:
+            ${currentRawStory}`;
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: prompt,
+                        dictaGenre: 'modern' 
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                
+                let parsedHtml = data.text.replace(/\n*\[LINE\]\n*/g, '<div class="write-in-line"></div>');
+                parsedHtml = parsedHtml.replace(/\n/g, '<br>');
+                
+                qOutput.dir = lang === 'English' ? 'ltr' : 'rtl';
+                qOutput.style.textAlign = lang === 'English' ? 'left' : 'right';
+                qOutput.innerHTML = `<div style="font-size: 14pt; line-height: 1.8; color: #333;">${parsedHtml}</div>`;
+                
+                qViewport.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                console.error(error);
+                qOutput.innerHTML = `<span style="color:red; font-weight:bold;">Error:</span> ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Generate Worksheet";
+            }
+        });
     </script>
 </body>
 </html>

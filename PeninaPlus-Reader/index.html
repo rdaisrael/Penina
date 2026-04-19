@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PeninaPlus</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         /* --- EMBEDDED DYSLEXIC FONT --- */
         @font-face {
@@ -422,7 +423,8 @@
                     <label class="panel-secondary-label">b. Select Mastered Vocabulary Mode:</label>
                     <div style="margin-bottom: 15px;">
                         <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-a" value="complete" checked> Complete Mastered Vocabulary List</label>
-                        <label><input type="radio" name="vocab-mode-a" value="pos"> Mastered Vocabulary by Parts of Speech</label>
+                        <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-a" value="pos"> Mastered Vocabulary by Parts of Speech</label>
+                        <label><input type="radio" name="vocab-mode-a" value="upload"> Upload Spreadsheet</label>
                     </div>
 
                     <div id="vocab-complete-a">
@@ -459,6 +461,21 @@
                             <summary>Adjectives (Male Singular Only)</summary>
                             <textarea id="pos-adj-a" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Adjectives..."></textarea>
                         </details>
+                    </div>
+                    
+                    <div id="vocab-upload-a" style="display: none; background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
+                        <p style="margin-top: 0; font-size: 14px; color: #4a4238;">
+                            <strong>Instructions:</strong> Download the template below. For each binyan (e.g., פעל שלם, פיעל ע"ו), mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save and upload your completed file.
+                        </p>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <a href="/Name_of_Student_-_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                                📥 Download Template
+                            </a>
+                        </div>
+                        
+                        <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Completed Template:</label>
+                        <input type="file" id="vocab-file-a" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                     </div>
                 </div>
 
@@ -509,7 +526,8 @@
                     <label class="panel-secondary-label">d. Select Mastered Vocabulary Mode:</label>
                     <div style="margin-bottom: 15px;">
                         <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-b" value="complete" checked> Complete Mastered Vocabulary List</label>
-                        <label><input type="radio" name="vocab-mode-b" value="pos"> Mastered Vocabulary by Parts of Speech</label>
+                        <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-b" value="pos"> Mastered Vocabulary by Parts of Speech</label>
+                        <label><input type="radio" name="vocab-mode-b" value="upload"> Upload Spreadsheet</label>
                     </div>
 
                     <div id="vocab-complete-b">
@@ -546,6 +564,21 @@
                             <summary>Adjectives (Male Singular Only)</summary>
                             <textarea id="pos-adj-b" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Adjectives..."></textarea>
                         </details>
+                    </div>
+                    
+                    <div id="vocab-upload-b" style="display: none; background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
+                        <p style="margin-top: 0; font-size: 14px; color: #4a4238;">
+                            <strong>Instructions:</strong> Download the template below. For each binyan, mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save and upload your completed file.
+                        </p>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <a href="/Name_of_Student_-_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                                📥 Download Template
+                            </a>
+                        </div>
+                        
+                        <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Completed Template:</label>
+                        <input type="file" id="vocab-file-b" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                     </div>
                 </div>
             </div>
@@ -703,6 +736,45 @@
         
         let currentRawStory = ""; 
         let currentFootnotes = "";
+        let uploadedVocabA = null;
+        let uploadedVocabB = null;
+
+        // --- CSV PARSING LOGIC ---
+        function parseVocabularyCsv(file, targetPathway) {
+            Papa.parse(file, {
+                skipEmptyLines: true,
+                complete: function(results) {
+                    let data = results.data;
+                    let verbs = [], nouns = [], adjs = [], binyanim = [];
+                    const tenses = ["עבר", "הווה", "עתיד", "שם הפועל", "שם פעולה", "ציווי"];
+
+                    for (let i = 1; i < data.length; i++) { // Skip header row
+                        let row = data[i];
+                        let rowLabel = (row[0] || "").trim();
+                        
+                        // Extract Shorashim (Ignore the hardcoded Binyan labels)
+                        if (rowLabel && !verbGroups.includes(rowLabel)) verbs.push(rowLabel);
+
+                        // Extract checked tenses
+                        if (verbGroups.includes(rowLabel)) {
+                            for(let t = 0; t < 6; t++) {
+                                if ((row[t+2] || "").toLowerCase() === 'x') {
+                                    binyanim.push(`${rowLabel}|${tenses[t]}`);
+                                }
+                            }
+                        }
+
+                        // Extract Nouns (Col J/9) & Adjectives (Col L/11)
+                        if (row[9] && row[9].trim()) nouns.push(row[9].trim());
+                        if (row[11] && row[11].trim()) adjs.push(row[11].trim());
+                    }
+
+                    if (targetPathway === 'A') uploadedVocabA = { verbs, nouns, adjs, binyanim };
+                    if (targetPathway === 'B') uploadedVocabB = { verbs, nouns, adjs, binyanim };
+                    alert("Spreadsheet parsed successfully! You can now generate the story.");
+                }
+            });
+        }
 
         // --- UI TOGGLES ---
         document.getElementById('pathway-a-radio').addEventListener('change', function() {
@@ -719,10 +791,20 @@
             }
         });
 
+        // Trigger CSV parsing when files are uploaded
+        document.getElementById('vocab-file-a').addEventListener('change', function(e) {
+            if (e.target.files[0]) parseVocabularyCsv(e.target.files[0], 'A');
+        });
+
+        document.getElementById('vocab-file-b').addEventListener('change', function(e) {
+            if (e.target.files[0]) parseVocabularyCsv(e.target.files[0], 'B');
+        });
+
         document.querySelectorAll('input[name="vocab-mode-a"]').forEach(el => {
             el.addEventListener('change', function() {
                 document.getElementById('vocab-complete-a').style.display = this.value === 'complete' ? 'block' : 'none';
                 document.getElementById('vocab-pos-a').style.display = this.value === 'pos' ? 'block' : 'none';
+                document.getElementById('vocab-upload-a').style.display = this.value === 'upload' ? 'block' : 'none';
             });
         });
 
@@ -730,6 +812,7 @@
             el.addEventListener('change', function() {
                 document.getElementById('vocab-complete-b').style.display = this.value === 'complete' ? 'block' : 'none';
                 document.getElementById('vocab-pos-b').style.display = this.value === 'pos' ? 'block' : 'none';
+                document.getElementById('vocab-upload-b').style.display = this.value === 'upload' ? 'block' : 'none';
             });
         });
 
@@ -780,7 +863,7 @@
                 const raw = document.getElementById(`target-input-${suffix}`).value;
                 masterWordsList = raw.split(/[\n\t,]+/).map(w => w.trim()).filter(w => w);
                 vocabPrompt = `Mastered Vocabulary List: ${masterWordsList.join(', ')}.`;
-            } else {
+            } else if (mode === 'pos') {
                 const verbs = document.getElementById(`pos-verbs-${suffix}`).value.split(/[\n\t,]+/).map(w => w.trim()).filter(w => w);
                 const nouns = document.getElementById(`pos-nouns-${suffix}`).value.split(/[\n\t,]+/).map(w => w.trim()).filter(w => w);
                 const adjs = document.getElementById(`pos-adj-${suffix}`).value.split(/[\n\t,]+/).map(w => w.trim()).filter(w => w);
@@ -792,6 +875,14 @@
                 vocabPrompt += `Mastered Nouns (singular): ${nouns.join(', ')}.\n`;
                 vocabPrompt += `Mastered Adjectives (male singular): ${adjs.join(', ')}.\n`;
                 masterWordsList = [...verbs, ...nouns, ...adjs];
+            } else if (mode === 'upload') {
+                let uData = isPathwayA ? uploadedVocabA : uploadedVocabB;
+                if (!uData) throw new Error("Please upload a completed vocabulary spreadsheet first.");
+                
+                vocabPrompt = `Mastered Verbs (Shorashim): ${uData.verbs.join(', ')}. (Allowed Binyanim: ${uData.binyanim.join(', ')}).\n`;
+                vocabPrompt += `Mastered Nouns (singular): ${uData.nouns.join(', ')}.\n`;
+                vocabPrompt += `Mastered Adjectives (male singular): ${uData.adjs.join(', ')}.\n`;
+                masterWordsList = [...uData.verbs, ...uData.nouns, ...uData.adjs];
             }
 
             const rulePrompt = `
@@ -824,9 +915,10 @@
             clearLineNumbers();
 
             btn.disabled = true;
-            const vocabData = getVocabularyPromptInstructions(isPathwayA);
 
             try {
+                const vocabData = getVocabularyPromptInstructions(isPathwayA);
+
                 if (!isPathwayA) {
                     btn.innerText = "Analyzing Supplied Text... (Please Wait)";
                     document.querySelector('.paper-viewport').style.display = 'block';
@@ -992,7 +1084,14 @@
             if (!currentRawStory) return;
             const outputDiv = document.getElementById('story-output');
             const isPathwayA = document.getElementById('pathway-a-radio').checked;
-            const vocabData = getVocabularyPromptInstructions(isPathwayA);
+            
+            // Check if vocab mode is set to upload without a file first
+            let vocabData;
+            try {
+                vocabData = getVocabularyPromptInstructions(isPathwayA);
+            } catch(e) {
+                vocabData = { masterWordsList: [] };
+            }
             
             outputDiv.innerHTML = formatStory(currentRawStory, vocabData.masterWordsList);
             

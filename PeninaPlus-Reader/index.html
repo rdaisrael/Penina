@@ -296,6 +296,45 @@
         @media print {
             .home-btn { display: none; }
         }
+
+        /* --- VERB MATRIX STYLES --- */
+        .verb-matrix-container { 
+            overflow-x: auto; 
+            margin-top: 15px; 
+            margin-bottom: 10px; 
+            direction: rtl; 
+        }
+        .verb-matrix { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 13px; 
+            background: #ffffff; 
+            text-align: right;
+        }
+        .verb-matrix th, .verb-matrix td { 
+            border: 1px solid #dcd3c6; 
+            padding: 8px 4px; 
+            text-align: center; 
+            color: #4a4238; 
+        }
+        .verb-matrix th { 
+            background-color: #f4f0e6; 
+            font-weight: bold; 
+        }
+        .verb-matrix td:first-child { 
+            text-align: right; 
+            font-weight: bold; 
+            background-color: #fdfdfa; 
+            white-space: nowrap; 
+            padding-right: 10px; 
+            width: 160px;
+        }
+        .verb-matrix input[type="checkbox"] { 
+            width: 18px; 
+            height: 18px; 
+            cursor: pointer; 
+            accent-color: #0056b3; 
+        }
     </style>
 </head>
 <body>
@@ -361,17 +400,25 @@
                     </div>
 
                     <div id="vocab-pos-a" style="display: none;">
-                        <details>
-                            <summary>Verbs (3-Letter Shoresh Only)</summary>
+                        <details open>
+                            <summary>Verbs (Binyan & Tense Matrix)</summary>
                             <textarea id="pos-verbs-a" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Shorashim..."></textarea>
-                            <div class="checkbox-group" style="margin-top: 10px; display: flex; flex-wrap: wrap;">
-                                <label><input type="checkbox" class="binyan-cb-a" value="פעל-קל" checked> פעל-קל</label>
-                                <label><input type="checkbox" class="binyan-cb-a" value="פיעל"> פיעל</label>
-                                <label><input type="checkbox" class="binyan-cb-a" value="הפעיל"> הפעיל</label>
-                                <label><input type="checkbox" class="binyan-cb-a" value="התפעל"> התפעל</label>
-                                <label><input type="checkbox" class="binyan-cb-a" value="נפעל"> נפעל</label>
-                                <label><input type="checkbox" class="binyan-cb-a" value="פועל"> פועל</label>
-                                <label><input type="checkbox" class="binyan-cb-a" value="הופעל"> הופעל</label>
+                            <div class="verb-matrix-container">
+                                <table class="verb-matrix">
+                                    <thead>
+                                        <tr>
+                                            <th>משקל / גזרה</th>
+                                            <th>הווה</th>
+                                            <th>עבר</th>
+                                            <th>עתיד</th>
+                                            <th>שם פועל</th>
+                                            <th>שם פעולה</th>
+                                            <th>ציווי</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="matrix-body-a">
+                                        </tbody>
+                                </table>
                             </div>
                         </details>
                         <details>
@@ -440,17 +487,25 @@
                     </div>
 
                     <div id="vocab-pos-b" style="display: none;">
-                        <details>
-                            <summary>Verbs (3-Letter Shoresh Only)</summary>
+                        <details open>
+                            <summary>Verbs (Binyan & Tense Matrix)</summary>
                             <textarea id="pos-verbs-b" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Shorashim..."></textarea>
-                            <div class="checkbox-group" style="margin-top: 10px; display: flex; flex-wrap: wrap;">
-                                <label><input type="checkbox" class="binyan-cb-b" value="פעל-קל" checked> פעל-קל</label>
-                                <label><input type="checkbox" class="binyan-cb-b" value="פיעל"> פיעל</label>
-                                <label><input type="checkbox" class="binyan-cb-b" value="הפעיל"> הפעיל</label>
-                                <label><input type="checkbox" class="binyan-cb-b" value="התפעל"> התפעל</label>
-                                <label><input type="checkbox" class="binyan-cb-b" value="נפעל"> נפעל</label>
-                                <label><input type="checkbox" class="binyan-cb-b" value="פועל"> פועל</label>
-                                <label><input type="checkbox" class="binyan-cb-b" value="הופעל"> הופעל</label>
+                            <div class="verb-matrix-container">
+                                <table class="verb-matrix">
+                                    <thead>
+                                        <tr>
+                                            <th>משקל / גזרה</th>
+                                            <th>הווה</th>
+                                            <th>עבר</th>
+                                            <th>עתיד</th>
+                                            <th>שם פועל</th>
+                                            <th>שם פעולה</th>
+                                            <th>ציווי</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="matrix-body-b">
+                                        </tbody>
+                                </table>
                             </div>
                         </details>
                         <details>
@@ -1177,6 +1232,29 @@
                 btn.innerText = "Generate Worksheet";
             }
         });
+
+        // Initialize the Verb Matrices
+        const verbGroups = [
+            "פעל שלם (כ-ת-ב)", "פעל ל-ה (ק-נ-ה)", "פעל ע\"ו (ק-ו-ם)", "פעל חפ\"נ (נ-ס-ע)", "פעל פ\"י (י-שׁ-ב)",
+            "פיעל שלם (ד-ב-ר)", "פיעל ל-ה (נ-ס-ה)", "הפעיל שלם (ז-מ-נ)", "הפעיל ל-ה (ר-א-ה)", 
+            "הפעיל ע\"ו (ק-ו-ם)", "הפעיל פ\"י (י-ר-ד)", "התפעל שלם (ל-ב-שׁ)", "נפעל שלם (כ-נ-ס)"
+        ];
+        const tenses = ["הווה", "עבר", "עתיד", "שם הפועל", "שם פעולה", "ציווי"];
+
+        function buildMatrix(id, suffix) {
+            const tbody = document.getElementById(id);
+            if (!tbody) return;
+            verbGroups.forEach(group => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${group}</td>` + tenses.map(t => 
+                    `<td><input type="checkbox" class="binyan-cb-${suffix}" value="${group}|${t}"></td>`
+                ).join('');
+                tbody.appendChild(tr);
+            });
+        }
+        
+        buildMatrix('matrix-body-a', 'a');
+        buildMatrix('matrix-body-b', 'b');
     </script>
 </body>
 </html>

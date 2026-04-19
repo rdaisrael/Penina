@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+/* --- PENINA READER INDEX FILE --- */
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -234,29 +235,59 @@
             position: absolute;
             top: 25px;
             left: 25px;
-            width: 140px;
-            height: auto;
-            border-radius: 40px;
-            box-shadow: 0 4px 8px rgba(139, 115, 85, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #fdfbf7;
+            color: #5a5248;
+            border: 1px solid #dcd3c6;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 15px;
+            font-weight: bold;
+            text-decoration: none;
+            box-shadow: 0 4px 8px rgba(139, 115, 85, 0.15);
             cursor: pointer;
-            transition: transform 0.2s ease, opacity 0.2s;
+            transition: all 0.2s ease;
             z-index: 1000;
         }
 
         .home-btn:hover {
-            transform: scale(1.05);
-            opacity: 0.9;
+            transform: translateY(-2px);
+            background-color: #f4f0e6;
+            box-shadow: 0 6px 12px rgba(139, 115, 85, 0.25);
+            color: #3a332a;
+        }
+        
+        .home-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
         }
 
         @media print {
             .home-btn { display: none; }
         }
+
+        @media (max-width: 768px) {
+            .home-btn {
+                position: relative;
+                top: 0;
+                left: 0;
+                margin: 20px auto 0 auto;
+                width: fit-content;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
 
-    <a href="/">
-        <img src="/home-button.PNG" alt="Home" class="home-btn">
+    <a href="/" class="home-btn" aria-label="Return to Home">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+        Home
     </a>
 
     <div class="bg-pattern"></div>

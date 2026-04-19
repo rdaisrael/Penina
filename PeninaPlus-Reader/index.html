@@ -1,4 +1,6 @@
-<!--index for Penina Plus Reader-->
+
+
+<!--index for PeninaPlus Hebrew Reader-->
 
 
 <!DOCTYPE html>
@@ -6,7 +8,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PeninaPlus</title>
+    <title>PeninaPlus Hebrew Reader</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -382,8 +384,8 @@
     <div class="control-panel-wrapper">
         
         <div class="header-container">
-            <img src="/PeninaPlus-logo.png" alt="PeninaPlus Logo" class="app-logo">
-            <h1 style="margin: 0; margin-top: 15px;">PeninaPlus</h1>
+            <img src="./peninaplus-logo.png" alt="peninaplus logo" class="app-logo">
+            <h1 style="margin: 0; margin-top: 15px;">PeninaPlus Hebrew Reader</h1>
         </div>
         <div class="copyright">&copy; 2026 David Israel</div>
 
@@ -395,7 +397,7 @@
                 <p><strong>Credits:</strong><br>
                 • Developed by <strong>David Israel</strong><br>
                 • Utilizes the <strong>Gemini API</strong><br>
-                • Vowelization utilizes the <strong>Dicta API</strong> <img src="/dicta-logo.png" alt="Dicta Logo" style="height: 1em; vertical-align: middle; margin-left: 4px;"><br>
+                • Vowelization utilizes the <strong>Dicta API</strong> <img src="./dicta-logo.png" alt="Dicta Logo" style="height: 1em; vertical-align: middle; margin-left: 4px;"><br>
                 • Dyslexia-friendly typography via <strong>Dyslexic-Kriah</strong></p>
             </div>
         </details>
@@ -606,11 +608,15 @@
                 <div class="slider-group">
                     <div class="slider-container">
                         <label for="font-size">Font Size: <span id="font-size-val">38px</span></label>
-                        <input type="range" id="font-size" min="20" max="80" value="38" class="layout-control">
+                        <input type="range" id="font-size" min="10" max="60" value="38" class="layout-control">
                     </div>
                     <div class="slider-container">
                         <label for="kerning">Letter Spacing (Kerning): <span id="kerning-val">0px</span></label>
                         <input type="range" id="kerning" min="0" max="20" value="0" class="layout-control">
+                    </div>
+                    <div class="slider-container">
+                        <label for="line-spacing">Line Spacing: <span id="line-spacing-val">2.5</span></label>
+                        <input type="range" id="line-spacing" min="1" max="5" step="0.1" value="2.5" class="layout-control">
                     </div>
                 </div>
 
@@ -1022,7 +1028,8 @@
                 el.addEventListener('input', () => { 
                     if(el.id === 'font-size') document.getElementById('font-size-val').innerText = el.value + 'px';
                     if(el.id === 'kerning') document.getElementById('kerning-val').innerText = el.value + 'px';
-                    if(el.id !== 'target-color' && el.id !== 'font-size' && el.id !== 'kerning') renderStoryToScreen(); 
+                    if(el.id === 'line-spacing') document.getElementById('line-spacing-val').innerText = el.value;
+                    if(el.id !== 'target-color' && el.id !== 'font-size' && el.id !== 'kerning' && el.id !== 'line-spacing') renderStoryToScreen(); 
                     applyStyles(); 
                 });
             }
@@ -1039,7 +1046,7 @@
             if (words.length === 0) return;
 
             let baseFontSize = parseInt(document.getElementById('font-size').value);
-            let wrapThreshold = baseFontSize * 1.2; 
+            let wrapThreshold = baseFontSize * 0.5; 
             let lineCount = 1;
             let currentLineAnchor = words[0].offsetTop; 
 
@@ -1267,10 +1274,16 @@
             const margin = document.getElementById('margin-choice').value;
             const fontSize = document.getElementById('font-size').value;
             const kerning = document.getElementById('kerning').value;
+            const lineSpacing = document.getElementById('line-spacing').value;
 
             outputDiv.style.fontFamily = font;
             outputDiv.style.fontSize = fontSize + 'px';
             outputDiv.style.letterSpacing = kerning + 'px';
+            
+            const storyBody = outputDiv.querySelector('.story-body');
+            if (storyBody) {
+                storyBody.style.lineHeight = lineSpacing;
+            }
             
             if (margin === 'right' || margin === 'alternate-right' || margin === 'alternate-left') {
                 outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';

@@ -1,3 +1,8 @@
+
+
+<!--Penina Hebrew Reader Index File-->
+
+
 <!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
@@ -404,11 +409,15 @@
                 <div class="slider-group">
                     <div class="slider-container">
                         <label for="font-size">Font Size: <span id="font-size-val">38px</span></label>
-                        <input type="range" id="font-size" min="20" max="80" value="38" class="layout-control">
+                        <input type="range" id="font-size" min="10" max="60" value="38" class="layout-control">
                     </div>
                     <div class="slider-container">
                         <label for="kerning">Letter Spacing (Kerning): <span id="kerning-val">0px</span></label>
                         <input type="range" id="kerning" min="0" max="20" value="0" class="layout-control">
+                    </div>
+                    <div class="slider-container">
+                        <label for="line-spacing">Line Spacing: <span id="line-spacing-val">2.5</span></label>
+                        <input type="range" id="line-spacing" min="1" max="5" step="0.1" value="2.5" class="layout-control">
                     </div>
                 </div>
 
@@ -827,6 +836,11 @@
             document.getElementById('kerning-val').innerText = e.target.value + 'px';
             applyStyles();
         });
+
+        document.getElementById('line-spacing').addEventListener('input', (e) => {
+            document.getElementById('line-spacing-val').innerText = e.target.value;
+            applyStyles();
+        });
         
         document.getElementById('margin-choice').addEventListener('change', function() {
             applyStyles();
@@ -866,7 +880,7 @@
             if (words.length === 0) return;
 
             let baseFontSize = parseInt(document.getElementById('font-size').value);
-            let wrapThreshold = baseFontSize * 1.2; 
+            let wrapThreshold = baseFontSize * 0.5; 
             
             let lineCount = 1;
             let currentLineAnchor = words[0].offsetTop; 
@@ -1124,10 +1138,16 @@
             const margin = document.getElementById('margin-choice').value;
             const fontSize = document.getElementById('font-size').value;
             const kerning = document.getElementById('kerning').value;
+            const lineSpacing = document.getElementById('line-spacing').value;
 
             outputDiv.style.fontFamily = font;
             outputDiv.style.fontSize = fontSize + 'px';
             outputDiv.style.letterSpacing = kerning + 'px';
+            
+            const storyBody = outputDiv.querySelector('.story-body');
+            if (storyBody) {
+                storyBody.style.lineHeight = lineSpacing;
+            }
             
             if (margin === 'right' || margin === 'alternate-right' || margin === 'alternate-left') {
                 outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';

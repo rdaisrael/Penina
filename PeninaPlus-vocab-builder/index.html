@@ -30,7 +30,51 @@
             background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='20' y='50' font-size='40' font-family='serif' fill='%238b7355'%3Eא%3C/text%3E%3Ctext x='150' y='80' font-size='60' font-family='serif' fill='%238b7355'%3Eפ%3C/text%3E%3Ctext x='250' y='40' font-size='35' font-family='serif' fill='%238b7355'%3Eג%3C/text%3E%3Ctext x='50' y='180' font-size='50' font-family='serif' fill='%238b7355'%3Eש%3C/text%3E%3Ctext x='200' y='220' font-size='45' font-family='serif' fill='%238b7355'%3Eל%3C/text%3E%3Ctext x='100' y='280' font-size='30' font-family='serif' fill='%238b7355'%3Eמ%3C/text%3E%3C/svg%3E");
             background-repeat: repeat;
         }
+/* --- HOME BUTTON --- */
+        .home-btn {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #fdfbf7;
+            color: #5a5248;
+            border: 1px solid #dcd3c6;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 15px;
+            font-weight: bold;
+            text-decoration: none;
+            box-shadow: 0 4px 8px rgba(139, 115, 85, 0.15);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 1000;
+        }
 
+        .home-btn:hover {
+            transform: translateY(-2px);
+            background-color: #f4f0e6;
+            box-shadow: 0 6px 12px rgba(139, 115, 85, 0.25);
+            color: #3a332a;
+        }
+        
+        .home-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        @media (max-width: 768px) {
+            .home-btn {
+                position: relative;
+                top: 0;
+                left: 0;
+                margin: 20px auto 0 auto;
+                width: fit-content;
+                justify-content: center;
+            }
+        }
         .control-panel-wrapper { max-width: 900px; margin: 0 auto; padding: 0 20px; }
         
         /* --- HEADER & ABOUT/CREDITS (From Penina) --- */
@@ -173,6 +217,7 @@
         @media print {
             body { background: white; padding: 0; }
             .bg-pattern { display: none; }
+            .home-btn { display: none; }
             .control-panel-wrapper { display: none !important; }
             .page-container { margin: 0 !important; width: 100% !important; box-shadow: none !important; border: none !important; }
         }
@@ -181,7 +226,12 @@
 <body class="mode-full">
 
     <div class="bg-pattern"></div>
-
+<a href="/" class="home-btn" aria-label="Return to Home">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+        Home
+    </a>
     <div class="control-panel-wrapper">
         
         <div class="header-container">

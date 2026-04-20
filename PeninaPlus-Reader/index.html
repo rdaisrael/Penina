@@ -440,7 +440,10 @@
                     <div id="vocab-pos-a" style="display: none;">
                         <details open>
                             <summary>Verbs (Binyan & Tense Matrix)</summary>
-                            <textarea id="pos-verbs-a" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Shorashim..."></textarea>
+                            <textarea id="pos-verbs-a" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Shorashim"></textarea>
+                            <p style="margin-top: 15px; margin-bottom: 0; font-size: 14px; color: #4a4238;">
+                                <em>Check off all mastered binyanim for the verb shorashim that were entered:</em>
+                            </p>
                             <div class="verb-matrix-container">
                                 <table class="verb-matrix">
                                     <thead>
@@ -461,11 +464,11 @@
                         </details>
                         <details>
                             <summary>Nouns (Singular Only)</summary>
-                            <textarea id="pos-nouns-a" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Nouns..."></textarea>
+                            <textarea id="pos-nouns-a" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Nouns"></textarea>
                         </details>
                         <details>
                             <summary>Adjectives (Male Singular Only)</summary>
-                            <textarea id="pos-adj-a" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Adjectives..."></textarea>
+                            <textarea id="pos-adj-a" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Adjectives"></textarea>
                         </details>
                     </div>
                     
@@ -543,7 +546,10 @@
                     <div id="vocab-pos-b" style="display: none;">
                         <details open>
                             <summary>Verbs (Binyan & Tense Matrix)</summary>
-                            <textarea id="pos-verbs-b" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Shorashim..."></textarea>
+                            <textarea id="pos-verbs-b" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Shorashim"></textarea>
+                            <p style="margin-top: 15px; margin-bottom: 0; font-size: 14px; color: #4a4238;">
+                                <em>Check off all mastered binyanim for the verb shorashim that were entered:</em>
+                            </p>
                             <div class="verb-matrix-container">
                                 <table class="verb-matrix">
                                     <thead>
@@ -564,11 +570,11 @@
                         </details>
                         <details>
                             <summary>Nouns (Singular Only)</summary>
-                            <textarea id="pos-nouns-b" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Nouns..."></textarea>
+                            <textarea id="pos-nouns-b" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Nouns"></textarea>
                         </details>
                         <details>
                             <summary>Adjectives (Male Singular Only)</summary>
-                            <textarea id="pos-adj-b" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Adjectives..."></textarea>
+                            <textarea id="pos-adj-b" class="strict-hebrew-input" rows="2" placeholder="Enter Hebrew Adjectives"></textarea>
                         </details>
                     </div>
                     
@@ -708,13 +714,20 @@
                 </details>
             </div>
 
-            <div class="print-controls-container">
-                <label class="print-checkbox-label" title="Checking this will lock the layout sliders above to ensure numbers align perfectly.">
-                    <input type="checkbox" id="toggle-line-numbers"> 
-                    Print with Line Numbers
-                </label>
-                <button id="print-btn" onclick="window.print()" style="background-color: #28a745; margin: 0;">Print Story</button>
-            </div>
+            <div class="print-controls-container" style="flex-wrap: wrap;">
+    <button onclick="window.print()" style="background-color: #28a745; margin: 0;">Print Story</button>
+    
+    <select id="footnote-print-options" style="flex: 1; min-width: 280px; max-width: 400px; margin: 0; cursor: pointer;">
+        <option value="none">Print without footnote translations</option>
+        <option value="first" selected>Print with footnote translations only on the first occurrence</option>
+        <option value="all">Print with footnote translations on each occurrence</option>
+    </select>
+
+    <select id="toggle-line-numbers" style="flex: 1; min-width: 220px; max-width: 300px; margin: 0; cursor: pointer;" title="Selecting this will lock the layout sliders above to ensure numbers align perfectly.">
+        <option value="none" selected>Print without numbered lines</option>
+        <option value="numbered">Print with numbered lines</option>
+    </select>
+</div>
 
             <div id="comprehension-section" style="display: none; margin-top: 25px;" class="panel-secondary">
                 <label class="panel-secondary-label" style="font-size: 18px;">📝 Reading Comprehension Worksheet</label>
@@ -1087,8 +1100,23 @@
         });
 
         document.getElementById('toggle-line-numbers').addEventListener('change', function() {
-            if (this.checked) { toggleLayoutLock(true); setTimeout(applyLineNumbers, 50); } 
-            else { toggleLayoutLock(false); clearLineNumbers(); }
+            const isNumbered = this.value === 'numbered';
+            
+            if (isNumbered) {
+                toggleLayoutLock(true);
+                // Give the DOM a tiny moment to settle the sliders back to default before calculating lines
+                setTimeout(() => {
+                    renderStoryToScreen(); // This will call applyLineNumbers internally
+                }, 50);
+            } else {
+                toggleLayoutLock(false);
+                clearLineNumbers();
+            }
+        });
+
+        // FOOTNOTES TOGGLE
+        document.getElementById('footnote-print-options').addEventListener('change', function() {
+            renderStoryToScreen();
         });
 
         function renderStoryToScreen() {
@@ -1112,8 +1140,9 @@
             }
 
             applyStyles();
-            if (document.getElementById('toggle-line-numbers').checked) { applyLineNumbers(); }
-        }
+         if (document.getElementById('toggle-line-numbers').value === 'numbered') {
+        applyLineNumbers();
+    }
 
         function processTextChunk(textSegment, targetWords, isTitle) {
             let isBoldCheckbox = document.getElementById('bold-words').checked;

@@ -11,6 +11,9 @@ module.exports = async function (req, res) {
     const validGenres = ["modern", "rabbinic", "poetry"];
     const genreToUse = validGenres.includes(targetGenre) ? targetGenre : "modern";
 
+    // 1. Enforce payload size limit to protect quotas
+    if (suppliedText && suppliedText.length > 10000) return res.status(413).json({ error: 'Payload too large' });
+
     try {
         let textToVowelize = suppliedText;
 
@@ -18,10 +21,26 @@ module.exports = async function (req, res) {
             const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
             if (!googleKey) return res.status(500).json({ error: "Missing GOOGLE_GENERATIVE_AI_API_KEY." });
 
-            // Force v1 API version for 2026 stable compatibility
             const genAI = new GoogleGenerativeAI(googleKey, { apiVersion: 'v1' });
-            const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-            const result = await model.generateContent(prompt);
+            let result;
+            
+            try {
+                const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+                result = await model.generateContent(prompt);
+            } catch (apiError) {
+                // 2. Intercept 503/529 errors and fallback to stable model
+                if (apiError.status === 503 || apiError.status === 529 || apiError.message.includes('503') || apiError.message.includes('529')) {
+                    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-3-flash" }); 
+                    result = await fallbackModel.generateContent(prompt);
+                } else {
+                    throw apiError; 
+                }
+            }
+            
+            // 3. Catch empty responses before Dicta fails
+            if (!result || !result.response || !result.response.text()) {
+                throw new Error("AI generated an empty response (likely blocked by safety filters).");
+            }
             textToVowelize = result.response.text();
         }
 

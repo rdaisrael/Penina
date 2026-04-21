@@ -20,26 +20,8 @@ module.exports = async function (req, res) {
 
             // Force v1 API version for 2026 stable compatibility
             const genAI = new GoogleGenerativeAI(googleKey, { apiVersion: 'v1' });
-            const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
-            
-            let result;
-            let retries = 3;
-            let delay = 2000; // Start with a 2-second delay
-
-            while (retries > 0) {
-                try {
-                    result = await model.generateContent(prompt);
-                    break; // If successful, exit the loop
-                } catch (err) {
-                    if (err.message.includes("503") && retries > 1) {
-                        retries--;
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2; // Double the delay for the next retry (4s, then 8s)
-                    } else {
-                        throw err; // Fail normally if it's not a 503 or we're out of retries
-                    }
-                }
-            }
+            const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+            const result = await model.generateContent(prompt);
             textToVowelize = result.response.text();
         }
 

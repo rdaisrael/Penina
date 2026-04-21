@@ -708,6 +708,15 @@
                 </details>
             </div>
 
+            <div class="form-group panel-secondary" style="margin-top: 25px;">
+                <label for="footnote-display" class="panel-secondary-label">Footnote Display:</label>
+                <select id="footnote-display" class="layout-control">
+                    <option value="all" selected>Show All Footnotes</option>
+                    <option value="first">First Occurrence Only</option>
+                    <option value="none">No Footnotes</option>
+                </select>
+            </div>
+
             <div class="print-controls-container">
                 <label class="print-checkbox-label" title="Checking this will lock the layout sliders above to ensure numbers align perfectly.">
                     <input type="checkbox" id="toggle-line-numbers"> 
@@ -1043,7 +1052,7 @@
             const bodyDiv = document.querySelector('.story-body');
             if (!bodyDiv) return;
             void bodyDiv.offsetHeight;
-            const words = bodyDiv.querySelectorAll('.heb-word');
+            const words = Array.from(bodyDiv.querySelectorAll('.heb-word')).filter(w => w.style.display !== 'none');
             if (words.length === 0) return;
 
             let baseFontSize = parseInt(document.getElementById('font-size').value);
@@ -1091,6 +1100,38 @@
             else { toggleLayoutLock(false); clearLineNumbers(); }
         });
 
+        function applyFootnoteSettings() {
+            const setting = document.getElementById('footnote-display').value;
+            const markers = document.querySelectorAll('.footnote-marker');
+            const footer = document.querySelector('.generated-footnotes');
+            
+            if (footer) footer.style.display = (setting === 'none') ? 'none' : 'block';
+
+            if (setting === 'none') {
+                markers.forEach(m => m.style.display = 'none');
+            } else if (setting === 'all') {
+                markers.forEach(m => m.style.display = 'inline-flex');
+            } else if (setting === 'first') {
+                const seen = new Set();
+                markers.forEach(m => {
+                    const fn = m.getAttribute('data-fn');
+                    if (seen.has(fn)) {
+                        m.style.display = 'none';
+                    } else {
+                        seen.add(fn);
+                        m.style.display = 'inline-flex';
+                    }
+                });
+            }
+            
+            // Recalculate line numbers immediately if active, as hiding text changes wrapping
+            if (document.getElementById('toggle-line-numbers').checked) { 
+                applyLineNumbers(); 
+            }
+        }
+
+        document.getElementById('footnote-display').addEventListener('change', applyFootnoteSettings);
+
         function renderStoryToScreen() {
             if (!currentRawStory) return;
             const outputDiv = document.getElementById('story-output');
@@ -1112,7 +1153,7 @@
             }
 
             applyStyles();
-            if (document.getElementById('toggle-line-numbers').checked) { applyLineNumbers(); }
+            applyFootnoteSettings(); 
         }
 
         function processTextChunk(textSegment, targetWords, isTitle) {
@@ -1132,7 +1173,8 @@
                 
                 // Allow footnotes to pass through cleanly as left-to-right numbers
                 if (/^\[\d+\]$/.test(token)) {
-                    outputHtml += `<span class="heb-word" style="direction:ltr; font-family: Arial; font-size: 0.6em; vertical-align: super; color: #666; margin-right: 2px;">${token}</span>`;
+                    const fnNum = token.match(/\d+/)[0];
+                    outputHtml += `<span class="heb-word footnote-marker" data-fn="${fnNum}" style="direction:ltr; font-family: Arial; font-size: 0.6em; vertical-align: super; color: #666; margin-right: 2px; display: inline-flex;">${token}</span>`;
                     return;
                 }
 

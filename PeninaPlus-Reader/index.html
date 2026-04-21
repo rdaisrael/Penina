@@ -20,6 +20,13 @@
             font-style: normal;
         }
 
+        @font-face {
+            font-family: 'OpenDyslexic';
+            src: url('/OpenDyslexic-Regular.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         body { 
             font-family: Arial, sans-serif; 
             padding: 20px 0; 
@@ -621,16 +628,24 @@
                     </div>
                 </div>
 
-                <div class="form-group" style="display: flex; gap: 20px; margin-bottom: 0;">
-                    <div style="flex: 1;">
-                        <label for="font-choice">Choose Font:</label>
+                <div class="form-group" style="display: flex; gap: 20px; margin-bottom: 0; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label for="font-choice">Choose Hebrew font:</label>
                         <select id="font-choice" class="layout-control">
                             <option value="Arial, sans-serif">Arial (Modern)</option>
                             <option value="'David', serif">David (Classic Book Style)</option>
                             <option value="'Dyslexic-Kriah', 'Alef', sans-serif">Dyslexia-Friendly (Dyslexic-Kriah)</option>
                         </select>
                     </div>
-                    <div style="flex: 1;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label for="en-font-choice">Choose English font:</label>
+                        <select id="en-font-choice" class="layout-control">
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'OpenDyslexic', sans-serif">OpenDyslexic</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
                         <label for="margin-choice">3-Hole Punch Binding:</label>
                         <select id="margin-choice" class="layout-control">
                             <option value="none">No extra margin (Standard)</option>
@@ -1314,14 +1329,28 @@
         function applyStyles() {
             const outputDiv = document.getElementById('story-output');
             const font = document.getElementById('font-choice').value;
+            const enFont = document.getElementById('en-font-choice') ? document.getElementById('en-font-choice').value : "Arial, sans-serif";
             const margin = document.getElementById('margin-choice').value;
             const fontSize = document.getElementById('font-size').value;
             const kerning = document.getElementById('kerning').value;
             const lineSpacing = document.getElementById('line-spacing').value;
 
+            // Apply Hebrew Font
             outputDiv.style.fontFamily = font;
             outputDiv.style.fontSize = fontSize + 'px';
             outputDiv.style.letterSpacing = kerning + 'px';
+            
+            // Apply English Font to Footnotes
+            const footnotes = outputDiv.querySelector('.generated-footnotes');
+            if (footnotes) footnotes.style.fontFamily = enFont;
+            
+            // Dynamically Apply Font to Questions based on Language Selection
+            const questionsOutput = document.getElementById('questions-output');
+            const questionsLang = document.getElementById('questions-lang') ? document.getElementById('questions-lang').value : 'Hebrew';
+            
+            if (questionsOutput) {
+                questionsOutput.style.fontFamily = (questionsLang === 'English') ? enFont : font;
+            }
             
             const storyBody = outputDiv.querySelector('.story-body');
             if (storyBody) {

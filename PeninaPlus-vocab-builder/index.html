@@ -138,10 +138,15 @@
         label { font-weight: bold; display: block; margin-bottom: 8px; color: #5a5248; }
         
         input[type="text"], textarea, select { 
-            width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
-            border-radius: 5px; box-sizing: border-box; font-size: 16px; 
-            background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
-        }
+    width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
+    border-radius: 5px; box-sizing: border-box; font-size: 16px; 
+    background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
+    font-family: inherit; 
+}
+
+textarea, .hebrew-input, .strict-hebrew-input {
+    font-size: 18px; 
+}
         select:focus, textarea:focus, input[type="text"]:focus { 
             outline: none; border-color: #b5a898; background-color: #ffffff; 
         }

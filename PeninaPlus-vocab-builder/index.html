@@ -411,6 +411,23 @@ textarea, .hebrew-input, .strict-hebrew-input {
     </div>
 
     <script>
+// Helper to convert Arabic numerals to Hebrew Gematria (1-199, no punctuation)
+function toGematria(num) {
+    if (num <= 0) return "";
+    const units = ["", "א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט"];
+    const tens = ["", "י", "כ", "ל", "מ", "נ", "ס", "ע", "פ", "צ"];
+    const hundreds = ["", "ק"]; 
+    
+    let result = "";
+    if (num >= 100) { result += hundreds[Math.floor(num / 100)]; num %= 100; }
+    if (num === 15) return result + "טו";
+    if (num === 16) return result + "טז";
+    if (num >= 10) { result += tens[Math.floor(num / 10)]; num %= 10; }
+    result += units[num];
+    return result;
+}
+
+       
         const generateBtn = document.getElementById('generate-btn');
 const vocabTbody = document.getElementById('vocab-tbody');
 const sourceTypeSelect = document.getElementById('source-type');
@@ -626,22 +643,23 @@ generateBtn.addEventListener('click', async () => {
                 item.english = transData.text || "Translation missing";
             }
 
-            let hebrewContext = "";
+let hebrewContext = "";
             let englishContext = "";
-            let citation = "";
+            let heCitation = "";
+            let enCitation = "";
 
             // 4 & 5. Fetch Context based on Source Type
             if (sourceType === 'Tanakh' || sourceType === 'Talmud' || sourceType === 'Talmud Bavli') {
-                // Sefaria Search: Perek -> Book -> Corpus
                 let searchResult = await performSefariaSearch(cleanHebrew, sourceType, specificBook, specificChapter);
                 if (searchResult) {
                     hebrewContext = searchResult.he;
-                    citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
+                    let citations = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
+                    heCitation = citations.he;
+                    enCitation = citations.en;
                 } else {
                     hebrewContext = "Word not found in context.";
                 }
             } else {
-                // Modern Hebrew / No Preference - Generate via Gemini
                 const contextRes = await fetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -649,41 +667,44 @@ generateBtn.addEventListener('click', async () => {
                 });
                 const contextData = await contextRes.json();
                 hebrewContext = contextData.text;
-                citation = "Modern Hebrew Context";
+                heCitation = "הקשר בעברית מודרנית";
+                enCitation = "Modern Hebrew Context";
             }
 
-            // 6 & 7. Translate and Vowelize
-            if (hebrewContext !== "Word not found in context.") {
-                // English Translation
-                const sentTransRes = await fetch('/api/translate', {
+            // 6. Translate the Context to English
+            if (hebrewContext && hebrewContext !== "Word not found in context.") {
+                const transRes = await fetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". Accuracy is paramount, but make sure to use the word "${item.english}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
+                    body: JSON.stringify({ promptText: `Translate this Hebrew text to English cleanly: "${hebrewContext}"` })
                 });
-                const sentTransData = await sentTransRes.json();
-                englishContext = sentTransData.text;
+                const transData = await transRes.json();
+                englishContext = transData.text;
 
-                // Dicta Vowelization (Sent directly to your generate.js)
-                const dictaGenre = (sourceType === 'Tanakh') ? 'biblical' : (sourceType === 'Talmud' || sourceType === 'Talmud Bavli' ? 'rabbinic' : 'modern');
-                
-                const wordDictaRes = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ suppliedText: item.hebrew, dictaGenre: dictaGenre })
-                });
-                if (wordDictaRes.ok) {
-                    const wordDictaData = await wordDictaRes.json();
-                    item.hebrew = wordDictaData.text;
-                }
+                // 7. Add Nikkud if requested
+                if (addNikkud) {
+                    document.getElementById('status-msg').innerText = `Vowelizing "${item.hebrew}"...`;
+                    const dictaGenre = (sourceType === 'Tanakh') ? 'biblical' : (sourceType === 'Talmud' || sourceType === 'Talmud Bavli' ? 'rabbinic' : 'modern');
+                    
+                    const wordDictaRes = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ suppliedText: item.hebrew, dictaGenre: dictaGenre })
+                    });
+                    if (wordDictaRes.ok) {
+                        const wordDictaData = await wordDictaRes.json();
+                        item.hebrew = wordDictaData.text;
+                    }
 
-                const dictaRes = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ suppliedText: hebrewContext, dictaGenre: dictaGenre })
-                });
-                if (dictaRes.ok) {
-                    const dictaData = await dictaRes.json();
-                    hebrewContext = dictaData.text;
+                    const dictaRes = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ suppliedText: hebrewContext, dictaGenre: dictaGenre })
+                    });
+                    if (dictaRes.ok) {
+                        const dictaData = await dictaRes.json();
+                        hebrewContext = dictaData.text;
+                    }
                 }
             }
 
@@ -702,8 +723,9 @@ generateBtn.addEventListener('click', async () => {
                 <td class="col-english" contenteditable="true">${item.english}</td>
                 <td class="col-context">
                     <div class="hebrew-text">${highlightedHebrew}</div>
-                    <div class="citation" dir="rtl" style="font-size: 0.9em; color: #555; margin: 5px 0;">${citation}</div>
+                    <div class="citation" dir="rtl" style="font-size: 0.85em; color: #555; margin-top: 2px; margin-bottom: 12px;">${heCitation}</div>
                     <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
+                    <div class="citation" dir="ltr" style="font-size: 0.85em; color: #555; margin-top: 2px;">${enCitation}</div>
                 </td>
             </tr>`;
         }
@@ -728,19 +750,16 @@ async function performSefariaSearch(word, corpus, book, chapter) {
             let res = await fetch(`https://www.sefaria.org/api/texts/${book} ${chapter}?context=0`);
             let data = await res.json();
             if (data && data.he) {
-                // Flatten array in case of complex Talmud text structures
                 let heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [];
                 for (let i = 0; i < heArray.length; i++) {
                     if (typeof heArray[i] === 'string') {
-                        // FIX 1: Strip Nikkud and Ta'amim from Sefaria text before comparing
                         let unvowelizedSefaria = heArray[i].replace(/[\u0591-\u05C7]/g, '');
                         if (unvowelizedSefaria.includes(word)) {
-                            // Strip HTML immediately so it doesn't break Dicta
                             let cleanHe = heArray[i].replace(/<\/?[^>]+(>|$)/g, "");
                             return { 
                                 he: cleanHe, 
                                 ref: `${data.ref}:${i+1}`, 
-                                heRef: `${data.heRef} ${i+1}` 
+                                heRef: `${data.heRef} ${toGematria(i+1)}` 
                             };
                         }
                     }
@@ -763,12 +782,9 @@ async function performSefariaSearch(word, corpus, book, chapter) {
                 body: JSON.stringify(payload)
             });
             let data = await res.json();
-            if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
+if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
                 let hit = data.hits.hits[0];
-                
-                // FIX 2: Access the correct Sefaria Search API v2 schema fields without highlight crash
                 let rawHe = hit._source.exact || hit._source.naive_lemmatizer || "";
-                
                 if (rawHe) {
                     let cleanHe = rawHe.replace(/<\/?[^>]+(>|$)/g, "");
                     return { he: cleanHe, ref: hit._source.ref, heRef: hit._source.heRef };
@@ -781,7 +797,6 @@ async function performSefariaSearch(word, corpus, book, chapter) {
     let result = null;
 
     // B. Specific Book (ElasticSearch Fallback)
-    // Note: Sefaria requires English paths. If 'book' is Hebrew, this falls through to C.
     if (book) result = await querySearchWrapper(word, book);
     
     // C. General Corpus Fallback
@@ -792,15 +807,13 @@ async function performSefariaSearch(word, corpus, book, chapter) {
 
 // Helper Function for Point 9 (Citation Formatting)
 function formatSefariaCitation(heRef, enRef, sourceType) {
-    if (!heRef || !enRef) return "";
+    if (!heRef || !enRef) return { he: "", en: "" };
     if (sourceType.includes('Talmud')) {
-        // Convert Sefaria's amud notation (ע"א -> period, ע"ב -> colon)
         heRef = heRef.replace(/ ע"א/g, '.').replace(/ ע"ב/g, ':');
     } else if (sourceType === 'Tanakh') {
-        // Enforce colon separation for chapter and verse
         heRef = heRef.replace(/ ([^ ]+)$/, ':$1'); 
     }
-    return `${heRef}<br><span dir="ltr">${enRef}</span>`;
+    return { he: heRef, en: enRef };
 }
 
 function toggleNekudot(action) {

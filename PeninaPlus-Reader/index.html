@@ -1174,6 +1174,8 @@
                 outputDiv.innerHTML += `<div class="generated-footnotes"><strong>Footnotes:</strong><div class="footnote-columns">${formattedFootnotes}</div></div>`;
             }
 
+            outputDiv.innerHTML += `<div class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>`;
+
             applyStyles();
             applyFootnoteSettings(); 
         }
@@ -1328,8 +1330,6 @@
             finalOutput += processTextChunk(bodyRaw, targetWords, false);
             finalOutput += `</div>`;
 
-            finalOutput += `<div class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>`;
-
             return finalOutput;
         }
 
@@ -1409,7 +1409,7 @@
             
             const prompt = `Based strictly on the following text, create a reading comprehension worksheet in ${lang}.
             CRITICAL RULES:
-            1. The first line must be the Title of the worksheet.
+            1. The first line must be ONLY the exact Title of the story. Do not write the words "Reading Comprehension Worksheet".
             2. You MUST number every question consecutively (1., 2., 3., etc.).
             3. Do NOT include the answers anywhere on the worksheet.
             4. Provide physical writing space for the student. Immediately following EVERY question, you must output the exact token [LINE] on a new line to generate a physical line for them to write on.
@@ -1439,12 +1439,18 @@
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 
-                let parsedHtml = data.text.replace(/\n*\[LINE\]\n*/g, '<div class="write-in-line"></div>');
-                parsedHtml = parsedHtml.replace(/\n/g, '<br>');
-                
+                let lines = data.text.trim().split('\n');
+                let title = lines.shift().replace(/\*/g, ''); 
+                let restOfText = lines.join('\n').replace(/\n*\[LINE\]\n*/g, '<div class="write-in-line"></div>').replace(/\n/g, '<br>');
+
                 qOutput.dir = lang === 'English' ? 'ltr' : 'rtl';
                 qOutput.style.textAlign = lang === 'English' ? 'left' : 'right';
-                qOutput.innerHTML = `<div style="font-size: 14pt; line-height: 1.8; color: #333;">${parsedHtml}</div>`;
+
+                qOutput.innerHTML = `
+                    <h2 style="text-align: center; font-weight: bold; font-size: 1.8em; margin-bottom: 25px; color: #333;">${title}</h2>
+                    <div style="font-size: 14pt; line-height: 1.8; color: #333;">${restOfText}</div>
+                    <div class="penina-footer" style="margin-top: 60px;">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>
+                `;
                 
                 qViewport.scrollIntoView({ behavior: 'smooth' });
 

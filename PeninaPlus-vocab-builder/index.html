@@ -453,7 +453,7 @@
                 const vocabList = [];
 
                 for (let line of lines) {
-                    const parts = line.split(',').map(p => p.trim());
+                    const parts = line.split(/[,\t]/).map(p => p.trim());
                     let heb = '', eng = '';
                     
                     if (parts.length >= 2) {

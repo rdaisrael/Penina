@@ -163,7 +163,8 @@ textarea, .hebrew-input, .strict-hebrew-input {
         
         button { padding: 12px 25px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; color: white; background-color: #0056b3; transition: opacity 0.2s; width: 100%; }
         button:hover { opacity: 0.9; }
-        button:disabled { background-color: #6c757d !important; cursor: not-allowed; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background-color: #6c757d !important; cursor: not-allowed; transform: none; }
 
         .formatting-section { 
             background: rgba(253, 251, 247, 0.8); 
@@ -599,7 +600,25 @@ document.getElementById('font-choice').addEventListener('change', (e) => {
 
 generateBtn.addEventListener('click', async () => {
     const title = document.getElementById('list-title').value.trim();
+    const rawInput = document.getElementById('word-list').value.trim(generateBtn.addEventListener('click', async () => {
+    const title = document.getElementById('list-title').value.trim();
     const rawInput = document.getElementById('word-list').value.trim();
+    const sourceType = document.getElementById('source-type').value;
+    const specificBook = document.getElementById('book-select').value;
+    const specificChapter = document.getElementById('chapter-select').value;
+
+    // Fix 4: Alert validation
+    if (!title) { alert("Title Required. Please enter a title for your list."); return; }
+    if (!rawInput) { alert("Please enter vocabulary words."); return; }
+
+    // Fix 5: Button visual feedback
+    const originalBtnText = generateBtn.innerText;
+    generateBtn.innerText = "Generating... Please Wait";
+    generateBtn.disabled = true;
+    
+    vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
+    pageContainer.style.display = 'block';
+    docTitle.innerText = title;);
     const sourceType = document.getElementById('source-type').value;
     const specificBook = document.getElementById('book-select').value;
     const specificChapter = document.getElementById('chapter-select').value;
@@ -676,7 +695,8 @@ let hebrewContext = "";
                 const transRes = await fetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ promptText: `Translate this Hebrew text to English cleanly: "${hebrewContext}"` })
+                    // Fix 3: Strict anti-conversational translation prompt
+                    body: JSON.stringify({ promptText: `Translate the following Hebrew text to English. Return ONLY the translation itself, with no conversational filler, no quotation marks, and no introductory text: "${hebrewContext}"` })
                 });
                 const transData = await transRes.json();
                 englishContext = transData.text;
@@ -696,8 +716,8 @@ let hebrewContext = "";
                 item.hebrew = wordDictaData.text;
             }
 
-            // B. Only vowelize context if it is Modern Hebrew. 
-            // Sending Sefaria text to Dicta causes hallucinatory overwrites.
+            // B. Protect Tanakh and Talmud from Dicta hallucinations since Sefaria provides native Nikkud.
+            // Only use Dicta for Modern Hebrew / generated context.
             if (sourceType === 'Modern Hebrew' || sourceType === 'Any') {
                 if (hebrewContext && hebrewContext !== "Word not found in context.") {
                     const dictaRes = await fetch('/api/generate', {
@@ -738,7 +758,15 @@ let hebrewContext = "";
         document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
 
     } catch (e) {
+        vocabTbody.innerHTML = `<tr><td colspan="3" style="col} catch (e) {
         vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
+    } finally {
+        generateBtn.innerText = originalBtnText;
+        generateBtn.disabled = false;
+    }
+
+        
+});or:red; text-align:center;">Error: ${e.message}</td></tr>`;
     } finally {
         generateBtn.disabled = false;
     }
@@ -748,10 +776,23 @@ let hebrewContext = "";
 async function performSefariaSearch(word, corpus, book, chapter) {
     let safeCorpus = (corpus === 'Talmud' || corpus === 'Talmud Bavli') ? 'Bavli' : corpus;
 
+    // Fix 1: Helper to strip HTML and Taamim (cantillation \u0591-\u05AF, Paseq \u05C0, Sof Pasuq \u05C3)
+    // but strictly preserve Nikkud (\u05B0-\u05BC) and Shin/Sin dots (\u05C1-\u05C2).
+    const formatSefariaText = (text) => {
+        return text.replace(/<\/?[^>]+(>|$)/g, "")
+                   .replace(/[\u0591-\u05AF\u05C0\u05C3]/g, '');
+    };
+
     // A. Specific Perek (Uses exact Text API to guarantee chapter filtering)
     if (book && chapter) {
         try {
-            let res = await fetch(`https://www.sefaria.org/api/texts/${book} ${chapter}?context=0`);
+            // Request Sefaria's vocalized edition if Talmud is selected
+            let fetchUrl = `https://www.sefaria.org/api/texts/${book} ${chapter}?context=0`;
+            if (corpus === 'Talmud' || corpus === 'Talmud Bavli') {
+                fetchUrl += `&vhe=William%20Davidson%20Edition%20-%20Vocalized%20Aramaic`;
+            }
+            
+            let res = await fetch(fetchUrl);
             let data = await res.json();
             if (data && data.he) {
                 let heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [];
@@ -759,9 +800,8 @@ async function performSefariaSearch(word, corpus, book, chapter) {
                     if (typeof heArray[i] === 'string') {
                         let unvowelizedSefaria = heArray[i].replace(/[\u0591-\u05C7]/g, '');
                         if (unvowelizedSefaria.includes(word)) {
-                            let cleanHe = heArray[i].replace(/<\/?[^>]+(>|$)/g, "");
                             return { 
-                                he: cleanHe, 
+                                he: formatSefariaText(heArray[i]), 
                                 ref: `${data.ref}:${i+1}`, 
                                 heRef: `${data.heRef} ${toGematria(i+1)}` 
                             };
@@ -777,7 +817,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         let payload = { query: queryWord, type: "text", field: "naive_lemmatizer" };
         if (filterPath) {
             payload.filters = [filterPath];
-            payload.filter_fields = ["path"]; // Mandatory for Sefaria
+            payload.filter_fields = ["path"]; 
         }
         try {
             let res = await fetch(`https://www.sefaria.org/api/search-wrapper`, {
@@ -786,12 +826,11 @@ async function performSefariaSearch(word, corpus, book, chapter) {
                 body: JSON.stringify(payload)
             });
             let data = await res.json();
-if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
+            if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
                 let hit = data.hits.hits[0];
                 let rawHe = hit._source.exact || hit._source.naive_lemmatizer || "";
                 if (rawHe) {
-                    let cleanHe = rawHe.replace(/<\/?[^>]+(>|$)/g, "");
-                    return { he: cleanHe, ref: hit._source.ref, heRef: hit._source.heRef };
+                    return { he: formatSefariaText(rawHe), ref: hit._source.ref, heRef: hit._source.heRef };
                 }
             }
         } catch (e) { console.error("Search Wrapper Error", e); }
@@ -799,11 +838,7 @@ if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
     }
 
     let result = null;
-
-    // B. Specific Book (ElasticSearch Fallback)
     if (book) result = await querySearchWrapper(word, book);
-    
-    // C. General Corpus Fallback
     if (!result) result = await querySearchWrapper(word, safeCorpus);
 
     return result;

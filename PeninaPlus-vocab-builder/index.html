@@ -30,7 +30,7 @@
             background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='20' y='50' font-size='40' font-family='serif' fill='%238b7355'%3Eא%3C/text%3E%3Ctext x='150' y='80' font-size='60' font-family='serif' fill='%238b7355'%3Eפ%3C/text%3E%3Ctext x='250' y='40' font-size='35' font-family='serif' fill='%238b7355'%3Eג%3C/text%3E%3Ctext x='50' y='180' font-size='50' font-family='serif' fill='%238b7355'%3Eש%3C/text%3E%3Ctext x='200' y='220' font-size='45' font-family='serif' fill='%238b7355'%3Eל%3C/text%3E%3Ctext x='100' y='280' font-size='30' font-family='serif' fill='%238b7355'%3Eמ%3C/text%3E%3C/svg%3E");
             background-repeat: repeat;
         }
-        /* --- HOME BUTTON --- */
+/* --- HOME BUTTON --- */
         .home-btn {
             position: absolute;
             top: 25px;
@@ -77,7 +77,7 @@
         }
         .control-panel-wrapper { max-width: 900px; margin: 0 auto; padding: 0 20px; }
         
-        /* --- HEADER & ABOUT/CREDITS --- */
+        /* --- HEADER & ABOUT/CREDITS (From Penina) --- */
         .header-container { 
             display: flex; 
             justify-content: center; 
@@ -138,15 +138,15 @@
         label { font-weight: bold; display: block; margin-bottom: 8px; color: #5a5248; }
         
         input[type="text"], textarea, select { 
-            width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
-            border-radius: 5px; box-sizing: border-box; font-size: 16px; 
-            background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
-            font-family: inherit; 
-        }
+    width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
+    border-radius: 5px; box-sizing: border-box; font-size: 16px; 
+    background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
+    font-family: inherit; 
+}
 
-        textarea, .hebrew-input, .strict-hebrew-input {
-            font-size: 18px; 
-        }
+textarea, .hebrew-input, .strict-hebrew-input {
+    font-size: 18px; 
+}
         select:focus, textarea:focus, input[type="text"]:focus { 
             outline: none; border-color: #b5a898; background-color: #ffffff; 
         }
@@ -188,6 +188,41 @@
         .slider-container label { font-size: 14px; font-weight: bold; }
         .slider-container input[type="range"] { width: 100%; cursor: pointer; margin-top: 8px; accent-color: #5a5248; }
 
+        /* --- ROLLER COMPONENT --- */
+        .roller-container {
+            display: flex;
+            gap: 15px;
+            height: 120px;
+            margin-top: 5px;
+        }
+
+        .roller {
+            flex: 1;
+            padding: 5px;
+            font-size: 16px;
+            border: 1px solid #dcd3c6;
+            border-radius: 5px;
+            background-color: #fdfdfa;
+            color: #3a332a;
+            outline: none;
+            cursor: pointer;
+            scrollbar-width: thin;
+            scrollbar-color: #b5a898 #fdfdfa;
+        }
+
+        .roller option {
+            padding: 8px;
+            text-align: center;
+            border-radius: 3px;
+            margin-bottom: 2px;
+        }
+
+        .roller option:checked {
+            background-color: #0056b3;
+            color: white;
+            font-weight: bold;
+        }
+
         /* --- VIRTUAL PAPER PARADIGM --- */
         .paper-viewport { width: 100%; overflow-x: auto; padding-bottom: 40px; }
         .page-container { 
@@ -214,6 +249,7 @@
         
         .hebrew-text { font-family: inherit; direction: rtl; }
         .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 4px; }
+        .citation { direction: rtl; text-align: right; font-size: 10pt; margin-top: 4px; color: #666; }
         
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
         .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
@@ -230,7 +266,7 @@
 <body class="mode-full">
 
     <div class="bg-pattern"></div>
-    <a href="/" class="home-btn" aria-label="Return to Home">
+<a href="/" class="home-btn" aria-label="Return to Home">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
         </svg>
@@ -240,8 +276,7 @@
         
         <div class="header-container">
             <img src="peninaplus-logo.png" alt="Penina Plus Logo" class="app-logo">
-            <h1 class="app-title">PeninaPlus Vocabulary Builder</h1>        
-        </div>
+<h1 class="app-title">PeninaPlus Vocabulary Builder</h1>        </div>
         <div class="copyright">&copy; 2026 David Israel</div>
 
         <details class="about-details">
@@ -265,7 +300,7 @@
                 <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
             </div>
 
-            <div class="form-group" style="display: flex; gap: 20px;">
+<div class="form-group" style="display: flex; gap: 20px;">
                 <div style="flex: 1;">
                     <label for="source-type">Context Source:</label>
                     <select id="source-type">
@@ -275,9 +310,13 @@
                         <option value="Any">No Preference (Any)</option>
                     </select>
                 </div>
-                <div style="flex: 1;" id="specific-source-container">
-                    <label for="specific-source" id="specific-source-label">Specific Sefer / Perek:</label>
-                    <input type="text" id="specific-source" placeholder="e.g., Bereishit, Perek 1">
+                <div style="flex: 1; display: none;" id="specific-source-container">
+                    <label id="specific-source-label">Specific Source:</label>
+                    <div class="roller-container">
+                        <select id="book-select" size="5" class="roller"></select>
+                        <select id="chapter-select" size="5" class="roller" disabled></select>
+                    </div>
+                    <input type="hidden" id="specific-source" value="">
                 </div>
             </div>
 
@@ -297,6 +336,8 @@
             <div class="formatting-section">
                 <h3>Word Styling and Formatting</h3>
                 
+                
+
                 <div class="slider-group">
                     <div class="slider-container">
                         <label for="font-size">Font Size: <span id="font-size-val">14pt</span></label>
@@ -369,230 +410,257 @@
         </div>
     </div>
 
-   <script>
+    <script>
         const generateBtn = document.getElementById('generate-btn');
-        const vocabTbody = document.getElementById('vocab-tbody');
-        const sourceTypeSelect = document.getElementById('source-type');
-        const specificSourceContainer = document.getElementById('specific-source-container');
-        const specificSourceLabel = document.getElementById('specific-source-label');
-        const specificSourceInput = document.getElementById('specific-source');
-        const pageContainer = document.getElementById('page');
-        const docTitle = document.getElementById('doc-title');
+const vocabTbody = document.getElementById('vocab-tbody');
+const sourceTypeSelect = document.getElementById('source-type');
+const specificSourceContainer = document.getElementById('specific-source-container');
+const specificSourceLabel = document.getElementById('specific-source-label');
+const specificSourceInput = document.getElementById('specific-source');
+const pageContainer = document.getElementById('page');
+const docTitle = document.getElementById('doc-title');
 
-        sourceTypeSelect.addEventListener('change', function() {
-            const value = this.value;
-            if (value === 'Tanakh') {
-                specificSourceContainer.style.display = 'block';
-                specificSourceLabel.innerText = 'Specific Sefer / Perek:';
-                specificSourceInput.placeholder = 'e.g., Bereishit, Perek 1';
-            } else if (value === 'Talmud') {
-                specificSourceContainer.style.display = 'block';
-                specificSourceLabel.innerText = 'Specific Massechet / Perek:';
-                specificSourceInput.placeholder = 'e.g., Berakhot, Perek 1';
-            } else {
-                specificSourceContainer.style.display = 'none';
-                specificSourceInput.value = ''; 
+const bookSelect = document.getElementById('book-select');
+const chapterSelect = document.getElementById('chapter-select');
+
+const sourceData = {
+    Tanakh: {
+        "בראשית": 50, "שמות": 40, "ויקרא": 27, "במדבר": 36, "דברים": 34,
+        "יהושע": 24, "שופטים": 21, "שמואל א": 31, "שמואל ב": 24, "מלכים א": 22, "מלכים ב": 25,
+        "ישעיהו": 66, "ירמיהו": 52, "יחזקאל": 48,
+        "הושע": 14, "יואל": 4, "עמוס": 9, "עובדיה": 1, "יונה": 4, "מיכה": 7, "נחום": 3, "חבקוק": 3, "צפניה": 3, "חגי": 2, "זכריה": 14, "מלאכי": 3,
+        "תהילים": 150, "משלי": 31, "איוב": 42, "שיר השירים": 8, "רות": 4, "איכה": 5, "קהלת": 12, "אסתר": 10, "דניאל": 12, "עזרא": 10, "נחמיה": 13, "דברי הימים א": 29, "דברי הימים ב": 36
+    },
+    Talmud: {
+        "ברכות": ["מאימתי", "היה קורא", "מי שמתו", "תפילת השחר", "אין עומדין", "כיצד מברכין", "שלושה שאכלו", "אלו דברים", "הרואה"],
+        "שבת": ["יציאות השבת", "במה מדליקין", "במה טומנין", "במה בהמה", "במה אשה", "במה אשה יוצאה", "כלל גדול", "המוציא יין", "אמר ר״ע", "המצניע", "הזורק", "הבונה", "האורג", "שמונה שרצים", "אלו קשרים", "כל כתבי", "כל הכלים", "מפנין", "ר״א דמילה", "תולין", "נוטל", "חבית", "שואל", "מי שהחשיך"],
+        "עירובין": ["מבוי", "עושין פסין", "בכל מערבין", "מי שהוציאוהו", "כיצד מעברין", "הדר", "כיצד משתתפין", "כיצד צולין", "כל גגות", "המוצא תפילין"],
+        "פסחים": ["אור לארבעה עשר", "כל שעה", "אלו עוברין", "מקום שנהגו", "תמיד נשחט", "אלו דברים", "כיצד צולין", "האשה", "מי שהיה", "ערבי פסחים"],
+        "ראש השנה": ["ארבעה ראשי שנים", "אם אינן מכירין", "ראוהו בית דין", "יום טוב"],
+        "יומא": ["שבעת ימים", "בראשונה", "אמר להם הממונה", "טרף בקלפי", "הוציאו לו", "שני שעירי", "בא לו כהן גדול", "יום הכפורים"],
+        "סוכה": ["סוכה", "הישן תחת המטה", "לולב הגזול", "לולב וערבה", "החליל"],
+        "ביצה": ["ביצה", "יום טוב", "אין צדין", "המביא", "משילין"],
+        "תענית": ["מאימתי", "סדר תעניות כיצד", "סדר תעניות אלו", "בשלושה פרקים"],
+        "מגילה": ["מגילה נקראת", "הקורא למפרע", "הקורא עומד", "בני העיר"],
+        "מועד קטן": ["משקין", "מי שהפך", "ואלו מגלחין"],
+        "חגיגה": ["הכל חייבין", "אין דורשין", "חומר בקודש"],
+        "יבמות": ["חמש עשרה נשים", "כיצד אשת אחיו", "ארבעה אחין", "החולץ", "רבן גמליאל", "הבא על יבמתו", "אלמנה", "הערל", "יש מותרות", "האשה רבה", "נושאין על האנוסה", "מצות חליצה", "המוציא", "חירש", "האשה שלום", "האשה בתרא"],
+        "כתובות": ["בתולה נשאת", "האשה שנתארמלה", "אלו נערות", "נערה שנתפתתה", "אף על פי", "מציאת האשה", "המדיר", "האשה שנפלו", "הכותב", "מי שהיה נשוי", "אלמנה ניזונת", "הנושא", "שני דייני גזירות"],
+        "נדרים": ["כל כינויי", "ואלו מותרין", "ארבעה נדרים", "אין בין המודר", "השותפין", "הנודר מן המבושל", "קונם יין", "קונם יין בתרא", "רבי אליעזר", "נערה המאורסה", "ואלו נדרים"],
+        "נזיר": ["כל כינויי", "הריני נזיר מן החרצנים", "מי שאמר", "מי שאמר הריני נזיר", "שתי נשים", "הריני נזיר", "כהן גדול", "שני נזירים", "גויים"],
+        "סוטה": ["המקנא", "היה מביא", "היה מביא מנחתה", "ארוסה", "כשם שהמים", "מי שקינא", "אלו נאמרין", "משוח מלחמה", "עגלה ערופה"],
+        "גיטין": ["המביא גט", "המביא גט בתרא", "כל הגט", "השולח", "הניזקין", "האומר", "מי שאחזו", "הזורק", "המגרש"],
+        "קידושין": ["האשה נקנית", "האיש מקדש", "האומר", "עשרה יוחסין"],
+        "בבא קמא": ["ארבעה אבות", "כיצד הרגל", "המניח", "שור שנגח ארבעה", "שור שנגח את הפרה", "הכונס", "מרובה", "החובל", "הגוזל עצים", "הגוזל ומאכיל"],
+        "בבא מציעא": ["שנים אוחזין", "אלו מציאות", "המפקיד", "הזהב", "איזהו נשך", "השוכר את האומנין", "השוכר את הפועלים", "השואל", "המקבל", "הבית והעליה"],
+        "בבא בתרא": ["השותפין", "לא יחפור", "חזקת הבתים", "המוכר את הבית", "המוכר את הספינה", "המוכר פירות", "המקבל", "יש נוחלין", "מי שמת", "גט פשוט"],
+        "סנהדרין": ["דיני ממונות", "כהן גדול", "זה בורר", "אחד דיני ממונות", "היו בודקין", "נגמר הדין", "ארבע מיתות", "בן סורר ומורה", "אלו הן הנשרפין", "אלו הן הגולין", "חלק"],
+        "מכות": ["כיצד העדים", "אלו הן הגולין", "אלו הן הלוקין"],
+        "שבועות": ["שבועות שתים", "ידיעות הטומאה", "שבועות שתים בתרא", "שבועת העדות", "שבועת הפיקדון", "שבועת הדיינים", "כל הנשבעים", "ארבעה שומרים"],
+        "עבודה זרה": ["לפני אידיהן", "אין מעמידין", "כל הצלמים", "רבי ישמעאל", "השוכר את הפועל"],
+        "הוריות": ["הורו בית דין", "הורה כהן משיח", "כהן משיח"],
+        "זבחים": ["כל הזבחים", "כל הזבחים שנשחטו", "כל הפסולין", "איזהו מקומן", "קודשי קודשים", "קודשי קודשים בתרא", "חטאת העוף", "כל הזבחים שנתערבו", "המזבח מקדש", "דם חטאת", "דם חטאת בתרא", "טבול יום", "פרת חטאת", "פרת חטאת בתרא"],
+        "מנחות": ["כל המנחות", "כל המנחות באות מצה", "הקומץ רבה", "הקומץ זוטא", "כל המנחות באות מצה", "רבי ישמעאל", "כיצד קומצין", "שתי הלחם", "התכלת", "שתי הלחם", "מנחות נקמצות", "התכלת", "התכלת"],
+        "חולין": ["הכל שוחטין", "השוחט", "אלו טריפות", "בהמה המקשה", "אותו ואת בנו", "כיסוי הדם", "גיד הנשה", "כל הבשר", "העור והרוטב", "הזרוע", "ראשית הגז", "שילוח הקן"],
+        "בכורות": ["הלוקח עובר עמורו", "הלוקח עובר פרתו", "הלוקח עובר בהמתו", "עד כמה", "כל פסולי", "מעשר בהמה", "מומין אלו", "יש בכור", "מעשר בהמה"],
+        "ערכין": ["הכל מעריכין", "אין עורכין", "יש בערכין", "הישג יד", "האומר משקלי", "האומר ערכי עלי", "אין מקדישין", "המקדיש שדהו", "המקדיש שדהו בתרא"],
+        "תמורה": ["הכל ממירין", "יש בקרבנות", "אלו קדשים", "ולד חטאת", "כיצד מערימין", "כל הפסולין", "יש בקדשי מזבח"],
+        "כריתות": ["שלושים ושש", "ארבעה מחוסרי כפרה", "אמרו לו", "ספק אכל חלב", "דם שחיטה", "המביא אשם"],
+        "מעילה": ["קדשי קדשים", "חטאת העוף", "ולד חטאת", "קודשי מזבח", "נהנין מן ההקדש", "השליח"],
+        "תמיד": ["בשלשה מקומות", "ראוהו אחיו", "אמר להם הממונה", "לא היו כופתין", "אמר להם הממונה", "החלו עולים", "בזמן שכהן גדול"],
+        "נידה": ["שמאי אומר", "כל היד", "המפלת", "בנות כותים", "יוצא דופן", "בא סימן", "דם הנידה", "רואה כתם", "האשה שהיא עושה צרכיה", "תינוקת"]
+    }
+};
+
+sourceTypeSelect.addEventListener('change', function() {
+    const value = this.value;
+    bookSelect.innerHTML = '';
+    chapterSelect.innerHTML = '';
+    chapterSelect.disabled = true;
+    specificSourceInput.value = ""; 
+
+    if (value === 'Tanakh' || value === 'Talmud') {
+        specificSourceContainer.style.display = 'block';
+        specificSourceLabel.innerText = value === 'Tanakh' ? 'Select Sefer & Perek:' : 'Select Massechet & Perek:';
+        
+        const books = Object.keys(sourceData[value]);
+        books.forEach(book => {
+            const option = document.createElement('option');
+            option.value = book;
+            option.textContent = book;
+            bookSelect.appendChild(option);
+        });
+    } else {
+        specificSourceContainer.style.display = 'none';
+    }
+});
+
+bookSelect.addEventListener('change', function() {
+    const sourceType = sourceTypeSelect.value;
+    const selectedBook = this.value;
+    
+    chapterSelect.innerHTML = '';
+    
+    if (!selectedBook) {
+        chapterSelect.disabled = true;
+        specificSourceInput.value = "";
+        return;
+    }
+
+    chapterSelect.disabled = false;
+
+    if (sourceType === 'Tanakh') {
+        const chapterCount = sourceData.Tanakh[selectedBook];
+        for (let i = 1; i <= chapterCount; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `פרק ${i}`;
+            chapterSelect.appendChild(option);
+        }
+    } else if (sourceType === 'Talmud') {
+        const chapters = sourceData.Talmud[selectedBook];
+        chapters.forEach((chapName, index) => {
+            const option = document.createElement('option');
+            option.value = index + 1; 
+            option.textContent = `פרק ${index + 1} - ${chapName}`;
+            chapterSelect.appendChild(option);
+        });
+    }
+    updateHiddenInput();
+});
+
+chapterSelect.addEventListener('change', updateHiddenInput);
+
+function updateHiddenInput() {
+    const book = bookSelect.value;
+    const chapter = chapterSelect.value;
+    
+    if (book && chapter) {
+        specificSourceInput.value = `${book} ${chapter}`; 
+    } else {
+        specificSourceInput.value = "";
+    }
+}
+
+sourceTypeSelect.dispatchEvent(new Event('change'));
+
+function updateMargin(margin) {
+    const outputDiv = document.getElementById('page');
+    if (margin === 'right') outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';
+    else if (margin === 'left') outputDiv.style.padding = '0.75in 0.75in 0.75in 1.25in';
+    else outputDiv.style.padding = '0.75in';
+
+    let styleTag = document.getElementById('dynamic-print-style') || document.createElement('style');
+    styleTag.id = 'dynamic-print-style';
+    document.head.appendChild(styleTag);
+
+    let css = `@media print { @page { size: letter; margin: 0.75in; } }`;
+    if (margin === 'right') css = `@media print { @page { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; } }`;
+    if (margin === 'left') css = `@media print { @page { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; } }`;
+    if (margin === 'alternate-right') css = `@media print { @page:right { margin: 0.75in 1.25in 0.75in 0.75in; } @page:left { margin: 0.75in 0.75in 0.75in 1.25in; } }`;
+    if (margin === 'alternate-left') css = `@media print { @page:right { margin: 0.75in 0.75in 0.75in 1.25in; } @page:left { margin: 0.75in 1.25in 0.75in 0.75in; } }`;
+    styleTag.innerHTML = css;
+}
+
+document.getElementById('font-size').addEventListener('input', (e) => {
+    document.getElementById('font-size-val').innerText = e.target.value + 'pt';
+    document.getElementById('vocab-table').style.fontSize = e.target.value + 'pt';
+});
+
+document.getElementById('kerning').addEventListener('input', (e) => {
+    document.getElementById('kerning-val').innerText = e.target.value + 'px';
+    document.getElementById('vocab-table').style.letterSpacing = e.target.value + 'px';
+});
+
+document.getElementById('font-choice').addEventListener('change', (e) => {
+    document.getElementById('vocab-table').style.fontFamily = e.target.value;
+});
+
+generateBtn.addEventListener('click', async () => {
+    const title = document.getElementById('list-title').value.trim();
+    const words = document.getElementById('word-list').value.trim();
+    const sourceType = document.getElementById('source-type').value;
+    const specificSource = document.getElementById('specific-source').value.trim();
+
+    if (!words || !title) return;
+
+    generateBtn.disabled = true;
+    vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Generating & Fetching from Sefaria...</td></tr>';
+    pageContainer.style.display = 'block';
+    docTitle.innerText = title;
+
+    try {
+        const prompt = `Return JSON array for: ${words}. Corpus: ${sourceType}, Location: ${specificSource}. Include hebrew_word_raw, english_def, citation. Citation MUST be a standard Sefaria string (e.g. 'Genesis 1:1' or 'Berakhot 2a:4').`;
+        
+        const res = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: prompt })
+        });
+
+        const data = await res.json();
+        let vocabData = JSON.parse(data.text.replace(/```json|```/g, '').trim());
+
+        if (document.getElementById('alphabetize-list').checked) {
+            vocabData.sort((a, b) => a.hebrew_word_raw.localeCompare(b.hebrew_word_raw, 'he'));
+        }
+
+        let htmlOutput = "";
+
+        for (let item of vocabData) {
+            let word = item.hebrew_word_raw;
+            let hebrewContext = "Context fetching failed.";
+            let englishContext = "Translation fetching failed.";
+
+            // Fetch exact verse text from Sefaria API
+            if (item.citation) {
+                try {
+                    const sefariaRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(item.citation)}?context=0`);
+                    if (sefariaRes.ok) {
+                        const sefariaData = await sefariaRes.json();
+                        // Handle both single verses (strings) and ranges (arrays)
+                        hebrewContext = Array.isArray(sefariaData.he) ? sefariaData.he.join(" ") : (sefariaData.he || "");
+                        englishContext = Array.isArray(sefariaData.text) ? sefariaData.text.join(" ") : (sefariaData.text || "");
+                        
+                        // Strip HTML tags sometimes returned by Sefaria
+                        hebrewContext = hebrewContext.replace(/<\/?[^>]+(>|$)/g, "");
+                        englishContext = englishContext.replace(/<\/?[^>]+(>|$)/g, "");
+                    }
+                } catch (e) {
+                    console.error("Sefaria fetch failed for:", item.citation, e);
+                }
             }
-        });
 
-        sourceTypeSelect.dispatchEvent(new Event('change'));
+            // Create a regex to highlight the root word while ignoring Sefaria's potential Nekudot/Ta'amim in between letters
+            let searchRegex = new RegExp(word.split('').join('[\u0591-\u05C7]*'), 'g');
+            let highlightedHebrew = hebrewContext.replace(searchRegex, `<span style="font-weight:bold; text-decoration: underline;">$&</span>`);
 
-        function updateMargin(margin) {
-            const outputDiv = document.getElementById('page');
-            if (margin === 'right') outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';
-            else if (margin === 'left') outputDiv.style.padding = '0.75in 0.75in 0.75in 1.25in';
-            else outputDiv.style.padding = '0.75in';
-
-            let styleTag = document.getElementById('dynamic-print-style') || document.createElement('style');
-            styleTag.id = 'dynamic-print-style';
-            document.head.appendChild(styleTag);
-
-            let css = `@media print { @page { size: letter; margin: 0.75in; } }`;
-            if (margin === 'right') css = `@media print { @page { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; } }`;
-            if (margin === 'left') css = `@media print { @page { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; } }`;
-            if (margin === 'alternate-right') css = `@media print { @page:right { margin: 0.75in 1.25in 0.75in 0.75in; } @page:left { margin: 0.75in 0.75in 0.75in 1.25in; } }`;
-            if (margin === 'alternate-left') css = `@media print { @page:right { margin: 0.75in 0.75in 0.75in 1.25in; } @page:left { margin: 0.75in 1.25in 0.75in 0.75in; } }`;
-            styleTag.innerHTML = css;
+            htmlOutput += `
+            <tr>
+                <td class="col-hebrew"><span class="hebrew-word">${word}</span></td>
+                <td class="col-english" contenteditable="true">${item.english_def}</td>
+                <td class="col-context">
+                    <div class="hebrew-text">${highlightedHebrew}</div>
+                    <div class="english-text" contenteditable="true">${englishContext}</div>
+                    <div class="citation">${item.citation}</div>
+                </td>
+            </tr>`;
         }
+        vocabTbody.innerHTML = htmlOutput;
+        document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
 
-        document.getElementById('font-size').addEventListener('input', (e) => {
-            document.getElementById('font-size-val').innerText = e.target.value + 'pt';
-            document.getElementById('vocab-table').style.fontSize = e.target.value + 'pt';
-        });
+    } catch (e) {
+        vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
+    } finally {
+        generateBtn.disabled = false;
+    }
+});
 
-        document.getElementById('kerning').addEventListener('input', (e) => {
-            document.getElementById('kerning-val').innerText = e.target.value + 'px';
-            document.getElementById('vocab-table').style.letterSpacing = e.target.value + 'px';
-        });
-
-        document.getElementById('font-choice').addEventListener('change', (e) => {
-            document.getElementById('vocab-table').style.fontFamily = e.target.value;
-        });
-
-        // Helper function to safely escape regex characters
-        function escapeRegExp(string) {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        }
-
-        generateBtn.addEventListener('click', async () => {
-            const title = document.getElementById('list-title').value.trim();
-            const wordsInput = document.getElementById('word-list').value.trim();
-            const sourceType = document.getElementById('source-type').value;
-            const specificSource = document.getElementById('specific-source').value.trim();
-
-            if (!wordsInput || !title) return;
-
-            generateBtn.disabled = true;
-            vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing Vocabulary (This may take a moment)...</td></tr>';
-            pageContainer.style.display = 'block';
-            docTitle.innerText = title;
-
-            try {
-                // RULE 1: Parse user input for comma separation
-                const lines = wordsInput.split('\n').filter(line => line.trim() !== '');
-                const vocabList = [];
-
-                for (let line of lines) {
-                    const parts = line.split(/[,\t]/).map(p => p.trim());
-                    let heb = '', eng = '';
-                    
-                    if (parts.length >= 2) {
-                        if (/[\u0590-\u05FF]/.test(parts[0])) { heb = parts[0]; eng = parts[1]; } 
-                        else { eng = parts[0]; heb = parts[1]; }
-                    } else if (parts.length === 1) {
-                        if (/[\u0590-\u05FF]/.test(parts[0])) { heb = parts[0]; } 
-                        else { eng = parts[0]; }
-                    }
-                    vocabList.push({ heb, eng });
-                }
-
-                // RULE 2: Only translate if one language is missing. If both exist, keep user definition.
-                for (let item of vocabList) {
-                    const hasHeb = item.heb && item.heb.trim().length > 0;
-                    const hasEng = item.eng && item.eng.trim().length > 0;
-
-                    if (hasHeb && !hasEng) {
-                        const transPrompt = `Translate the Hebrew word "${item.heb}" into a single concise English definition. Reply ONLY with the English word.`;
-                        try {
-                            const res = await fetch('/api/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promptText: transPrompt }) });
-                            const data = await res.json();
-                            item.eng = data.text.trim();
-                        } catch (e) { console.error("Translation failed for:", item.heb); }
-                    } else if (!hasHeb && hasEng) {
-                        const transPrompt = `Translate the English word "${item.eng}" into Hebrew. Reply ONLY with the Hebrew word.`;
-                        try {
-                            const res = await fetch('/api/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promptText: transPrompt }) });
-                            const data = await res.json();
-                            item.heb = data.text.trim();
-                        } catch (e) { console.error("Translation failed for:", item.eng); }
-                    }
-                }
-
-                if (document.getElementById('alphabetize-list').checked) {
-                    vocabList.sort((a, b) => a.heb.localeCompare(b.heb, 'he'));
-                }
-
-                const rowPromises = vocabList.map(async (item) => {
-                    const cleanHeb = item.heb.replace(/[\u0591-\u05C7]/g, '');
-                    let hebrewSnippet = "Context not found.";
-                    let englishSnippet = "Translation not found.";
-                    let hebCitation = "";
-                    let engCitation = "";
-
-                    if (sourceType === 'Modern Hebrew') {
-                        try {
-                            const modPrompt = `Write a short Modern Israeli Hebrew sentence containing the word "${item.heb}". Return ONLY the Hebrew sentence.`;
-                            const modRes = await fetch('/api/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promptText: modPrompt }) });
-                            const modData = await modRes.json();
-                            hebrewSnippet = modData.text.trim();
-                            engCitation = "Modern Hebrew";
-                            hebCitation = "עברית מודרנית";
-                        } catch(e) { console.error(e); }
-                    } else {
-                        try {
-                            // DIRECT SEFARIA SEARCH (No citation guessing)
-                            const filterPath = sourceType === 'Tanakh' ? 'Tanakh' : (sourceType === 'Talmud' ? 'Talmud' : '');
-                            const searchQuery = cleanHeb + (specificSource ? ` ${specificSource}` : "");
-                            const searchUrl = `https://www.sefaria.org/api/search-wrapper`;
-                            const searchBody = { query: searchQuery, type: "text", field: "text", filter: filterPath ? [`path: "${filterPath}"`] : [] };
-
-                            const searchRes = await fetch(searchUrl, { method: 'POST', body: JSON.stringify(searchBody) });
-                            const searchData = await searchRes.json();
-                            const hit = searchData.hits?.hits?.[0];
-
-                            if (hit) {
-                                // Extract and strip HTML tags (like <b>) returned by Sefaria search
-                                hebrewSnippet = (hit.highlight?.text?.[0] || hit._source.text).replace(/<\/?[^>]+(>|$)/g, "");
-                                engCitation = hit._source.ref;
-                                hebCitation = hit._source.heRef || hit._source.ref;
-                            }
-                        } catch (e) { console.error("Sefaria Search Error:", e); }
-                    }
-
-                    // Translate snippet using YOUR English definition as the definitive guide
-                    if (hebrewSnippet !== "Context not found.") {
-                        try {
-                            const contextPrompt = `Translate this Hebrew sentence to English. You MUST translate the word "${item.heb}" as "${item.eng}":\n\n${hebrewSnippet}`;
-                            const transRes = await fetch('/api/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promptText: contextPrompt }) });
-                            const transData = await transRes.json();
-                            englishSnippet = transData.text.trim();
-
-                            // Vowelize the found snippet (via Dicta/generate.js)
-                            const vowelRes = await fetch('/api/generate', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ suppliedText: hebrewSnippet, dictaGenre: sourceType === 'Tanakh' ? 'biblical' : 'rabbinic' })
-                            });
-                            const vowelData = await vowelRes.json();
-                            hebrewSnippet = vowelData.text || hebrewSnippet;
-                        } catch(e) { console.error(e); }
-                    }
-
-                    // Create Bolding Logic
-                    const escapedWord = cleanHeb.split('').map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\u0591-\u05C7]*');
-                    const hebRegex = new RegExp(`(${escapedWord})`, 'g');
-                    const boldHebrew = hebrewSnippet.replace(hebRegex, `<b>$1</b>`);
-                    
-                    const escapedEng = item.eng.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const engRegex = new RegExp(`\\b(${escapedEng})\\b`, 'gi');
-                    const boldEnglish = englishSnippet.replace(engRegex, `<b>$1</b>`);
-
-                    return `
-                    <tr>
-                        <td class="col-hebrew"><span class="hebrew-word">${item.heb}</span></td>
-                        <td class="col-english" contenteditable="true">${item.eng}</td>
-                        <td class="col-context">
-                            <div style="display: flex; justify-content: space-between; gap: 20px;">
-                                <div style="flex: 1; direction: rtl; text-align: right;">
-                                    <div class="hebrew-text">${boldHebrew}</div>
-                                    <div class="citation" style="margin-top: 5px; color: #666; font-size: 0.9em;">${hebCitation}</div>
-                                </div>
-                                <div style="flex: 1; direction: ltr; text-align: left;">
-                                    <div class="english-text" contenteditable="true">${boldEnglish}</div>
-                                    <div class="citation" style="margin-top: 5px; color: #666; font-size: 0.9em;">${engCitation}</div>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>`;
-                });
-
-                const resolvedRows = await Promise.all(rowPromises);
-                vocabTbody.innerHTML = resolvedRows.join('');
-                
-                document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
-
-            } catch (e) {
-                vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
-            } finally {
-                generateBtn.disabled = false;
-            }
-        });
-
-        function toggleNekudot(action) {
-            document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
-                el.innerHTML = (action === 'strip') ? el.innerHTML.replace(/[\u0591-\u05C7]/g, '') : el.dataset.original;
-            });
-        }
+function toggleNekudot(action) {
+    document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
+        el.innerHTML = (action === 'strip') ? el.innerHTML.replace(/[\u0591-\u05C7]/g, '') : el.dataset.original;
+    });
+}
     </script>
 </body>
 </html>

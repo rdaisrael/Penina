@@ -369,7 +369,7 @@
         </div>
     </div>
 
-    <script>
+   <script>
         const generateBtn = document.getElementById('generate-btn');
         const vocabTbody = document.getElementById('vocab-tbody');
         const sourceTypeSelect = document.getElementById('source-type');
@@ -436,105 +436,150 @@
 
         generateBtn.addEventListener('click', async () => {
             const title = document.getElementById('list-title').value.trim();
-            const words = document.getElementById('word-list').value.trim();
+            const wordsInput = document.getElementById('word-list').value.trim();
             const sourceType = document.getElementById('source-type').value;
             const specificSource = document.getElementById('specific-source').value.trim();
 
-            if (!words || !title) return;
+            if (!wordsInput || !title) return;
 
             generateBtn.disabled = true;
-            vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Generating & Fetching Context from Sefaria...</td></tr>';
+            vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing Vocabulary (This may take a moment)...</td></tr>';
             pageContainer.style.display = 'block';
             docTitle.innerText = title;
 
             try {
-                const prompt = `Return JSON array for the words: ${words}. Corpus: ${sourceType}, Location: ${specificSource}. Include hebrew_word_raw, english_def, citation. Citation MUST be a standard Sefaria string (e.g. 'Genesis 1:1' or 'Berakhot 2a:4'). The hebrew_word_raw MUST physically exist in the text of that citation.`;
-                
-                const res = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
-                });
+                // RULE 1: Parse user input for comma separation
+                const lines = wordsInput.split('\n').filter(line => line.trim() !== '');
+                const vocabList = [];
 
-                const data = await res.json();
-                let vocabData = JSON.parse(data.text.replace(/```json|```/g, '').trim());
-
-                if (document.getElementById('alphabetize-list').checked) {
-                    vocabData.sort((a, b) => a.hebrew_word_raw.localeCompare(b.hebrew_word_raw, 'he'));
+                for (let line of lines) {
+                    const parts = line.split(',').map(p => p.trim());
+                    let heb = '', eng = '';
+                    
+                    if (parts.length >= 2) {
+                        if (/[\u0590-\u05FF]/.test(parts[0])) { heb = parts[0]; eng = parts[1]; } 
+                        else { eng = parts[0]; heb = parts[1]; }
+                    } else if (parts.length === 1) {
+                        if (/[\u0590-\u05FF]/.test(parts[0])) { heb = parts[0]; } 
+                        else { eng = parts[0]; }
+                    }
+                    vocabList.push({ heb, eng });
                 }
 
-                // Process all words concurrently using Promise.all
-                const rowPromises = vocabData.map(async (item) => {
-                    let word = item.hebrew_word_raw;
-                    let def = item.english_def;
+                // RULE 2: Translate single inputs via API
+                for (let item of vocabList) {
+                    if (!item.heb || !item.eng) {
+                        const targetWord = item.heb || item.eng;
+                        const transPrompt = `Translate "${targetWord}". If Hebrew, reply in English. If English, reply in Hebrew. Reply ONLY with the translated word.`;
+                        try {
+                            const res = await fetch('/api/translate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ promptText: transPrompt })
+                            });
+                            const data = await res.json();
+                            if (item.heb) item.eng = data.text.trim();
+                            else item.heb = data.text.trim();
+                        } catch (e) { console.error("Translation missing for:", targetWord); }
+                    }
+                }
+
+                if (document.getElementById('alphabetize-list').checked) {
+                    vocabList.sort((a, b) => a.heb.localeCompare(b.heb, 'he'));
+                }
+
+                const rowPromises = vocabList.map(async (item) => {
+                    const cleanHeb = item.heb.replace(/[\u0591-\u05C7]/g, '');
                     let hebrewSnippet = "Context fetching failed.";
                     let englishSnippet = "Translation fetching failed.";
                     let hebCitation = "";
                     let engCitation = "";
 
-                    if (item.citation) {
+                    // RULE 3: Sefaria vs Modern Hebrew Logic
+                    if (sourceType === 'Modern Hebrew') {
                         try {
-                            const sefariaRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(item.citation)}?context=0`);
-                            if (sefariaRes.ok) {
-                                const sefariaData = await sefariaRes.json();
-                                let fullHebrew = Array.isArray(sefariaData.he) ? sefariaData.he.join(" ") : (sefariaData.he || "");
-                                fullHebrew = fullHebrew.replace(/<\/?[^>]+(>|$)/g, "");
+                            const modPrompt = `Write a short, simple conversational Modern Israeli Hebrew sentence containing the exact word "${item.heb}". Return ONLY the Hebrew sentence.`;
+                            const modRes = await fetch('/api/translate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ promptText: modPrompt })
+                            });
+                            const modData = await modRes.json();
+                            hebrewSnippet = modData.text.trim();
+                            engCitation = "Modern Hebrew";
+                            hebCitation = "עברית מודרנית";
+                        } catch(e) {}
+                    } else {
+                        try {
+                            const refPrompt = `Find a valid Sefaria citation in ${sourceType === 'Any' ? 'Tanakh or Talmud' : sourceType} ${specificSource ? `in ${specificSource}` : ''} containing the Hebrew root "${cleanHeb}". Return ONLY valid JSON: {"citation": "Genesis 1:1"}`;
+                            const refRes = await fetch('/api/generate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ prompt: refPrompt })
+                            });
+                            const refData = await refRes.json();
+                            const parsedRef = JSON.parse(refData.text.replace(/```json|```/g, '').trim());
+                            
+                            if (parsedRef.citation) {
+                                const sefariaRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(parsedRef.citation)}?context=0`);
+                                if (sefariaRes.ok) {
+                                    const sefariaData = await sefariaRes.json();
+                                    let fullHebrew = Array.isArray(sefariaData.he) ? sefariaData.he.join(" ") : (sefariaData.he || "");
+                                    fullHebrew = fullHebrew.replace(/<\/?[^>]+(>|$)/g, "");
 
-                                // Strip vowels for safe regex building
-                                const cleanWord = word.replace(/[\u0591-\u05C7]/g, '');
-                                const regexPattern = cleanWord.split('').map(char => escapeRegExp(char)).join('[\u0591-\u05C7]*');
-                                const searchRegex = new RegExp(regexPattern);
-                                const globalSearchRegex = new RegExp(regexPattern, 'g');
+                                    const regexPattern = cleanHeb.split('').map(char => escapeRegExp(char)).join('[\u0591-\u05C7]*');
+                                    const searchRegex = new RegExp(regexPattern);
+                                    let wordsArr = fullHebrew.split(/\s+/);
+                                    let matchIndex = wordsArr.findIndex(w => searchRegex.test(w));
 
-                                let wordsArr = fullHebrew.split(/\s+/);
-                                let matchIndex = wordsArr.findIndex(w => searchRegex.test(w));
+                                    if (matchIndex !== -1) {
+                                        let start = Math.max(0, matchIndex - 5);
+                                        let end = Math.min(wordsArr.length, matchIndex + 6);
+                                        hebrewSnippet = (start > 0 ? "... " : "") + wordsArr.slice(start, end).join(" ") + (end < wordsArr.length ? " ..." : "");
+                                    } else {
+                                        hebrewSnippet = wordsArr.slice(0, 10).join(" ") + "...";
+                                    }
 
-                                if (matchIndex !== -1) {
-                                    let start = Math.max(0, matchIndex - 5);
-                                    let end = Math.min(wordsArr.length, matchIndex + 6);
-                                    hebrewSnippet = (start > 0 ? "... " : "") + wordsArr.slice(start, end).join(" ") + (end < wordsArr.length ? " ..." : "");
-                                } else {
-                                    hebrewSnippet = wordsArr.slice(0, 10).join(" ") + "...";
-                                }
-
-                                // Bold Hebrew target word
-                                hebrewSnippet = hebrewSnippet.replace(globalSearchRegex, `<b>$&</b>`);
-
-                                // Citation Formatting rules for Tanakh vs Talmud
-                                let rawEngRef = sefariaData.ref || item.citation; 
-                                let rawHebRef = sefariaData.heRef || item.citation; 
-
-                                if (sefariaData.categories && sefariaData.categories.includes("Talmud")) {
-                                    engCitation = rawEngRef.split(':')[0];
-                                    hebCitation = rawHebRef.split(':')[0];
-                                } else {
-                                    engCitation = rawEngRef;
-                                    hebCitation = rawHebRef;
-                                }
-
-                                // Hardened Translation Prompt
-                                const transPrompt = `Translate this short Hebrew snippet into English: "${hebrewSnippet.replace(/<b>|<\/b>/g, '')}". You MUST use the exact English phrase "${def}" in your translation to represent the root "${word}". Wrap ONLY that specific English phrase in <b> tags. Return ONLY the raw translated string. Do not include quotes, markdown, or conversational text.`;
-
-                                const transRes = await fetch('/api/translate', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ promptText: transPrompt })
-                                });
-                                
-                                if (transRes.ok) {
-                                    let transData = await transRes.json();
-                                    englishSnippet = transData.text;
+                                    let rawEngRef = sefariaData.ref || parsedRef.citation; 
+                                    let rawHebRef = sefariaData.heRef || parsedRef.citation; 
+                                    if (sefariaData.categories && sefariaData.categories.includes("Talmud")) {
+                                        engCitation = rawEngRef.split(':')[0]; hebCitation = rawHebRef.split(':')[0];
+                                    } else {
+                                        engCitation = rawEngRef; hebCitation = rawHebRef;
+                                    }
                                 }
                             }
-                        } catch (e) {
-                            console.error("Sefaria fetch failed for:", item.citation, e);
-                        }
+                        } catch(e) {}
+                    }
+
+                    // RULE 4: Translate Hebrew quote enforcing English vocabulary word
+                    if (!hebrewSnippet.includes("failed")) {
+                        try {
+                            const transPrompt = `Translate this Hebrew snippet into English: "${hebrewSnippet}". You MUST include the exact phrase "${item.eng}" in the translation. Return ONLY the translated string, no quotes.`;
+                            const transRes = await fetch('/api/translate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ promptText: transPrompt })
+                            });
+                            const transData = await transRes.json();
+                            englishSnippet = transData.text.trim();
+                        } catch(e) {}
+                    }
+
+                    // RULE 5: Bold BOTH target words strictly via Regex (No AI formatting reliance)
+                    if (!hebrewSnippet.includes("failed")) {
+                        const hebRegex = new RegExp(`(${cleanHeb.split('').map(char => escapeRegExp(char)).join('[\u0591-\u05C7]*')})`, 'g');
+                        hebrewSnippet = hebrewSnippet.replace(hebRegex, `<b>$1</b>`);
+                    }
+                    if (!englishSnippet.includes("failed")) {
+                        const engRegex = new RegExp(`\\b(${escapeRegExp(item.eng)})\\b`, 'gi');
+                        englishSnippet = englishSnippet.replace(engRegex, `<b>$1</b>`);
                     }
 
                     return `
                     <tr>
-                        <td class="col-hebrew"><span class="hebrew-word">${word}</span></td>
-                        <td class="col-english" contenteditable="true">${def}</td>
+                        <td class="col-hebrew"><span class="hebrew-word">${item.heb}</span></td>
+                        <td class="col-english" contenteditable="true">${item.eng}</td>
                         <td class="col-context">
                             <div style="display: flex; justify-content: space-between; gap: 20px;">
                                 <div style="flex: 1; direction: rtl; text-align: right;">

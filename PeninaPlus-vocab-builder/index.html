@@ -628,7 +628,7 @@ generateBtn.addEventListener('click', async () => {
 
             // 4 & 5. Fetch Context based on Source Type
             if (sourceType === 'Tanakh' || sourceType === 'Talmud' || sourceType === 'Talmud Bavli') {
-                // Implement Sefaria Search with fallback (Perek -> Book -> Corpus)
+                // Sefaria Search: Perek -> Book -> Corpus
                 let searchResult = await performSefariaSearch(cleanHebrew, sourceType, specificBook, specificChapter);
                 if (searchResult) {
                     hebrewContext = searchResult.he;
@@ -648,8 +648,9 @@ generateBtn.addEventListener('click', async () => {
                 citation = "Modern Hebrew Context";
             }
 
-            // 6. Translate the context sentence to English (ensuring vocab word is used)
+            // 6 & 7. Translate and Vowelize
             if (hebrewContext !== "Word not found in context.") {
+                // English Translation
                 const sentTransRes = await fetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -658,7 +659,7 @@ generateBtn.addEventListener('click', async () => {
                 const sentTransData = await sentTransRes.json();
                 englishContext = sentTransData.text;
 
-                // 7. Vowelize the Hebrew context using Dicta API via backend generate.js
+                // Dicta Vowelization (Sent directly to your generate.js)
                 const dictaGenre = (sourceType === 'Tanakh') ? 'biblical' : (sourceType === 'Talmud' || sourceType === 'Talmud Bavli' ? 'rabbinic' : 'modern');
                 const dictaRes = await fetch('/api/generate', {
                     method: 'POST',
@@ -673,10 +674,11 @@ generateBtn.addEventListener('click', async () => {
 
             // 8. Bolding the vocabulary words in context
             let hebrewRegex = new RegExp(cleanHebrew.split('').join('[\u0591-\u05C7]*'), 'g');
-            let highlightedHebrew = hebrewContext.replace(hebrewRegex, `<span style="font-weight:bold;">$&</span>`);
+            let highlightedHebrew = hebrewContext.replace(hebrewRegex, `<span style="font-weight:bold; text-decoration:underline;">$&</span>`);
             
-            let englishRegex = new RegExp(`\\b${item.english}\\b`, 'gi');
-            let highlightedEnglish = englishContext.replace(englishRegex, `<span style="font-weight:bold;">$&</span>`);
+            let safeEnglish = item.english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            let englishRegex = new RegExp(`\\b${safeEnglish}\\b`, 'gi');
+            let highlightedEnglish = englishContext.replace(englishRegex, `<span style="font-weight:bold; text-decoration:underline;">$&</span>`);
 
             // Output Row Construction
             htmlOutput += `
@@ -703,74 +705,77 @@ generateBtn.addEventListener('click', async () => {
 
 // Helper Function for Point 4 (Sefaria Fallback Search)
 async function performSefariaSearch(word, corpus, book, chapter) {
-    async function querySefaria(query, filter) {
-        let url = `https://www.sefaria.org/api/search-wrapper`;
-        // Map 'Talmud' or 'Talmud Bavli' to 'Talmud' for Sefaria's corpus path filter
-        let mappedFilter = (filter === 'Talmud' || filter === 'Talmud Bavli') ? 'Talmud' : filter;
-        
-        let payload = {
-            query: query,
-            type: "text",
-            field: "naive_lemmatizer" // Better matching for Hebrew prefixes/suffixes
-        };
+    let safeCorpus = (corpus === 'Talmud' || corpus === 'Talmud Bavli') ? 'Bavli' : corpus;
 
-        if (mappedFilter) {
-            payload.filters = [mappedFilter];
-            payload.filter_fields = ["path"]; // CRITICAL FIX: Sefaria rejects the search without this!
-        }
-
+    // A. Specific Perek (Uses exact Text API to guarantee chapter filtering)
+    if (book && chapter) {
         try {
-            let res = await fetch(url, {
+            let res = await fetch(`https://www.sefaria.org/api/texts/${book} ${chapter}?context=0`);
+            let data = await res.json();
+            if (data && data.he) {
+                // Flatten array in case of complex Talmud text structures
+                let heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [];
+                for (let i = 0; i < heArray.length; i++) {
+                    if (typeof heArray[i] === 'string' && heArray[i].includes(word)) {
+                        // Strip HTML immediately so it doesn't break Dicta
+                        let cleanHe = heArray[i].replace(/<\/?[^>]+(>|$)/g, "");
+                        return { 
+                            he: cleanHe, 
+                            ref: `${data.ref}:${i+1}`, 
+                            heRef: `${data.heRef} ${i+1}` 
+                        };
+                    }
+                }
+            }
+        } catch (e) { console.error("Perek fetch failed", e); }
+    }
+
+    // Helper for ElasticSearch (Book or Corpus level)
+    async function querySearchWrapper(queryWord, filterPath) {
+        let payload = { query: queryWord, type: "text", field: "naive_lemmatizer" };
+        if (filterPath) {
+            payload.filters = [filterPath];
+            payload.filter_fields = ["path"]; // Mandatory for Sefaria
+        }
+        try {
+            let res = await fetch(`https://www.sefaria.org/api/search-wrapper`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify(payload)
             });
             let data = await res.json();
-            
-            // Check if we successfully got results back
             if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
                 let hit = data.hits.hits[0];
-                return { 
-                    // Grab the exact highlight, the lemmatizer highlight, or fallback to the source text
-                    he: (hit.highlight && hit.highlight.exact) ? hit.highlight.exact[0] : 
-                        (hit.highlight && hit.highlight.naive_lemmatizer) ? hit.highlight.naive_lemmatizer[0] : 
-                        hit._source.he, 
-                    ref: hit._source.ref,
-                    heRef: hit._source.heRef 
-                };
+                let rawHe = (hit.highlight && hit.highlight.exact) ? hit.highlight.exact[0] : 
+                            (hit.highlight && hit.highlight.naive_lemmatizer) ? hit.highlight.naive_lemmatizer[0] : 
+                            hit._source.he;
+                let cleanHe = rawHe.replace(/<\/?[^>]+(>|$)/g, "");
+                return { he: cleanHe, ref: hit._source.ref, heRef: hit._source.heRef };
             }
-        } catch (e) { 
-            console.error("Sefaria Search Error", e); 
-        }
+        } catch (e) { console.error("Search Wrapper Error", e); }
         return null;
     }
 
     let result = null;
 
-    // A. Specific Perek (Add Book and Chapter to the query string to boost exact refs in Sefaria, apply Corpus filter)
-    if (book && chapter) result = await querySefaria(`${book} ${chapter} ${word}`, corpus);
+    // B. Specific Book (ElasticSearch Fallback)
+    if (book) result = await querySearchWrapper(word, book);
     
-    // B. Specific Book (Add Book to the query string, apply Corpus filter)
-    if (!result && book) result = await querySefaria(`${book} ${word}`, corpus);
-    
-    // C. General Corpus Fallback (Just search the word inside the Corpus)
-    if (!result) result = await querySefaria(word, corpus);
+    // C. General Corpus Fallback
+    if (!result) result = await querySearchWrapper(word, safeCorpus);
 
-    if (result && result.he) {
-        // Strip Sefaria HTML tags (like <b> tags used in search highlights) before sending to Dicta
-        result.he = result.he.replace(/<\/?[^>]+(>|$)/g, ""); 
-    }
     return result;
 }
 
 // Helper Function for Point 9 (Citation Formatting)
 function formatSefariaCitation(heRef, enRef, sourceType) {
     if (!heRef || !enRef) return "";
-    
-    // Convert Talmud amud notation: ע"א to period (.) and ע"ב to colon (:)
     if (sourceType.includes('Talmud')) {
+        // Convert Sefaria's amud notation (ע"א -> period, ע"ב -> colon)
         heRef = heRef.replace(/ ע"א/g, '.').replace(/ ע"ב/g, ':');
     }
+    return `${heRef}<br><span dir="ltr">${enRef}</span>`;
+}
     
     return `${heRef}<br><span dir="ltr">${enRef}</span>`;
 }

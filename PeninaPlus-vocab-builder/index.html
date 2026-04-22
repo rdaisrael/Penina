@@ -716,14 +716,18 @@ async function performSefariaSearch(word, corpus, book, chapter) {
                 // Flatten array in case of complex Talmud text structures
                 let heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [];
                 for (let i = 0; i < heArray.length; i++) {
-                    if (typeof heArray[i] === 'string' && heArray[i].includes(word)) {
-                        // Strip HTML immediately so it doesn't break Dicta
-                        let cleanHe = heArray[i].replace(/<\/?[^>]+(>|$)/g, "");
-                        return { 
-                            he: cleanHe, 
-                            ref: `${data.ref}:${i+1}`, 
-                            heRef: `${data.heRef} ${i+1}` 
-                        };
+                    if (typeof heArray[i] === 'string') {
+                        // FIX 1: Strip Nikkud and Ta'amim from Sefaria text before comparing
+                        let unvowelizedSefaria = heArray[i].replace(/[\u0591-\u05C7]/g, '');
+                        if (unvowelizedSefaria.includes(word)) {
+                            // Strip HTML immediately so it doesn't break Dicta
+                            let cleanHe = heArray[i].replace(/<\/?[^>]+(>|$)/g, "");
+                            return { 
+                                he: cleanHe, 
+                                ref: `${data.ref}:${i+1}`, 
+                                heRef: `${data.heRef} ${i+1}` 
+                            };
+                        }
                     }
                 }
             }
@@ -746,11 +750,14 @@ async function performSefariaSearch(word, corpus, book, chapter) {
             let data = await res.json();
             if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
                 let hit = data.hits.hits[0];
-                let rawHe = (hit.highlight && hit.highlight.exact) ? hit.highlight.exact[0] : 
-                            (hit.highlight && hit.highlight.naive_lemmatizer) ? hit.highlight.naive_lemmatizer[0] : 
-                            hit._source.he;
-                let cleanHe = rawHe.replace(/<\/?[^>]+(>|$)/g, "");
-                return { he: cleanHe, ref: hit._source.ref, heRef: hit._source.heRef };
+                
+                // FIX 2: Access the correct Sefaria Search API v2 schema fields without highlight crash
+                let rawHe = hit._source.exact || hit._source.naive_lemmatizer || "";
+                
+                if (rawHe) {
+                    let cleanHe = rawHe.replace(/<\/?[^>]+(>|$)/g, "");
+                    return { he: cleanHe, ref: hit._source.ref, heRef: hit._source.heRef };
+                }
             }
         } catch (e) { console.error("Search Wrapper Error", e); }
         return null;
@@ -759,6 +766,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
     let result = null;
 
     // B. Specific Book (ElasticSearch Fallback)
+    // Note: Sefaria requires English paths. If 'book' is Hebrew, this falls through to C.
     if (book) result = await querySearchWrapper(word, book);
     
     // C. General Corpus Fallback

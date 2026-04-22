@@ -30,7 +30,7 @@
             background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='20' y='50' font-size='40' font-family='serif' fill='%238b7355'%3Eא%3C/text%3E%3Ctext x='150' y='80' font-size='60' font-family='serif' fill='%238b7355'%3Eפ%3C/text%3E%3Ctext x='250' y='40' font-size='35' font-family='serif' fill='%238b7355'%3Eג%3C/text%3E%3Ctext x='50' y='180' font-size='50' font-family='serif' fill='%238b7355'%3Eש%3C/text%3E%3Ctext x='200' y='220' font-size='45' font-family='serif' fill='%238b7355'%3Eל%3C/text%3E%3Ctext x='100' y='280' font-size='30' font-family='serif' fill='%238b7355'%3Eמ%3C/text%3E%3C/svg%3E");
             background-repeat: repeat;
         }
-/* --- HOME BUTTON --- */
+        /* --- HOME BUTTON --- */
         .home-btn {
             position: absolute;
             top: 25px;
@@ -77,7 +77,7 @@
         }
         .control-panel-wrapper { max-width: 900px; margin: 0 auto; padding: 0 20px; }
         
-        /* --- HEADER & ABOUT/CREDITS (From Penina) --- */
+        /* --- HEADER & ABOUT/CREDITS --- */
         .header-container { 
             display: flex; 
             justify-content: center; 
@@ -138,15 +138,15 @@
         label { font-weight: bold; display: block; margin-bottom: 8px; color: #5a5248; }
         
         input[type="text"], textarea, select { 
-    width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
-    border-radius: 5px; box-sizing: border-box; font-size: 16px; 
-    background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
-    font-family: inherit; 
-}
+            width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
+            border-radius: 5px; box-sizing: border-box; font-size: 16px; 
+            background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
+            font-family: inherit; 
+        }
 
-textarea, .hebrew-input, .strict-hebrew-input {
-    font-size: 18px; 
-}
+        textarea, .hebrew-input, .strict-hebrew-input {
+            font-size: 18px; 
+        }
         select:focus, textarea:focus, input[type="text"]:focus { 
             outline: none; border-color: #b5a898; background-color: #ffffff; 
         }
@@ -214,7 +214,6 @@ textarea, .hebrew-input, .strict-hebrew-input {
         
         .hebrew-text { font-family: inherit; direction: rtl; }
         .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 4px; }
-        .citation { direction: rtl; text-align: right; font-size: 10pt; margin-top: 4px; color: #666; }
         
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
         .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
@@ -231,7 +230,7 @@ textarea, .hebrew-input, .strict-hebrew-input {
 <body class="mode-full">
 
     <div class="bg-pattern"></div>
-<a href="/" class="home-btn" aria-label="Return to Home">
+    <a href="/" class="home-btn" aria-label="Return to Home">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
         </svg>
@@ -241,7 +240,8 @@ textarea, .hebrew-input, .strict-hebrew-input {
         
         <div class="header-container">
             <img src="peninaplus-logo.png" alt="Penina Plus Logo" class="app-logo">
-<h1 class="app-title">PeninaPlus Vocabulary Builder</h1>        </div>
+            <h1 class="app-title">PeninaPlus Vocabulary Builder</h1>        
+        </div>
         <div class="copyright">&copy; 2026 David Israel</div>
 
         <details class="about-details">
@@ -265,7 +265,7 @@ textarea, .hebrew-input, .strict-hebrew-input {
                 <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
             </div>
 
-<div class="form-group" style="display: flex; gap: 20px;">
+            <div class="form-group" style="display: flex; gap: 20px;">
                 <div style="flex: 1;">
                     <label for="source-type">Context Source:</label>
                     <select id="source-type">
@@ -297,8 +297,6 @@ textarea, .hebrew-input, .strict-hebrew-input {
             <div class="formatting-section">
                 <h3>Word Styling and Formatting</h3>
                 
-                
-
                 <div class="slider-group">
                     <div class="slider-container">
                         <label for="font-size">Font Size: <span id="font-size-val">14pt</span></label>
@@ -373,149 +371,202 @@ textarea, .hebrew-input, .strict-hebrew-input {
 
     <script>
         const generateBtn = document.getElementById('generate-btn');
-const vocabTbody = document.getElementById('vocab-tbody');
-const sourceTypeSelect = document.getElementById('source-type');
-const specificSourceContainer = document.getElementById('specific-source-container');
-const specificSourceLabel = document.getElementById('specific-source-label');
-const specificSourceInput = document.getElementById('specific-source');
-const pageContainer = document.getElementById('page');
-const docTitle = document.getElementById('doc-title');
+        const vocabTbody = document.getElementById('vocab-tbody');
+        const sourceTypeSelect = document.getElementById('source-type');
+        const specificSourceContainer = document.getElementById('specific-source-container');
+        const specificSourceLabel = document.getElementById('specific-source-label');
+        const specificSourceInput = document.getElementById('specific-source');
+        const pageContainer = document.getElementById('page');
+        const docTitle = document.getElementById('doc-title');
 
-sourceTypeSelect.addEventListener('change', function() {
-    const value = this.value;
-    if (value === 'Tanakh') {
-        specificSourceContainer.style.display = 'block';
-        specificSourceLabel.innerText = 'Specific Sefer / Perek:';
-        specificSourceInput.placeholder = 'e.g., Bereishit, Perek 1';
-    } else if (value === 'Talmud') {
-        specificSourceContainer.style.display = 'block';
-        specificSourceLabel.innerText = 'Specific Massechet / Perek:';
-        specificSourceInput.placeholder = 'e.g., Berakhot, Perek 1';
-    } else {
-        specificSourceContainer.style.display = 'none';
-        specificSourceInput.value = ''; 
-    }
-});
-
-sourceTypeSelect.dispatchEvent(new Event('change'));
-
-function updateMargin(margin) {
-    const outputDiv = document.getElementById('page');
-    if (margin === 'right') outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';
-    else if (margin === 'left') outputDiv.style.padding = '0.75in 0.75in 0.75in 1.25in';
-    else outputDiv.style.padding = '0.75in';
-
-    let styleTag = document.getElementById('dynamic-print-style') || document.createElement('style');
-    styleTag.id = 'dynamic-print-style';
-    document.head.appendChild(styleTag);
-
-    let css = `@media print { @page { size: letter; margin: 0.75in; } }`;
-    if (margin === 'right') css = `@media print { @page { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; } }`;
-    if (margin === 'left') css = `@media print { @page { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; } }`;
-    if (margin === 'alternate-right') css = `@media print { @page:right { margin: 0.75in 1.25in 0.75in 0.75in; } @page:left { margin: 0.75in 0.75in 0.75in 1.25in; } }`;
-    if (margin === 'alternate-left') css = `@media print { @page:right { margin: 0.75in 0.75in 0.75in 1.25in; } @page:left { margin: 0.75in 1.25in 0.75in 0.75in; } }`;
-    styleTag.innerHTML = css;
-}
-
-document.getElementById('font-size').addEventListener('input', (e) => {
-    document.getElementById('font-size-val').innerText = e.target.value + 'pt';
-    document.getElementById('vocab-table').style.fontSize = e.target.value + 'pt';
-});
-
-document.getElementById('kerning').addEventListener('input', (e) => {
-    document.getElementById('kerning-val').innerText = e.target.value + 'px';
-    document.getElementById('vocab-table').style.letterSpacing = e.target.value + 'px';
-});
-
-document.getElementById('font-choice').addEventListener('change', (e) => {
-    document.getElementById('vocab-table').style.fontFamily = e.target.value;
-});
-
-generateBtn.addEventListener('click', async () => {
-    const title = document.getElementById('list-title').value.trim();
-    const words = document.getElementById('word-list').value.trim();
-    const sourceType = document.getElementById('source-type').value;
-    const specificSource = document.getElementById('specific-source').value.trim();
-
-    if (!words || !title) return;
-
-    generateBtn.disabled = true;
-    vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Generating & Fetching from Sefaria...</td></tr>';
-    pageContainer.style.display = 'block';
-    docTitle.innerText = title;
-
-    try {
-        const prompt = `Return JSON array for: ${words}. Corpus: ${sourceType}, Location: ${specificSource}. Include hebrew_word_raw, english_def, citation. Citation MUST be a standard Sefaria string (e.g. 'Genesis 1:1' or 'Berakhot 2a:4').`;
-        
-        const res = await fetch('/api/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: prompt })
+        sourceTypeSelect.addEventListener('change', function() {
+            const value = this.value;
+            if (value === 'Tanakh') {
+                specificSourceContainer.style.display = 'block';
+                specificSourceLabel.innerText = 'Specific Sefer / Perek:';
+                specificSourceInput.placeholder = 'e.g., Bereishit, Perek 1';
+            } else if (value === 'Talmud') {
+                specificSourceContainer.style.display = 'block';
+                specificSourceLabel.innerText = 'Specific Massechet / Perek:';
+                specificSourceInput.placeholder = 'e.g., Berakhot, Perek 1';
+            } else {
+                specificSourceContainer.style.display = 'none';
+                specificSourceInput.value = ''; 
+            }
         });
 
-        const data = await res.json();
-        let vocabData = JSON.parse(data.text.replace(/```json|```/g, '').trim());
+        sourceTypeSelect.dispatchEvent(new Event('change'));
 
-        if (document.getElementById('alphabetize-list').checked) {
-            vocabData.sort((a, b) => a.hebrew_word_raw.localeCompare(b.hebrew_word_raw, 'he'));
+        function updateMargin(margin) {
+            const outputDiv = document.getElementById('page');
+            if (margin === 'right') outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';
+            else if (margin === 'left') outputDiv.style.padding = '0.75in 0.75in 0.75in 1.25in';
+            else outputDiv.style.padding = '0.75in';
+
+            let styleTag = document.getElementById('dynamic-print-style') || document.createElement('style');
+            styleTag.id = 'dynamic-print-style';
+            document.head.appendChild(styleTag);
+
+            let css = `@media print { @page { size: letter; margin: 0.75in; } }`;
+            if (margin === 'right') css = `@media print { @page { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; } }`;
+            if (margin === 'left') css = `@media print { @page { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; } }`;
+            if (margin === 'alternate-right') css = `@media print { @page:right { margin: 0.75in 1.25in 0.75in 0.75in; } @page:left { margin: 0.75in 0.75in 0.75in 1.25in; } }`;
+            if (margin === 'alternate-left') css = `@media print { @page:right { margin: 0.75in 0.75in 0.75in 1.25in; } @page:left { margin: 0.75in 1.25in 0.75in 0.75in; } }`;
+            styleTag.innerHTML = css;
         }
 
-        let htmlOutput = "";
+        document.getElementById('font-size').addEventListener('input', (e) => {
+            document.getElementById('font-size-val').innerText = e.target.value + 'pt';
+            document.getElementById('vocab-table').style.fontSize = e.target.value + 'pt';
+        });
 
-        for (let item of vocabData) {
-            let word = item.hebrew_word_raw;
-            let hebrewContext = "Context fetching failed.";
-            let englishContext = "Translation fetching failed.";
+        document.getElementById('kerning').addEventListener('input', (e) => {
+            document.getElementById('kerning-val').innerText = e.target.value + 'px';
+            document.getElementById('vocab-table').style.letterSpacing = e.target.value + 'px';
+        });
 
-            // Fetch exact verse text from Sefaria API
-            if (item.citation) {
-                try {
-                    const sefariaRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(item.citation)}?context=0`);
-                    if (sefariaRes.ok) {
-                        const sefariaData = await sefariaRes.json();
-                        // Handle both single verses (strings) and ranges (arrays)
-                        hebrewContext = Array.isArray(sefariaData.he) ? sefariaData.he.join(" ") : (sefariaData.he || "");
-                        englishContext = Array.isArray(sefariaData.text) ? sefariaData.text.join(" ") : (sefariaData.text || "");
-                        
-                        // Strip HTML tags sometimes returned by Sefaria
-                        hebrewContext = hebrewContext.replace(/<\/?[^>]+(>|$)/g, "");
-                        englishContext = englishContext.replace(/<\/?[^>]+(>|$)/g, "");
-                    }
-                } catch (e) {
-                    console.error("Sefaria fetch failed for:", item.citation, e);
+        document.getElementById('font-choice').addEventListener('change', (e) => {
+            document.getElementById('vocab-table').style.fontFamily = e.target.value;
+        });
+
+        // Helper function to safely escape regex characters
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        generateBtn.addEventListener('click', async () => {
+            const title = document.getElementById('list-title').value.trim();
+            const words = document.getElementById('word-list').value.trim();
+            const sourceType = document.getElementById('source-type').value;
+            const specificSource = document.getElementById('specific-source').value.trim();
+
+            if (!words || !title) return;
+
+            generateBtn.disabled = true;
+            vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Generating & Fetching Context from Sefaria...</td></tr>';
+            pageContainer.style.display = 'block';
+            docTitle.innerText = title;
+
+            try {
+                const prompt = `Return JSON array for the words: ${words}. Corpus: ${sourceType}, Location: ${specificSource}. Include hebrew_word_raw, english_def, citation. Citation MUST be a standard Sefaria string (e.g. 'Genesis 1:1' or 'Berakhot 2a:4'). The hebrew_word_raw MUST physically exist in the text of that citation.`;
+                
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                const data = await res.json();
+                let vocabData = JSON.parse(data.text.replace(/```json|```/g, '').trim());
+
+                if (document.getElementById('alphabetize-list').checked) {
+                    vocabData.sort((a, b) => a.hebrew_word_raw.localeCompare(b.hebrew_word_raw, 'he'));
                 }
+
+                // Process all words concurrently using Promise.all
+                const rowPromises = vocabData.map(async (item) => {
+                    let word = item.hebrew_word_raw;
+                    let def = item.english_def;
+                    let hebrewSnippet = "Context fetching failed.";
+                    let englishSnippet = "Translation fetching failed.";
+                    let hebCitation = "";
+                    let engCitation = "";
+
+                    if (item.citation) {
+                        try {
+                            const sefariaRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(item.citation)}?context=0`);
+                            if (sefariaRes.ok) {
+                                const sefariaData = await sefariaRes.json();
+                                let fullHebrew = Array.isArray(sefariaData.he) ? sefariaData.he.join(" ") : (sefariaData.he || "");
+                                fullHebrew = fullHebrew.replace(/<\/?[^>]+(>|$)/g, "");
+
+                                // Strip vowels for safe regex building
+                                const cleanWord = word.replace(/[\u0591-\u05C7]/g, '');
+                                const regexPattern = cleanWord.split('').map(char => escapeRegExp(char)).join('[\u0591-\u05C7]*');
+                                const searchRegex = new RegExp(regexPattern);
+                                const globalSearchRegex = new RegExp(regexPattern, 'g');
+
+                                let wordsArr = fullHebrew.split(/\s+/);
+                                let matchIndex = wordsArr.findIndex(w => searchRegex.test(w));
+
+                                if (matchIndex !== -1) {
+                                    let start = Math.max(0, matchIndex - 5);
+                                    let end = Math.min(wordsArr.length, matchIndex + 6);
+                                    hebrewSnippet = (start > 0 ? "... " : "") + wordsArr.slice(start, end).join(" ") + (end < wordsArr.length ? " ..." : "");
+                                } else {
+                                    hebrewSnippet = wordsArr.slice(0, 10).join(" ") + "...";
+                                }
+
+                                // Bold Hebrew target word
+                                hebrewSnippet = hebrewSnippet.replace(globalSearchRegex, `<b>$&</b>`);
+
+                                // Citation Formatting rules for Tanakh vs Talmud
+                                let rawEngRef = sefariaData.ref || item.citation; 
+                                let rawHebRef = sefariaData.heRef || item.citation; 
+
+                                if (sefariaData.categories && sefariaData.categories.includes("Talmud")) {
+                                    engCitation = rawEngRef.split(':')[0];
+                                    hebCitation = rawHebRef.split(':')[0];
+                                } else {
+                                    engCitation = rawEngRef;
+                                    hebCitation = rawHebRef;
+                                }
+
+                                // Hardened Translation Prompt
+                                const transPrompt = `Translate this short Hebrew snippet into English: "${hebrewSnippet.replace(/<b>|<\/b>/g, '')}". You MUST use the exact English phrase "${def}" in your translation to represent the root "${word}". Wrap ONLY that specific English phrase in <b> tags. Return ONLY the raw translated string. Do not include quotes, markdown, or conversational text.`;
+
+                                const transRes = await fetch('/api/translate', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ promptText: transPrompt })
+                                });
+                                
+                                if (transRes.ok) {
+                                    let transData = await transRes.json();
+                                    englishSnippet = transData.text;
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Sefaria fetch failed for:", item.citation, e);
+                        }
+                    }
+
+                    return `
+                    <tr>
+                        <td class="col-hebrew"><span class="hebrew-word">${word}</span></td>
+                        <td class="col-english" contenteditable="true">${def}</td>
+                        <td class="col-context">
+                            <div style="display: flex; justify-content: space-between; gap: 20px;">
+                                <div style="flex: 1; direction: rtl; text-align: right;">
+                                    <div class="hebrew-text">${hebrewSnippet}</div>
+                                    <div class="citation" style="margin-top: 5px; color: #666; font-size: 0.9em;">${hebCitation}</div>
+                                </div>
+                                <div style="flex: 1; direction: ltr; text-align: left;">
+                                    <div class="english-text" contenteditable="true">${englishSnippet}</div>
+                                    <div class="citation" style="margin-top: 5px; color: #666; font-size: 0.9em;">${engCitation}</div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+
+                const resolvedRows = await Promise.all(rowPromises);
+                vocabTbody.innerHTML = resolvedRows.join('');
+                
+                document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
+
+            } catch (e) {
+                vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
+            } finally {
+                generateBtn.disabled = false;
             }
+        });
 
-            // Create a regex to highlight the root word while ignoring Sefaria's potential Nekudot/Ta'amim in between letters
-            let searchRegex = new RegExp(word.split('').join('[\u0591-\u05C7]*'), 'g');
-            let highlightedHebrew = hebrewContext.replace(searchRegex, `<span style="font-weight:bold; text-decoration: underline;">$&</span>`);
-
-            htmlOutput += `
-            <tr>
-                <td class="col-hebrew"><span class="hebrew-word">${word}</span></td>
-                <td class="col-english" contenteditable="true">${item.english_def}</td>
-                <td class="col-context">
-                    <div class="hebrew-text">${highlightedHebrew}</div>
-                    <div class="english-text" contenteditable="true">${englishContext}</div>
-                    <div class="citation">${item.citation}</div>
-                </td>
-            </tr>`;
+        function toggleNekudot(action) {
+            document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
+                el.innerHTML = (action === 'strip') ? el.innerHTML.replace(/[\u0591-\u05C7]/g, '') : el.dataset.original;
+            });
         }
-        vocabTbody.innerHTML = htmlOutput;
-        document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
-
-    } catch (e) {
-        vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
-    } finally {
-        generateBtn.disabled = false;
-    }
-});
-
-function toggleNekudot(action) {
-    document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
-        el.innerHTML = (action === 'strip') ? el.innerHTML.replace(/[\u0591-\u05C7]/g, '') : el.dataset.original;
-    });
-}
     </script>
 </body>
 </html>

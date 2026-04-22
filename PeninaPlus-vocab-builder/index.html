@@ -563,8 +563,12 @@ function updateMargin(margin) {
 }
 
 document.getElementById('font-size').addEventListener('input', (e) => {
-    document.getElementById('font-size-val').innerText = e.target.value + 'pt';
-    document.getElementById('vocab-table').style.fontSize = e.target.value + 'pt';
+    const size = e.target.value + 'pt';
+    document.getElementById('font-size-val').innerText = size;
+    document.getElementById('vocab-table').style.fontSize = size;
+    document.querySelectorAll('.col-hebrew, .col-english, .col-context').forEach(el => {
+        el.style.fontSize = size;
+    });
 });
 
 document.getElementById('kerning').addEventListener('input', (e) => {
@@ -661,6 +665,17 @@ generateBtn.addEventListener('click', async () => {
 
                 // Dicta Vowelization (Sent directly to your generate.js)
                 const dictaGenre = (sourceType === 'Tanakh') ? 'biblical' : (sourceType === 'Talmud' || sourceType === 'Talmud Bavli' ? 'rabbinic' : 'modern');
+                
+                const wordDictaRes = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ suppliedText: item.hebrew, dictaGenre: dictaGenre })
+                });
+                if (wordDictaRes.ok) {
+                    const wordDictaData = await wordDictaRes.json();
+                    item.hebrew = wordDictaData.text;
+                }
+
                 const dictaRes = await fetch('/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -674,11 +689,11 @@ generateBtn.addEventListener('click', async () => {
 
             // 8. Bolding the vocabulary words in context
             let hebrewRegex = new RegExp(cleanHebrew.split('').join('[\u0591-\u05C7]*'), 'g');
-            let highlightedHebrew = hebrewContext.replace(hebrewRegex, `<span style="font-weight:bold; text-decoration:underline;">$&</span>`);
+            let highlightedHebrew = hebrewContext.replace(hebrewRegex, `<span style="font-weight:bold;">$&</span>`);
             
             let safeEnglish = item.english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             let englishRegex = new RegExp(`\\b${safeEnglish}\\b`, 'gi');
-            let highlightedEnglish = englishContext.replace(englishRegex, `<span style="font-weight:bold; text-decoration:underline;">$&</span>`);
+            let highlightedEnglish = englishContext.replace(englishRegex, `<span style="font-weight:bold;">$&</span>`);
 
             // Output Row Construction
             htmlOutput += `
@@ -687,8 +702,8 @@ generateBtn.addEventListener('click', async () => {
                 <td class="col-english" contenteditable="true">${item.english}</td>
                 <td class="col-context">
                     <div class="hebrew-text">${highlightedHebrew}</div>
+                    <div class="citation" dir="rtl" style="font-size: 0.9em; color: #555; margin: 5px 0;">${citation}</div>
                     <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
-                    <div class="citation" dir="rtl" style="font-size: 0.9em; color: #555; margin-top: 5px;">${citation}</div>
                 </td>
             </tr>`;
         }
@@ -781,6 +796,9 @@ function formatSefariaCitation(heRef, enRef, sourceType) {
     if (sourceType.includes('Talmud')) {
         // Convert Sefaria's amud notation (ע"א -> period, ע"ב -> colon)
         heRef = heRef.replace(/ ע"א/g, '.').replace(/ ע"ב/g, ':');
+    } else if (sourceType === 'Tanakh') {
+        // Enforce colon separation for chapter and verse
+        heRef = heRef.replace(/ ([^ ]+)$/, ':$1'); 
     }
     return `${heRef}<br><span dir="ltr">${enRef}</span>`;
 }

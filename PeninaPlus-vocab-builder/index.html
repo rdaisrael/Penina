@@ -705,14 +705,20 @@ generateBtn.addEventListener('click', async () => {
 async function performSefariaSearch(word, corpus, book, chapter) {
     async function querySefaria(query, filter) {
         let url = `https://www.sefaria.org/api/search-wrapper`;
-        // Map 'Talmud' or 'Talmud Bavli' to Sefaria's actual index filter 'Bavli'
-        let mappedFilter = (filter === 'Talmud' || filter === 'Talmud Bavli') ? 'Bavli' : filter;
+        // Map 'Talmud' or 'Talmud Bavli' to 'Talmud' for Sefaria's corpus path filter
+        let mappedFilter = (filter === 'Talmud' || filter === 'Talmud Bavli') ? 'Talmud' : filter;
         
         let payload = {
             query: query,
             type: "text",
-            filters: mappedFilter ? [mappedFilter] : []
+            field: "naive_lemmatizer" // Better matching for Hebrew prefixes/suffixes
         };
+
+        if (mappedFilter) {
+            payload.filters = [mappedFilter];
+            payload.filter_fields = ["path"]; // CRITICAL FIX: Sefaria rejects the search without this!
+        }
+
         try {
             let res = await fetch(url, {
                 method: "POST",
@@ -720,29 +726,38 @@ async function performSefariaSearch(word, corpus, book, chapter) {
                 body: JSON.stringify(payload)
             });
             let data = await res.json();
+            
+            // Check if we successfully got results back
             if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
                 let hit = data.hits.hits[0];
                 return { 
-                    he: hit.highlight.exact[0] || hit._source.he, 
+                    // Grab the exact highlight, the lemmatizer highlight, or fallback to the source text
+                    he: (hit.highlight && hit.highlight.exact) ? hit.highlight.exact[0] : 
+                        (hit.highlight && hit.highlight.naive_lemmatizer) ? hit.highlight.naive_lemmatizer[0] : 
+                        hit._source.he, 
                     ref: hit._source.ref,
                     heRef: hit._source.heRef 
                 };
             }
-        } catch (e) { console.error("Sefaria Search Error", e); }
+        } catch (e) { 
+            console.error("Sefaria Search Error", e); 
+        }
         return null;
     }
 
     let result = null;
 
-    // A. Specific Perek (Book + Chapter)
-    if (book && chapter) result = await querySefaria(word, `${book} ${chapter}`);
-    // B. Specific Book
-    if (!result && book) result = await querySefaria(word, book);
-    // C. General Corpus
+    // A. Specific Perek (Add Book and Chapter to the query string to boost exact refs in Sefaria, apply Corpus filter)
+    if (book && chapter) result = await querySefaria(`${book} ${chapter} ${word}`, corpus);
+    
+    // B. Specific Book (Add Book to the query string, apply Corpus filter)
+    if (!result && book) result = await querySefaria(`${book} ${word}`, corpus);
+    
+    // C. General Corpus Fallback (Just search the word inside the Corpus)
     if (!result) result = await querySefaria(word, corpus);
 
     if (result && result.he) {
-        // Strip Sefaria HTML tags (like <b> tags used in highlights) before returning
+        // Strip Sefaria HTML tags (like <b> tags used in search highlights) before sending to Dicta
         result.he = result.he.replace(/<\/?[^>]+(>|$)/g, ""); 
     }
     return result;

@@ -671,7 +671,7 @@ let hebrewContext = "";
                 enCitation = "Modern Hebrew Context";
             }
 
-            // 6. Translate the Context to English
+            // 6. Translate the Context to English (if found)
             if (hebrewContext && hebrewContext !== "Word not found in context.") {
                 const transRes = await fetch('/api/translate', {
                     method: 'POST',
@@ -680,22 +680,26 @@ let hebrewContext = "";
                 });
                 const transData = await transRes.json();
                 englishContext = transData.text;
+            }
 
-                // 7. Add Nikkud if requested
-                if (addNikkud) {
-                    document.getElementById('status-msg').innerText = `Vowelizing "${item.hebrew}"...`;
-                    const dictaGenre = (sourceType === 'Tanakh') ? 'biblical' : (sourceType === 'Talmud' || sourceType === 'Talmud Bavli' ? 'rabbinic' : 'modern');
-                    
-                    const wordDictaRes = await fetch('/api/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ suppliedText: item.hebrew, dictaGenre: dictaGenre })
-                    });
-                    if (wordDictaRes.ok) {
-                        const wordDictaData = await wordDictaRes.json();
-                        item.hebrew = wordDictaData.text;
-                    }
+            // 7. Add Nikkud (Always fetch so the display toggle has data to strip/restore)
+            const dictaGenre = (sourceType === 'Tanakh') ? 'biblical' : (sourceType === 'Talmud' || sourceType === 'Talmud Bavli' ? 'rabbinic' : 'modern');
+            
+            // A. Always vowelize the isolated vocabulary word
+            const wordDictaRes = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ suppliedText: item.hebrew, dictaGenre: dictaGenre })
+            });
+            if (wordDictaRes.ok) {
+                const wordDictaData = await wordDictaRes.json();
+                item.hebrew = wordDictaData.text;
+            }
 
+            // B. Only vowelize context if it is Modern Hebrew. 
+            // Sending Sefaria text to Dicta causes hallucinatory overwrites.
+            if (sourceType === 'Modern Hebrew' || sourceType === 'Any') {
+                if (hebrewContext && hebrewContext !== "Word not found in context.") {
                     const dictaRes = await fetch('/api/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

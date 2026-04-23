@@ -677,7 +677,7 @@ item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
                     body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
                 });
                 const sentTransData = await sentTransRes.json();
-                englishContext = sentTransData.text;
+                englishContext = sentTransData.text || "[Translation missing]";
             }
 
             let hebrewRegex = new RegExp(cleanHebrew.split('').join('[\u0591-\u05C7]*'), 'g');
@@ -708,7 +708,8 @@ item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
 async function performSefariaSearch(word, corpus, book, chapter) {
     const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
     // Fix: Ensure "Any" search covers both main categories as a valid array
-    const safeCorpus = (corpus === 'Any') ? ["Tanakh", "Bavli"] : (isTalmud ? ["Bavli"] : [corpus]);
+    const safeCorpus = (corpus === 'Any') ? ["Tanakh", "Talmud"] : (isTalmud ? ["Talmud"] : [corpus]);
+    const searchField = isTalmud ? "exact" : "naive_lemmatizer";
     const cleanWord = word.replace(/[^\u05D0-\u05EA]/g, ''); // Strict Hebrew letters for matching
     let result = null;
 
@@ -763,7 +764,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         const res = await fetch('/api/sefaria-search', {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: [englishBook] })
+            body: JSON.stringify({ query: word, type: "text", field: searchField, filters: [englishBook] })
         });
         const data = await res.json();
         if (data.hits?.hits?.length > 0) {
@@ -777,7 +778,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         const res = await fetch('/api/sefaria-search', {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: safeCorpus })
+            body: JSON.stringify({ query: word, type: "text", field: searchField, filters: safeCorpus })
         });
         const data = await res.json();
         if (data.hits?.hits?.length > 0) {

@@ -25,8 +25,8 @@ module.exports = async function (req, res) {
             let result;
             
             try {
-                // Use the stable 3.1 series
-                const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash" });
+                // Use the stable 1.5 series
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
                 result = await model.generateContent(prompt);
             } catch (apiError) {
                 // Expanded error handling to prevent Vercel 500 crashes

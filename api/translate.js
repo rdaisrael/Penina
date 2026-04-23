@@ -15,8 +15,8 @@ module.exports = async function (req, res) {
         let result;
         
         try {
-            // Target the stable 3.1 series 
-            const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash" });
+            // Target the stable 1.5 series 
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
             result = await model.generateContent(req.body.promptText);
         } catch (apiError) {
             // Intercept 500, 503, 529, and 400 errors from unstable endpoints

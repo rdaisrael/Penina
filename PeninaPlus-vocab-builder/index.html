@@ -706,13 +706,25 @@ item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
 });
 
 async function performSefariaSearch(word, corpus, book, chapter) {
-    const safeCorpus = (corpus === 'Talmud' || corpus === 'Talmud Bavli') ? 'Bavli' : corpus;
+    const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
+    const safeCorpus = isTalmud ? 'Bavli' : corpus;
     let result = null;
 
-    // Helper: Direct Chapter Fetch
-    const fetchDirect = async (b, c) => {
+    // Helper: Standardize Book/Massechet Name to English
+    const getEnglishName = async (b) => {
+        if (!b || b === 'ANY') return null;
         try {
-            const res = await fetch(`https://www.sefaria.org/api/texts/${b} ${c}?context=0`);
+            const res = await fetch(`https://www.sefaria.org/api/name/${encodeURIComponent(b)}`);
+            const data = await res.json();
+            return data.index || data.ref || b;
+        } catch (e) { return b; }
+    };
+
+    // Helper: Direct Chapter/Perek Fetch
+    const fetchDirect = async (englishBook, chapNum) => {
+        try {
+            // Sefaria uses "Massechet Chapter" for Talmud perakim in the text API
+            const res = await fetch(`https://www.sefaria.org/api/texts/${englishBook} ${chapNum}?context=0`);
             const data = await res.json();
             if (data?.he) {
                 const heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he];
@@ -725,86 +737,46 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         } catch (e) { return null; }
     };
 
-    // Helper: Search Wrapper (Using Vercel Backend)
+    // Helper: Search Wrapper Proxy
     const fetchSearch = async (filter) => {
         try {
-            // We now fetch from our OWN domain (/api/sefaria-search)
             const res = await fetch('/api/sefaria-search', {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: filter ? [filter] : [] })
             });
-            
-            if (!res.ok) {
-                 console.error("Vercel Proxy Error:", res.status);
-                 return null;
-            }
-
             const data = await res.json();
             if (data.hits?.hits?.length > 0) {
-                // Defensive Extraction
                 const firstHit = data.hits.hits[0];
-                const ref = firstHit._source?.ref || firstHit._id || firstHit.ref;
-                
-                if (!ref) {
-                    console.error("Could not extract Sefaria reference from hit:", firstHit);
-                    return null;
-                }
-                
-                // Secondary GET request for text
+                const ref = firstHit._source?.ref || firstHit._id;
                 const textRes = await fetch(`https://www.sefaria.org/api/texts/${ref}?context=0`);
                 const textData = await textRes.json();
-                
                 if (textData?.he) {
-                    let foundVerse = "";
-                    // Ensure we are working with a flat array of strings
                     let verses = Array.isArray(textData.he) ? textData.he.flat(Infinity) : [textData.he];
-                    let cleanWord = word.replace(/[\u0591-\u05C7]/g, ""); // Strip vowels from search word
-
-                    // Loop through verses to find the one containing the word
-                    for (let verse of verses) {
-                        if (typeof verse !== 'string') continue;
-                        // Strip HTML and vowels/cantillation for the search check
-                        let cleanVerse = verse.replace(/<\/?[^>]+(>|$)/g, "").replace(/[\u0591-\u05C7]/g, "");
-                        
-                        if (cleanVerse.includes(cleanWord)) {
-                            // Match found! Keep original text (with vowels) but strip HTML
-                            foundVerse = verse.replace(/<\/?[^>]+(>|$)/g, "");
-                            break; 
-                        }
-                    }
-
-                    // Fallback: If Sefaria's lemmatizer matched a root word differently than our strict text check, 
-                    // just return the first verse of the result instead of the whole chapter.
-                    if (!foundVerse && verses.length > 0) {
-                        foundVerse = verses[0].replace(/<\/?[^>]+(>|$)/g, "");
-                    }
-
-                    return { he: foundVerse, ref: textData.ref, heRef: textData.heRef };
+                    let foundVerse = verses.find(v => v.replace(/[\u0591-\u05C7]/g, "").includes(word)) || verses[0];
+                    return { he: foundVerse.replace(/<\/?[^>]+(>|$)/g, ""), ref: textData.ref, heRef: textData.heRef };
                 }
-            } else {
-                console.warn(`No search results found for word: ${word} with filter: ${filter}`);
-                return null;
             }
-        } catch (e) { 
-            console.error("Frontend Fetch Catch Error:", e);
-            return null; 
-        }
+            return null;
+        } catch (e) { return null; }
     };
 
-    // 1. Try Specific Chapter (Direct)
-    if (book && chapter && book !== 'ANY' && chapter !== 'ANY') {
-        result = await fetchDirect(book, chapter);
+    // --- Order of Operations (The Waterfall) ---
+    
+    // 1. Resolve the English name first for reliability in steps 1 & 2
+    const englishBook = await getEnglishName(book);
+
+    // 2. Try Specific Chapter (Direct Fetch)
+    if (englishBook && chapter && chapter !== 'ANY') {
+        result = await fetchDirect(englishBook, chapter);
     }
 
-    // 2. Try Specific Book (Waterfall Fallback)
-    if (!result && book && book !== 'ANY') {
-        const nameRes = await fetch(`https://www.sefaria.org/api/name/${book}`);
-        const nameData = await nameRes.json();
-        result = await fetchSearch(nameData.index || nameData.ref || book);
+    // 3. Try Specific Book (Search Fallback)
+    if (!result && englishBook) {
+        result = await fetchSearch(englishBook);
     }
 
-    // 3. Try Whole Corpus (Final Fallback)
+    // 4. Try Whole Corpus (Global Fallback)
     if (!result) {
         result = await fetchSearch(safeCorpus);
     }

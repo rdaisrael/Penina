@@ -21,6 +21,8 @@
             min-height: 100vh;
         }
         
+
+        
         .bg-pattern {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -483,6 +485,11 @@ sourceTypeSelect.addEventListener('change', function() {
         specificSourceContainer.style.display = 'block';
         specificSourceLabel.innerText = value === 'Tanakh' ? 'Select Sefer & Perek:' : 'Select Massechet & Perek:';
         
+        const anyOption = document.createElement('option');
+        anyOption.value = 'ANY';
+        anyOption.textContent = '-- Any --';
+        bookSelect.appendChild(anyOption);
+
         const books = Object.keys(sourceData[value]);
         books.forEach(book => {
             const option = document.createElement('option');
@@ -490,6 +497,9 @@ sourceTypeSelect.addEventListener('change', function() {
             option.textContent = book;
             bookSelect.appendChild(option);
         });
+        
+        bookSelect.value = 'ANY';
+        chapterSelect.innerHTML = '<option value="ANY">-- Any --</option>';
     } else {
         specificSourceContainer.style.display = 'none';
     }
@@ -501,13 +511,19 @@ bookSelect.addEventListener('change', function() {
     
     chapterSelect.innerHTML = '';
     
-    if (!selectedBook) {
+    if (!selectedBook || selectedBook === 'ANY') {
+        chapterSelect.innerHTML = '<option value="ANY">-- Any --</option>';
         chapterSelect.disabled = true;
-        specificSourceInput.value = "";
+        updateHiddenInput();
         return;
     }
 
     chapterSelect.disabled = false;
+
+    const anyChapOption = document.createElement('option');
+    anyChapOption.value = 'ANY';
+    anyChapOption.textContent = '-- Any --';
+    chapterSelect.appendChild(anyChapOption);
 
     if (sourceType === 'Tanakh') {
         const chapterCount = sourceData.Tanakh[selectedBook];
@@ -526,6 +542,7 @@ bookSelect.addEventListener('change', function() {
             chapterSelect.appendChild(option);
         });
     }
+    chapterSelect.value = 'ANY';
     updateHiddenInput();
 });
 
@@ -628,8 +645,11 @@ generateBtn.addEventListener('click', async () => {
 
             // 4 & 5. Fetch Context based on Source Type
             if (sourceType === 'Tanakh' || sourceType === 'Talmud' || sourceType === 'Talmud Bavli') {
+                let searchBook = specificBook === 'ANY' ? null : specificBook;
+                let searchChapter = specificChapter === 'ANY' ? null : specificChapter;
+                
                 // Sefaria Search: Perek -> Book -> Corpus
-                let searchResult = await performSefariaSearch(cleanHebrew, sourceType, specificBook, specificChapter);
+                let searchResult = await performSefariaSearch(cleanHebrew, sourceType, searchBook, searchChapter);
                 if (searchResult) {
                     hebrewContext = searchResult.he;
                     citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
@@ -659,17 +679,19 @@ generateBtn.addEventListener('click', async () => {
                 const sentTransData = await sentTransRes.json();
                 englishContext = sentTransData.text;
 
-                // Dicta Vowelization (Sent directly to your generate.js)
-                const dictaGenre = (sourceType === 'Tanakh') ? 'biblical' : (sourceType === 'Talmud' || sourceType === 'Talmud Bavli' ? 'rabbinic' : 'modern');
-                const dictaRes = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ suppliedText: hebrewContext, dictaGenre: dictaGenre })
-                });
-                if (dictaRes.ok) {
-                    const dictaData = await dictaRes.json();
-                    hebrewContext = dictaData.text;
-                }
+  // Dicta Vowelization - ONLY applied to AI-generated Modern Hebrew sentences.
+// Sefaria text (Tanakh/Talmud) is skipped because the API natively provides accurate Nekudot.
+if (sourceType === 'Modern Hebrew' || sourceType === 'Any') {
+    const dictaRes = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ suppliedText: hebrewContext, dictaGenre: 'modern' })
+    });
+    if (dictaRes.ok) {
+        const dictaData = await dictaRes.json();
+        hebrewContext = dictaData.text;
+    }
+}
             }
 
             // 8. Bolding the vocabulary words in context

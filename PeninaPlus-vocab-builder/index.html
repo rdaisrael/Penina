@@ -707,10 +707,20 @@ item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
 
 async function performSefariaSearch(word, corpus, book, chapter) {
     const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
-    const safeCorpus = isTalmud ? 'Bavli' : corpus;
+    // Fix: Ensure "Any" search covers both main categories as a valid array
+    const safeCorpus = (corpus === 'Any') ? ["Tanakh", "Bavli"] : (isTalmud ? ["Bavli"] : [corpus]);
+    const cleanWord = word.replace(/[^\u05D0-\u05EA]/g, ''); // Strict Hebrew letters for matching
     let result = null;
 
-    // Helper: Standardize Book/Massechet Name to English
+    // Helper: Isolate the specific sentence from a larger Sefaria block
+    const isolateSentence = (text, target) => {
+        const cleanT = target.replace(/[^\u05D0-\u05EA]/g, '');
+        // Split by Hebrew punctuation: Sof Pasuk (:), period (.), or question mark (?)
+        const sentences = text.split(/(?<=[.:?!])\s+/);
+        const match = sentences.find(s => s.replace(/[^\u05D0-\u05EA]/g, '').includes(cleanT));
+        return match ? match.trim() : sentences[0].trim();
+    };
+
     const getEnglishName = async (b) => {
         if (!b || b === 'ANY') return null;
         try {
@@ -720,65 +730,60 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         } catch (e) { return b; }
     };
 
-    // Helper: Direct Chapter/Perek Fetch
-    const fetchDirect = async (englishBook, chapNum) => {
+    // Helper: Fetch text and extract the single relevant sentence
+    const fetchAndExtract = async (ref) => {
         try {
-            // Sefaria uses "Massechet Chapter" for Talmud perakim in the text API
-            const res = await fetch(`https://www.sefaria.org/api/texts/${englishBook} ${chapNum}?context=0`);
+            const res = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
             const data = await res.json();
             if (data?.he) {
-                const heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he];
-                for (let i = 0; i < heArray.length; i++) {
-                    if (typeof heArray[i] === 'string' && heArray[i].replace(/[\u0591-\u05C7]/g, '').includes(word)) {
-                        return { he: heArray[i].replace(/<\/?[^>]+(>|$)/g, ""), ref: `${data.ref}:${i+1}`, heRef: `${data.heRef} ${i+1}` };
-                    }
-                }
-            }
-        } catch (e) { return null; }
-    };
-
-    // Helper: Search Wrapper Proxy
-    const fetchSearch = async (filter) => {
-        try {
-            const res = await fetch('/api/sefaria-search', {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: filter ? [filter] : [] })
-            });
-            const data = await res.json();
-            if (data.hits?.hits?.length > 0) {
-                const firstHit = data.hits.hits[0];
-                const ref = firstHit._source?.ref || firstHit._id;
-                const textRes = await fetch(`https://www.sefaria.org/api/texts/${ref}?context=0`);
-                const textData = await textRes.json();
-                if (textData?.he) {
-                    let verses = Array.isArray(textData.he) ? textData.he.flat(Infinity) : [textData.he];
-                    let foundVerse = verses.find(v => v.replace(/[\u0591-\u05C7]/g, "").includes(word)) || verses[0];
-                    return { he: foundVerse.replace(/<\/?[^>]+(>|$)/g, ""), ref: textData.ref, heRef: textData.heRef };
-                }
+                const segments = Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he];
+                let rawMatch = segments.find(s => typeof s === 'string' && s.replace(/[^\u05D0-\u05EA]/g, '').includes(cleanWord)) || segments[0];
+                let cleanMatch = rawMatch.replace(/<\/?[^>]+(>|$)/g, ""); // Strip HTML tags
+                return { 
+                    he: isolateSentence(cleanMatch, word), 
+                    ref: data.ref, 
+                    heRef: data.heRef 
+                };
             }
             return null;
         } catch (e) { return null; }
     };
 
-    // --- Order of Operations (The Waterfall) ---
-    
-    // 1. Resolve the English name first for reliability in steps 1 & 2
+    // --- The Waterfall Logic ---
     const englishBook = await getEnglishName(book);
 
-    // 2. Try Specific Chapter (Direct Fetch)
+    // 1. Direct Chapter/Perek Fetch
     if (englishBook && chapter && chapter !== 'ANY') {
-        result = await fetchDirect(englishBook, chapter);
+        const ref = isTalmud ? `${englishBook}.${chapter}` : `${englishBook} ${chapter}`;
+        result = await fetchAndExtract(ref);
     }
 
-    // 3. Try Specific Book (Search Fallback)
+    // 2. Search Specific Book/Massechet (Search API)
     if (!result && englishBook) {
-        result = await fetchSearch(englishBook);
+        const res = await fetch('/api/sefaria-search', {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: [englishBook] })
+        });
+        const data = await res.json();
+        if (data.hits?.hits?.length > 0) {
+            const ref = data.hits.hits[0]._source?.ref || data.hits.hits[0]._id;
+            result = await fetchAndExtract(ref);
+        }
     }
 
-    // 4. Try Whole Corpus (Global Fallback)
+    // 3. Global Corpus Search (Final Fallback)
     if (!result) {
-        result = await fetchSearch(safeCorpus);
+        const res = await fetch('/api/sefaria-search', {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: safeCorpus })
+        });
+        const data = await res.json();
+        if (data.hits?.hits?.length > 0) {
+            const ref = data.hits.hits[0]._source?.ref || data.hits.hits[0]._id;
+            result = await fetchAndExtract(ref);
+        }
     }
 
     return result;

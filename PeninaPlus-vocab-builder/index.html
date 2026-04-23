@@ -642,10 +642,14 @@ let english = parts.join(', ');
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ promptText: `Translate this Hebrew vocabulary word to English: ${cleanHebrew}. Return ONLY the English word.` })
                 });
-                const transData = await transRes.json();
-                // Remove leading/trailing commas or periods from AI results
-let aiResult = transData.text || "Translation missing";
-item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
+                
+                if (transRes.ok) {
+                    const transData = await transRes.json();
+                    let aiResult = transData.text || "Translation missing";
+                    item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
+                } else {
+                    item.english = "[Translation Error]";
+                }
             }
 
             let hebrewContext = "";
@@ -665,8 +669,13 @@ item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ promptText: `Write a short, natural Modern Hebrew sentence using the word "${cleanHebrew}" (meaning "${item.english}"). Return ONLY the Hebrew sentence.` })
                 });
-                const contextData = await contextRes.json();
-                hebrewContext = contextData.text;
+                
+                if (contextRes.ok) {
+                    const contextData = await contextRes.json();
+                    hebrewContext = contextData.text || "[Context generation failed]";
+                } else {
+                    hebrewContext = "Word not found in context.";
+                }
                 citation = "Modern Hebrew Context";
             }
 
@@ -676,8 +685,13 @@ item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
                 });
-                const sentTransData = await sentTransRes.json();
-                englishContext = sentTransData.text || "[Translation missing]";
+                
+                if (sentTransRes.ok) {
+                    const sentTransData = await sentTransRes.json();
+                    englishContext = sentTransData.text || "[Translation missing]";
+                } else {
+                    englishContext = "[Translation Error]";
+                }
             }
 
             let hebrewRegex = new RegExp(cleanHebrew.split('').join('[\u0591-\u05C7]*'), 'g');
@@ -768,7 +782,8 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         });
         const data = await res.json();
         if (data.hits?.hits?.length > 0) {
-            const ref = data.hits.hits[0]._source?.ref || data.hits.hits[0]._id;
+            const hit = data.hits.hits[0];
+            const ref = hit._source?.ref || hit._id.split(' (')[0]; 
             result = await fetchAndExtract(ref);
         }
     }
@@ -782,7 +797,8 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         });
         const data = await res.json();
         if (data.hits?.hits?.length > 0) {
-            const ref = data.hits.hits[0]._source?.ref || data.hits.hits[0]._id;
+            const hit = data.hits.hits[0];
+            const ref = hit._source?.ref || hit._id.split(' (')[0]; 
             result = await fetchAndExtract(ref);
         }
     }

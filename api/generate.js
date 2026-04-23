@@ -25,15 +25,13 @@ module.exports = async function (req, res) {
             let result;
             
             try {
-                // Use the stable 1.5 series
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
                 result = await model.generateContent(prompt);
             } catch (apiError) {
-                // Expanded error handling to prevent Vercel 500 crashes
                 const status = apiError.status || (apiError.message.match(/\b(500|503|529|400)\b/) || [])[0];
                 
                 if (status) {
-                    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+                    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
                     result = await fallbackModel.generateContent(prompt);
                 } else {
                     throw apiError; 

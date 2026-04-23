@@ -694,8 +694,10 @@ let english = parts.join(', ');
                 }
             }
 
-            let hebrewRegex = new RegExp(cleanHebrew.split('').join('[\u0591-\u05C7]*'), 'g');
-            let highlightedHebrew = hebrewContext.replace(hebrewRegex, `<span style="font-weight:bold; text-decoration:underline;">$&</span>`);
+            // Strict word boundaries, allowing up to 3 prefix letters, and capturing trailing vowels to prevent broken HTML rendering
+            let wordPattern = cleanHebrew.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
+            let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבו]{0,3}[\\u0591-\\u05C7]*)(${wordPattern})(?=[^\\u05D0-\\u05EA]|$)`, 'g');
+            let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold; text-decoration:underline;">$3</span>`);
             
             // Regex escape for English word highlighting
             let safeEnglish = item.english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -730,9 +732,12 @@ async function performSefariaSearch(word, corpus, book, chapter) {
     // Helper: Isolate the specific sentence from a larger Sefaria block
     const isolateSentence = (text, target) => {
         const cleanT = target.replace(/[^\u05D0-\u05EA]/g, '');
+        const wordPattern = cleanT.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
+        const strictRegex = new RegExp(`(?:^|[^\\u05D0-\\u05EA])(?:[משהכלבו]{0,3}[\\u0591-\\u05C7]*)?${wordPattern}(?=[^\\u05D0-\\u05EA]|$)`);
+        
         // Split by Hebrew punctuation: Sof Pasuk (:), period (.), or question mark (?)
         const sentences = text.split(/(?<=[.:?!])\s+/);
-        const match = sentences.find(s => s.replace(/[^\u05D0-\u05EA]/g, '').includes(cleanT));
+        const match = sentences.find(s => strictRegex.test(s));
         return match ? match.trim() : sentences[0].trim();
     };
 
@@ -752,7 +757,11 @@ async function performSefariaSearch(word, corpus, book, chapter) {
             const data = await res.json();
             if (data?.he) {
                 const segments = Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he];
-                let rawMatch = segments.find(s => typeof s === 'string' && s.replace(/[^\u05D0-\u05EA]/g, '').includes(cleanWord)) || segments[0];
+                
+                const wordPattern = cleanWord.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
+                const strictRegex = new RegExp(`(?:^|[^\\u05D0-\\u05EA])(?:[משהכלבו]{0,3}[\\u0591-\\u05C7]*)?${wordPattern}(?=[^\\u05D0-\\u05EA]|$)`);
+                
+                let rawMatch = segments.find(s => typeof s === 'string' && strictRegex.test(s)) || segments[0];
                 let cleanMatch = rawMatch.replace(/<\/?[^>]+(>|$)/g, ""); // Strip HTML tags
                 return { 
                     he: isolateSentence(cleanMatch, word), 

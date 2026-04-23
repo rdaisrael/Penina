@@ -15,12 +15,16 @@ module.exports = async function (req, res) {
         let result;
         
         try {
-            const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+            // Target the stable 3.1 series 
+            const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash" });
             result = await model.generateContent(req.body.promptText);
         } catch (apiError) {
-            // 3. Intercept 503/529 errors and fallback to stable model
-            if (apiError.status === 503 || apiError.status === 529 || apiError.message.includes('503') || apiError.message.includes('529')) {
-                const fallbackModel = genAI.getGenerativeModel({ model: "gemini-3-flash" }); 
+            // Intercept 500, 503, 529, and 400 errors from unstable endpoints
+            const status = apiError.status || (apiError.message && apiError.message.match(/\b(500|503|529|400)\b/) ? apiError.message.match(/\b(500|503|529|400)\b/)[0] : null);
+            
+            if (status) {
+                // Fallback to the highly stable 1.5 workhorse
+                const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
                 result = await fallbackModel.generateContent(req.body.promptText);
             } else {
                 throw apiError; 

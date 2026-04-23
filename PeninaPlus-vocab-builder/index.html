@@ -615,10 +615,10 @@ generateBtn.addEventListener('click', async () => {
         let lines = rawInput.split('\n').filter(line => line.trim() !== '');
         let vocabList = lines.map(line => {
             // Split by comma or tab to separate Hebrew and English
-            let parts = line.split(/[,\t]/);
-            let hebrew = parts.shift().trim();
-            // Re-join remaining parts to preserve definitions containing commas
-            let english = parts.join(',').trim(); 
+            // Split by one or more commas/tabs and remove empty results
+let parts = line.split(/[,\t]+/).map(p => p.trim()).filter(p => p.length > 0);
+let hebrew = parts.shift() || "";
+let english = parts.join(', ');
             
             return {
                 hebrew: hebrew,
@@ -643,7 +643,9 @@ generateBtn.addEventListener('click', async () => {
                     body: JSON.stringify({ promptText: `Translate this Hebrew vocabulary word to English: ${cleanHebrew}. Return ONLY the English word.` })
                 });
                 const transData = await transRes.json();
-                item.english = transData.text || "Translation missing";
+                // Remove leading/trailing commas or periods from AI results
+let aiResult = transData.text || "Translation missing";
+item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
             }
 
             let hebrewContext = "";

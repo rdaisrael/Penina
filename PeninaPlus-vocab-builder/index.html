@@ -762,7 +762,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
 
             const data = await res.json();
             if (data.hits?.hits?.length > 0) {
-                // Defensive Extraction: Sefaria stores citations in different places depending on the index
+                // Defensive Extraction
                 const firstHit = data.hits.hits[0];
                 const ref = firstHit._source?.ref || firstHit._id || firstHit.ref;
                 
@@ -771,16 +771,40 @@ async function performSefariaSearch(word, corpus, book, chapter) {
                     return null;
                 }
                 
-                // The secondary GET request grabs the actual readable text
+                // Secondary GET request for text
                 const textRes = await fetch(`https://www.sefaria.org/api/texts/${ref}?context=0`);
                 const textData = await textRes.json();
+                
                 if (textData?.he) {
-                    const rawHe = Array.isArray(textData.he) ? textData.he.flat(Infinity).join(" ") : textData.he;
-                    return { he: rawHe.replace(/<\/?[^>]+(>|$)/g, ""), ref: textData.ref, heRef: textData.heRef };
+                    let foundVerse = "";
+                    // Ensure we are working with a flat array of strings
+                    let verses = Array.isArray(textData.he) ? textData.he.flat(Infinity) : [textData.he];
+                    let cleanWord = word.replace(/[\u0591-\u05C7]/g, ""); // Strip vowels from search word
+
+                    // Loop through verses to find the one containing the word
+                    for (let verse of verses) {
+                        if (typeof verse !== 'string') continue;
+                        // Strip HTML and vowels/cantillation for the search check
+                        let cleanVerse = verse.replace(/<\/?[^>]+(>|$)/g, "").replace(/[\u0591-\u05C7]/g, "");
+                        
+                        if (cleanVerse.includes(cleanWord)) {
+                            // Match found! Keep original text (with vowels) but strip HTML
+                            foundVerse = verse.replace(/<\/?[^>]+(>|$)/g, "");
+                            break; 
+                        }
+                    }
+
+                    // Fallback: If Sefaria's lemmatizer matched a root word differently than our strict text check, 
+                    // just return the first verse of the result instead of the whole chapter.
+                    if (!foundVerse && verses.length > 0) {
+                        foundVerse = verses[0].replace(/<\/?[^>]+(>|$)/g, "");
+                    }
+
+                    return { he: foundVerse, ref: textData.ref, heRef: textData.heRef };
                 }
             } else {
                 console.warn(`No search results found for word: ${word} with filter: ${filter}`);
-                return null; // Explicitly return null so it cleanly triggers the next step
+                return null;
             }
         } catch (e) { 
             console.error("Frontend Fetch Catch Error:", e);

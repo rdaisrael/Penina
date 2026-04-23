@@ -748,22 +748,39 @@ async function performSefariaSearch(word, corpus, book, chapter) {
     // Helper: Search Wrapper (Improved Filters)
     const fetchSearch = async (filter) => {
         try {
-            const res = await fetch(`https://www.sefaria.org/api/search-wrapper`, {
+            // Option 1: Wrap the POST request in a CORS Proxy
+            const targetUrl = 'https://www.sefaria.org/api/search-wrapper';
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+            const res = await fetch(proxyUrl, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: [filter] })
             });
+            
+            if (!res.ok) {
+                 console.error("Sefaria Search API Error:", res.status, res.statusText);
+                 return null;
+            }
+
             const data = await res.json();
             if (data.hits?.hits?.length > 0) {
                 const ref = data.hits.hits[0]._source.ref;
+                
+                // The secondary GET request does not need a proxy
                 const textRes = await fetch(`https://www.sefaria.org/api/texts/${ref}?context=0`);
                 const textData = await textRes.json();
                 if (textData?.he) {
                     const rawHe = Array.isArray(textData.he) ? textData.he.flat(Infinity).join(" ") : textData.he;
                     return { he: rawHe.replace(/<\/?[^>]+(>|$)/g, ""), ref: textData.ref, heRef: textData.heRef };
                 }
+            } else {
+                console.warn(`No search results found for word: ${word} with filter: ${filter}`);
             }
-        } catch (e) { return null; }
+        } catch (e) { 
+            console.error("Proxy Fetch Catch Error:", e);
+            return null; 
+        }
     };
 
     // 1. Try Specific Chapter (Direct)

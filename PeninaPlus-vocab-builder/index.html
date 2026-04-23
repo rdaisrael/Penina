@@ -725,27 +725,57 @@ if (sourceType === 'Modern Hebrew' || sourceType === 'Any') {
     }
 });
 
-// Helper Function for Point 4 (Sefaria Fallback Search)
 async function performSefariaSearch(word, corpus, book, chapter) {
     let safeCorpus = (corpus === 'Talmud' || corpus === 'Talmud Bavli') ? 'Bavli' : corpus;
 
-    // A. Specific Perek (Uses exact Text API to guarantee chapter filtering)
-    if (book && chapter) {
+    // Helper for ElasticSearch (Book or Corpus level)
+    async function querySearchWrapper(queryWord, filterPath) {
+        // Use "naive_lemmatizer" to allow unvowelized Hebrew searches
+        let payload = { query: queryWord, type: "text", field: "naive_lemmatizer" }; 
+        if (filterPath) {
+            payload.filters = [filterPath];
+            payload.filter_fields = ["path"]; 
+        }
+        try {
+            // 1. Ask ElasticSearch for the Reference
+            let res = await fetch(`https://www.sefaria.org/api/search-wrapper`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+            });
+            let data = await res.json();
+            
+            // 2. Fetch actual text for the first hit
+            if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
+                let hit = data.hits.hits[0];
+                let refFound = hit._source.ref; 
+                
+                let textRes = await fetch(`https://www.sefaria.org/api/texts/${refFound}?context=0`);
+                let textData = await textRes.json();
+                
+                if (textData && textData.he) {
+                    let rawHe = Array.isArray(textData.he) ? textData.he.join(" ") : textData.he;
+                    let cleanHe = rawHe.replace(/<\/?[^>]+(>|$)/g, "");
+                    return { he: cleanHe, ref: textData.ref, heRef: textData.heRef };
+                }
+            }
+        } catch (e) { console.error("Search Wrapper Error", e); }
+        return null;
+    }
+
+    // A. EXACT PEREK: Try direct text access first if both book and chapter are specific
+    if (book && chapter && book !== 'ANY' && chapter !== 'ANY') {
         try {
             let res = await fetch(`https://www.sefaria.org/api/texts/${book} ${chapter}?context=0`);
             let data = await res.json();
             if (data && data.he) {
-                // Flatten array in case of complex Talmud text structures
                 let heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [];
                 for (let i = 0; i < heArray.length; i++) {
                     if (typeof heArray[i] === 'string') {
-                        // FIX 1: Strip Nikkud and Ta'amim from Sefaria text before comparing
                         let unvowelizedSefaria = heArray[i].replace(/[\u0591-\u05C7]/g, '');
                         if (unvowelizedSefaria.includes(word)) {
-                            // Strip HTML immediately so it doesn't break Dicta
-                            let cleanHe = heArray[i].replace(/<\/?[^>]+(>|$)/g, "");
                             return { 
-                                he: cleanHe, 
+                                he: heArray[i].replace(/<\/?[^>]+(>|$)/g, ""), 
                                 ref: `${data.ref}:${i+1}`, 
                                 heRef: `${data.heRef} ${i+1}` 
                             };
@@ -756,52 +786,17 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         } catch (e) { console.error("Perek fetch failed", e); }
     }
 
-   // Helper for ElasticSearch (Book or Corpus level)
-        async function querySearchWrapper(queryWord, filterPath) {
-            // Using "exact" prevents the lemmatizer from finding distant root-word variations
-            let payload = { query: queryWord, type: "text", field: "exact" }; 
-            if (filterPath) {
-                payload.filters = [filterPath];
-                payload.filter_fields = ["path"]; 
-            }
-            try {
-                // 1. Ask ElasticSearch for the Reference
-                let res = await fetch(`https://www.sefaria.org/api/search-wrapper`, {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify(payload)
-                });
-                let data = await res.json();
-                
-                // 2. If found, fetch the actual text using that Reference
-                if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
-                    let hit = data.hits.hits[0];
-                    let refFound = hit._source.ref; 
-                    
-                    let textRes = await fetch(`https://www.sefaria.org/api/texts/${refFound}?context=0`);
-                    let textData = await textRes.json();
-                    
-                    if (textData && textData.he) {
-                        // Sefaria ranges return arrays; single verses return strings. Force string.
-                        let rawHe = Array.isArray(textData.he) ? textData.he.join(" ") : textData.he;
-                        let cleanHe = rawHe.replace(/<\/?[^>]+(>|$)/g, "");
-                        return { he: cleanHe, ref: textData.ref, heRef: textData.heRef };
-                    }
-                }
-            } catch (e) { console.error("Search Wrapper Error", e); }
-            return null;
-        }
-
-    let result = null;
-
-    // B. Specific Book (ElasticSearch Fallback)
-    // Note: Sefaria requires English paths. If 'book' is Hebrew, this falls through to C.
-    if (book) result = await querySearchWrapper(word, book);
+    // B. BOOK LEVEL: Selected book but chapter is "ANY"
+    if (book && book !== 'ANY') {
+        // Resolve Hebrew book name to English for Sefaria search engine compatibility
+        let nameRes = await fetch(`https://www.sefaria.org/api/name/${book}`);
+        let nameData = await nameRes.json();
+        let englishBookPath = nameData.index || nameData.ref || book;
+        return await querySearchWrapper(word, englishBookPath);
+    }
     
-    // C. General Corpus Fallback
-    if (!result) result = await querySearchWrapper(word, safeCorpus);
-
-    return result;
+    // C. CORPUS LEVEL: Both book and chapter are "ANY"
+    return await querySearchWrapper(word, safeCorpus);
 }
 
 // Helper Function for Point 9 (Citation Formatting)

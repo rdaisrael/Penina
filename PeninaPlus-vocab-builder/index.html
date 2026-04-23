@@ -603,13 +603,8 @@ generateBtn.addEventListener('click', async () => {
     const title = document.getElementById('list-title').value.trim();
     const rawInput = document.getElementById('word-list').value.trim();
     const sourceType = document.getElementById('source-type').value;
-    const specificBook = document.getElementById('book-select').value;
-    const specificChapter = document.getElementById('chapter-select').value;
 
-    if (!title || !rawInput) {
-        alert("Please enter both a Title and a Vocabulary List before generating.");
-        return;
-    }
+    if (!rawInput || !title) return;
 
     generateBtn.disabled = true;
     vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
@@ -617,13 +612,17 @@ generateBtn.addEventListener('click', async () => {
     docTitle.innerText = title;
 
     try {
-        // 1. Parse input: divide by comma or tab
         let lines = rawInput.split('\n').filter(line => line.trim() !== '');
         let vocabList = lines.map(line => {
-            let parts = line.split(/,|\t/).map(p => p.trim());
+            // Split by comma or tab to separate Hebrew and English
+            let parts = line.split(/[,\t]/);
+            let hebrew = parts.shift().trim();
+            // Re-join remaining parts to preserve definitions containing commas
+            let english = parts.join(',').trim(); 
+            
             return {
-                hebrew: parts[0] || '',
-                english: parts[1] || null
+                hebrew: hebrew,
+                english: english.length > 0 ? english : null
             };
         });
 
@@ -634,10 +633,9 @@ generateBtn.addEventListener('click', async () => {
         let htmlOutput = "";
 
         for (let item of vocabList) {
-            // 3. Strip Nikkudot for search processing
             let cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '');
             
-            // 2. Generate English translation via Gemini if missing
+            // Bypass API translation if English was provided in the input
             if (!item.english) {
                 const transRes = await fetch('/api/translate', {
                     method: 'POST',
@@ -652,66 +650,41 @@ generateBtn.addEventListener('click', async () => {
             let englishContext = "";
             let citation = "";
 
-            // 4 & 5. Fetch Context based on Source Type
-            if (sourceType === 'Tanakh' || sourceType === 'Talmud' || sourceType === 'Talmud Bavli') {
-                let searchBook = specificBook === 'ANY' ? null : specificBook;
-                let searchChapter = specificChapter === 'ANY' ? null : specificChapter;
-                
-                // Sefaria Search: Perek -> Book -> Corpus
-                let searchResult = await performSefariaSearch(cleanHebrew, sourceType, searchBook, searchChapter);
+            if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
+                let searchResult = await performSefariaSearch(cleanHebrew, sourceType, bookSelect.value, chapterSelect.value);
                 if (searchResult) {
                     hebrewContext = searchResult.he;
                     citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
-                } else {
-                    hebrewContext = "Word not found in context.";
-                }
+                } else { hebrewContext = "Word not found in context."; }
             } else {
-                // Modern Hebrew / No Preference - Generate via Gemini
+                // Inform the AI of the intended meaning to ensure correct context generation
                 const contextRes = await fetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ promptText: `Write a short, natural Modern Hebrew sentence using the word: ${cleanHebrew}. Return ONLY the Hebrew sentence.` })
+                    body: JSON.stringify({ promptText: `Write a short, natural Modern Hebrew sentence using the word "${cleanHebrew}" (meaning "${item.english}"). Return ONLY the Hebrew sentence.` })
                 });
                 const contextData = await contextRes.json();
                 hebrewContext = contextData.text;
                 citation = "Modern Hebrew Context";
             }
 
-            // 6 & 7. Translate and Vowelize
-            if (hebrewContext !== "Word not found in context.") {
-                // English Translation
+            if (hebrewContext && hebrewContext !== "Word not found in context.") {
                 const sentTransRes = await fetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". Accuracy is paramount, but make sure to use the word "${item.english}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
+                    body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
                 });
                 const sentTransData = await sentTransRes.json();
                 englishContext = sentTransData.text;
-
-  // Dicta Vowelization - ONLY applied to AI-generated Modern Hebrew sentences.
-// Sefaria text (Tanakh/Talmud) is skipped because the API natively provides accurate Nekudot.
-if (sourceType === 'Modern Hebrew' || sourceType === 'Any') {
-    const dictaRes = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ suppliedText: hebrewContext, dictaGenre: 'modern' })
-    });
-    if (dictaRes.ok) {
-        const dictaData = await dictaRes.json();
-        hebrewContext = dictaData.text;
-    }
-}
             }
 
-            // 8. Bolding the vocabulary words in context
             let hebrewRegex = new RegExp(cleanHebrew.split('').join('[\u0591-\u05C7]*'), 'g');
             let highlightedHebrew = hebrewContext.replace(hebrewRegex, `<span style="font-weight:bold; text-decoration:underline;">$&</span>`);
             
+            // Regex escape for English word highlighting
             let safeEnglish = item.english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            let englishRegex = new RegExp(`\\b${safeEnglish}\\b`, 'gi');
-            let highlightedEnglish = englishContext.replace(englishRegex, `<span style="font-weight:bold; text-decoration:underline;">$&</span>`);
+            let highlightedEnglish = englishContext.replace(new RegExp(`\\b${safeEnglish}\\b`, 'gi'), `<span style="font-weight:bold; text-decoration:underline;">$&</span>`);
 
-            // Output Row Construction
             htmlOutput += `
             <tr>
                 <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
@@ -719,22 +692,15 @@ if (sourceType === 'Modern Hebrew' || sourceType === 'Any') {
                 <td class="col-context">
                     <div class="hebrew-text">${highlightedHebrew}</div>
                     <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
-                    <div class="citation" dir="rtl" style="font-size: 0.9em; color: #555; margin-top: 5px;">${citation}</div>
+                    <div class="citation" dir="rtl">${citation}</div>
                 </td>
             </tr>`;
         }
-        
         vocabTbody.innerHTML = htmlOutput;
         document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
-        
-        // Apply toggles after generation just in case they were checked before generating.
-        updateTextDisplay();
-
     } catch (e) {
         vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
-    } finally {
-        generateBtn.disabled = false;
-    }
+    } finally { generateBtn.disabled = false; }
 });
 
 async function performSefariaSearch(word, corpus, book, chapter) {

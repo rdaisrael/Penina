@@ -752,7 +752,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
             const res = await fetch('/api/sefaria-search', {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: [filter] })
+                body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: filter ? [filter] : [] })
             });
             
             if (!res.ok) {
@@ -762,9 +762,16 @@ async function performSefariaSearch(word, corpus, book, chapter) {
 
             const data = await res.json();
             if (data.hits?.hits?.length > 0) {
-                const ref = data.hits.hits[0]._source.ref;
+                // Defensive Extraction: Sefaria stores citations in different places depending on the index
+                const firstHit = data.hits.hits[0];
+                const ref = firstHit._source?.ref || firstHit._id || firstHit.ref;
                 
-                // The secondary GET request works fine as-is because Sefaria allows GET CORS
+                if (!ref) {
+                    console.error("Could not extract Sefaria reference from hit:", firstHit);
+                    return null;
+                }
+                
+                // The secondary GET request grabs the actual readable text
                 const textRes = await fetch(`https://www.sefaria.org/api/texts/${ref}?context=0`);
                 const textData = await textRes.json();
                 if (textData?.he) {
@@ -773,6 +780,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
                 }
             } else {
                 console.warn(`No search results found for word: ${word} with filter: ${filter}`);
+                return null; // Explicitly return null so it cleanly triggers the next step
             }
         } catch (e) { 
             console.error("Frontend Fetch Catch Error:", e);

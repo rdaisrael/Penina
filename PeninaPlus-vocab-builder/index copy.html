@@ -1,7 +1,3 @@
-
-<!-- VOCAB BUILDER -->
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -342,9 +338,7 @@ textarea, .hebrew-input, .strict-hebrew-input {
             <div class="formatting-section">
                 <h3>Word Styling and Formatting</h3>
                 
-                <div class="checkbox-group" style="margin-bottom: 20px;">
-                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()"> Substitute Divine Names (יהוה &rarr; ה׳, אלוה &rarr; אלוק)</label>
-                </div>
+                
 
                 <div class="slider-group">
                     <div class="slider-container">
@@ -367,7 +361,7 @@ textarea, .hebrew-input, .strict-hebrew-input {
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 200px;">
                         <label for="nekudot-toggle">Nekudot:</label>
-                        <select id="nekudot-toggle" onchange="updateTextDisplay()">
+                        <select id="nekudot-toggle" onchange="toggleNekudot(this.value)">
                             <option value="show">Show Nekudot</option>
                             <option value="strip">Strip Nekudot</option>
                         </select>
@@ -606,10 +600,7 @@ generateBtn.addEventListener('click', async () => {
     const specificBook = document.getElementById('book-select').value;
     const specificChapter = document.getElementById('chapter-select').value;
 
-    if (!title || !rawInput) {
-        alert("Please enter both a Title and a Vocabulary List before generating.");
-        return;
-    }
+    if (!rawInput || !title) return;
 
     generateBtn.disabled = true;
     vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
@@ -726,9 +717,6 @@ if (sourceType === 'Modern Hebrew' || sourceType === 'Any') {
         
         vocabTbody.innerHTML = htmlOutput;
         document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
-        
-        // Apply toggles after generation just in case they were checked before generating.
-        updateTextDisplay();
 
     } catch (e) {
         vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
@@ -854,26 +842,9 @@ function formatSefariaCitation(heRef, enRef, sourceType) {
     return `${heRef}<br><span dir="ltr">${enRef}</span>`;
 }
 
-// Unified text processing function to handle both Name Replacement and Nekudot Toggling
-function updateTextDisplay() {
-    const stripNekudot = document.getElementById('nekudot-toggle').value === 'strip';
-    const subNames = document.getElementById('substitute-names').checked;
-
+function toggleNekudot(action) {
     document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
-        let html = el.dataset.original;
-
-        if (subNames) {
-            // Match יהוה with any potential internal vowels and replace with ה׳
-            html = html.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, 'ה׳');
-            // Match אלוה with any potential internal vowels and replace the ה with a ק
-            html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*ו[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, '$1ק$2');
-        }
-
-        if (stripNekudot) {
-            html = html.replace(/[\u0591-\u05C7]/g, '');
-        }
-
-        el.innerHTML = html;
+        el.innerHTML = (action === 'strip') ? el.innerHTML.replace(/[\u0591-\u05C7]/g, '') : el.dataset.original;
     });
 }
     </script>

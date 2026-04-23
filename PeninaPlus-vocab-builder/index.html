@@ -756,34 +756,41 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         } catch (e) { console.error("Perek fetch failed", e); }
     }
 
-    // Helper for ElasticSearch (Book or Corpus level)
-    async function querySearchWrapper(queryWord, filterPath) {
-        let payload = { query: queryWord, type: "text", field: "naive_lemmatizer" };
-        if (filterPath) {
-            payload.filters = [filterPath];
-            payload.filter_fields = ["path"]; // Mandatory for Sefaria
-        }
-        try {
-            let res = await fetch(`https://www.sefaria.org/api/search-wrapper`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify(payload)
-            });
-            let data = await res.json();
-            if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
-                let hit = data.hits.hits[0];
-                
-                // FIX 2: Access the correct Sefaria Search API v2 schema fields without highlight crash
-                let rawHe = hit._source.exact || hit._source.naive_lemmatizer || "";
-                
-                if (rawHe) {
-                    let cleanHe = rawHe.replace(/<\/?[^>]+(>|$)/g, "");
-                    return { he: cleanHe, ref: hit._source.ref, heRef: hit._source.heRef };
-                }
+   // Helper for ElasticSearch (Book or Corpus level)
+        async function querySearchWrapper(queryWord, filterPath) {
+            // Using "exact" prevents the lemmatizer from finding distant root-word variations
+            let payload = { query: queryWord, type: "text", field: "exact" }; 
+            if (filterPath) {
+                payload.filters = [filterPath];
+                payload.filter_fields = ["path"]; 
             }
-        } catch (e) { console.error("Search Wrapper Error", e); }
-        return null;
-    }
+            try {
+                // 1. Ask ElasticSearch for the Reference
+                let res = await fetch(`https://www.sefaria.org/api/search-wrapper`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(payload)
+                });
+                let data = await res.json();
+                
+                // 2. If found, fetch the actual text using that Reference
+                if (data.hits && data.hits.hits && data.hits.hits.length > 0) {
+                    let hit = data.hits.hits[0];
+                    let refFound = hit._source.ref; 
+                    
+                    let textRes = await fetch(`https://www.sefaria.org/api/texts/${refFound}?context=0`);
+                    let textData = await textRes.json();
+                    
+                    if (textData && textData.he) {
+                        // Sefaria ranges return arrays; single verses return strings. Force string.
+                        let rawHe = Array.isArray(textData.he) ? textData.he.join(" ") : textData.he;
+                        let cleanHe = rawHe.replace(/<\/?[^>]+(>|$)/g, "");
+                        return { he: cleanHe, ref: textData.ref, heRef: textData.heRef };
+                    }
+                }
+            } catch (e) { console.error("Search Wrapper Error", e); }
+            return null;
+        }
 
     let result = null;
 

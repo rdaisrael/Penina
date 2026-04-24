@@ -7,7 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
     <style>
         /* --- EMBEDDED DYSLEXIC FONT --- */
         @font-face {
@@ -241,20 +241,21 @@ textarea, .hebrew-input, .strict-hebrew-input {
             padding: 0.75in; 
             transition: padding 0.2s; 
             direction: ltr;
+            font-size: 14pt;
         }
         
-        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 10px; margin-top: 0; font-size: 18pt; border-radius: 4px; }
+        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 10px; margin-top: 0; font-size: 1.3em; border-radius: 4px; }
         table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; }
         th, td { border: 1px solid #dcd3c6; padding: 10pt; vertical-align: top; }
         th { background-color: #f4efe6; font-weight: bold; text-align: center; color: #4a4238; }
         
-        .col-hebrew { direction: rtl; text-align: right; font-size: 14pt; white-space: nowrap; width: 1%; padding: 10pt; font-weight: bold; }
-        .col-english { direction: ltr; text-align: left; font-size: 12pt; width: 125pt; min-width: 125pt; padding: 10pt; }
-        .col-context { width: auto; font-size: 10pt; line-height: 1.4; text-align: right; }
+        .col-hebrew { direction: rtl; text-align: right; font-size: 1em; white-space: nowrap; width: 1%; padding: 10pt; font-weight: bold; }
+        .col-english { direction: ltr; text-align: left; font-size: 0.85em; width: 125pt; min-width: 125pt; padding: 10pt; }
+        .col-context { width: auto; font-size: 0.7em; line-height: 1.4; text-align: right; }
         
         .hebrew-text { font-family: inherit; direction: rtl; }
         .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 4px; }
-        .citation { direction: rtl; text-align: right; font-size: 10pt; margin-top: 4px; color: #666; }
+        .citation { direction: rtl; text-align: right; font-size: 0.7em; margin-top: 4px; color: #666; }
         
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
         .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
@@ -670,12 +671,12 @@ function updateMargin(margin) {
 
 document.getElementById('font-size').addEventListener('input', (e) => {
     document.getElementById('font-size-val').innerText = e.target.value + 'pt';
-    document.getElementById('vocab-table').style.fontSize = e.target.value + 'pt';
+    document.getElementById('page').style.fontSize = e.target.value + 'pt';
 });
 
 document.getElementById('kerning').addEventListener('input', (e) => {
     document.getElementById('kerning-val').innerText = e.target.value + 'px';
-    document.getElementById('vocab-table').style.letterSpacing = e.target.value + 'px';
+    document.getElementById('page').style.letterSpacing = e.target.value + 'px';
 });
 
 document.getElementById('font-choice').addEventListener('change', (e) => {

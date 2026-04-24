@@ -1,5 +1,6 @@
 
-<<!-- Vocab Builder Index -->
+<!-- VOCAB BUILDER -->
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -747,7 +748,7 @@ let english = parts.join(', ');
                 const sentTransRes = await fetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english.toLowerCase()}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
+                    body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
                 });
                 
                 if (sentTransRes.ok) {
@@ -764,11 +765,11 @@ let english = parts.join(', ');
             
             // 'gu' flag is required for global match and Unicode support
             let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבו]{0,3}[\\u0591-\\u05C7]*)(${phrasePattern})(?=[^\\u05D0-\\u05EA]|$)`, 'gu');
-            let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold;">$3</span>`);
+            let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold; text-decoration:underline;">$3</span>`);
             
             // Regex escape for English word highlighting
             let safeEnglish = item.english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            let highlightedEnglish = englishContext.replace(new RegExp(`\\b${safeEnglish}\\b`, 'gi'), `<span style="font-weight:bold;">$&</span>`);
+            let highlightedEnglish = englishContext.replace(new RegExp(`\\b${safeEnglish}\\b`, 'gi'), `<span style="font-weight:bold; text-decoration:underline;">$&</span>`);
 
             htmlOutput += `
             <tr>

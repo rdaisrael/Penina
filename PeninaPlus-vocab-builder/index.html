@@ -260,6 +260,17 @@ textarea, .hebrew-input, .strict-hebrew-input {
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
         .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
 
+        /* --- CHIP UI STYLES --- */
+        .page-chip {
+            display: inline-flex; align-items: center; background-color: #e0eaf5;
+            border: 1px solid #b3cce6; border-radius: 12px; padding: 2px 8px;
+            font-size: 13px; font-weight: bold; color: #333;
+        }
+        .chip-x {
+            margin-left: 6px; color: #cc0000; cursor: pointer; font-weight: bold;
+        }
+        .chip-x:hover { color: #ff0000; }
+
         @media print {
             body { background: white; padding: 0; }
             .bg-pattern { display: none; }
@@ -318,11 +329,25 @@ textarea, .hebrew-input, .strict-hebrew-input {
                 </div>
                 <div style="flex: 1; display: none;" id="specific-source-container">
                     <label id="specific-source-label">Specific Source:</label>
-                    <div class="roller-container">
-                        <select id="book-select" size="5" class="roller"></select>
-                        <select id="chapter-select" size="5" class="roller" disabled></select>
+                    <div style="display: flex; gap: 15px; margin-top: 5px;">
+                        <select id="book-select" size="5" class="roller" style="flex: 1; height: 120px;"></select>
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                            <div style="display: flex; gap: 5px;">
+                                <select id="num-picker" style="flex: 1; padding: 5px;" disabled>
+                                    <option value="" disabled selected>#</option>
+                                </select>
+                                <select id="amud-picker" style="flex: 1; padding: 5px;" disabled>
+                                    <option value="a">a</option>
+                                    <option value="b">b</option>
+                                </select>
+                                <button type="button" id="add-chip-btn" style="padding: 5px 10px; width: auto;" disabled>Add</button>
+                            </div>
+                            <div id="chip-container" style="flex: 1; border: 1px solid #dcd3c6; border-radius: 5px; background: #fdfdfa; padding: 5px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 80px;">
+                                <span style="color: #9c9284; font-size: 12px; padding: 2px;">Select book first...</span>
+                            </div>
+                            <input type="hidden" id="hidden-chapter-input" value="ANY">
+                        </div>
                     </div>
-                    <input type="hidden" id="specific-source" value="">
                 </div>
             </div>
 
@@ -429,7 +454,12 @@ const pageContainer = document.getElementById('page');
 const docTitle = document.getElementById('doc-title');
 
 const bookSelect = document.getElementById('book-select');
-const chapterSelect = document.getElementById('chapter-select');
+const numPicker = document.getElementById('num-picker');
+const amudPicker = document.getElementById('amud-picker');
+const addChipBtn = document.getElementById('add-chip-btn');
+const chipContainer = document.getElementById('chip-container');
+const hiddenChapterInput = document.getElementById('hidden-chapter-input');
+let selectedPagesList = [];
 
 const sourceData = {
     Tanakh: {
@@ -483,13 +513,16 @@ const sourceData = {
 sourceTypeSelect.addEventListener('change', function() {
     const value = this.value;
     bookSelect.innerHTML = '';
-    chapterSelect.innerHTML = '';
-    chapterSelect.disabled = true;
-    specificSourceInput.value = ""; 
+    numPicker.innerHTML = '<option value="" disabled selected>#</option>';
+    numPicker.disabled = true;
+    amudPicker.disabled = true;
+    addChipBtn.disabled = true;
+    selectedPagesList = [];
+    renderChips();
 
     if (value === 'Tanakh' || value === 'Talmud') {
         specificSourceContainer.style.display = 'block';
-        specificSourceLabel.innerText = value === 'Tanakh' ? 'Select Sefer & Perek:' : 'Select Massechet & Perek:';
+        specificSourceLabel.innerText = value === 'Tanakh' ? 'Select Sefer & Chapters:' : 'Select Massechet & Dapim:';
         
         const anyOption = document.createElement('option');
         anyOption.value = 'ANY';
@@ -505,7 +538,6 @@ sourceTypeSelect.addEventListener('change', function() {
         });
         
         bookSelect.value = 'ANY';
-        chapterSelect.innerHTML = '<option value="ANY">-- Any --</option>';
     } else {
         specificSourceContainer.style.display = 'none';
     }
@@ -515,54 +547,85 @@ bookSelect.addEventListener('change', function() {
     const sourceType = sourceTypeSelect.value;
     const selectedBook = this.value;
     
-    chapterSelect.innerHTML = '';
+    numPicker.innerHTML = '<option value="" disabled selected>#</option>';
+    selectedPagesList = [];
+    renderChips();
     
     if (!selectedBook || selectedBook === 'ANY') {
-        chapterSelect.innerHTML = '<option value="ANY">-- Any --</option>';
-        chapterSelect.disabled = true;
-        updateHiddenInput();
+        numPicker.disabled = true;
+        amudPicker.disabled = true;
+        addChipBtn.disabled = true;
         return;
     }
 
-    chapterSelect.disabled = false;
-
-    const anyChapOption = document.createElement('option');
-    anyChapOption.value = 'ANY';
-    anyChapOption.textContent = '-- Any --';
-    chapterSelect.appendChild(anyChapOption);
+    numPicker.disabled = false;
+    addChipBtn.disabled = false;
 
     if (sourceType === 'Tanakh') {
+        amudPicker.disabled = true;
+        amudPicker.style.display = 'none';
         const chapterCount = sourceData.Tanakh[selectedBook];
         for (let i = 1; i <= chapterCount; i++) {
             const option = document.createElement('option');
             option.value = i;
-            option.textContent = `פרק ${i}`;
-            chapterSelect.appendChild(option);
+            option.textContent = i;
+            numPicker.appendChild(option);
         }
     } else if (sourceType === 'Talmud') {
-        const chapters = sourceData.Talmud[selectedBook];
-        chapters.forEach((chapName, index) => {
+        amudPicker.disabled = false;
+        amudPicker.style.display = 'block';
+        for (let i = 2; i <= 176; i++) {
             const option = document.createElement('option');
-            option.value = index + 1; 
-            option.textContent = `פרק ${index + 1} - ${chapName}`;
-            chapterSelect.appendChild(option);
-        });
+            option.value = i;
+            option.textContent = i;
+            numPicker.appendChild(option);
+        }
     }
-    chapterSelect.value = 'ANY';
-    updateHiddenInput();
 });
 
-chapterSelect.addEventListener('change', updateHiddenInput);
-
-function updateHiddenInput() {
-    const book = bookSelect.value;
-    const chapter = chapterSelect.value;
+addChipBtn.addEventListener('click', () => {
+    const num = numPicker.value;
+    const amud = amudPicker.style.display !== 'none' ? amudPicker.value : '';
+    if (!num) return;
     
-    if (book && chapter) {
-        specificSourceInput.value = `${book} ${chapter}`; 
-    } else {
-        specificSourceInput.value = "";
+    const finalSelection = `${num}${amud}`;
+    
+    if (selectedPagesList.length >= 10) {
+        alert("You can only select up to 10 targets at a time.");
+        return;
     }
+    if (!selectedPagesList.includes(finalSelection)) {
+        selectedPagesList.push(finalSelection);
+        renderChips();
+    }
+});
+
+function renderChips() {
+    if (selectedPagesList.length === 0) {
+        chipContainer.innerHTML = '<span style="color: #9c9284; font-size: 12px; padding: 2px;">ANY (Whole Book)</span>';
+        hiddenChapterInput.value = "ANY";
+        return;
+    }
+    
+    chipContainer.innerHTML = '';
+    selectedPagesList.forEach(page => {
+        const chip = document.createElement('div');
+        chip.className = 'page-chip';
+        chip.textContent = page;
+        
+        const closeBtn = document.createElement('span');
+        closeBtn.className = 'chip-x';
+        closeBtn.innerHTML = '&#10005;';
+        closeBtn.onclick = () => {
+            selectedPagesList = selectedPagesList.filter(p => p !== page);
+            renderChips();
+        };
+        
+        chip.appendChild(closeBtn);
+        chipContainer.appendChild(chip);
+    });
+    
+    hiddenChapterInput.value = selectedPagesList.join(',');
 }
 
 sourceTypeSelect.dispatchEvent(new Event('change'));
@@ -657,7 +720,7 @@ let english = parts.join(', ');
             let citation = "";
 
             if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                let searchResult = await performSefariaSearch(cleanHebrew, sourceType, bookSelect.value, chapterSelect.value);
+                let searchResult = await performSefariaSearch(cleanHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
                 if (searchResult) {
                     hebrewContext = searchResult.he;
                     citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
@@ -696,6 +759,8 @@ let english = parts.join(', ');
 
             // Strict word boundaries, allowing up to 3 prefix letters, and capturing trailing vowels to prevent broken HTML rendering
             let wordPattern = cleanHebrew.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
+           // Strict word boundaries, capture trailing vowels to prevent broken HTML
+            let wordPattern = cleanHebrew.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
             let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבו]{0,3}[\\u0591-\\u05C7]*)(${wordPattern})(?=[^\\u05D0-\\u05EA]|$)`, 'g');
             let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold; text-decoration:underline;">$3</span>`);
             
@@ -729,7 +794,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
     const cleanWord = word.replace(/[^\u05D0-\u05EA]/g, ''); // Strict Hebrew letters for matching
     let result = null;
 
-    // Helper: Isolate the specific sentence from a larger Sefaria block
+// Helper: Isolate the specific sentence from a larger Sefaria block
     const isolateSentence = (text, target) => {
         const cleanT = target.replace(/[^\u05D0-\u05EA]/g, '');
         const wordPattern = cleanT.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
@@ -776,14 +841,19 @@ async function performSefariaSearch(word, corpus, book, chapter) {
     // --- The Waterfall Logic ---
     const englishBook = await getEnglishName(book);
 
-    // 1. Direct Chapter/Perek Fetch
+    // 1. Direct Sequential Fetch: Supports single chapters ("1") or comma-separated lists ("2a,2b")
     if (englishBook && chapter && chapter !== 'ANY') {
-        const ref = isTalmud ? `${englishBook}.${chapter}` : `${englishBook} ${chapter}`;
-        result = await fetchAndExtract(ref);
+        const targetPages = chapter.split(',').map(p => p.trim()).filter(p => p).slice(0, 10);
+        
+        for (const page of targetPages) {
+            const ref = `${englishBook} ${page}`;
+            result = await fetchAndExtract(ref);
+            if (result) break; 
+        }
     }
 
-    // 2. Search Specific Book/Massechet (Search API)
-    if (!result && englishBook) {
+    // 2. Search Specific Book/Massechet
+    if (!result && englishBook && englishBook !== 'ANY') {
         const res = await fetch('/api/sefaria-search', {
             method: "POST",
             headers: {"Content-Type": "application/json"},
@@ -795,10 +865,25 @@ async function performSefariaSearch(word, corpus, book, chapter) {
             const ref = hit._source?.ref || hit._id.split(' (')[0]; 
             result = await fetchAndExtract(ref);
         }
+        
+        // Internal Fallback: Try Lemma match in the SAME book before giving up
+        if (!result && isTalmud) {
+            const resFallback = await fetch('/api/sefaria-search', {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: [englishBook] })
+            });
+            const dataFallback = await resFallback.json();
+            if (dataFallback.hits?.hits?.length > 0) {
+                const hit = dataFallback.hits.hits[0];
+                const ref = hit._source?.ref || hit._id.split(' (')[0]; 
+                result = await fetchAndExtract(ref);
+            }
+        }
     }
 
-    // 3. Global Corpus Search (Final Fallback)
-    if (!result) {
+    // 3. Global Corpus Search (ONLY executed if NO specific book was requested)
+    if (!result && (!englishBook || englishBook === 'ANY')) {
         const res = await fetch('/api/sefaria-search', {
             method: "POST",
             headers: {"Content-Type": "application/json"},
@@ -809,6 +894,20 @@ async function performSefariaSearch(word, corpus, book, chapter) {
             const hit = data.hits.hits[0];
             const ref = hit._source?.ref || hit._id.split(' (')[0]; 
             result = await fetchAndExtract(ref);
+        }
+        
+        if (!result && isTalmud) {
+            const resFallback = await fetch('/api/sefaria-search', {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: safeCorpus })
+            });
+            const dataFallback = await resFallback.json();
+            if (dataFallback.hits?.hits?.length > 0) {
+                const hit = dataFallback.hits.hits[0];
+                const ref = hit._source?.ref || hit._id.split(' (')[0]; 
+                result = await fetchAndExtract(ref);
+            }
         }
     }
 

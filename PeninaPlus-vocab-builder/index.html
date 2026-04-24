@@ -785,15 +785,21 @@ let english = parts.join(', ');
                 }
             }
 
-            const phrasePattern = cleanHebrew.trim().split(/\s+/).map(word => 
-                word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
-            ).join('[\\s\\p{P}]+');
+           const buildPhrasePattern = (input) => {
+                return input.trim().split(/\s+/).map(w => {
+                    let letters = w.split('');
+                    let lastLetter = letters[letters.length - 1];
+                    if (['א', 'ה', 'י'].includes(lastLetter)) {
+                        letters.pop();
+                        return letters.join('[\\u0591-\\u05C7]*[יו]?[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*[אהי]?';
+                    } else {
+                        return letters.join('[\\u0591-\\u05C7]*[יו]?[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
+                    }
+                }).join('[\\s\\p{P}]+');
+            };
             
-            // 'gu' flag is required for global match and Unicode support
-            // FIX: Added Aramaic/Future prefixes and optional suffixes to the capturing groups
-            let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבודאיתנ]{0,4}[\\u0591-\\u05C7]*)(${phrasePattern})([ימותךנהםןא]{0,4}[\\u0591-\\u05C7]*)(?=[^\\u05D0-\\u05EA]|$)`, 'gu');
-            
-            // FIX: Added $4 to the replacement string to ensure suffixes aren't deleted
+            const flexPattern = buildPhrasePattern(cleanHebrew);
+            let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבודאיתנ]{0,4}[\\u0591-\\u05C7]*)(${flexPattern})([ימותךנהםןא]{0,4}[\\u0591-\\u05C7]*)(?=[^\\u05D0-\\u05EA]|$)`, 'gu');
             let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold;">$3</span>$4`);
             
             // Regex escape for English word highlighting
@@ -826,21 +832,33 @@ async function performSefariaSearch(word, corpus, book, chapter) {
     const cleanWord = word.replace(/[^\u05D0-\u05EA\s]/g, ''); // Preserve spaces for phrases
     let result = null;
 
+    const buildPhrasePattern = (input) => {
+        return input.trim().split(/\s+/).map(w => {
+            let letters = w.split('');
+            let lastLetter = letters[letters.length - 1];
+            if (['א', 'ה', 'י'].includes(lastLetter)) {
+                letters.pop();
+                return letters.join('[\\u0591-\\u05C7]*[יו]?[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*[אהי]?';
+            } else {
+                return letters.join('[\\u0591-\\u05C7]*[יו]?[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
+            }
+        }).join('[\\s\\p{P}]+');
+    };
+
     const buildRegex = (input) => {
-        const pattern = input.trim().split(/\s+/).map(word => 
-            word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
-        ).join('[\\s\\p{P}]+');
-        
-        // FIX: Added 'דאיתנ' for Aramaic & future prefixes, and allowed common suffixes (plurals, pronouns, Aramaic Aleph)
+        const pattern = buildPhrasePattern(input);
         return new RegExp(`(?:^|[^\\u05D0-\\u05EA])(?:[משהכלבודאיתנ]{0,4}[\\u0591-\\u05C7]*)?${pattern}(?:[ימותךנהםןא]{0,4}[\\u0591-\\u05C7]*)?(?=[^\\u05D0-\\u05EA]|$)`, 'u');
     };
 
     // Helper: Isolate the specific sentence from a larger Sefaria block
-    const isolateSentence = (text, target) => {
+const isolateSentence = (text, target) => {
         const cleanT = target.replace(/[^\u05D0-\u05EA\s]/g, ''); 
-        const phrasePattern = cleanT.trim().split(/\s+/).map(word => 
-            word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
-        ).join('[\\s\\p{P}]+');
+        const strictRegex = buildRegex(cleanT);
+        
+        const sentences = text.split(/(?<=[.:?!])\s+/);
+        const match = sentences.find(s => strictRegex.test(s));
+        return match ? match.trim() : sentences[0].trim();
+    };
         
         // FIX: Match the new forgiving regex here too
         const strictRegex = new RegExp(`(?:^|[^\\u05D0-\\u05EA])(?:[משהכלבודאיתנ]{0,4}[\\u0591-\\u05C7]*)?${phrasePattern}(?:[ימותךנהםןא]{0,4}[\\u0591-\\u05C7]*)?(?=[^\\u05D0-\\u05EA]|$)`, 'u');
@@ -859,7 +877,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
         } catch (e) { return b; }
     };
 
-    // Helper: Fetch text and extract the single relevant sentence
+   // Helper: Fetch text and extract the single relevant sentence
     const fetchAndExtract = async (ref) => {
         try {
             const res = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
@@ -870,8 +888,7 @@ async function performSefariaSearch(word, corpus, book, chapter) {
                 
                 let rawMatch = segments.find(s => typeof s === 'string' && strictRegex.test(s));
                 
-                // FIX/FALLBACK: If Sefaria's lemmatizer gave us exactly 1 specific segment for our search, 
-                // but our frontend regex failed to perfectly validate it, TRUST SEFARIA and use it anyway!
+                // FALLBACK: Trust Sefaria if it handed us exactly 1 segment, even if regex fails
                 if (!rawMatch && segments.length === 1) {
                     rawMatch = segments[0];
                 }

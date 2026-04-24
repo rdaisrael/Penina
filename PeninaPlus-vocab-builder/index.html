@@ -332,15 +332,17 @@ textarea, .hebrew-input, .strict-hebrew-input {
                     <div style="display: flex; gap: 15px; margin-top: 5px;">
                         <select id="book-select" size="5" class="roller" style="flex: 1; height: 120px;"></select>
                         <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
-                            <div style="display: flex; gap: 5px;">
-                                <select id="num-picker" style="flex: 1; padding: 5px;" disabled>
+                            <div style="display: flex; gap: 5px; height: 120px;">
+                                <select id="num-picker" size="5" class="roller" style="flex: 2;" disabled>
                                     <option value="" disabled selected>#</option>
                                 </select>
-                                <select id="amud-picker" style="flex: 1; padding: 5px;" disabled>
-                                    <option value="a">a</option>
-                                    <option value="b">b</option>
-                                </select>
-                                <button type="button" id="add-chip-btn" style="padding: 5px 10px; width: auto;" disabled>Add</button>
+                                <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                                    <select id="amud-picker" size="2" class="roller" style="height: 60px; display: none;" disabled>
+                                        <option value="a" selected>a</option>
+                                        <option value="b">b</option>
+                                    </select>
+                                    <button type="button" id="add-chip-btn" style="flex: 1; font-size: 14px; padding: 5px;" disabled>Add Page</button>
+                                </div>
                             </div>
                             <div id="chip-container" style="flex: 1; border: 1px solid #dcd3c6; border-radius: 5px; background: #fdfdfa; padding: 5px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 80px;">
                                 <span style="color: #9c9284; font-size: 12px; padding: 2px;">Select book first...</span>
@@ -543,17 +545,17 @@ sourceTypeSelect.addEventListener('change', function() {
     }
 });
 
-bookSelect.addEventListener('change', function() {
+// Function to update the secondary pickers (Daf/Chapter)
+function updateSecondaryPickers() {
     const sourceType = sourceTypeSelect.value;
-    const selectedBook = this.value;
+    const selectedBook = bookSelect.value;
     
     numPicker.innerHTML = '<option value="" disabled selected>#</option>';
-    selectedPagesList = [];
-    renderChips();
     
     if (!selectedBook || selectedBook === 'ANY') {
         numPicker.disabled = true;
         amudPicker.disabled = true;
+        amudPicker.style.display = 'none';
         addChipBtn.disabled = true;
         return;
     }
@@ -581,6 +583,12 @@ bookSelect.addEventListener('change', function() {
             numPicker.appendChild(option);
         }
     }
+}
+
+bookSelect.addEventListener('change', () => {
+    selectedPagesList = [];
+    renderChips();
+    updateSecondaryPickers();
 });
 
 addChipBtn.addEventListener('click', () => {
@@ -757,9 +765,7 @@ let english = parts.join(', ');
                 }
             }
 
-            // Strict word boundaries, allowing up to 3 prefix letters, and capturing trailing vowels to prevent broken HTML rendering
-            let wordPattern = cleanHebrew.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
-           // Strict word boundaries, capture trailing vowels to prevent broken HTML
+            // Strict word boundaries, capture trailing vowels to prevent broken HTML
             let wordPattern = cleanHebrew.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
             let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבו]{0,3}[\\u0591-\\u05C7]*)(${wordPattern})(?=[^\\u05D0-\\u05EA]|$)`, 'g');
             let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold; text-decoration:underline;">$3</span>`);

@@ -277,6 +277,15 @@ textarea, .hebrew-input, .strict-hebrew-input {
             .control-panel-wrapper { display: none !important; }
             .page-container { margin: 0 !important; width: 100% !important; box-shadow: none !important; border: none !important; }
         }
+
+        :root {
+            --english-font: Arial, sans-serif;
+        }
+        
+        /* Targets the English Sefaria text based on the dir="ltr" attribute in your formatting */
+        [dir="ltr"], .english-text {
+            font-family: var(--english-font) !important;
+        }
     </style>
 </head>
 <body class="mode-full">
@@ -360,7 +369,7 @@ textarea, .hebrew-input, .strict-hebrew-input {
                 <h3>Word Styling and Formatting</h3>
                 
                 <div class="checkbox-group" style="margin-bottom: 20px;">
-                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()"> Substitute Divine Names (יהוה &rarr; ה׳, אלוה &rarr; אלוק)</label>
+                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()"> Substitute 'ה and אלוקים</label>
                 </div>
 
                 <div class="slider-group">
@@ -436,6 +445,16 @@ textarea, .hebrew-input, .strict-hebrew-input {
     </div>
 
     <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Listen for changes on the new English font dropdown
+            const engFontDropdown = document.getElementById('english-font-choice');
+            if (engFontDropdown) {
+                engFontDropdown.addEventListener('change', function(e) {
+                    document.documentElement.style.setProperty('--english-font', e.target.value);
+                });
+            }
+        });
+
         const generateBtn = document.getElementById('generate-btn');
 const vocabTbody = document.getElementById('vocab-tbody');
 const sourceTypeSelect = document.getElementById('source-type');

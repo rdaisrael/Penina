@@ -329,26 +329,18 @@ textarea, .hebrew-input, .strict-hebrew-input {
                 </div>
                 <div style="flex: 1; display: none;" id="specific-source-container">
                     <label id="specific-source-label">Specific Source:</label>
-                    <div style="display: flex; gap: 15px; margin-top: 5px;">
-                        <select id="book-select" size="5" class="roller" style="flex: 1; height: 120px;"></select>
-                        <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
-                            <div style="display: flex; gap: 5px; height: 120px;">
-                                <select id="num-picker" size="5" class="roller" style="flex: 2;" disabled>
-                                    <option value="" disabled selected>#</option>
-                                </select>
-                                <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
-                                    <select id="amud-picker" size="2" class="roller" style="height: 60px; display: none;" disabled>
-                                        <option value="a" selected>a</option>
-                                        <option value="b">b</option>
-                                    </select>
-                                    <button type="button" id="add-chip-btn" style="flex: 1; font-size: 14px; padding: 5px;" disabled>Add Page</button>
-                                </div>
-                            </div>
-                            <div id="chip-container" style="flex: 1; border: 1px solid #dcd3c6; border-radius: 5px; background: #fdfdfa; padding: 5px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 80px;">
-                                <span style="color: #9c9284; font-size: 12px; padding: 2px;">Select book first...</span>
-                            </div>
-                            <input type="hidden" id="hidden-chapter-input" value="ANY">
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 5px;">
+                        <div style="display: flex; gap: 15px; height: 120px;">
+                            <select id="book-select" size="5" class="roller" style="flex: 1;"></select>
+                            <select id="num-picker" size="5" class="roller" style="flex: 1;" disabled>
+                                <option value="" disabled selected>#</option>
+                            </select>
+                            <button type="button" id="add-chip-btn" style="flex: 1; font-size: 16px; padding: 10px;" disabled>Add</button>
                         </div>
+                        <div id="chip-container" style="border: 1px solid #dcd3c6; border-radius: 5px; background: #fdfdfa; padding: 5px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 80px; width: 100%; box-sizing: border-box;">
+                            <span style="color: #9c9284; font-size: 12px; padding: 2px;">Select book first...</span>
+                        </div>
+                        <input type="hidden" id="hidden-chapter-input" value="ANY">
                     </div>
                 </div>
             </div>
@@ -457,7 +449,6 @@ const docTitle = document.getElementById('doc-title');
 
 const bookSelect = document.getElementById('book-select');
 const numPicker = document.getElementById('num-picker');
-const amudPicker = document.getElementById('amud-picker');
 const addChipBtn = document.getElementById('add-chip-btn');
 const chipContainer = document.getElementById('chip-container');
 const hiddenChapterInput = document.getElementById('hidden-chapter-input');
@@ -517,8 +508,8 @@ sourceTypeSelect.addEventListener('change', function() {
     bookSelect.innerHTML = '';
     numPicker.innerHTML = '<option value="" disabled selected>#</option>';
     numPicker.disabled = true;
-    amudPicker.disabled = true;
     addChipBtn.disabled = true;
+    addChipBtn.innerText = value === 'Tanakh' ? 'Add Chapter' : (value === 'Talmud' ? 'Add Daf' : 'Add');
     selectedPagesList = [];
     renderChips();
 
@@ -554,8 +545,6 @@ function updateSecondaryPickers() {
     
     if (!selectedBook || selectedBook === 'ANY') {
         numPicker.disabled = true;
-        amudPicker.disabled = true;
-        amudPicker.style.display = 'none';
         addChipBtn.disabled = true;
         return;
     }
@@ -564,8 +553,6 @@ function updateSecondaryPickers() {
     addChipBtn.disabled = false;
 
     if (sourceType === 'Tanakh') {
-        amudPicker.disabled = true;
-        amudPicker.style.display = 'none';
         const chapterCount = sourceData.Tanakh[selectedBook];
         for (let i = 1; i <= chapterCount; i++) {
             const option = document.createElement('option');
@@ -574,13 +561,16 @@ function updateSecondaryPickers() {
             numPicker.appendChild(option);
         }
     } else if (sourceType === 'Talmud') {
-        amudPicker.disabled = false;
-        amudPicker.style.display = 'block';
         for (let i = 2; i <= 176; i++) {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = i;
-            numPicker.appendChild(option);
+            const optionA = document.createElement('option');
+            optionA.value = i + "a";
+            optionA.textContent = i + "a";
+            numPicker.appendChild(optionA);
+            
+            const optionB = document.createElement('option');
+            optionB.value = i + "b";
+            optionB.textContent = i + "b";
+            numPicker.appendChild(optionB);
         }
     }
 }
@@ -592,11 +582,8 @@ bookSelect.addEventListener('change', () => {
 });
 
 addChipBtn.addEventListener('click', () => {
-    const num = numPicker.value;
-    const amud = amudPicker.style.display !== 'none' ? amudPicker.value : '';
-    if (!num) return;
-    
-    const finalSelection = `${num}${amud}`;
+    const finalSelection = numPicker.value;
+    if (!finalSelection) return;
     
     if (selectedPagesList.length >= 10) {
         alert("You can only select up to 10 targets at a time.");
@@ -675,7 +662,14 @@ generateBtn.addEventListener('click', async () => {
     const rawInput = document.getElementById('word-list').value.trim();
     const sourceType = document.getElementById('source-type').value;
 
-    if (!rawInput || !title) return;
+    let missing = [];
+    if (!title) missing.push("a list title");
+    if (!rawInput) missing.push("at least one vocabulary word");
+
+    if (missing.length > 0) {
+        alert(`Hold on! You forgot to add ${missing.join(' and ')}.`);
+        return;
+    }
 
     generateBtn.disabled = true;
     vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';

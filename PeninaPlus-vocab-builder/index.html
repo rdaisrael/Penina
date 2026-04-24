@@ -401,15 +401,23 @@ textarea, .hebrew-input, .strict-hebrew-input {
                 </div>
 
                 <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
-                    <div class="form-group" style="flex: 1; min-width: 200px;">
-                        <label for="font-choice">Choose Font:</label>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label for="font-choice">Choose Hebrew Font:</label>
                         <select id="font-choice">
                             <option value="Arial, sans-serif">Arial (Modern)</option>
                             <option value="'David', serif">David (Classic Book Style)</option>
                             <option value="'Dyslexic-Kriah', 'Alef', sans-serif">Dyslexic-Kriah</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label for="english-font-choice">Choose English Font:</label>
+                        <select id="english-font-choice">
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'OpenDyslexic', sans-serif">OpenDyslexic</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
                         <label for="margin-mode">Margins (Print Layout):</label>
                         <select id="margin-mode" onchange="updateMargin(this.value)">
                             <option value="none">Standard (0.75")</option>

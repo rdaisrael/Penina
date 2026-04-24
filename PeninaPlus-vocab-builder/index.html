@@ -320,23 +320,22 @@ textarea, .hebrew-input, .strict-hebrew-input {
                 <div style="flex: 1;">
                     <label for="source-type">Context Source:</label>
                     <select id="source-type">
-                        <option value="Tanakh">Tanakh</option>
-                        <option value="Talmud">Talmud Bavli</option>
-                        <option value="Modern Hebrew">Modern Israeli Hebrew</option>
-                        <option value="Any">No Preference (Any)</option>
+                        <option value="Tanakh">תנ''ך</option>
+                        <option value="Talmud">תלמוד בבלי</option>
+                        <option value="Modern Hebrew">עברית מודרנית</option>
                     </select>
                 </div>
                 <div style="flex: 1; display: none;" id="specific-source-container">
                     <label id="specific-source-label">Specific Source:</label>
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 5px;">
-                        <div style="display: flex; gap: 15px; height: 120px;">
-                            <select id="book-select" size="5" class="roller" style="flex: 1;"></select>
-                            <select id="num-picker" size="5" class="roller" style="flex: 1;" disabled>
+                        <div style="display: flex; gap: 15px; height: 85px;">
+                            <select id="book-select" size="3" class="roller" style="flex: 1;"></select>
+                            <select id="num-picker" size="3" class="roller" style="flex: 1;" disabled>
                                 <option value="" disabled selected>#</option>
                             </select>
                             <button type="button" id="add-chip-btn" style="flex: 1; font-size: 16px; padding: 10px;" disabled>Add</button>
                         </div>
-                        <div id="chip-container" style="border: 1px solid #dcd3c6; border-radius: 5px; background: #fdfdfa; padding: 5px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 80px; width: 100%; box-sizing: border-box;">
+                        <div id="chip-container" style="border: 1px solid #dcd3c6; border-radius: 5px; background: #fdfdfa; padding: 5px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 45px; width: 100%; box-sizing: border-box;">
                             <span style="color: #9c9284; font-size: 12px; padding: 2px;">Select book first...</span>
                         </div>
                         <input type="hidden" id="hidden-chapter-input" value="ANY">

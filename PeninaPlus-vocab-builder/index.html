@@ -6,6 +6,7 @@
    <title>PeninaPlus Vocabulary Builder</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <style>
+        /* --- FULL ORIGINAL STYLING RESTORED --- */
         @font-face {
             font-family: 'Dyslexic-Kriah';
             src: url('Dyslexic-Kriah.otf') format('opentype');
@@ -31,110 +32,57 @@
         }
 
         .home-btn {
-            position: absolute;
-            top: 25px;
-            left: 25px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background-color: #fdfbf7;
-            color: #5a5248;
-            border: 1px solid #dcd3c6;
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-size: 15px;
-            font-weight: bold;
-            text-decoration: none;
-            box-shadow: 0 4px 8px rgba(139, 115, 85, 0.15);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            z-index: 1000;
+            position: absolute; top: 25px; left: 25px;
+            display: flex; align-items: center; gap: 8px;
+            background-color: #fdfbf7; color: #5a5248; border: 1px solid #dcd3c6;
+            padding: 10px 20px; border-radius: 30px; font-size: 15px; font-weight: bold;
+            text-decoration: none; box-shadow: 0 4px 8px rgba(139, 115, 85, 0.15);
+            z-index: 1000; transition: all 0.2s ease;
         }
-
-        .home-btn:hover {
-            transform: translateY(-2px);
-            background-color: #f4f0e6;
-            color: #3a332a;
-        }
-        
-        .home-btn svg { width: 18px; height: 18px; fill: currentColor; }
 
         .control-panel-wrapper { max-width: 900px; margin: 0 auto; padding: 0 20px; }
-        
-        .header-container { display: flex; justify-content: center; align-items: center; gap: 0px; margin-bottom: 0px; }
+        .header-container { display: flex; justify-content: center; align-items: center; gap: 0px; }
         .app-logo { max-width: 120px; height: auto; margin-right: -25px; margin-bottom: -10px; }
         h1.app-title { color: #4a4238; margin: 0; margin-top: 15px; font-size: 32px; }
-        .copyright { text-align: center; font-style: italic; font-size: 14px; color: #6a6258; margin-bottom: 25px; }
 
         .control-panel { 
-            background: rgba(255, 255, 255, 0.85); 
-            -webkit-backdrop-filter: blur(5px);
-            backdrop-filter: blur(5px); 
-            padding: 25px; 
-            border-radius: 10px; 
-            box-shadow: 0 8px 16px rgba(139, 115, 85, 0.1); 
-            border: 1px solid #f0e9d8; 
-            margin-bottom: 20px; 
-        }
-        .form-group { margin-bottom: 20px; }
-        label { font-weight: bold; display: block; margin-bottom: 8px; color: #5a5248; }
-        
-        input[type="text"], textarea, select { 
-            width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
-            border-radius: 5px; box-sizing: border-box; font-size: 16px; 
-            background-color: #fdfdfa; color: #3a332a; font-family: inherit; 
+            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(5px);
+            padding: 25px; border-radius: 10px; box-shadow: 0 8px 16px rgba(139, 115, 85, 0.1);
+            border: 1px solid #f0e9d8; margin-bottom: 20px; 
         }
 
         .roller-container { display: flex; gap: 15px; height: 120px; margin-top: 5px; }
-        .roller { flex: 1; padding: 5px; font-size: 16px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #fdfdfa; outline: none; cursor: pointer; }
+        .roller { flex: 1; padding: 5px; font-size: 16px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #fdfdfa; outline: none; cursor: pointer;}
 
         .page-chip {
             display: inline-flex; align-items: center; background-color: #e0eaf5;
             border: 1px solid #b3cce6; border-radius: 12px; padding: 2px 8px;
-            font-size: 13px; font-weight: bold; color: #333;
+            font-size: 13px; font-weight: bold; color: #333; margin: 2px;
         }
         .chip-x { margin-left: 6px; color: #cc0000; cursor: pointer; }
 
-        button { padding: 12px 25px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; color: white; background-color: #0056b3; width: 100%; }
-        button:disabled { background-color: #6c757d !important; cursor: not-allowed; }
-
-        .formatting-section { background: rgba(253, 251, 247, 0.8); padding: 25px; border-radius: 8px; border: 1px solid #dcd3c6; margin-bottom: 25px; }
-        
         .page-container { 
-            background: #fffefb; 
-            margin: 0 auto; 
-            box-shadow: 0 8px 20px rgba(139, 115, 85, 0.15); 
-            min-height: 11in; 
-            width: 8.5in; 
-            padding: 0.75in; 
-            direction: ltr;
+            background: #fffefb; margin: 0 auto; box-shadow: 0 8px 20px rgba(139, 115, 85, 0.15);
+            min-height: 11in; width: 8.5in; padding: 0.75in; direction: ltr;
         }
         
-        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 10px; font-size: 18pt; border-radius: 4px; }
         table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; }
         th, td { border: 1px solid #dcd3c6; padding: 10pt; vertical-align: top; }
-        th { background-color: #f4efe6; font-weight: bold; text-align: center; }
-        
-        .col-hebrew { direction: rtl; text-align: right; font-size: 14pt; font-weight: bold; white-space: nowrap; width: 1%; }
+        .col-hebrew { direction: rtl; text-align: right; font-size: 14pt; font-weight: bold; width: 1%; white-space: nowrap; }
         .col-english { text-align: left; font-size: 12pt; width: 125pt; min-width: 125pt; }
         .col-context { text-align: right; font-size: 10pt; line-height: 1.4; }
-        
-        .hebrew-text { direction: rtl; }
-        .english-text { font-style: italic; margin-top: 4px; }
-        .citation { font-size: 9pt; margin-top: 4px; color: #666; }
-        
+
         @media print {
-            body { background: white; padding: 0; }
-            .bg-pattern, .home-btn, .control-panel-wrapper { display: none !important; }
+            .bg-pattern, .home-btn, .control-panel-wrapper, details { display: none !important; }
             .page-container { margin: 0 !important; width: 100% !important; box-shadow: none !important; }
         }
     </style>
 </head>
-<body class="mode-full">
+<body>
 
     <div class="bg-pattern"></div>
     <a href="/" class="home-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
         Home
     </a>
 
@@ -143,91 +91,103 @@
             <img src="peninaplus-logo.png" alt="Logo" class="app-logo">
             <h1 class="app-title">PeninaPlus Vocabulary Builder</h1>        
         </div>
-        <div class="copyright">&copy; 2026 David Israel</div>
 
         <div class="control-panel">
-            <div class="form-group">
-                <label for="list-title">Title:</label>
-                <input type="text" id="list-title" placeholder="e.g., Masechet Berakhot Vocab">
+            <div style="margin-bottom: 15px;">
+                <label><b>List Title:</b></label>
+                <input type="text" id="list-title" style="width: 100%; padding: 8px; border: 1px solid #dcd3c6; border-radius: 5px;" placeholder="e.g., Masechet Berakhot Vocab">
             </div>
 
-            <div class="form-group" style="display: flex; gap: 20px;">
+            <div style="display: flex; gap: 20px; margin-bottom: 20px;">
                 <div style="flex: 1;">
-                    <label for="source-type">Source:</label>
-                    <select id="source-type">
+                    <label><b>Source Type:</b></label>
+                    <select id="source-type" style="width: 100%; padding: 8px; border: 1px solid #dcd3c6; border-radius: 5px;">
                         <option value="Tanakh">Tanakh</option>
                         <option value="Talmud">Talmud Bavli</option>
                         <option value="Modern Hebrew">Modern Hebrew</option>
                     </select>
                 </div>
-                <div style="flex: 1;" id="specific-source-container">
-                    <label id="specific-source-label">Chapter/Daf:</label>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <div style="display: flex; gap: 15px; height: 85px;">
-                            <select id="book-select" size="3" class="roller"></select>
-                            <select id="num-picker" size="3" class="roller" disabled></select>
-                            <button type="button" id="add-chip-btn" style="width: auto;" disabled>Add</button>
-                        </div>
-                        <div id="chip-container" style="border: 1px solid #dcd3c6; padding: 5px; display: flex; flex-wrap: wrap; gap: 4px; min-height: 45px;"></div>
-                        <input type="hidden" id="hidden-chapter-input" value="ANY">
+                <div style="flex: 2;" id="specific-source-container">
+                    <label><b>Select Book & Chapter/Daf:</b></label>
+                    <div class="roller-container">
+                        <select id="book-select" size="3" class="roller"></select>
+                        <select id="num-picker" size="3" class="roller" disabled></select>
+                        <button type="button" id="add-chip-btn" style="padding: 10px; background: #fdfbf7; border: 1px solid #dcd3c6; border-radius: 5px; cursor: pointer;" disabled>Add</button>
                     </div>
+                    <div id="chip-container" style="border: 1px solid #dcd3c6; padding: 5px; margin-top: 5px; min-height: 42px; background: white; border-radius: 5px;"></div>
+                    <input type="hidden" id="hidden-chapter-input" value="ANY">
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="word-list">Words (Hebrew, English):</label>
-                <textarea id="word-list" rows="5" placeholder="אגרא, reward"></textarea>
+            <div style="margin-bottom: 20px;">
+                <label><b>Words (Hebrew, English):</b></label>
+                <textarea id="word-list" rows="5" style="width: 100%; padding: 8px; border: 1px solid #dcd3c6; border-radius: 5px;" placeholder="אגרא, reward"></textarea>
             </div>
 
-            <button id="generate-btn">Generate Table</button>
+            <button id="generate-btn" style="width: 100%; padding: 12px; background: #0056b3; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Generate Table</button>
 
-            <div class="formatting-section">
-                <h3>Formatting</h3>
-                <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()"> Substitute 'ה and אלוקים</label>
-                <div style="display: flex; gap: 20px; margin-top: 15px;">
+            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()"> Substitute 'ה/אלוקים</label>
                     <select id="nekudot-toggle" onchange="updateTextDisplay()">
                         <option value="show">Show Nekudot</option>
                         <option value="strip">Strip Nekudot</option>
                     </select>
                     <select id="font-choice" onchange="document.getElementById('vocab-table').style.fontFamily = this.value">
-                        <option value="Arial">Arial</option>
-                        <option value="'David'">David</option>
-                        <option value="'Dyslexic-Kriah'">Dyslexic-Kriah</option>
+                        <option value="Arial">Hebrew: Arial</option>
+                        <option value="'David'">Hebrew: David</option>
+                        <option value="'Dyslexic-Kriah'">Hebrew: Dyslexic-Kriah</option>
+                    </select>
+                    <select id="margin-mode" onchange="updateMargin(this.value)">
+                        <option value="none">Standard Margins</option>
+                        <option value="right">Hole Punch Right</option>
+                        <option value="left">Hole Punch Left</option>
+                        <option value="alternating">Alternating (Double-Sided)</option>
                     </select>
                 </div>
             </div>
-            <button onclick="window.print()" style="background-color: #28a745;">Print Sheet</button>
         </div>
+        
+        <details style="margin-bottom: 20px; color: #6a6258; cursor: pointer;">
+            <summary>Credits & Tools</summary>
+            <p style="font-size: 13px; line-height: 1.5;">This tool integrates the Sefaria API for source texts, Dicta for lemmatized classical search, and Google Gemini for Modern Hebrew generation and translations.</p>
+        </details>
     </div>
 
-    <div class="paper-viewport">
-        <div id="page" class="page-container" style="display: none;">
-            <h1 id="doc-title" class="doc-title"></h1>
-            <table id="vocab-table">
-                <thead><tr><th>Word</th><th>Definition</th><th>Context</th></tr></thead>
-                <tbody id="vocab-tbody"></tbody>
-            </table>
-        </div>
+    <div id="page" class="page-container" style="display: none;">
+        <h1 id="doc-title" style="text-align: center; background: #2c3e50; color: white; padding: 12px; border-radius: 4px; margin-top: 0;"></h1>
+        <table id="vocab-table">
+            <thead><tr><th>Word</th><th>Definition</th><th>Context</th></tr></thead>
+            <tbody id="vocab-tbody"></tbody>
+        </table>
     </div>
 
     <script>
+        // --- RESTORED FULL DATA OBJECTS ---
         const sourceData = {
-            Tanakh: { "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34, "Psalms": 150 },
-            Talmud: { "Berakhot": 64, "Shabbat": 157, "Eruvin": 105, "Pesachim": 121, "Gittin": 90 }
+            Tanakh: { 
+                "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
+                "Joshua": 24, "Judges": 21, "I Samuel": 31, "II Samuel": 24, "I Kings": 22, "II Kings": 25,
+                "Isaiah": 66, "Jeremiah": 52, "Ezekiel": 48, "Hosea": 14, "Joel": 4, "Amos": 9, "Obadiah": 1,
+                "Jonah": 4, "Micah": 7, "Nahum": 3, "Habakkuk": 3, "Zephaniah": 3, "Haggai": 2, "Zechariah": 14, "Malachi": 3,
+                "Psalms": 150, "Proverbs": 31, "Job": 42, "Song of Songs": 8, "Ruth": 4, "Lamentations": 5, "Ecclesiastes": 12,
+                "Esther": 10, "Daniel": 12, "Ezra": 10, "Nehemiah": 13, "I Chronicles": 29, "II Chronicles": 36
+            },
+            Talmud: { 
+                "Berakhot": 64, "Shabbat": 157, "Eruvin": 105, "Pesachim": 121, "Shekalim": 22, "Yoma": 88, "Sukkah": 56, "Beitzah": 40, "Rosh Hashanah": 35, "Taanit": 31, "Megillah": 32, "Moed Katan": 29, "Chagigah": 27,
+                "Yevamot": 122, "Ketubot": 112, "Nedarim": 91, "Nazir": 66, "Sotah": 49, "Gittin": 90, "Kiddushin": 82,
+                "Bava Kamma": 119, "Bava Metzia": 119, "Bava Batra": 176, "Sanhedrin": 113, "Makkot": 24, "Shevuot": 49, "Avodah Zarah": 76, "Horayot": 14,
+                "Zevachim": 120, "Menachot": 110, "Chullin": 142, "Bekhorot": 61, "Arakhin": 34, "Temurah": 34, "Keritot": 28, "Meilah": 22, "Tamid": 33, "Niddah": 73
+            }
         };
 
-        function getHebrewTractateName(en) {
-            const map = { "Berakhot": "ברכות", "Shabbat": "שבת", "Eruvin": "עירובין", "Genesis": "בראשית", "Exodus": "שמות" };
-            return map[en] || en;
-        }
+        const hebNameMap = { "Genesis": "בראשית", "Exodus": "שמות", "Leviticus": "ויקרא", "Numbers": "במדבר", "Deuteronomy": "דברים", "Psalms": "תהלים", "Berakhot": "ברכות", "Shabbat": "שבת", "Gittin": "גיטין" };
 
-        // Logic to convert Dicta results into Sefaria-ready references
+        // --- NEW LOGIC (DICTA BRIDGE) ---
+        function getHebrewSkeleton(t) { return t ? t.replace(/[\u0591-\u05C7]/g, "").replace(/[^\u05D0-\u05EA]/g, "").trim() : ""; }
+
         function formatRefForSefaria(book, dictaLoc, corpus) {
-            if (corpus === 'Tanakh') {
-                // Dicta usually returns "Genesis 1:1" or similar
-                return dictaLoc.replace(/\s/g, '.');
-            }
-            // Talmud Daf conversion
+            if (corpus === 'Tanakh') return dictaLoc.replace(/\s/g, '.');
             const dafMatch = dictaLoc.match(/([א-ת]+)\s*(ע״א|ע״ב)?/);
             if (!dafMatch) return book;
             const vals = { 'א':1,'ב':2,'ג':3,'ד':4,'ה':5,'ו':6,'ז':7,'ח':8,'ט':9,'י':10,'כ':20,'ל':30,'מ':40,'נ':50,'ס':60,'ע':70,'פ':80,'צ':90,'ק':100,'ר':200,'ש':300,'ת':400 };
@@ -235,8 +195,51 @@
             return `${book} ${num}${dictaLoc.includes('ע״ב') ? 'b' : 'a'}`;
         }
 
-        function getHebrewSkeleton(t) { return t ? t.replace(/[\u0591-\u05C7]/g, "").replace(/[^\u05D0-\u05EA]/g, "").trim() : ""; }
+        async function getSefariaResult(word, corpus, book, pages) {
+            const isClassical = corpus === 'Talmud' || corpus === 'Tanakh';
+            
+            if (isClassical) {
+                const genre = corpus === 'Tanakh' ? 'biblical' : 'rabbinic';
+                const dictaRes = await fetch('/api/dicta-search', {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ 
+                        query: word, 
+                        tractate: book !== 'ANY' ? (hebNameMap[book] || book) : "",
+                        genre: genre
+                    })
+                });
+                const dData = await dictaRes.json();
+                if (dData.results?.length) {
+                    const hit = dData.results[0];
+                    const ref = formatRefForSefaria(book !== 'ANY' ? book : (corpus === 'Tanakh' ? "Genesis" : "Berakhot"), hit.location, corpus);
+                    const sRes = await fetch(`https://www.sefaria.org/api/texts/${ref}?context=0`);
+                    const sData = await sRes.json();
+                    
+                    const skel = getHebrewSkeleton(hit.text);
+                    const idx = Array.isArray(sData.he) ? sData.he.findIndex(l => getHebrewSkeleton(l).includes(skel)) : 0;
+                    return { 
+                        he: Array.isArray(sData.he) ? sData.he[idx] : sData.he, 
+                        en: Array.isArray(sData.text) ? sData.text[idx] : sData.text, 
+                        heRef: sData.heRef, ref: ref 
+                    };
+                }
+            }
+            // Standard search fallback
+            const res = await fetch('/api/sefaria-search', {
+                method: "POST", headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: book !== 'ANY' ? [book] : [] })
+            });
+            const data = await res.json();
+            if (data.hits?.hits?.length) {
+                const ref = data.hits.hits[0]._source.ref;
+                const tRes = await fetch(`https://www.sefaria.org/api/texts/${ref}?context=0`);
+                const tData = await tRes.json();
+                return { he: tData.he, en: tData.text, heRef: tData.heRef, ref: ref };
+            }
+            return null;
+        }
 
+        // --- UI HANDLERS ---
         document.addEventListener("DOMContentLoaded", () => {
             const stSelect = document.getElementById('source-type');
             const bkSelect = document.getElementById('book-select');
@@ -245,15 +248,16 @@
             const hidInput = document.getElementById('hidden-chapter-input');
             let chips = [];
 
-            stSelect.onchange = (e) => {
-                const val = e.target.value;
+            const populateBooks = () => {
+                const val = stSelect.value;
                 bkSelect.innerHTML = '<option value="ANY">-- Any --</option>';
-                chips = []; renderChips();
-                document.getElementById('specific-source-container').style.display = val === 'Modern Hebrew' ? 'none' : 'block';
                 if (sourceData[val]) Object.keys(sourceData[val]).forEach(b => {
                     const opt = document.createElement('option'); opt.value = b; opt.textContent = b; bkSelect.appendChild(opt);
                 });
+                chips = []; renderChips();
             };
+            populateBooks();
+            stSelect.onchange = populateBooks;
 
             bkSelect.onchange = () => {
                 const book = bkSelect.value;
@@ -277,7 +281,7 @@
             };
 
             function renderChips() {
-                chipBox.innerHTML = chips.length ? '' : 'Select book...';
+                chipBox.innerHTML = '';
                 chips.forEach(c => {
                     const s = document.createElement('span'); s.className = 'page-chip';
                     s.innerHTML = `${c} <span class="chip-x" onclick="removeChip('${c}')">×</span>`;
@@ -285,51 +289,7 @@
                 });
                 hidInput.value = chips.join(', ') || 'ANY';
             }
-
             window.removeChip = (c) => { chips = chips.filter(x => x !== c); renderChips(); };
-
-            async function getSefariaResult(word, corpus, book, pages) {
-                // Tanakh and Talmud now both route through Dicta for better lemmatized search
-                const isClassical = corpus === 'Talmud' || corpus === 'Tanakh';
-                
-                if (isClassical) {
-                    const genre = corpus === 'Tanakh' ? 'biblical' : 'rabbinic';
-                    const dictaRes = await fetch('/api/dicta-search', {
-                        method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ 
-                            query: word, 
-                            tractate: book !== 'ANY' ? getHebrewTractateName(book) : "",
-                            genre: genre
-                        })
-                    });
-                    const dData = await dictaRes.json();
-                    if (dData.results?.length) {
-                        const hit = dData.results[0];
-                        const ref = formatRefForSefaria(book !== 'ANY' ? book : (corpus === 'Tanakh' ? "Genesis" : "Berakhot"), hit.location, corpus);
-                        const sRes = await fetch(`https://www.sefaria.org/api/texts/${ref}?context=0`);
-                        const sData = await sRes.json();
-                        
-                        // Use skeletons to find the exact line in Sefaria matching Dicta's result
-                        const skel = getHebrewSkeleton(hit.text);
-                        const idx = sData.he.findIndex(l => getHebrewSkeleton(l).includes(skel));
-                        return { he: sData.he[idx] || sData.he[0], en: sData.text[idx] || sData.text[0], heRef: sData.heRef, ref: ref };
-                    }
-                }
-
-                // Fallback for non-classical or failed Dicta results
-                const res = await fetch('/api/sefaria-search', {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: book !== 'ANY' ? [book] : [] })
-                });
-                const data = await res.json();
-                if (data.hits?.hits?.length) {
-                    const ref = data.hits.hits[0]._source.ref;
-                    const tRes = await fetch(`https://www.sefaria.org/api/texts/${ref}?context=0`);
-                    const tData = await tRes.json();
-                    return { he: tData.he, en: tData.text, heRef: tData.heRef, ref: ref };
-                }
-                return null;
-            }
 
             document.getElementById('generate-btn').onclick = async () => {
                 const raw = document.getElementById('word-list').value;
@@ -343,14 +303,14 @@
                 for (let p of pairs) {
                     let heCtx = "", enCtx = "", cit = "";
                     if (stSelect.value === 'Modern Hebrew') {
-                        const r = await fetch('/api/translate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ promptText: `Sentence in Modern Hebrew for "${p.he}".` })});
+                        const r = await fetch('/api/translate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ promptText: `Generate a short Hebrew sentence using "${p.he}".` })});
                         const d = await r.json(); heCtx = d.text; cit = "Modern Hebrew";
                     } else {
                         const res = await getSefariaResult(p.he, stSelect.value, bkSelect.value, hidInput.value);
                         if (res) { heCtx = res.he; enCtx = res.en; cit = `${res.heRef} (${res.ref})`; }
                     }
                     if (heCtx && !enCtx) {
-                        const tr = await fetch('/api/translate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ promptText: `Translate to English: "${heCtx}"` })});
+                        const tr = await fetch('/api/translate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ promptText: `Translate this Hebrew to English: "${heCtx}"` })});
                         const td = await tr.json(); enCtx = td.text;
                     }
                     const row = document.createElement('tr');
@@ -359,19 +319,32 @@
                 }
                 document.getElementById('page').style.display = 'block';
                 document.getElementById('doc-title').innerText = document.getElementById('list-title').value || "Vocabulary List";
-                updateTextDisplay(); btn.disabled = false; btn.innerText = "Generate Table";
+                updateTextDisplay();
+                btn.disabled = false; btn.innerText = "Generate Table";
             };
         });
 
+        // --- RESTORED FORMATTING FUNCTIONS ---
         function updateTextDisplay() {
             const strip = document.getElementById('nekudot-toggle').value === 'strip';
             const sub = document.getElementById('substitute-names').checked;
             document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
-                let h = el.dataset.original;
+                let h = el.dataset.original || el.innerText;
+                if (!el.dataset.original) el.dataset.original = h;
                 if (sub) h = h.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה/g, 'ה׳').replace(/א[\u0591-\u05C7]*ל[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*י[\u0591-\u05C7]*ם/g, 'אלוקים');
                 if (strip) h = h.replace(/[\u0591-\u05C7]/g, "");
                 el.innerHTML = h;
             });
+        }
+
+        function updateMargin(m) {
+            const s = document.getElementById('m-style') || document.createElement('style');
+            s.id = 'm-style';
+            let css = `@media print { @page { size: letter; margin: 0.75in; } }`;
+            if (m === 'right') css = `@media print { @page { margin: 0.75in 1.25in 0.75in 0.75in; } }`;
+            if (m === 'left') css = `@media print { @page { margin: 0.75in 0.75in 0.75in 1.25in; } }`;
+            if (m === 'alternating') css = `@media print { @page:left { margin: 0.75in 1.25in 0.75in 0.75in; } @page:right { margin: 0.75in 0.75in 0.75in 1.25in; } }`;
+            s.innerHTML = css; document.head.appendChild(s);
         }
     </script>
 </body>

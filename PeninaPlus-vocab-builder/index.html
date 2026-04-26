@@ -917,7 +917,121 @@
                         };
                     }
                 }
-            } catch (e) {}
+               // --- SEARCH LOGIC: SELECTED CHAPTER/DAF -> SELECTED BOOK/MASSECHET -> WHOLE CORPUS ---
+        async function performSefariaSearch(word, corpus, book, chapter) {
+            const cleanWord = word.replace(/[^\u05D0-\u05EA\s]/g, '');
+
+            const getEnglishName = async (b) => {
+                if (!b || b === 'ANY') return null;
+                try {
+                    const res = await fetch(`https://www.sefaria.org/api/name/${encodeURIComponent(b)}`);
+                    const data = await res.json();
+                    return data.index || data.ref || b;
+                } catch (e) {
+                    return b;
+                }
+            };
+
+            const stripHtml = (s) => String(s || '').replace(/<\/?[^>]+(>|$)/g, '');
+
+            const buildStrictRegex = (target) => {
+                const phrasePattern = target.trim().split(/\s+/).map(token =>
+                    token.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
+                ).join('[\\s\\p{P}]+');
+
+                return new RegExp(
+                    `(?:^|[^\\u05D0-\\u05EA])(?:[משהכלבו]{0,3}[\\u0591-\\u05C7]*)?(${phrasePattern})(?=[^\\u05D0-\\u05EA]|$)`,
+                    'u'
+                );
+            };
+
+            const exactMatchRegex = buildStrictRegex(cleanWord);
+            const englishBook = await getEnglishName(book);
+            const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
+            const corpusFilter = isTalmud ? ['Talmud'] : ['Tanakh'];
+
+            async function fetchRefAndFindMatch(ref) {
+                try {
+                    const sRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
+                    if (!sRes.ok) return null;
+
+                    const data = await sRes.json();
+                    if (!data?.he) return null;
+
+                    const heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he];
+                    const rawMatch =
+                        heArray.find(line => typeof line === 'string' && exactMatchRegex.test(stripHtml(line))) ||
+                        null;
+
+                    if (!rawMatch) return null;
+
+                    return {
+                        he: stripHtml(rawMatch),
+                        ref: data.ref,
+                        heRef: data.heRef
+                    };
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            async function searchViaSefaria(filters) {
+                try {
+                    const res = await fetch('/api/sefaria-search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            query: cleanWord,
+                            type: 'text',
+                            field: 'naive_lemmatizer',
+                            filters: filters
+                        })
+                    });
+
+                    if (!res.ok) return null;
+
+                    const data = await res.json();
+                    if (!data?.hits?.hits?.length) return null;
+
+                    for (const hit of data.hits.hits) {
+                        const ref = hit._source?.ref || hit._id.split(' (')[0];
+                        const found = await fetchRefAndFindMatch(ref);
+                        if (found) return found;
+                    }
+
+                    return null;
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            // 1. FIRST: search selected chapter(s) / daf(dapim), if any were selected.
+            if (englishBook && chapter && chapter !== 'ANY') {
+                const targetPages = chapter
+                    .split(',')
+                    .map(p => p.trim())
+                    .filter(Boolean)
+                    .slice(0, 10);
+
+                for (const page of targetPages) {
+                    const ref = `${englishBook} ${page}`;
+                    const found = await fetchRefAndFindMatch(ref);
+                    if (found) return found;
+                }
+            }
+
+            // 2. SECOND: search the selected book / massechet, if one was selected.
+            if (englishBook && englishBook !== 'ANY') {
+                const foundInBook = await searchViaSefaria([englishBook]);
+                if (foundInBook) return foundInBook;
+            }
+
+            // 3. THIRD: search the whole corpus.
+            const foundInCorpus = await searchViaSefaria(corpusFilter);
+            if (foundInCorpus) return foundInCorpus;
+
+            return null;
+        }     } catch (e) {}
 
             return null;
         }

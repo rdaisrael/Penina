@@ -8,7 +8,7 @@ module.exports = async function (req, res) {
     }
 
     // Dicta's unified search endpoint
-    const endpoint = "https://search.dicta.org.il/api/search";
+const endpoint = "https://api.dicta.org.il/search";
 
     const payload = {
         query: query,

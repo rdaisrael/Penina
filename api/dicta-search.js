@@ -1,27 +1,49 @@
 module.exports = async function (req, res) {
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
 
     const { query, tractate, genre } = req.body;
 
+    // Validate the incoming query
     if (!query || typeof query !== 'string') {
-        return res.status(400).json({ error: 'Valid search query string is required' });
+        return res.status(400).json({ error: 'A valid search query string is required' });
     }
 
-    // Dicta's unified search endpoint
-const endpoint = "https://api.dicta.org.il/search";
+    /**
+     * UPDATED ENDPOINT: 
+     * The old 'search.dicta.org.il' subdomain is inactive.
+     * The unified library search has moved to the 'library' cluster.
+     */
+    const endpoint = "https://library.dicta.org.il/api/search";
 
+    /**
+     * API KEY USAGE:
+     * Using your key via the Authorization header ensures your requests 
+     * are identified as part of the Penina project and helps bypass 
+     * generic cloud-hosting rate limits.
+     */
+    const dictaKey = process.env.DICTA_API_KEY;
+
+    // New Schema: Dicta now uses 'size' instead of 'limit'
     const payload = {
         query: query,
-        limit: 1 
+        from: 0,
+        size: 1 
     };
-    
-    // Attach the specific book/tractate parameter if selected
+
+    /**
+     * UPDATED FILTERING:
+     * The new API uses a formal 'filter' array rather than top-level params.
+     */
     if (tractate && tractate !== "ANY" && tractate !== "") {
-        if (genre === 'biblical') {
-            payload.book = tractate; 
-        } else {
-            payload.tractate = tractate;
-        }
+        payload.filter = [
+            {
+                field: (genre === 'biblical') ? 'book' : 'tractate',
+                value: tractate
+            }
+        ];
     }
 
     try {
@@ -29,22 +51,37 @@ const endpoint = "https://api.dicta.org.il/search";
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
-                "Accept": "application/json"
+                "Accept": "application/json",
+                "Authorization": `Bearer ${dictaKey}`
             },
             body: JSON.stringify(payload)
         });
 
+        // Handle failure at the Dicta level
         if (!dictaRes.ok) {
             const errorText = await dictaRes.text();
             throw new Error(`Dicta API Error ${dictaRes.status}: ${errorText}`);
         }
         
         const data = await dictaRes.json();
+
+        /**
+         * Return the result as 200. Since you no longer want to use the Sefaria backup, 
+         * we ensure this proxy returns a successful response structure that the 
+         * frontend can parse immediately.
+         */
         return res.status(200).json(data);
         
     } catch (error) {
         console.error("Dicta Proxy Error:", error.message);
-        // Returns 500 so the frontend knows to instantly trigger the Sefaria fallback
-        return res.status(500).json({ error: 'Failed to reach Dicta NLP service', details: error.message });
+        
+        /**
+         * We return a 502 (Bad Gateway) to distinguish between a bug in your code 
+         * and a failure of the external Dicta service.
+         */
+        return res.status(502).json({ 
+            error: "Dicta search service is currently unavailable.", 
+            details: error.message 
+        });
     }
 };

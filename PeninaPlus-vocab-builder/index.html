@@ -1,6 +1,3 @@
-
-<<!-- Vocab Builder Index -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,8 +20,6 @@
             background: radial-gradient(circle at center, #ffffff 0%, #fcfaf5 50%, #f0e9d8 100%);
             min-height: 100vh;
         }
-        
-
         
         .bg-pattern {
             position: fixed;
@@ -82,7 +77,7 @@
         }
         .control-panel-wrapper { max-width: 900px; margin: 0 auto; padding: 0 20px; }
         
-        /* --- HEADER & ABOUT/CREDITS (From Penina) --- */
+        /* --- HEADER & ABOUT/CREDITS --- */
         .header-container { 
             display: flex; 
             justify-content: center; 
@@ -143,15 +138,15 @@
         label { font-weight: bold; display: block; margin-bottom: 8px; color: #5a5248; }
         
         input[type="text"], textarea, select { 
-    width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
-    border-radius: 5px; box-sizing: border-box; font-size: 16px; 
-    background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
-    font-family: inherit; 
-}
+            width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
+            border-radius: 5px; box-sizing: border-box; font-size: 16px; 
+            background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
+            font-family: inherit; 
+        }
 
-textarea, .hebrew-input, .strict-hebrew-input {
-    font-size: 18px; 
-}
+        textarea, .hebrew-input, .strict-hebrew-input {
+            font-size: 18px; 
+        }
         select:focus, textarea:focus, input[type="text"]:focus { 
             outline: none; border-color: #b5a898; background-color: #ffffff; 
         }
@@ -282,7 +277,6 @@ textarea, .hebrew-input, .strict-hebrew-input {
             --english-font: Arial, sans-serif;
         }
         
-        /* Targets the English Sefaria text based on the dir="ltr" attribute in your formatting */
         [dir="ltr"], .english-text {
             font-family: var(--english-font) !important;
         }
@@ -325,7 +319,7 @@ textarea, .hebrew-input, .strict-hebrew-input {
                 <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
             </div>
 
-<div class="form-group" style="display: flex; gap: 20px;">
+            <div class="form-group" style="display: flex; gap: 20px;">
                 <div style="flex: 1;">
                     <label for="source-type">Context Source:</label>
                     <select id="source-type">
@@ -454,7 +448,6 @@ textarea, .hebrew-input, .strict-hebrew-input {
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Listen for changes on the new English font dropdown
             const engFontDropdown = document.getElementById('english-font-choice');
             if (engFontDropdown) {
                 engFontDropdown.addEventListener('change', function(e) {
@@ -464,525 +457,493 @@ textarea, .hebrew-input, .strict-hebrew-input {
         });
 
         const generateBtn = document.getElementById('generate-btn');
-const vocabTbody = document.getElementById('vocab-tbody');
-const sourceTypeSelect = document.getElementById('source-type');
-const specificSourceContainer = document.getElementById('specific-source-container');
-const specificSourceLabel = document.getElementById('specific-source-label');
-const specificSourceInput = document.getElementById('specific-source');
-const pageContainer = document.getElementById('page');
-const docTitle = document.getElementById('doc-title');
+        const vocabTbody = document.getElementById('vocab-tbody');
+        const sourceTypeSelect = document.getElementById('source-type');
+        const specificSourceContainer = document.getElementById('specific-source-container');
+        const specificSourceLabel = document.getElementById('specific-source-label');
+        const pageContainer = document.getElementById('page');
+        const docTitle = document.getElementById('doc-title');
 
-const bookSelect = document.getElementById('book-select');
-const numPicker = document.getElementById('num-picker');
-const addChipBtn = document.getElementById('add-chip-btn');
-const chipContainer = document.getElementById('chip-container');
-const hiddenChapterInput = document.getElementById('hidden-chapter-input');
-let selectedPagesList = [];
+        const bookSelect = document.getElementById('book-select');
+        const numPicker = document.getElementById('num-picker');
+        const addChipBtn = document.getElementById('add-chip-btn');
+        const chipContainer = document.getElementById('chip-container');
+        const hiddenChapterInput = document.getElementById('hidden-chapter-input');
+        let selectedPagesList = [];
 
-const sourceData = {
-    Tanakh: {
-        "בראשית": 50, "שמות": 40, "ויקרא": 27, "במדבר": 36, "דברים": 34,
-        "יהושע": 24, "שופטים": 21, "שמואל א": 31, "שמואל ב": 24, "מלכים א": 22, "מלכים ב": 25,
-        "ישעיהו": 66, "ירמיהו": 52, "יחזקאל": 48,
-        "הושע": 14, "יואל": 4, "עמוס": 9, "עובדיה": 1, "יונה": 4, "מיכה": 7, "נחום": 3, "חבקוק": 3, "צפניה": 3, "חגי": 2, "זכריה": 14, "מלאכי": 3,
-        "תהילים": 150, "משלי": 31, "איוב": 42, "שיר השירים": 8, "רות": 4, "איכה": 5, "קהלת": 12, "אסתר": 10, "דניאל": 12, "עזרא": 10, "נחמיה": 13, "דברי הימים א": 29, "דברי הימים ב": 36
-    },
-    Talmud: {
-        "ברכות": ["מאימתי", "היה קורא", "מי שמתו", "תפילת השחר", "אין עומדין", "כיצד מברכין", "שלושה שאכלו", "אלו דברים", "הרואה"],
-        "שבת": ["יציאות השבת", "במה מדליקין", "במה טומנין", "במה בהמה", "במה אשה", "במה אשה יוצאה", "כלל גדול", "המוציא יין", "אמר ר״ע", "המצניע", "הזורק", "הבונה", "האורג", "שמונה שרצים", "אלו קשרים", "כל כתבי", "כל הכלים", "מפנין", "ר״א דמילה", "תולין", "נוטל", "חבית", "שואל", "מי שהחשיך"],
-        "עירובין": ["מבוי", "עושין פסין", "בכל מערבין", "מי שהוציאוהו", "כיצד מעברין", "הדר", "כיצד משתתפין", "כיצד צולין", "כל גגות", "המוצא תפילין"],
-        "פסחים": ["אור לארבעה עשר", "כל שעה", "אלו עוברין", "מקום שנהגו", "תמיד נשחט", "אלו דברים", "כיצד צולין", "האשה", "מי שהיה", "ערבי פסחים"],
-        "ראש השנה": ["ארבעה ראשי שנים", "אם אינן מכירין", "ראוהו בית דין", "יום טוב"],
-        "יומא": ["שבעת ימים", "בראשונה", "אמר להם הממונה", "טרף בקלפי", "הוציאו לו", "שני שעירי", "בא לו כהן גדול", "יום הכפורים"],
-        "סוכה": ["סוכה", "הישן תחת המטה", "לולב הגזול", "לולב וערבה", "החליל"],
-        "ביצה": ["ביצה", "יום טוב", "אין צדין", "המביא", "משילין"],
-        "תענית": ["מאימתי", "סדר תעניות כיצד", "סדר תעניות אלו", "בשלושה פרקים"],
-        "מגילה": ["מגילה נקראת", "הקורא למפרע", "הקורא עומד", "בני העיר"],
-        "מועד קטן": ["משקין", "מי שהפך", "ואלו מגלחין"],
-        "חגיגה": ["הכל חייבין", "אין דורשין", "חומר בקודש"],
-        "יבמות": ["חמש עשרה נשים", "כיצד אשת אחיו", "ארבעה אחין", "החולץ", "רבן גמליאל", "הבא על יבמתו", "אלמנה", "הערל", "יש מותרות", "האשה רבה", "נושאין על האנוסה", "מצות חליצה", "המוציא", "חירש", "האשה שלום", "האשה בתרא"],
-        "כתובות": ["בתולה נשאת", "האשה שנתארמלה", "אלו נערות", "נערה שנתפתתה", "אף על פי", "מציאת האשה", "המדיר", "האשה שנפלו", "הכותב", "מי שהיה נשוי", "אלמנה ניזונת", "הנושא", "שני דייני גזירות"],
-        "נדרים": ["כל כינויי", "ואלו מותרין", "ארבעה נדרים", "אין בין המודר", "השותפין", "הנודר מן המבושל", "קונם יין", "קונם יין בתרא", "רבי אליעזר", "נערה המאורסה", "ואלו נדרים"],
-        "נזיר": ["כל כינויי", "הריני נזיר מן החרצנים", "מי שאמר", "מי שאמר הריני נזיר", "שתי נשים", "הריני נזיר", "כהן גדול", "שני נזירים", "גויים"],
-        "סוטה": ["המקנא", "היה מביא", "היה מביא מנחתה", "ארוסה", "כשם שהמים", "מי שקינא", "אלו נאמרין", "משוח מלחמה", "עגלה ערופה"],
-        "גיטין": ["המביא גט", "המביא גט בתרא", "כל הגט", "השולח", "הניזקין", "האומר", "מי שאחזו", "הזורק", "המגרש"],
-        "קידושין": ["האשה נקנית", "האיש מקדש", "האומר", "עשרה יוחסין"],
-        "בבא קמא": ["ארבעה אבות", "כיצד הרגל", "המניח", "שור שנגח ארבעה", "שור שנגח את הפרה", "הכונס", "מרובה", "החובל", "הגוזל עצים", "הגוזל ומאכיל"],
-        "בבא מציעא": ["שנים אוחזין", "אלו מציאות", "המפקיד", "הזהב", "איזהו נשך", "השוכר את האומנין", "השוכר את הפועלים", "השואל", "המקבל", "הבית והעליה"],
-        "בבא בתרא": ["השותפין", "לא יחפור", "חזקת הבתים", "המוכר את הבית", "המוכר את הספינה", "המוכר פירות", "המקבל", "יש נוחלין", "מי שמת", "גט פשוט"],
-        "סנהדרין": ["דיני ממונות", "כהן גדול", "זה בורר", "אחד דיני ממונות", "היו בודקין", "נגמר הדין", "ארבע מיתות", "בן סורר ומורה", "אלו הן הנשרפין", "אלו הן הגולין", "חלק"],
-        "מכות": ["כיצד העדים", "אלו הן הגולין", "אלו הן הלוקין"],
-        "שבועות": ["שבועות שתים", "ידיעות הטומאה", "שבועות שתים בתרא", "שבועת העדות", "שבועת הפיקדון", "שבועת הדיינים", "כל הנשבעים", "ארבעה שומרים"],
-        "עבודה זרה": ["לפני אידיהן", "אין מעמידין", "כל הצלמים", "רבי ישמעאל", "השוכר את הפועל"],
-        "הוריות": ["הורו בית דין", "הורה כהן משיח", "כהן משיח"],
-        "זבחים": ["כל הזבחים", "כל הזבחים שנשחטו", "כל הפסולין", "איזהו מקומן", "קודשי קודשים", "קודשי קודשים בתרא", "חטאת העוף", "כל הזבחים שנתערבו", "המזבח מקדש", "דם חטאת", "דם חטאת בתרא", "טבול יום", "פרת חטאת", "פרת חטאת בתרא"],
-        "מנחות": ["כל המנחות", "כל המנחות באות מצה", "הקומץ רבה", "הקומץ זוטא", "כל המנחות באות מצה", "רבי ישמעאל", "כיצד קומצין", "שתי הלחם", "התכלת", "שתי הלחם", "מנחות נקמצות", "התכלת", "התכלת"],
-        "חולין": ["הכל שוחטין", "השוחט", "אלו טריפות", "בהמה המקשה", "אותו ואת בנו", "כיסוי הדם", "גיד הנשה", "כל הבשר", "העור והרוטב", "הזרוע", "ראשית הגז", "שילוח הקן"],
-        "בכורות": ["הלוקח עובר עמורו", "הלוקח עובר פרתו", "הלוקח עובר בהמתו", "עד כמה", "כל פסולי", "מעשר בהמה", "מומין אלו", "יש בכור", "מעשר בהמה"],
-        "ערכין": ["הכל מעריכין", "אין עורכין", "יש בערכין", "הישג יד", "האומר משקלי", "האומר ערכי עלי", "אין מקדישין", "המקדיש שדהו", "המקדיש שדהו בתרא"],
-        "תמורה": ["הכל ממירין", "יש בקרבנות", "אלו קדשים", "ולד חטאת", "כיצד מערימין", "כל הפסולין", "יש בקדשי מזבח"],
-        "כריתות": ["שלושים ושש", "ארבעה מחוסרי כפרה", "אמרו לו", "ספק אכל חלב", "דם שחיטה", "המביא אשם"],
-        "מעילה": ["קדשי קדשים", "חטאת העוף", "ולד חטאת", "קודשי מזבח", "נהנין מן ההקדש", "השליח"],
-        "תמיד": ["בשלשה מקומות", "ראוהו אחיו", "אמר להם הממונה", "לא היו כופתין", "אמר להם הממונה", "החלו עולים", "בזמן שכהן גדול"],
-        "נידה": ["שמאי אומר", "כל היד", "המפלת", "בנות כותים", "יוצא דופן", "בא סימן", "דם הנידה", "רואה כתם", "האשה שהיא עושה צרכיה", "תינוקת"]
-    }
-};
-
-sourceTypeSelect.addEventListener('change', function() {
-    const value = this.value;
-    bookSelect.innerHTML = '';
-    numPicker.innerHTML = '<option value="" disabled selected>#</option>';
-    numPicker.disabled = true;
-    addChipBtn.disabled = true;
-    addChipBtn.innerText = value === 'Tanakh' ? 'Add Chapter' : (value === 'Talmud' ? 'Add Daf' : 'Add');
-    selectedPagesList = [];
-    renderChips();
-
-    if (value === 'Tanakh' || value === 'Talmud') {
-        specificSourceContainer.style.display = 'block';
-        specificSourceLabel.innerText = value === 'Tanakh' ? 'Select Sefer & Chapters:' : 'Select Massechet & Dapim:';
-        
-        const anyOption = document.createElement('option');
-        anyOption.value = 'ANY';
-        anyOption.textContent = '-- Any --';
-        bookSelect.appendChild(anyOption);
-
-        const books = Object.keys(sourceData[value]);
-        books.forEach(book => {
-            const option = document.createElement('option');
-            option.value = book;
-            option.textContent = book;
-            bookSelect.appendChild(option);
-        });
-        
-        bookSelect.value = 'ANY';
-    } else {
-        specificSourceContainer.style.display = 'none';
-    }
-});
-
-// Function to update the secondary pickers (Daf/Chapter)
-function updateSecondaryPickers() {
-    const sourceType = sourceTypeSelect.value;
-    const selectedBook = bookSelect.value;
-    
-    numPicker.innerHTML = '<option value="" disabled selected>#</option>';
-    
-    if (!selectedBook || selectedBook === 'ANY') {
-        numPicker.disabled = true;
-        addChipBtn.disabled = true;
-        return;
-    }
-
-    numPicker.disabled = false;
-    addChipBtn.disabled = false;
-
-    if (sourceType === 'Tanakh') {
-        const chapterCount = sourceData.Tanakh[selectedBook];
-        for (let i = 1; i <= chapterCount; i++) {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = i;
-            numPicker.appendChild(option);
-        }
-    } else if (sourceType === 'Talmud') {
-        for (let i = 2; i <= 176; i++) {
-            const optionA = document.createElement('option');
-            optionA.value = i + "a";
-            optionA.textContent = i + "a";
-            numPicker.appendChild(optionA);
-            
-            const optionB = document.createElement('option');
-            optionB.value = i + "b";
-            optionB.textContent = i + "b";
-            numPicker.appendChild(optionB);
-        }
-    }
-}
-
-bookSelect.addEventListener('change', () => {
-    selectedPagesList = [];
-    renderChips();
-    updateSecondaryPickers();
-});
-
-addChipBtn.addEventListener('click', () => {
-    const finalSelection = numPicker.value;
-    if (!finalSelection) return;
-    
-    if (selectedPagesList.length >= 10) {
-        alert("You can only select up to 10 targets at a time.");
-        return;
-    }
-    if (!selectedPagesList.includes(finalSelection)) {
-        selectedPagesList.push(finalSelection);
-        renderChips();
-    }
-});
-
-function renderChips() {
-    if (selectedPagesList.length === 0) {
-        chipContainer.innerHTML = '<span style="color: #9c9284; font-size: 12px; padding: 2px;">ANY (Whole Book)</span>';
-        hiddenChapterInput.value = "ANY";
-        return;
-    }
-    
-    chipContainer.innerHTML = '';
-    selectedPagesList.forEach(page => {
-        const chip = document.createElement('div');
-        chip.className = 'page-chip';
-        chip.textContent = page;
-        
-        const closeBtn = document.createElement('span');
-        closeBtn.className = 'chip-x';
-        closeBtn.innerHTML = '&#10005;';
-        closeBtn.onclick = () => {
-            selectedPagesList = selectedPagesList.filter(p => p !== page);
-            renderChips();
+        const sourceData = {
+            Tanakh: {
+                "בראשית": 50, "שמות": 40, "ויקרא": 27, "במדבר": 36, "דברים": 34,
+                "יהושע": 24, "שופטים": 21, "שמואל א": 31, "שמואל ב": 24, "מלכים א": 22, "מלכים ב": 25,
+                "ישעיהו": 66, "ירמיהו": 52, "יחזקאל": 48,
+                "הושע": 14, "יואל": 4, "עמוס": 9, "עובדיה": 1, "יונה": 4, "מיכה": 7, "נחום": 3, "חבקוק": 3, "צפניה": 3, "חגי": 2, "זכריה": 14, "מלאכי": 3,
+                "תהילים": 150, "משלי": 31, "איוב": 42, "שיר השירים": 8, "רות": 4, "איכה": 5, "קהלת": 12, "אסתר": 10, "דניאל": 12, "עזרא": 10, "נחמיה": 13, "דברי הימים א": 29, "דברי הימים ב": 36
+            },
+            Talmud: {
+                "ברכות": ["מאימתי", "היה קורא", "מי שמתו", "תפילת השחר", "אין עומדין", "כיצד מברכין", "שלושה שאכלו", "אלו דברים", "הרואה"],
+                "שבת": ["יציאות השבת", "במה מדליקין", "במה טומנין", "במה בהמה", "במה אשה", "במה אשה יוצאה", "כלל גדול", "המוציא יין", "אמר ר״ע", "המצניע", "הזורק", "הבונה", "האורג", "שמונה שרצים", "אלו קשרים", "כל כתבי", "כל הכלים", "מפנין", "ר״א דמילה", "תולין", "נוטל", "חבית", "שואל", "מי שהחשיך"],
+                "עירובין": ["מבוי", "עושין פסין", "בכל מערבין", "מי שהוציאוהו", "כיצד מעברין", "הדר", "כיצד משתתפין", "כיצד צולין", "כל גגות", "המוצא תפילין"],
+                "פסחים": ["אור לארבעה עשר", "כל שעה", "אלו עוברין", "מקום שנהגו", "תמיד נשחט", "אלו דברים", "כיצד צולין", "האשה", "מי שהיה", "ערבי פסחים"],
+                "ראש השנה": ["ארבעה ראשי שנים", "אם אינן מכירין", "ראוהו בית דין", "יום טוב"],
+                "יומא": ["שבעת ימים", "בראשונה", "אמר להם הממונה", "טרף בקלפי", "הוציאו לו", "שני שעירי", "בא לו כהן גדול", "יום הכפורים"],
+                "סוכה": ["סוכה", "הישן תחת המטה", "לולב הגזול", "לולב וערבה", "החליל"],
+                "ביצה": ["ביצה", "יום טוב", "אין צדין", "המביא", "משילין"],
+                "תענית": ["מאימתי", "סדר תעניות כיצד", "סדר תעניות אלו", "בשלושה פרקים"],
+                "מגילה": ["מגילה נקראת", "הקורא למפרע", "הקורא עומד", "בני העיר"],
+                "מועד קטן": ["משקין", "מי שהפך", "ואלו מגלחין"],
+                "חגיגה": ["הכל חייבין", "אין דורשין", "חומר בקודש"],
+                "יבמות": ["חמש עשרה נשים", "כיצד אשת אחיו", "ארבעה אחין", "החולץ", "רבן גמליאל", "הבא על יבמתו", "אלמנה", "הערל", "יש מותרות", "האשה רבה", "נושאין על האנוסה", "מצות חליצה", "המוציא", "חירש", "האשה שלום", "האשה בתרא"],
+                "כתובות": ["בתולה נשאת", "האשה שנתארמלה", "אלו נערות", "נערה שנתפתתה", "אף על פי", "מציאת האשה", "המדיר", "האשה שנפלו", "הכותב", "מי שהיה נשוי", "אלמנה ניזונת", "הנושא", "שני דייני גזירות"],
+                "נדרים": ["כל כינויי", "ואלו מותרין", "ארבעה נדרים", "אין בין המודר", "השותפין", "הנודר מן המבושל", "קונם יין", "קונם יין בתרא", "רבי אליעזר", "נערה המאורסה", "ואלו נדרים"],
+                "נזיר": ["כל כינויי", "הריני נזיר מן החרצנים", "מי שאמר", "מי שאמר הריני נזיר", "שתי נשים", "הריני נזיר", "כהן גדול", "שני נזירים", "גויים"],
+                "סוטה": ["המקנא", "היה מביא", "היה מביא מנחתה", "ארוסה", "כשם שהמים", "מי שקינא", "אלו נאמרין", "משוח מלחמה", "עגלה ערופה"],
+                "גיטין": ["המביא גט", "המביא גט בתרא", "כל הגט", "השולח", "הניזקין", "האומר", "מי שאחזו", "הזורק", "המגרש"],
+                "קידושין": ["האשה נקנית", "האיש מקדש", "האומר", "עשרה יוחסין"],
+                "בבא קמא": ["ארבעה אבות", "כיצד הרגל", "המניח", "שור שנגח ארבעה", "שור שנגח את הפרה", "הכונס", "מרובה", "החובל", "הגוזל עצים", "הגוזל ומאכיל"],
+                "בבא מציעא": ["שנים אוחזין", "אלו מציאות", "המפקיד", "הזהב", "איזהו נשך", "השוכר את האומנין", "השוכר את הפועלים", "השואל", "המקבל", "הבית והעליה"],
+                "בבא בתרא": ["השותפין", "לא יחפור", "חזקת הבתים", "המוכר את הבית", "המוכר את הספינה", "המוכר פירות", "המקבל", "יש נוחלין", "מי שמת", "גט פשוט"],
+                "סנהדרין": ["דיני ממונות", "כהן גדול", "זה בורר", "אחד דיני ממונות", "היו בודקין", "נגמר הדין", "ארבע מיתות", "בן סורר ומורה", "אלו הן הנשרפין", "אלו הן הגולין", "חלק"],
+                "מכות": ["כיצד העדים", "אלו הן הגולין", "אלו הן הלוקין"],
+                "שבועות": ["שבועות שתים", "ידיעות הטומאה", "שבועות שתים בתרא", "שבועת העדות", "שבועת הפיקדון", "שבועת הדיינים", "כל הנשבעים", "ארבעה שומרים"],
+                "עבודה זרה": ["לפני אידיהן", "אין מעמידין", "כל הצלמים", "רבי ישמעאל", "השוכר את הפועל"],
+                "הוריות": ["הורו בית דין", "הורה כהן משיח", "כהן משיח"],
+                "זבחים": ["כל הזבחים", "כל הזבחים שנשחטו", "כל הפסולין", "איזהו מקומן", "קודשי קודשים", "קודשי קודשים בתרא", "חטאת העוף", "כל הזבחים שנתערבו", "המזבח מקדש", "דם חטאת", "דם חטאת בתרא", "טבול יום", "פרת חטאת", "פרת חטאת בתרא"],
+                "מנחות": ["כל המנחות", "כל המנחות באות מצה", "הקומץ רבה", "הקומץ זוטא", "כל המנחות באות מצה", "רבי ישמעאל", "כיצד קומצין", "שתי הלחם", "התכלת", "שתי הלחם", "מנחות נקמצות", "התכלת", "התכלת"],
+                "חולין": ["הכל שוחטין", "השוחט", "אלו טריפות", "בהמה המקשה", "אותו ואת בנו", "כיסוי הדם", "גיד הנשה", "כל הבשר", "העור והרוטב", "הזרוע", "ראשית הגז", "שילוח הקן"],
+                "בכורות": ["הלוקח עובר עמורו", "הלוקח עובר פרתו", "הלוקח עובר בהמתו", "עד כמה", "כל פסולי", "מעשר בהמה", "מומין אלו", "יש בכור", "מעשר בהמה"],
+                "ערכין": ["הכל מעריכין", "אין עורכין", "יש בערכין", "הישג יד", "האומר משקלי", "האומר ערכי עלי", "אין מקדישין", "המקדיש שדהו", "המקדיש שדהו בתרא"],
+                "תמורה": ["הכל ממירין", "יש בקרבנות", "אלו קדשים", "ולד חטאת", "כיצד מערימין", "כל הפסולין", "יש בקדשי מזבח"],
+                "כריתות": ["שלושים ושש", "ארבעה מחוסרי כפרה", "אמרו לו", "ספק אכל חלב", "דם שחיטה", "המביא אשם"],
+                "מעילה": ["קדשי קדשים", "חטאת העוף", "ולד חטאת", "קודשי מזבח", "נהנין מן ההקדש", "השליח"],
+                "תמיד": ["בשלשה מקומות", "ראוהו אחיו", "אמר להם הממונה", "לא היו כופתין", "אמר להם הממונה", "החלו עולים", "בזמן שכהן גדול"],
+                "נידה": ["שמאי אומר", "כל היד", "המפלת", "בנות כותים", "יוצא דופן", "בא סימן", "דם הנידה", "רואה כתם", "האשה שהיא עושה צרכיה", "תינוקת"]
+            }
         };
-        
-        chip.appendChild(closeBtn);
-        chipContainer.appendChild(chip);
-    });
-    
-    hiddenChapterInput.value = selectedPagesList.join(',');
-}
 
-sourceTypeSelect.dispatchEvent(new Event('change'));
+        sourceTypeSelect.addEventListener('change', function() {
+            const value = this.value;
+            bookSelect.innerHTML = '';
+            numPicker.innerHTML = '<option value="" disabled selected>#</option>';
+            numPicker.disabled = true;
+            addChipBtn.disabled = true;
+            addChipBtn.innerText = value === 'Tanakh' ? 'Add Chapter' : (value === 'Talmud' ? 'Add Daf' : 'Add');
+            selectedPagesList = [];
+            renderChips();
 
-function updateMargin(margin) {
-    const outputDiv = document.getElementById('page');
-    if (margin === 'right') outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';
-    else if (margin === 'left') outputDiv.style.padding = '0.75in 0.75in 0.75in 1.25in';
-    else outputDiv.style.padding = '0.75in';
+            if (value === 'Tanakh' || value === 'Talmud') {
+                specificSourceContainer.style.display = 'block';
+                specificSourceLabel.innerText = value === 'Tanakh' ? 'Select Sefer & Chapters:' : 'Select Massechet & Dapim:';
+                
+                const anyOption = document.createElement('option');
+                anyOption.value = 'ANY';
+                anyOption.textContent = '-- Any --';
+                bookSelect.appendChild(anyOption);
 
-    let styleTag = document.getElementById('dynamic-print-style') || document.createElement('style');
-    styleTag.id = 'dynamic-print-style';
-    document.head.appendChild(styleTag);
-
-    let css = `@media print { @page { size: letter; margin: 0.75in; } }`;
-    if (margin === 'right') css = `@media print { @page { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; } }`;
-    if (margin === 'left') css = `@media print { @page { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; } }`;
-    if (margin === 'alternate-right') css = `@media print { @page:right { margin: 0.75in 1.25in 0.75in 0.75in; } @page:left { margin: 0.75in 0.75in 0.75in 1.25in; } }`;
-    if (margin === 'alternate-left') css = `@media print { @page:right { margin: 0.75in 0.75in 0.75in 1.25in; } @page:left { margin: 0.75in 1.25in 0.75in 0.75in; } }`;
-    styleTag.innerHTML = css;
-}
-
-document.getElementById('font-size').addEventListener('input', (e) => {
-    document.getElementById('font-size-val').innerText = e.target.value + 'pt';
-    document.getElementById('vocab-table').style.fontSize = e.target.value + 'pt';
-});
-
-document.getElementById('kerning').addEventListener('input', (e) => {
-    document.getElementById('kerning-val').innerText = e.target.value + 'px';
-    document.getElementById('vocab-table').style.letterSpacing = e.target.value + 'px';
-});
-
-document.getElementById('font-choice').addEventListener('change', (e) => {
-    document.getElementById('vocab-table').style.fontFamily = e.target.value;
-});
-
-generateBtn.addEventListener('click', async () => {
-    const title = document.getElementById('list-title').value.trim();
-    const rawInput = document.getElementById('word-list').value.trim();
-    const sourceType = document.getElementById('source-type').value;
-
-    let missing = [];
-    if (!title) missing.push("a list title");
-    if (!rawInput) missing.push("at least one vocabulary word");
-
-    if (missing.length > 0) {
-        alert(`Hold on! You forgot to add ${missing.join(' and ')}.`);
-        return;
-    }
-
-    generateBtn.disabled = true;
-    vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
-    pageContainer.style.display = 'block';
-    docTitle.innerText = title;
-
-    try {
-        let lines = rawInput.split('\n').filter(line => line.trim() !== '');
-        let vocabList = lines.map(line => {
-            // Split by comma or tab to separate Hebrew and English
-            // Split by one or more commas/tabs and remove empty results
-let parts = line.split(/[,\t]+/).map(p => p.trim()).filter(p => p.length > 0);
-let hebrew = parts.shift() || "";
-let english = parts.join(', ');
-            
-            return {
-                hebrew: hebrew,
-                english: english.length > 0 ? english : null
-            };
-        });
-
-        if (document.getElementById('alphabetize-list').checked) {
-            vocabList.sort((a, b) => a.hebrew.localeCompare(b.hebrew, 'he'));
-        }
-
-        let htmlOutput = "";
-
-        for (let item of vocabList) {
-            let cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '');
-            
-            // Bypass API translation if English was provided in the input
-            if (!item.english) {
-                const transRes = await fetch('/api/translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ promptText: `Translate this Hebrew vocabulary word to English: ${cleanHebrew}. Return ONLY the English word.` })
+                const books = Object.keys(sourceData[value]);
+                books.forEach(book => {
+                    const option = document.createElement('option');
+                    option.value = book;
+                    option.textContent = book;
+                    bookSelect.appendChild(option);
                 });
                 
-                if (transRes.ok) {
-                    const transData = await transRes.json();
-                    let aiResult = transData.text || "Translation missing";
-                    item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
-                } else {
-                    item.english = "[Translation Error]";
-                }
-            }
-
-            let hebrewContext = "";
-            let englishContext = "";
-            let citation = "";
-
-            if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                let searchResult = await performSefariaSearch(cleanHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
-                if (searchResult) {
-                    hebrewContext = searchResult.he;
-                    citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
-                } else { hebrewContext = "Word not found in context."; }
+                bookSelect.value = 'ANY';
             } else {
-                // Inform the AI of the intended meaning to ensure correct context generation
-                const contextRes = await fetch('/api/translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ promptText: `Write a short, natural Modern Hebrew sentence using the word "${cleanHebrew}" (meaning "${item.english}"). Return ONLY the Hebrew sentence.` })
-                });
-                
-                if (contextRes.ok) {
-                    const contextData = await contextRes.json();
-                    hebrewContext = contextData.text || "[Context generation failed]";
-                } else {
-                    hebrewContext = "Word not found in context.";
-                }
-                citation = "Modern Hebrew Context";
+                specificSourceContainer.style.display = 'none';
+            }
+        });
+
+        function updateSecondaryPickers() {
+            const sourceType = sourceTypeSelect.value;
+            const selectedBook = bookSelect.value;
+            
+            numPicker.innerHTML = '<option value="" disabled selected>#</option>';
+            
+            if (!selectedBook || selectedBook === 'ANY') {
+                numPicker.disabled = true;
+                addChipBtn.disabled = true;
+                return;
             }
 
-            if (hebrewContext && hebrewContext !== "Word not found in context.") {
-                const sentTransRes = await fetch('/api/translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english.toLowerCase()}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
-                });
-                
-                if (sentTransRes.ok) {
-                    const sentTransData = await sentTransRes.json();
-                    englishContext = sentTransData.text || "[Translation missing]";
-                } else {
-                    englishContext = "[Translation Error]";
+            numPicker.disabled = false;
+            addChipBtn.disabled = false;
+
+            if (sourceType === 'Tanakh') {
+                const chapterCount = sourceData.Tanakh[selectedBook];
+                for (let i = 1; i <= chapterCount; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = i;
+                    numPicker.appendChild(option);
+                }
+            } else if (sourceType === 'Talmud') {
+                for (let i = 2; i <= 176; i++) {
+                    const optionA = document.createElement('option');
+                    optionA.value = i + "a";
+                    optionA.textContent = i + "a";
+                    numPicker.appendChild(optionA);
+                    
+                    const optionB = document.createElement('option');
+                    optionB.value = i + "b";
+                    optionB.textContent = i + "b";
+                    numPicker.appendChild(optionB);
                 }
             }
-
-            const phrasePattern = cleanHebrew.trim().split(/\s+/).map(word => 
-                word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
-            ).join('[\\s\\p{P}]+');
-            
-            // 'gu' flag is required for global match and Unicode support
-            let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבו]{0,3}[\\u0591-\\u05C7]*)(${phrasePattern})(?=[^\\u05D0-\\u05EA]|$)`, 'gu');
-            let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold;">$3</span>`);
-            
-            // Regex escape for English word highlighting
-            let safeEnglish = item.english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            let highlightedEnglish = englishContext.replace(new RegExp(`\\b${safeEnglish}\\b`, 'gi'), `<span style="font-weight:bold;">$&</span>`);
-
-            htmlOutput += `
-            <tr>
-                <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
-                <td class="col-english" contenteditable="true">${item.english}</td>
-                <td class="col-context">
-                    <div class="hebrew-text">${highlightedHebrew}</div>
-                    <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
-                    <div class="citation" dir="rtl">${citation}</div>
-                </td>
-            </tr>`;
         }
-        vocabTbody.innerHTML = htmlOutput;
-        document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
-    } catch (e) {
-        vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
-    } finally { generateBtn.disabled = false; }
-});
 
-async function performSefariaSearch(word, corpus, book, chapter) {
-    const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
-    // Fix: Ensure "Any" search covers both main categories as a valid array
-    const safeCorpus = (corpus === 'Any') ? ["Tanakh", "Talmud"] : (isTalmud ? ["Talmud"] : [corpus]);
-    const searchField = isTalmud ? "exact" : "naive_lemmatizer";
-    const cleanWord = word.replace(/[^\u05D0-\u05EA\s]/g, ''); // Preserve spaces for phrases
-    let result = null;
+        bookSelect.addEventListener('change', () => {
+            selectedPagesList = [];
+            renderChips();
+            updateSecondaryPickers();
+        });
 
-    const buildRegex = (input) => {
-        const pattern = input.trim().split(/\s+/).map(word => 
-            word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
-        ).join('[\\s\\p{P}]+');
-        // 'u' flag is required for Unicode property escapes (\p{P})
-        return new RegExp(`(?:^|[^\\u05D0-\\u05EA])(?:[משהכלבו]{0,3}[\\u0591-\\u05C7]*)?${pattern}(?=[^\\u05D0-\\u05EA]|$)`, 'u');
-    };
+        addChipBtn.addEventListener('click', () => {
+            const finalSelection = numPicker.value;
+            if (!finalSelection) return;
+            
+            if (selectedPagesList.length >= 10) {
+                alert("You can only select up to 10 targets at a time.");
+                return;
+            }
+            if (!selectedPagesList.includes(finalSelection)) {
+                selectedPagesList.push(finalSelection);
+                renderChips();
+            }
+        });
 
-// Helper: Isolate the specific sentence from a larger Sefaria block
-    const isolateSentence = (text, target) => {
-        const cleanT = target.replace(/[^\u05D0-\u05EA\s]/g, ''); // Preserve spaces
-        const phrasePattern = cleanT.trim().split(/\s+/).map(word => 
-            word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
-        ).join('[\\s\\p{P}]+');
-        const strictRegex = new RegExp(`(?:^|[^\\u05D0-\\u05EA])(?:[משהכלבו]{0,3}[\\u0591-\\u05C7]*)?${phrasePattern}(?=[^\\u05D0-\\u05EA]|$)`, 'u');
-        
-        const sentences = text.split(/(?<=[.:?!])\s+/);
-        const match = sentences.find(s => strictRegex.test(s));
-        return match ? match.trim() : sentences[0].trim();
-    };
-
-    const getEnglishName = async (b) => {
-        if (!b || b === 'ANY') return null;
-        try {
-            const res = await fetch(`https://www.sefaria.org/api/name/${encodeURIComponent(b)}`);
-            const data = await res.json();
-            return data.index || data.ref || b;
-        } catch (e) { return b; }
-    };
-
-    // Helper: Fetch text and extract the single relevant sentence
-    const fetchAndExtract = async (ref) => {
-        try {
-            const res = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
-            const data = await res.json();
-            if (data?.he) {
-                const segments = Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he];
-                const strictRegex = buildRegex(cleanWord);
+        function renderChips() {
+            if (selectedPagesList.length === 0) {
+                chipContainer.innerHTML = '<span style="color: #9c9284; font-size: 12px; padding: 2px;">ANY (Whole Book)</span>';
+                hiddenChapterInput.value = "ANY";
+                return;
+            }
+            
+            chipContainer.innerHTML = '';
+            selectedPagesList.forEach(page => {
+                const chip = document.createElement('div');
+                chip.className = 'page-chip';
+                chip.textContent = page;
                 
-                let rawMatch = segments.find(s => typeof s === 'string' && strictRegex.test(s));
-                if (!rawMatch) return null; // Logic audited: Stops fallback to random text
-
-                let cleanMatch = rawMatch.replace(/<\/?[^>]+(>|$)/g, ""); // Strip HTML tags
-                return { 
-                    he: isolateSentence(cleanMatch, word), 
-                    ref: data.ref, 
-                    heRef: data.heRef 
+                const closeBtn = document.createElement('span');
+                closeBtn.className = 'chip-x';
+                closeBtn.innerHTML = '&#10005;';
+                closeBtn.onclick = () => {
+                    selectedPagesList = selectedPagesList.filter(p => p !== page);
+                    renderChips();
                 };
+                
+                chip.appendChild(closeBtn);
+                chipContainer.appendChild(chip);
+            });
+            
+            hiddenChapterInput.value = selectedPagesList.join(',');
+        }
+
+        sourceTypeSelect.dispatchEvent(new Event('change'));
+
+        function updateMargin(margin) {
+            const outputDiv = document.getElementById('page');
+            if (margin === 'right') outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';
+            else if (margin === 'left') outputDiv.style.padding = '0.75in 0.75in 0.75in 1.25in';
+            else outputDiv.style.padding = '0.75in';
+
+            let styleTag = document.getElementById('dynamic-print-style') || document.createElement('style');
+            styleTag.id = 'dynamic-print-style';
+            document.head.appendChild(styleTag);
+
+            let css = `@media print { @page { size: letter; margin: 0.75in; } }`;
+            if (margin === 'right') css = `@media print { @page { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; } }`;
+            if (margin === 'left') css = `@media print { @page { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; } }`;
+            if (margin === 'alternate-right') css = `@media print { @page:right { margin: 0.75in 1.25in 0.75in 0.75in; } @page:left { margin: 0.75in 0.75in 0.75in 1.25in; } }`;
+            if (margin === 'alternate-left') css = `@media print { @page:right { margin: 0.75in 0.75in 0.75in 1.25in; } @page:left { margin: 0.75in 1.25in 0.75in 0.75in; } }`;
+            styleTag.innerHTML = css;
+        }
+
+        document.getElementById('font-size').addEventListener('input', (e) => {
+            document.getElementById('font-size-val').innerText = e.target.value + 'pt';
+            document.getElementById('vocab-table').style.fontSize = e.target.value + 'pt';
+        });
+
+        document.getElementById('kerning').addEventListener('input', (e) => {
+            document.getElementById('kerning-val').innerText = e.target.value + 'px';
+            document.getElementById('vocab-table').style.letterSpacing = e.target.value + 'px';
+        });
+
+        document.getElementById('font-choice').addEventListener('change', (e) => {
+            document.getElementById('vocab-table').style.fontFamily = e.target.value;
+        });
+
+        generateBtn.addEventListener('click', async () => {
+            const title = document.getElementById('list-title').value.trim();
+            const rawInput = document.getElementById('word-list').value.trim();
+            const sourceType = document.getElementById('source-type').value;
+
+            let missing = [];
+            if (!title) missing.push("a list title");
+            if (!rawInput) missing.push("at least one vocabulary word");
+
+            if (missing.length > 0) {
+                alert(`Hold on! You forgot to add ${missing.join(' and ')}.`);
+                return;
             }
+
+            generateBtn.disabled = true;
+            vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
+            pageContainer.style.display = 'block';
+            docTitle.innerText = title;
+
+            try {
+                let lines = rawInput.split('\n').filter(line => line.trim() !== '');
+                let vocabList = lines.map(line => {
+                    let parts = line.split(/[,\t]+/).map(p => p.trim()).filter(p => p.length > 0);
+                    let hebrew = parts.shift() || "";
+                    let english = parts.join(', ');
+                    
+                    return {
+                        hebrew: hebrew,
+                        english: english.length > 0 ? english : null
+                    };
+                });
+
+                if (document.getElementById('alphabetize-list').checked) {
+                    vocabList.sort((a, b) => a.hebrew.localeCompare(b.hebrew, 'he'));
+                }
+
+                let htmlOutput = "";
+
+                for (let item of vocabList) {
+                    let cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '');
+                    
+                    if (!item.english) {
+                        const transRes = await fetch('/api/translate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ promptText: `Translate this Hebrew vocabulary word to English: ${cleanHebrew}. Return ONLY the English word.` })
+                        });
+                        
+                        if (transRes.ok) {
+                            const transData = await transRes.json();
+                            let aiResult = transData.text || "Translation missing";
+                            item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
+                        } else {
+                            item.english = "[Translation Error]";
+                        }
+                    }
+
+                    let hebrewContext = "";
+                    let englishContext = "";
+                    let citation = "";
+
+                    if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
+                        let searchResult = await performSefariaSearch(cleanHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
+                        if (searchResult) {
+                            hebrewContext = searchResult.he;
+                            citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
+                        } else { hebrewContext = "Word not found in context."; }
+                    } else {
+                        const contextRes = await fetch('/api/translate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ promptText: `Write a short, natural Modern Hebrew sentence using the word "${cleanHebrew}" (meaning "${item.english}"). Return ONLY the Hebrew sentence.` })
+                        });
+                        
+                        if (contextRes.ok) {
+                            const contextData = await contextRes.json();
+                            hebrewContext = contextData.text || "[Context generation failed]";
+                        } else {
+                            hebrewContext = "Word not found in context.";
+                        }
+                        citation = "Modern Hebrew Context";
+                    }
+
+                    if (hebrewContext && hebrewContext !== "Word not found in context.") {
+                        const sentTransRes = await fetch('/api/translate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english.toLowerCase()}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
+                        });
+                        
+                        if (sentTransRes.ok) {
+                            const sentTransData = await sentTransRes.json();
+                            englishContext = sentTransData.text || "[Translation missing]";
+                        } else {
+                            englishContext = "[Translation Error]";
+                        }
+                    }
+
+                    const phrasePattern = cleanHebrew.trim().split(/\s+/).map(word => 
+                        word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
+                    ).join('[\\s\\p{P}]+');
+                    
+                    let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבו]{0,3}[\\u0591-\\u05C7]*)(${phrasePattern})(?=[^\\u05D0-\\u05EA]|$)`, 'gu');
+                    let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold;">$3</span>`);
+                    
+                    let safeEnglish = item.english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    let highlightedEnglish = englishContext.replace(new RegExp(`\\b${safeEnglish}\\b`, 'gi'), `<span style="font-weight:bold;">$&</span>`);
+
+                    htmlOutput += `
+                    <tr>
+                        <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
+                        <td class="col-english" contenteditable="true">${item.english}</td>
+                        <td class="col-context">
+                            <div class="hebrew-text">${highlightedHebrew}</div>
+                            <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
+                            <div class="citation" dir="rtl">${citation}</div>
+                        </td>
+                    </tr>`;
+                }
+                vocabTbody.innerHTML = htmlOutput;
+                document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
+            } catch (e) {
+                vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
+            } finally { generateBtn.disabled = false; }
+        });
+
+        // --- UPDATED SEARCH LOGIC: DICTA FIRST, THEN SEFARIA ---
+        async function performSefariaSearch(word, corpus, book, chapter) {
+            const isClassical = (corpus === 'Talmud' || corpus === 'Tanakh' || corpus === 'Talmud Bavli');
+            const cleanWord = word.replace(/[^\u05D0-\u05EA\s]/g, '');
+
+            const getEnglishName = async (b) => {
+                if (!b || b === 'ANY') return null;
+                try {
+                    const res = await fetch(`https://www.sefaria.org/api/name/${encodeURIComponent(b)}`);
+                    const data = await res.json();
+                    return data.index || data.ref || b;
+                } catch (e) { return b; }
+            };
+
+            const formatRefForSefaria = (enBook, dictaLoc, corpusType) => {
+                if (corpusType === 'Tanakh') {
+                    return dictaLoc.replace(/\s/g, '.');
+                }
+                const dafMatch = dictaLoc.match(/([א-ת]+)\s*(ע״א|ע״ב)?/);
+                if (!dafMatch) return enBook;
+                const vals = { 'א':1,'ב':2,'ג':3,'ד':4,'ה':5,'ו':6,'ז':7,'ח':8,'ט':9,'י':10,'כ':20,'ל':30,'מ':40,'נ':50,'ס':60,'ע':70,'פ':80,'צ':90,'ק':100,'ר':200,'ש':300,'ת':400 };
+                let num = 0; for (let c of dafMatch[1]) { num += (vals[c] || 0); }
+                return `${enBook} ${num}${dictaLoc.includes('ע״ב') ? 'b' : 'a'}`;
+            };
+
+            const getHebrewSkeleton = (t) => t ? t.replace(/[\u0591-\u05C7]/g, "").replace(/[^\u05D0-\u05EA]/g, "").trim() : "";
+
+            let englishBook = await getEnglishName(book);
+            let result = null;
+
+            // 1. Primary Search using Dicta (Classical Texts)
+            if (isClassical) {
+                const genre = corpus === 'Tanakh' ? 'biblical' : 'rabbinic';
+                const tractate = book !== 'ANY' ? book : "";
+
+                try {
+                    const dictaRes = await fetch('/api/dicta-search', {
+                        method: "POST", headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({ query: cleanWord, tractate: tractate, genre: genre })
+                    });
+                    const dData = await dictaRes.json();
+
+                    if (dData.results?.length > 0) {
+                        const hit = dData.results[0];
+                        let baseBookEn = (englishBook && englishBook !== 'ANY') ? englishBook : (corpus === 'Tanakh' ? "Genesis" : "Berakhot");
+                        const ref = formatRefForSefaria(baseBookEn, hit.location, corpus);
+
+                        const sRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
+                        const sData = await sRes.json();
+
+                        if (sData?.he) {
+                            const heArray = Array.isArray(sData.he) ? sData.he.flat(Infinity) : [sData.he];
+                            const skel = getHebrewSkeleton(hit.text);
+                            const idx = heArray.findIndex(l => getHebrewSkeleton(l).includes(skel));
+
+                            result = {
+                                he: heArray[idx !== -1 ? idx : 0].replace(/<\/?[^>]+(>|$)/g, ""),
+                                ref: sData.ref,
+                                heRef: sData.heRef
+                            };
+                            return result; 
+                        }
+                    }
+                } catch (e) {
+                    console.error("Dicta search failed, falling back", e);
+                }
+            }
+
+            // 2. Sequential Sefaria Fetch (If Dicta didn't trigger, but user selected exact chapters)
+            if (!result && englishBook && chapter && chapter !== 'ANY') {
+                const targetPages = chapter.split(',').map(p => p.trim()).filter(p => p).slice(0, 10);
+                for (const page of targetPages) {
+                    const ref = `${englishBook} ${page}`;
+                    try {
+                        const sRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
+                        const data = await sRes.json();
+                        if (data?.he) {
+                            const heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he];
+                            const strictRegex = new RegExp(`(?:^|[^\\u05D0-\\u05EA])(?:[משהכלבו]{0,3}[\\u0591-\\u05C7]*)?${cleanWord.trim().split(/\s+/).join('[\\s\\p{P}]+')}(?=[^\\u05D0-\\u05EA]|$)`, 'u');
+                            let rawMatch = heArray.find(s => typeof s === 'string' && strictRegex.test(s));
+                            if (rawMatch) {
+                                return { he: rawMatch.replace(/<\/?[^>]+(>|$)/g, ""), ref: data.ref, heRef: data.heRef };
+                            }
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // 3. Global Corpus Fallback Search (Sefaria naive lemmatizer)
+            if (!result) {
+                const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
+                const safeCorpus = (corpus === 'Any') ? ["Tanakh", "Talmud"] : (isTalmud ? ["Talmud"] : [corpus]);
+                const filters = (englishBook && englishBook !== 'ANY') ? [englishBook] : safeCorpus;
+
+                try {
+                    const res = await fetch('/api/sefaria-search', {
+                        method: "POST", headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({ query: cleanWord, type: "text", field: "naive_lemmatizer", filters: filters })
+                    });
+                    const data = await res.json();
+                    if (data.hits?.hits?.length > 0) {
+                        const hit = data.hits.hits[0];
+                        const ref = hit._source?.ref || hit._id.split(' (')[0];
+                        
+                        const sRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
+                        const sData = await sRes.json();
+                        
+                        if (sData?.he) {
+                            const heArray = Array.isArray(sData.he) ? sData.he.flat(Infinity) : [sData.he];
+                            return { he: heArray[0].replace(/<\/?[^>]+(>|$)/g, ""), ref: sData.ref, heRef: sData.heRef };
+                        }
+                    }
+                } catch (e) {}
+            }
+
             return null;
-        } catch (e) { return null; }
-    };
-
-    // --- The Waterfall Logic ---
-    const englishBook = await getEnglishName(book);
-
-    // 1. Direct Sequential Fetch: Supports single chapters ("1") or comma-separated lists ("2a,2b")
-    if (englishBook && chapter && chapter !== 'ANY') {
-        const targetPages = chapter.split(',').map(p => p.trim()).filter(p => p).slice(0, 10);
-        
-        for (const page of targetPages) {
-            const ref = `${englishBook} ${page}`;
-            result = await fetchAndExtract(ref);
-            if (result) break; 
         }
-    }
 
-    // 2. Search Specific Book/Massechet
-    if (!result && englishBook && englishBook !== 'ANY') {
-        const res = await fetch('/api/sefaria-search', {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ query: word, type: "text", field: searchField, filters: [englishBook] })
-        });
-        const data = await res.json();
-        if (data.hits?.hits?.length > 0) {
-            const hit = data.hits.hits[0];
-            const ref = hit._source?.ref || hit._id.split(' (')[0]; 
-            result = await fetchAndExtract(ref);
-        }
-        
-        // Internal Fallback: Try Lemma match in the SAME book before giving up
-        if (!result && isTalmud) {
-            const resFallback = await fetch('/api/sefaria-search', {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: [englishBook] })
-            });
-            const dataFallback = await resFallback.json();
-            if (dataFallback.hits?.hits?.length > 0) {
-                const hit = dataFallback.hits.hits[0];
-                const ref = hit._source?.ref || hit._id.split(' (')[0]; 
-                result = await fetchAndExtract(ref);
+        function formatSefariaCitation(heRef, enRef, sourceType) {
+            if (!heRef || !enRef) return "";
+            if (sourceType.includes('Talmud')) {
+                heRef = heRef.replace(/ ע"א/g, '.').replace(/ ע"ב/g, ':');
             }
+            return `${heRef}<br><span dir="ltr">${enRef}</span>`;
         }
-    }
 
-    // 3. Global Corpus Search (ONLY executed if NO specific book was requested)
-    if (!result && (!englishBook || englishBook === 'ANY')) {
-        const res = await fetch('/api/sefaria-search', {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ query: word, type: "text", field: searchField, filters: safeCorpus })
-        });
-        const data = await res.json();
-        if (data.hits?.hits?.length > 0) {
-            const hit = data.hits.hits[0];
-            const ref = hit._source?.ref || hit._id.split(' (')[0]; 
-            result = await fetchAndExtract(ref);
-        }
-        
-        if (!result && isTalmud) {
-            const resFallback = await fetch('/api/sefaria-search', {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ query: word, type: "text", field: "naive_lemmatizer", filters: safeCorpus })
+        function updateTextDisplay() {
+            const stripNekudot = document.getElementById('nekudot-toggle').value === 'strip';
+            const subNames = document.getElementById('substitute-names').checked;
+
+            document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
+                let html = el.dataset.original;
+
+                if (subNames) {
+                    html = html.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, 'ה׳');
+                    html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*ו[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, '$1ק$2');
+                }
+
+                if (stripNekudot) {
+                    html = html.replace(/[\u0591-\u05C7]/g, '');
+                }
+
+                el.innerHTML = html;
             });
-            const dataFallback = await resFallback.json();
-            if (dataFallback.hits?.hits?.length > 0) {
-                const hit = dataFallback.hits.hits[0];
-                const ref = hit._source?.ref || hit._id.split(' (')[0]; 
-                result = await fetchAndExtract(ref);
-            }
         }
-    }
-
-    return result;
-}
-
-// Helper Function for Point 9 (Citation Formatting)
-function formatSefariaCitation(heRef, enRef, sourceType) {
-    if (!heRef || !enRef) return "";
-    if (sourceType.includes('Talmud')) {
-        // Convert Sefaria's amud notation (ע"א -> period, ע"ב -> colon)
-        heRef = heRef.replace(/ ע"א/g, '.').replace(/ ע"ב/g, ':');
-    }
-    return `${heRef}<br><span dir="ltr">${enRef}</span>`;
-}
-
-// Unified text processing function to handle both Name Replacement and Nekudot Toggling
-function updateTextDisplay() {
-    const stripNekudot = document.getElementById('nekudot-toggle').value === 'strip';
-    const subNames = document.getElementById('substitute-names').checked;
-
-    document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
-        let html = el.dataset.original;
-
-        if (subNames) {
-            // Match יהוה with any potential internal vowels and replace with ה׳
-            html = html.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, 'ה׳');
-            // Match אלוה with any potential internal vowels and replace the ה with a ק
-            html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*ו[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, '$1ק$2');
-        }
-
-        if (stripNekudot) {
-            html = html.replace(/[\u0591-\u05C7]/g, '');
-        }
-
-        el.innerHTML = html;
-    });
-}
     </script>
 </body>
 </html>

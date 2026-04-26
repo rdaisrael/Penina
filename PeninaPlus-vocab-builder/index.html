@@ -357,6 +357,10 @@
 
             <button id="generate-btn">Generate Vocabulary Table</button>
 
+            <div id="search-status-notice" style="display: none; margin-top: 15px; padding: 12px 14px; border-radius: 6px; background: #fff8e1; border: 1px solid #e6d39b; color: #6a5a2b; font-size: 14px; line-height: 1.4;">
+                Classical source lookup is currently using Sefaria search only.
+            </div>
+
             <hr style="border: 0; height: 1px; background: #dcd3c6; margin: 30px 0;">
 
             <div class="formatting-section">
@@ -463,6 +467,7 @@
         const specificSourceLabel = document.getElementById('specific-source-label');
         const pageContainer = document.getElementById('page');
         const docTitle = document.getElementById('doc-title');
+        const searchStatusNotice = document.getElementById('search-status-notice');
 
         const bookSelect = document.getElementById('book-select');
         const numPicker = document.getElementById('num-picker');
@@ -529,6 +534,10 @@
             addChipBtn.innerText = value === 'Tanakh' ? 'Add Chapter' : (value === 'Talmud' ? 'Add Daf' : 'Add');
             selectedPagesList = [];
             renderChips();
+
+            if (searchStatusNotice) {
+                searchStatusNotice.style.display = 'none';
+            }
 
             if (value === 'Tanakh' || value === 'Talmud') {
                 specificSourceContainer.style.display = 'block';
@@ -678,6 +687,10 @@
             const rawInput = document.getElementById('word-list').value.trim();
             const sourceType = document.getElementById('source-type').value;
 
+            if (searchStatusNotice) {
+                searchStatusNotice.style.display = (sourceType === 'Tanakh' || sourceType === 'Talmud') ? 'block' : 'none';
+            }
+
             let missing = [];
             if (!title) missing.push("a list title");
             if (!rawInput) missing.push("at least one vocabulary word");
@@ -799,9 +812,8 @@
             } finally { generateBtn.disabled = false; }
         });
 
-        // --- SEARCH LOGIC: EXACT SOURCE FIRST, THEN DICTA, THEN SEFARIA ---
+        // --- SEARCH LOGIC: EXACT SOURCE FIRST, THEN SEFARIA FALLBACK ---
         async function performSefariaSearch(word, corpus, book, chapter) {
-            const isClassical = (corpus === 'Talmud' || corpus === 'Tanakh' || corpus === 'Talmud Bavli');
             const cleanWord = word.replace(/[^\u05D0-\u05EA\s]/g, '');
 
             const getEnglishName = async (b) => {
@@ -815,41 +827,7 @@
                 }
             };
 
-            const hebrewDafToNumber = (hebrew) => {
-                const vals = {
-                    'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9,
-                    'י': 10, 'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80,
-                    'צ': 90, 'ק': 100, 'ר': 200, 'ש': 300, 'ת': 400
-                };
-                let total = 0;
-                for (const ch of hebrew) total += (vals[ch] || 0);
-                return total || null;
-            };
-
-            const formatRefForSefaria = (enBook, dictaLoc, corpusType) => {
-                if (!enBook || !dictaLoc) return null;
-
-                if (corpusType === 'Tanakh') {
-                    const parts = String(dictaLoc).trim().split(/\s+/);
-                    if (parts.length >= 2) {
-                        return `${enBook} ${parts.join(':')}`;
-                    }
-                    return `${enBook} ${dictaLoc}`;
-                }
-
-                const dafMatch = String(dictaLoc).match(/([א-ת]+)\s*(ע״א|ע״ב|ע"א|ע"ב)?/);
-                if (!dafMatch) return null;
-
-                const dafNum = hebrewDafToNumber(dafMatch[1]);
-                if (!dafNum) return null;
-
-                const side = /ע״ב|ע"ב/.test(dictaLoc) ? 'b' : 'a';
-                return `${enBook} ${dafNum}${side}`;
-            };
-
             const stripHtml = (s) => String(s || '').replace(/<\/?[^>]+(>|$)/g, '');
-            const getHebrewSkeleton = (t) =>
-                t ? String(t).replace(/[\u0591-\u05C7]/g, "").replace(/[^\u05D0-\u05EA]/g, "").trim() : "";
 
             const buildStrictRegex = (target) => {
                 const phrasePattern = target.trim().split(/\s+/).map(token =>
@@ -865,7 +843,7 @@
             const exactMatchRegex = buildStrictRegex(cleanWord);
             const englishBook = await getEnglishName(book);
 
-            // 1. FIRST: Respect explicit chapter/daf selections before anything global.
+            // 1. FIRST: Respect explicit chapter/daf selections.
             if (englishBook && chapter && chapter !== 'ANY') {
                 const targetPages = chapter
                     .split(',')
@@ -898,59 +876,7 @@
                 }
             }
 
-            // 2. SECOND: Dicta search for classical sources only.
-            if (isClassical) {
-                const genre = corpus === 'Tanakh' ? 'biblical' : 'rabbinic';
-                const tractate = book !== 'ANY' ? book : "";
-
-                try {
-                    const dictaRes = await fetch('/api/dicta-search', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query: cleanWord, tractate, genre })
-                    });
-
-                    if (dictaRes.ok) {
-                        const dData = await dictaRes.json();
-
-                        if (dData?.results?.length > 0) {
-                            const hit = dData.results[0];
-
-                            // Only attempt direct Sefaria lookup if we know the selected book.
-                            if (englishBook && hit.location) {
-                                const ref = formatRefForSefaria(englishBook, hit.location, corpus);
-
-                                if (ref) {
-                                    const sRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
-                                    if (sRes.ok) {
-                                        const sData = await sRes.json();
-
-                                        if (sData?.he) {
-                                            const heArray = Array.isArray(sData.he) ? sData.he.flat(Infinity) : [sData.he];
-                                            const hitSkeleton = getHebrewSkeleton(hit.text || cleanWord);
-
-                                            let matchedLine =
-                                                heArray.find(line => getHebrewSkeleton(stripHtml(line)).includes(hitSkeleton)) ||
-                                                heArray.find(line => typeof line === 'string' && exactMatchRegex.test(stripHtml(line))) ||
-                                                heArray[0];
-
-                                            return {
-                                                he: stripHtml(matchedLine),
-                                                ref: sData.ref,
-                                                heRef: sData.heRef
-                                            };
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.error("Dicta search failed, falling back", e);
-                }
-            }
-
-            // 3. THIRD: global Sefaria fallback.
+            // 2. SECOND: global Sefaria fallback.
             const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
             const safeCorpus = isTalmud ? ['Talmud'] : [corpus];
             const filters = (englishBook && englishBook !== 'ANY') ? [englishBook] : safeCorpus;

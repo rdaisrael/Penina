@@ -277,7 +277,7 @@
             --english-font: Arial, sans-serif;
         }
         
-        [dir="ltr"], .english-text {
+        [dir="ltr"], .english-text, .col-english, #vocab-table th {
             font-family: var(--english-font) !important;
         }
     </style>
@@ -669,8 +669,31 @@
         }
 
         document.getElementById('font-size').addEventListener('input', (e) => {
-            document.getElementById('font-size-val').innerText = e.target.value + 'pt';
-            document.getElementById('vocab-table').style.fontSize = e.target.value + 'pt';
+            const baseSize = parseInt(e.target.value, 10);
+            document.getElementById('font-size-val').innerText = baseSize + 'pt';
+
+            const table = document.getElementById('vocab-table');
+            table.style.fontSize = baseSize + 'pt';
+
+            document.querySelectorAll('#vocab-table th').forEach(el => {
+                el.style.fontSize = baseSize + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .col-hebrew').forEach(el => {
+                el.style.fontSize = baseSize + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .col-english').forEach(el => {
+                el.style.fontSize = Math.max(baseSize - 2, 8) + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .col-context').forEach(el => {
+                el.style.fontSize = Math.max(baseSize - 4, 8) + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .citation').forEach(el => {
+                el.style.fontSize = Math.max(baseSize - 4, 8) + 'pt';
+            });
         });
 
         document.getElementById('kerning').addEventListener('input', (e) => {

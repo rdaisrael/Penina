@@ -808,7 +808,57 @@
                     let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold;">$3</span>`);
                     
                     let safeEnglish = item.english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    let highlightedEnglish = englishContext.replace(new RegExp(`\\b${safeEnglish}\\b`, 'gi'), `<span style="font-weight:bold;">$&</span>`);
+                    let displayEnglish = englishContext;
+
+                    if (
+                        (sourceType === 'Tanakh' || sourceType === 'Talmud') &&
+                        englishContext &&
+                        englishContext !== "[Davidson translation unavailable]"
+                    ) {
+                        const wordRegex = new RegExp(`\\b${safeEnglish}\\b`, 'i');
+                        const match = wordRegex.exec(englishContext);
+
+                        if (match) {
+                            const matchStart = match.index;
+                            const matchEnd = match.index + match[0].length;
+
+                            const beforeWindow = 90;
+                            const afterWindow = 110;
+
+                            let excerptStart = Math.max(0, matchStart - beforeWindow);
+                            let excerptEnd = Math.min(englishContext.length, matchEnd + afterWindow);
+
+                            if (excerptStart > 0) {
+                                const nextSpace = englishContext.indexOf(' ', excerptStart);
+                                if (nextSpace !== -1 && nextSpace < matchStart) {
+                                    excerptStart = nextSpace + 1;
+                                }
+                            }
+
+                            if (excerptEnd < englishContext.length) {
+                                const prevSpace = englishContext.lastIndexOf(' ', excerptEnd);
+                                if (prevSpace !== -1 && prevSpace > matchEnd) {
+                                    excerptEnd = prevSpace;
+                                }
+                            }
+
+                            displayEnglish = englishContext.slice(excerptStart, excerptEnd).trim();
+
+                            if (excerptStart > 0) {
+                                displayEnglish = '... ' + displayEnglish;
+                            }
+                            if (excerptEnd < englishContext.length) {
+                                displayEnglish = displayEnglish + ' ...';
+                            }
+                        } else if (englishContext.length > 220) {
+                            displayEnglish = englishContext.slice(0, 220).trim() + ' ...';
+                        }
+                    }
+
+                    let highlightedEnglish = displayEnglish.replace(
+                        new RegExp(`\\b${safeEnglish}\\b`, 'gi'),
+                        `<span style="font-weight:bold;">$&</span>`
+                    );
 
                     htmlOutput += `
                     <tr>
@@ -878,34 +928,19 @@
             }
 
             function buildExcerptFromMatch(heArray, enArray, matchIndex) {
-                const heParts = [];
-                const enParts = [];
+                const fullHebrew =
+                    typeof heArray[matchIndex] === 'string'
+                        ? stripHtml(heArray[matchIndex])
+                        : '';
 
-                if (typeof heArray[matchIndex] === 'string') {
-                    heParts.push(stripHtml(heArray[matchIndex]));
-                }
-                if (typeof enArray[matchIndex] === 'string') {
-                    enParts.push(stripHtml(enArray[matchIndex]));
-                }
-
-                const currentLine = normalizeHebrewForMatch(heArray[matchIndex] || '');
-                const shouldAddNext =
-                    currentLine.length > 0 &&
-                    currentLine.length < 90 &&
-                    matchIndex + 1 < heArray.length;
-
-                if (shouldAddNext) {
-                    if (typeof heArray[matchIndex + 1] === 'string') {
-                        heParts.push(stripHtml(heArray[matchIndex + 1]));
-                    }
-                    if (typeof enArray[matchIndex + 1] === 'string') {
-                        enParts.push(stripHtml(enArray[matchIndex + 1]));
-                    }
-                }
+                const fullEnglish =
+                    typeof enArray[matchIndex] === 'string'
+                        ? stripHtml(enArray[matchIndex])
+                        : '';
 
                 return {
-                    he: heParts.filter(Boolean).join(' '),
-                    en: enParts.filter(Boolean).join(' ')
+                    he: fullHebrew,
+                    en: fullEnglish
                 };
             }
 

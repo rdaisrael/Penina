@@ -922,6 +922,20 @@
             const corpusFilter = isTalmud ? ['Talmud'] : ['Tanakh'];
             const davidsonTitle = 'William Davidson Edition - English';
 
+            function buildLooseBoundaryRegex(target) {
+                const normalized = normalizeHebrewForMatch(target);
+                if (!normalized) return null;
+
+                const compactTarget = normalized.replace(/\s+/g, '\\s+');
+
+                return new RegExp(
+                    `(^|[^א-ת])([משהכלבו]{0,3})(${compactTarget})(?=$|[^א-ת])`,
+                    'u'
+                );
+            }
+
+            const looseBoundaryRegex = buildLooseBoundaryRegex(cleanWord);
+
             function refStartsWithBook(ref, bookName) {
                 if (!ref || !bookName) return false;
                 return ref === bookName || ref.startsWith(bookName + ' ');
@@ -965,11 +979,11 @@
 
                     if (matchIndex !== -1) {
                         matchStrength = 2;
-                    } else if (normalizedTarget) {
+                    } else if (normalizedTarget && looseBoundaryRegex) {
                         matchIndex = heArray.findIndex(line => {
                             if (typeof line !== 'string') return false;
                             const normalizedLine = normalizeHebrewForMatch(line);
-                            return normalizedLine.includes(normalizedTarget);
+                            return looseBoundaryRegex.test(normalizedLine);
                         });
 
                         if (matchIndex !== -1) {

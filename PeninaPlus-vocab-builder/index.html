@@ -750,9 +750,12 @@
                     if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
                         let searchResult = await performSefariaSearch(cleanHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
                         if (searchResult) {
-                            hebrewContext = searchResult.he;
+                            hebrewContext = searchResult.he || "";
+                            englishContext = searchResult.en || "";
                             citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
-                        } else { hebrewContext = "Word not found in context."; }
+                        } else { 
+                            hebrewContext = "Word not found in context."; 
+                        }
                     } else {
                         const contextRes = await fetch('/api/translate', {
                             method: 'POST',
@@ -769,7 +772,11 @@
                         citation = "Modern Hebrew Context";
                     }
 
-                    if (hebrewContext && hebrewContext !== "Word not found in context.") {
+                    if (
+                        sourceType === 'Modern Hebrew' &&
+                        hebrewContext &&
+                        hebrewContext !== "Word not found in context."
+                    ) {
                         const sentTransRes = await fetch('/api/translate', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -782,6 +789,15 @@
                         } else {
                             englishContext = "[Translation Error]";
                         }
+                    }
+
+                    if (
+                        (sourceType === 'Tanakh' || sourceType === 'Talmud') &&
+                        hebrewContext &&
+                        hebrewContext !== "Word not found in context." &&
+                        !englishContext
+                    ) {
+                        englishContext = "[Davidson translation unavailable]";
                     }
 
                     const phrasePattern = cleanHebrew.trim().split(/\s+/).map(word => 
@@ -854,42 +870,112 @@
             const englishBook = await getEnglishName(book);
             const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
             const corpusFilter = isTalmud ? ['Talmud'] : ['Tanakh'];
+            const davidsonTitle = 'William Davidson Edition - English';
+
+            function refStartsWithBook(ref, bookName) {
+                if (!ref || !bookName) return false;
+                return ref === bookName || ref.startsWith(bookName + ' ');
+            }
+
+            function buildExcerptFromMatch(heArray, enArray, matchIndex) {
+                const heParts = [];
+                const enParts = [];
+
+                if (typeof heArray[matchIndex] === 'string') {
+                    heParts.push(stripHtml(heArray[matchIndex]));
+                }
+                if (typeof enArray[matchIndex] === 'string') {
+                    enParts.push(stripHtml(enArray[matchIndex]));
+                }
+
+                const currentLine = normalizeHebrewForMatch(heArray[matchIndex] || '');
+                const shouldAddNext =
+                    currentLine.length > 0 &&
+                    currentLine.length < 90 &&
+                    matchIndex + 1 < heArray.length;
+
+                if (shouldAddNext) {
+                    if (typeof heArray[matchIndex + 1] === 'string') {
+                        heParts.push(stripHtml(heArray[matchIndex + 1]));
+                    }
+                    if (typeof enArray[matchIndex + 1] === 'string') {
+                        enParts.push(stripHtml(enArray[matchIndex + 1]));
+                    }
+                }
+
+                return {
+                    he: heParts.filter(Boolean).join(' '),
+                    en: enParts.filter(Boolean).join(' ')
+                };
+            }
 
             async function fetchRefAndFindMatch(ref) {
                 try {
-                    const sRes = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
+                    const sRes = await fetch(
+                        `https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0&ven=${encodeURIComponent(davidsonTitle)}`
+                    );
                     if (!sRes.ok) return null;
 
                     const data = await sRes.json();
                     if (!data?.he) return null;
 
                     const heArray = Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he];
+                    const enArray = Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text];
 
-                    let rawMatch = heArray.find(line =>
+                    let matchIndex = heArray.findIndex(line =>
                         typeof line === 'string' && exactMatchRegex.test(stripHtml(line))
                     );
 
-                    if (!rawMatch && normalizedTarget) {
-                        rawMatch = heArray.find(line => {
+                    let matchStrength = 0;
+
+                    if (matchIndex !== -1) {
+                        matchStrength = 2;
+                    } else if (normalizedTarget) {
+                        matchIndex = heArray.findIndex(line => {
                             if (typeof line !== 'string') return false;
                             const normalizedLine = normalizeHebrewForMatch(line);
                             return normalizedLine.includes(normalizedTarget);
                         });
+
+                        if (matchIndex !== -1) {
+                            matchStrength = 1;
+                        }
                     }
 
-                    if (!rawMatch) return null;
+                    if (matchIndex === -1) return null;
+
+                    const excerpt = buildExcerptFromMatch(heArray, enArray, matchIndex);
 
                     return {
-                        he: stripHtml(rawMatch),
+                        he: excerpt.he,
+                        en: excerpt.en,
                         ref: data.ref,
-                        heRef: data.heRef
+                        heRef: data.heRef,
+                        matchStrength: matchStrength,
+                        sourceRef: ref
                     };
                 } catch (e) {
                     return null;
                 }
             }
 
-            async function searchViaSefaria(filters) {
+            function scoreMatch(found, preferredRef = null) {
+                if (!found) return -1;
+
+                let score = found.matchStrength || 0;
+
+                if (preferredRef && found.ref === preferredRef) {
+                    score += 10;
+                }
+
+                if (preferredRef && found.sourceRef === preferredRef) {
+                    score += 5;
+                }
+
+                return score;
+            }
+
+            async function searchViaSefaria(filters, enforceBookName = null) {
                 try {
                     const res = await fetch('/api/sefaria-search', {
                         method: 'POST',
@@ -909,6 +995,11 @@
 
                     for (const hit of data.hits.hits) {
                         const ref = hit._source?.ref || hit._id.split(' (')[0];
+
+                        if (enforceBookName && !refStartsWithBook(ref, enforceBookName)) {
+                            continue;
+                        }
+
                         const found = await fetchRefAndFindMatch(ref);
                         if (found) return found;
                     }
@@ -927,22 +1018,56 @@
                     .filter(Boolean)
                     .slice(0, 10);
 
-                for (const page of targetPages) {
-                    const ref = `${englishBook} ${page}`;
-                    const found = await fetchRefAndFindMatch(ref);
-                    if (found) return found;
+                const refs = targetPages.map(page => `${englishBook} ${page}`);
+                const results = await Promise.all(refs.map(ref => fetchRefAndFindMatch(ref)));
+                const validResults = results.filter(Boolean);
+
+                if (validResults.length > 0) {
+                    let bestMatch = validResults[0];
+                    let bestScore = scoreMatch(bestMatch, refs[0]);
+
+                    for (let i = 1; i < validResults.length; i++) {
+                        const candidate = validResults[i];
+                        const candidateScore = scoreMatch(candidate);
+
+                        if (candidateScore > bestScore) {
+                            bestMatch = candidate;
+                            bestScore = candidateScore;
+                        }
+                    }
+
+                    return {
+                        he: bestMatch.he,
+                        en: bestMatch.en,
+                        ref: bestMatch.ref,
+                        heRef: bestMatch.heRef
+                    };
                 }
             }
 
             // 2. SECOND: search the selected book / massechet, if one was selected.
             if (englishBook && englishBook !== 'ANY') {
-                const foundInBook = await searchViaSefaria([englishBook]);
-                if (foundInBook) return foundInBook;
+                const foundInBook = await searchViaSefaria([englishBook], englishBook);
+                if (foundInBook) {
+                    return {
+                        he: foundInBook.he,
+                        en: foundInBook.en,
+                        ref: foundInBook.ref,
+                        heRef: foundInBook.heRef
+                    };
+                }
             }
 
             // 3. THIRD: search the whole corpus.
             const foundInCorpus = await searchViaSefaria(corpusFilter);
-            if (foundInCorpus) return foundInCorpus;
+            if (foundInCorpus) {
+                return {
+                    he: foundInCorpus.he,
+                    en: foundInCorpus.en,
+                    ref: foundInCorpus.ref,
+                    heRef: foundInCorpus.heRef
+                };
+            }
 
             return null;
         }

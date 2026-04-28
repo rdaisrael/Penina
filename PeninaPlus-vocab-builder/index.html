@@ -992,14 +992,36 @@ function buildExcerptFromMatch(heArray, enArray, matchIndex, exactMatchRegex, no
         }
     });
 
+    const MIN_LENGTH = 20;
+    const MAX_LENGTH = 200;
+    const IDEAL_LENGTH = 80;
+
     if (exactSentenceMatches.length > 0) {
-        exactSentenceMatches.sort((a, b) => a.sentence.length - b.sentence.length);
-        chosenHebrew = exactSentenceMatches[0].sentence;
-        chosenHebrewIndex = exactSentenceMatches[0].index;
+        const filtered = exactSentenceMatches.filter(s =>
+            s.sentence.length >= MIN_LENGTH && s.sentence.length <= MAX_LENGTH
+        );
+
+        const pool = filtered.length ? filtered : exactSentenceMatches;
+
+        pool.sort((a, b) =>
+            Math.abs(a.sentence.length - IDEAL_LENGTH) - Math.abs(b.sentence.length - IDEAL_LENGTH)
+        );
+
+        chosenHebrew = pool[0].sentence;
+        chosenHebrewIndex = pool[0].index;
     } else if (looseSentenceMatches.length > 0) {
-        looseSentenceMatches.sort((a, b) => a.sentence.length - b.sentence.length);
-        chosenHebrew = looseSentenceMatches[0].sentence;
-        chosenHebrewIndex = looseSentenceMatches[0].index;
+        const filtered = looseSentenceMatches.filter(s =>
+            s.sentence.length >= MIN_LENGTH && s.sentence.length <= MAX_LENGTH
+        );
+
+        const pool = filtered.length ? filtered : looseSentenceMatches;
+
+        pool.sort((a, b) =>
+            Math.abs(a.sentence.length - IDEAL_LENGTH) - Math.abs(b.sentence.length - IDEAL_LENGTH)
+        );
+
+        chosenHebrew = pool[0].sentence;
+        chosenHebrewIndex = pool[0].index;
     }
 
     let chosenEnglish = fullEnglish;

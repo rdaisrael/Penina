@@ -975,11 +975,38 @@ function buildExcerptFromMatch(heArray, enArray, matchIndex, exactMatchRegex, no
             .filter(Boolean);
     };
 
+    const countWords = (text) => {
+        return String(text || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .length;
+    };
+
+    const isWeakEnglishSentence = (text) => {
+        const t = String(text || '').trim();
+        if (!t) return true;
+
+        const weakPatterns = [
+            /^GEMARA:?$/i,
+            /^He said to him:?$/i,
+            /^The Gemara raises an objection:?$/i,
+            /^It was asked of them:?$/i
+        ];
+
+        if (weakPatterns.some(pattern => pattern.test(t))) return true;
+        if (t.length < 18) return true;
+
+        return false;
+    };
+
+    const scoreHebrewCandidate = (sentence) => {
+        const IDEAL_LENGTH = 80;
+        return Math.abs(sentence.length - IDEAL_LENGTH);
+    };
+
     const hebrewSentences = splitHebrewSentences(fullHebrew);
     const englishSentences = splitEnglishSentences(fullEnglish);
-
-    let chosenHebrew = fullHebrew;
-    let chosenHebrewIndex = 0;
 
     const exactSentenceMatches = [];
     const looseSentenceMatches = [];
@@ -992,50 +1019,57 @@ function buildExcerptFromMatch(heArray, enArray, matchIndex, exactMatchRegex, no
         }
     });
 
-    const MIN_LENGTH = 20;
-    const MAX_LENGTH = 200;
-    const IDEAL_LENGTH = 80;
+    const MIN_HEBREW_LENGTH = 25;
+    const MAX_HEBREW_LENGTH = 140;
+    const MIN_HEBREW_WORDS = 4;
 
-    if (exactSentenceMatches.length > 0) {
-        const filtered = exactSentenceMatches.filter(s =>
-            s.sentence.length >= MIN_LENGTH && s.sentence.length <= MAX_LENGTH
+    const chooseBestFromPool = (matches) => {
+        if (!matches.length) return null;
+
+        const filtered = matches.filter(m =>
+            m.sentence.length >= MIN_HEBREW_LENGTH &&
+            m.sentence.length <= MAX_HEBREW_LENGTH &&
+            countWords(m.sentence) >= MIN_HEBREW_WORDS
         );
 
-        const pool = filtered.length ? filtered : exactSentenceMatches;
+        const pool = filtered.length ? filtered : matches.slice();
 
-        pool.sort((a, b) =>
-            Math.abs(a.sentence.length - IDEAL_LENGTH) - Math.abs(b.sentence.length - IDEAL_LENGTH)
-        );
+        pool.sort((a, b) => scoreHebrewCandidate(a.sentence) - scoreHebrewCandidate(b.sentence));
+        return pool[0];
+    };
 
-        chosenHebrew = pool[0].sentence;
-        chosenHebrewIndex = pool[0].index;
-    } else if (looseSentenceMatches.length > 0) {
-        const filtered = looseSentenceMatches.filter(s =>
-            s.sentence.length >= MIN_LENGTH && s.sentence.length <= MAX_LENGTH
-        );
+    const bestExact = chooseBestFromPool(exactSentenceMatches);
+    const bestLoose = chooseBestFromPool(looseSentenceMatches);
 
-        const pool = filtered.length ? filtered : looseSentenceMatches;
+    const chosenMatch = bestExact || bestLoose || { sentence: fullHebrew, index: 0 };
 
-        pool.sort((a, b) =>
-            Math.abs(a.sentence.length - IDEAL_LENGTH) - Math.abs(b.sentence.length - IDEAL_LENGTH)
-        );
-
-        chosenHebrew = pool[0].sentence;
-        chosenHebrewIndex = pool[0].index;
-    }
+    let chosenHebrew = chosenMatch.sentence || fullHebrew;
+    let chosenHebrewIndex = typeof chosenMatch.index === 'number' ? chosenMatch.index : 0;
 
     let chosenEnglish = fullEnglish;
 
     if (englishSentences.length === 1) {
         chosenEnglish = englishSentences[0];
     } else if (englishSentences.length > 1) {
-        if (chosenHebrewIndex < englishSentences.length) {
-            chosenEnglish = englishSentences[chosenHebrewIndex];
-        } else {
-            chosenEnglish = englishSentences.sort((a, b) =>
-                Math.abs(a.length - chosenHebrew.length) - Math.abs(b.length - chosenHebrew.length)
-            )[0];
-        }
+        const englishCandidates = englishSentences.map((sentence, index) => ({
+            sentence,
+            index,
+            weak: isWeakEnglishSentence(sentence),
+            indexDistance: Math.abs(index - chosenHebrewIndex),
+            lengthDistance: Math.abs(sentence.length - chosenHebrew.length)
+        }));
+
+        englishCandidates.sort((a, b) => {
+            if (a.weak !== b.weak) return a.weak ? 1 : -1;
+            if (a.indexDistance !== b.indexDistance) return a.indexDistance - b.indexDistance;
+            return a.lengthDistance - b.lengthDistance;
+        });
+
+        chosenEnglish = englishCandidates[0]?.sentence || fullEnglish;
+    }
+
+    if (isWeakEnglishSentence(chosenEnglish) && fullEnglish && !isWeakEnglishSentence(fullEnglish)) {
+        chosenEnglish = fullEnglish;
     }
 
     return {

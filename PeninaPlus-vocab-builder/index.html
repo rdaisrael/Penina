@@ -657,7 +657,7 @@ STAGING
             hiddenChapterInput.value = selectedPagesList.join(',');
         }
 
-        sourceTypeSelect.dispatchEvent(new Event('change'));
+
 
         function updateMargin(margin) {
             const outputDiv = document.getElementById('page');
@@ -1218,6 +1218,12 @@ function buildExcerptFromMatch(heArray, enArray, matchIndex, exactMatchRegex, no
                 el.innerHTML = html;
             });
         }
+
+
+        window.addEventListener('load', () => {
+    sourceTypeSelect.dispatchEvent(new Event('change'));
+});
+        
     </script>
 </body>
 </html>

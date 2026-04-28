@@ -789,7 +789,7 @@
                         const contextRes = await fetch('/api/translate', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ promptText: `Write a short, natural Modern Hebrew sentence using the word "${cleanHebrew}" (meaning "${item.english}"). Return ONLY the Hebrew sentence.` })
+                            body: JSON.stringify({ promptText: `Write exactly one short, natural Modern Hebrew sentence using the word "${cleanHebrew}" (meaning "${item.english}"). Return ONLY the Hebrew sentence.` })
                         });
                         
                         if (contextRes.ok) {
@@ -836,59 +836,34 @@
                     let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבו]{0,3}[\\u0591-\\u05C7]*)(${phrasePattern})(?=[^\\u05D0-\\u05EA]|$)`, 'gu');
                     let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold;">$3</span>`);
                     
-                    let safeEnglish = item.english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    let displayEnglish = englishContext;
+let displayEnglish = englishContext;
 
-                    if (
-                        (sourceType === 'Tanakh' || sourceType === 'Talmud') &&
-                        englishContext &&
-                        englishContext !== "[Davidson translation unavailable]"
-                    ) {
-                        const wordRegex = new RegExp(`\\b${safeEnglish}\\b`, 'i');
-                        const match = wordRegex.exec(englishContext);
+let englishCandidates = String(item.english || "")
+    .split(/[,;/]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .flatMap(s => {
+        const withoutParens = s.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+        return withoutParens && withoutParens !== s ? [s, withoutParens] : [s];
+    })
+    .filter((v, i, a) => v && a.indexOf(v) === i)
+    .sort((a, b) => b.length - a.length);
 
-                        if (match) {
-                            const matchStart = match.index;
-                            const matchEnd = match.index + match[0].length;
+let highlightedEnglish = displayEnglish;
 
-                            const beforeWindow = 90;
-                            const afterWindow = 110;
+for (const candidate of englishCandidates) {
+    const safeCandidate = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const isSingleWord = !/\s/.test(candidate);
 
-                            let excerptStart = Math.max(0, matchStart - beforeWindow);
-                            let excerptEnd = Math.min(englishContext.length, matchEnd + afterWindow);
+    const regex = isSingleWord
+        ? new RegExp(`\\b${safeCandidate}(?:s|es|ed|ing)?\\b`, 'i')
+        : new RegExp(`\\b${safeCandidate}\\b`, 'i');
 
-                            if (excerptStart > 0) {
-                                const nextSpace = englishContext.indexOf(' ', excerptStart);
-                                if (nextSpace !== -1 && nextSpace < matchStart) {
-                                    excerptStart = nextSpace + 1;
-                                }
-                            }
-
-                            if (excerptEnd < englishContext.length) {
-                                const prevSpace = englishContext.lastIndexOf(' ', excerptEnd);
-                                if (prevSpace !== -1 && prevSpace > matchEnd) {
-                                    excerptEnd = prevSpace;
-                                }
-                            }
-
-                            displayEnglish = englishContext.slice(excerptStart, excerptEnd).trim();
-
-                            if (excerptStart > 0) {
-                                displayEnglish = '... ' + displayEnglish;
-                            }
-                            if (excerptEnd < englishContext.length) {
-                                displayEnglish = displayEnglish + ' ...';
-                            }
-                        } else if (englishContext.length > 220) {
-                            displayEnglish = englishContext.slice(0, 220).trim() + ' ...';
-                        }
-                    }
-
-                    let highlightedEnglish = displayEnglish.replace(
-                        new RegExp(`\\b${safeEnglish}\\b`, 'gi'),
-                        `<span style="font-weight:bold;">$&</span>`
-                    );
-
+    if (regex.test(highlightedEnglish)) {
+        highlightedEnglish = highlightedEnglish.replace(regex, `<span style="font-weight:bold;">$&</span>`);
+        break;
+    }
+}
                     htmlOutput += `
                     <tr>
                         <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
@@ -970,22 +945,79 @@
                 return ref === bookName || ref.startsWith(bookName + ' ');
             }
 
-            function buildExcerptFromMatch(heArray, enArray, matchIndex) {
-                const fullHebrew =
-                    typeof heArray[matchIndex] === 'string'
-                        ? stripHtml(heArray[matchIndex])
-                        : '';
+function buildExcerptFromMatch(heArray, enArray, matchIndex, exactMatchRegex, normalizedTarget) {
+    const fullHebrew =
+        typeof heArray[matchIndex] === 'string'
+            ? stripHtml(heArray[matchIndex])
+            : '';
 
-                const fullEnglish =
-                    typeof enArray[matchIndex] === 'string'
-                        ? stripHtml(enArray[matchIndex])
-                        : '';
+    const fullEnglish =
+        typeof enArray[matchIndex] === 'string'
+            ? stripHtml(enArray[matchIndex])
+            : '';
 
-                return {
-                    he: fullHebrew,
-                    en: fullEnglish
-                };
-            }
+    const splitHebrewSentences = (text) => {
+        return String(text || '')
+            .replace(/\s+/g, ' ')
+            .split(/(?<=[\.\!\?\:\;\u05C3])\s+/u)
+            .map(s => s.trim())
+            .filter(Boolean);
+    };
+
+    const splitEnglishSentences = (text) => {
+        return String(text || '')
+            .replace(/\s+/g, ' ')
+            .split(/(?<=[\.\!\?\:\;])\s+/)
+            .map(s => s.trim())
+            .filter(Boolean);
+    };
+
+    const hebrewSentences = splitHebrewSentences(fullHebrew);
+    const englishSentences = splitEnglishSentences(fullEnglish);
+
+    let chosenHebrew = fullHebrew;
+    let chosenHebrewIndex = 0;
+
+    const exactSentenceMatches = [];
+    const looseSentenceMatches = [];
+
+    hebrewSentences.forEach((sentence, index) => {
+        if (exactMatchRegex.test(sentence)) {
+            exactSentenceMatches.push({ sentence, index });
+        } else if (normalizedTarget && normalizeHebrewForMatch(sentence).includes(normalizedTarget)) {
+            looseSentenceMatches.push({ sentence, index });
+        }
+    });
+
+    if (exactSentenceMatches.length > 0) {
+        exactSentenceMatches.sort((a, b) => a.sentence.length - b.sentence.length);
+        chosenHebrew = exactSentenceMatches[0].sentence;
+        chosenHebrewIndex = exactSentenceMatches[0].index;
+    } else if (looseSentenceMatches.length > 0) {
+        looseSentenceMatches.sort((a, b) => a.sentence.length - b.sentence.length);
+        chosenHebrew = looseSentenceMatches[0].sentence;
+        chosenHebrewIndex = looseSentenceMatches[0].index;
+    }
+
+    let chosenEnglish = fullEnglish;
+
+    if (englishSentences.length === 1) {
+        chosenEnglish = englishSentences[0];
+    } else if (englishSentences.length > 1) {
+        if (chosenHebrewIndex < englishSentences.length) {
+            chosenEnglish = englishSentences[chosenHebrewIndex];
+        } else {
+            chosenEnglish = englishSentences.sort((a, b) =>
+                Math.abs(a.length - chosenHebrew.length) - Math.abs(b.length - chosenHebrew.length)
+            )[0];
+        }
+    }
+
+    return {
+        he: chosenHebrew,
+        en: chosenEnglish
+    };
+}
 
             async function fetchRefAndFindMatch(ref) {
                 try {
@@ -1022,7 +1054,13 @@
 
                     if (matchIndex === -1) return null;
 
-                    const excerpt = buildExcerptFromMatch(heArray, enArray, matchIndex);
+                    const excerpt = buildExcerptFromMatch(
+    heArray,
+    enArray,
+    matchIndex,
+    exactMatchRegex,
+    normalizedTarget
+);
 
                     return {
                         he: excerpt.he,

@@ -962,7 +962,7 @@ function buildExcerptFromMatch(heArray, enArray, matchIndex, exactMatchRegex, no
     const splitHebrewSentences = (text) => {
         return String(text || '')
             .replace(/\s+/g, ' ')
-            .split(/(?<=[\.\!\?\:\;\u05C3])\s+/u)
+            .split(/(?<=[.!?;:\u05C3])\s+/u)
             .map(s => s.trim())
             .filter(Boolean);
     };
@@ -970,7 +970,7 @@ function buildExcerptFromMatch(heArray, enArray, matchIndex, exactMatchRegex, no
     const splitEnglishSentences = (text) => {
         return String(text || '')
             .replace(/\s+/g, ' ')
-            .split(/(?<=[\.\!\?\:\;])\s+/)
+            .split(/(?<=[.!?;:])\s+/)
             .map(s => s.trim())
             .filter(Boolean);
     };

@@ -930,7 +930,7 @@ function updateTalmudModeVisibility() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        promptText: `Expand this Hebrew abbreviation or acronym into its most likely full Hebrew wording: "${value}". Return ONLY the full Hebrew wording, with no explanation and no punctuation around it.`
+                        promptText: `Expand this Hebrew abbreviation or acronym into its most likely full Hebrew wording. If it is an abbreviation, return the full word. If it is an acronym, return the full phrase. Example: גמ׳ -> גמרא, מת׳ -> מתניתין, חז״ל -> חכמינו זכרונם לברכה. Input: "${value}". Return ONLY the expanded Hebrew wording, with no explanation and no punctuation around it.`
                     })
                 });
 
@@ -1053,14 +1053,19 @@ function updateTalmudModeVisibility() {
                 for (let item of vocabList) {
                     let cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '').trim();
                     item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew);
-                    const searchHebrew = item.expandedHebrew ? `${cleanHebrew} / ${item.expandedHebrew}` : cleanHebrew;
+                    const isAbbreviationEntry = isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
+                    const searchHebrew = isAbbreviationEntry ? cleanHebrew : (item.expandedHebrew ? `${cleanHebrew} / ${item.expandedHebrew}` : cleanHebrew);
 
                     let hebrewContext = "";
                     let englishContext = "";
                     let citation = "";
                     let matchedHebrewCandidate = searchHebrew;
 
-                    if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
+                    if (isAbbreviationEntry) {
+                        hebrewContext = item.expandedHebrew;
+                        englishContext = item.english || "[Translation unavailable]";
+                        citation = "Expanded abbreviation / acronym";
+                    } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
                         let searchResult = await performSefariaSearch(searchHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
                         if (searchResult) {
                             hebrewContext = searchResult.he || "";
@@ -1092,7 +1097,8 @@ function updateTalmudModeVisibility() {
                         hebrewContext,
                         englishContext,
                         citation,
-                        matchedHebrewCandidate
+                        matchedHebrewCandidate,
+                        isAbbreviationEntry
                     });
                 }
 
@@ -1101,6 +1107,8 @@ function updateTalmudModeVisibility() {
 
                 for (let i = 0; i < preparedItems.length; i++) {
                     const row = preparedItems[i];
+                    if (row.isAbbreviationEntry) continue;
+
                     if (row.hebrewContext && row.hebrewContext !== "Word not found in context.") {
                         const prompt = sourceType === 'Modern Hebrew'
                             ? `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation.`
@@ -1242,13 +1250,9 @@ for (const candidate of englishCandidates) {
     }
 }
 
-                    const expandedHebrewHtml = item.expandedHebrew
-                        ? `<div style="font-size:0.72em; font-weight:normal; margin-top:4px;">(${item.expandedHebrew})</div>`
-                        : '';
-
                     htmlOutput += `
                     <tr>
-                        <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span>${expandedHebrewHtml}</td>
+                        <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
                         <td class="col-english" contenteditable="true">${item.english}</td>
                         <td class="col-context">
                             <div class="hebrew-text">${highlightedHebrew}</div>

@@ -985,26 +985,72 @@ function updateTalmudModeVisibility() {
 
                 let htmlOutput = "";
 
+                async function callTranslateBatch(prompts) {
+                    const cleanedPrompts = prompts.map(p => String(p || '').trim());
+                    const res = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompts: cleanedPrompts })
+                    });
+
+                    if (!res.ok) {
+                        throw new Error(`Batch translate failed with status ${res.status}`);
+                    }
+
+                    const data = await res.json();
+                    return Array.isArray(data.results) ? data.results : [];
+                }
+
+                function fallbackEnglishContext(sourceTypeValue, existingEnglish, hebrewText) {
+                    if (sourceTypeValue === 'Modern Hebrew') {
+                        return existingEnglish || "[Translation unavailable]";
+                    }
+                    if (existingEnglish) {
+                        return `[Auto-translation unavailable] ${existingEnglish}`;
+                    }
+                    if (hebrewText && hebrewText !== "Word not found in context.") {
+                        return "[Auto-translation unavailable]";
+                    }
+                    return "";
+                }
+
+                const definitionPrompts = [];
+                const definitionIndexesNeedingTranslation = [];
+
+                for (let i = 0; i < vocabList.length; i++) {
+                    const item = vocabList[i];
+                    const cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '').trim();
+
+                    if (!item.english) {
+                        definitionIndexesNeedingTranslation.push(i);
+                        definitionPrompts.push(`Translate this Hebrew vocabulary word to English: ${cleanHebrew}. Return ONLY the English word.`);
+                    }
+                }
+
+                if (definitionPrompts.length > 0) {
+                    try {
+                        const definitionResults = await callTranslateBatch(definitionPrompts);
+                        definitionIndexesNeedingTranslation.forEach((itemIndex, batchIndex) => {
+                            const result = definitionResults[batchIndex];
+                            if (result && result.ok && result.text) {
+                                vocabList[itemIndex].english = String(result.text).replace(/^[,.\s]+|[,.\s]+$/g, "");
+                            } else {
+                                vocabList[itemIndex].english = "[Translation unavailable]";
+                            }
+                        });
+                    } catch (e) {
+                        definitionIndexesNeedingTranslation.forEach((itemIndex) => {
+                            vocabList[itemIndex].english = "[Translation unavailable]";
+                        });
+                    }
+                }
+
+                const preparedItems = [];
+
                 for (let item of vocabList) {
                     let cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '').trim();
                     item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew);
                     const searchHebrew = item.expandedHebrew ? `${cleanHebrew} / ${item.expandedHebrew}` : cleanHebrew;
-                    
-                    if (!item.english) {
-                        const transRes = await fetch('/api/translate', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ promptText: `Translate this Hebrew vocabulary word to English: ${cleanHebrew}. Return ONLY the English word.` })
-                        });
-                        
-                        if (transRes.ok) {
-                            const transData = await transRes.json();
-                            let aiResult = transData.text || "Translation missing";
-                            item.english = aiResult.replace(/^[,.\s]+|[,.\s]+$/g, "");
-                        } else {
-                            item.english = "[Translation Error]";
-                        }
-                    }
 
                     let hebrewContext = "";
                     let englishContext = "";
@@ -1015,11 +1061,10 @@ function updateTalmudModeVisibility() {
                         let searchResult = await performSefariaSearch(searchHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
                         if (searchResult) {
                             hebrewContext = searchResult.he || "";
-                            englishContext = "";
                             matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
                             citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
-                        } else { 
-                            hebrewContext = "Word not found in context."; 
+                        } else {
+                            hebrewContext = "Word not found in context.";
                         }
                     } else {
                         const contextRes = await fetch('/api/translate', {
@@ -1027,7 +1072,7 @@ function updateTalmudModeVisibility() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ promptText: `Write exactly one short, natural Modern Hebrew sentence using the word "${cleanHebrew}" (meaning "${item.english}"). Return ONLY the Hebrew sentence.` })
                         });
-                        
+
                         if (contextRes.ok) {
                             const contextData = await contextRes.json();
                             hebrewContext = contextData.text || "[Context generation failed]";
@@ -1037,24 +1082,60 @@ function updateTalmudModeVisibility() {
                         citation = "Modern Hebrew Context";
                     }
 
-                    if (hebrewContext && hebrewContext !== "Word not found in context.") {
-                        const classicalPrompt = sourceType === 'Modern Hebrew'
-                            ? `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english.toLowerCase()}" as the translation for "${cleanHebrew}". Return ONLY the English translation.`
-                            : `Translate this Hebrew/Aramaic source sentence to natural English: "${hebrewContext}". Use "${item.english}" if it fits naturally, but prioritize the actual meaning of the sentence. Return ONLY the English translation.`;
+                    preparedItems.push({
+                        item,
+                        cleanHebrew,
+                        searchHebrew,
+                        hebrewContext,
+                        englishContext,
+                        citation,
+                        matchedHebrewCandidate
+                    });
+                }
 
-                        const sentTransRes = await fetch('/api/translate', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ promptText: classicalPrompt })
-                        });
-                        
-                        if (sentTransRes.ok) {
-                            const sentTransData = await sentTransRes.json();
-                            englishContext = sentTransData.text || "[Translation missing]";
-                        } else {
-                            englishContext = "[Translation Error]";
-                        }
+                const contextPromptIndexes = [];
+                const contextPrompts = [];
+
+                for (let i = 0; i < preparedItems.length; i++) {
+                    const row = preparedItems[i];
+                    if (row.hebrewContext && row.hebrewContext !== "Word not found in context.") {
+                        const prompt = sourceType === 'Modern Hebrew'
+                            ? `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation.`
+                            : `Translate this Hebrew/Aramaic source sentence to natural English: "${row.hebrewContext}". Use "${row.item.english}" if it fits naturally, but prioritize the actual meaning of the sentence. Return ONLY the English translation.`;
+
+                        contextPromptIndexes.push(i);
+                        contextPrompts.push(prompt);
                     }
+                }
+
+                if (contextPrompts.length > 0) {
+                    try {
+                        const contextResults = await callTranslateBatch(contextPrompts);
+                        contextPromptIndexes.forEach((rowIndex, batchIndex) => {
+                            const result = contextResults[batchIndex];
+                            if (result && result.ok && result.text) {
+                                preparedItems[rowIndex].englishContext = result.text;
+                            } else {
+                                preparedItems[rowIndex].englishContext = fallbackEnglishContext(
+                                    sourceType,
+                                    preparedItems[rowIndex].item.english,
+                                    preparedItems[rowIndex].hebrewContext
+                                );
+                            }
+                        });
+                    } catch (e) {
+                        contextPromptIndexes.forEach((rowIndex) => {
+                            preparedItems[rowIndex].englishContext = fallbackEnglishContext(
+                                sourceType,
+                                preparedItems[rowIndex].item.english,
+                                preparedItems[rowIndex].hebrewContext
+                            );
+                        });
+                    }
+                }
+
+                for (const row of preparedItems) {
+                    const { item, hebrewContext, englishContext, citation, matchedHebrewCandidate } = row;
 
                     function normalizeHebrewForDisplayMatch(text) {
                         return String(text || '')
@@ -1128,7 +1209,7 @@ function updateTalmudModeVisibility() {
                         }
                         break;
                     }
-                    
+
 let displayEnglish = englishContext;
 
 let englishCandidates = String(item.english || "")

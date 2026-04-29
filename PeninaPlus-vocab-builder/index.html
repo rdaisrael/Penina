@@ -350,17 +350,19 @@ STAGING
                                 לפי פרקים
                             </label>
                         </div>
-                        <div id="daf-mode-controls" style="display: flex; gap: 15px; height: 85px;">
+                        <div style="display: flex; gap: 15px; height: 85px;">
                             <select id="book-select" size="3" class="roller" style="flex: 1;"></select>
-                            <select id="num-picker" size="3" class="roller" style="flex: 1;" disabled>
-                                <option value="" disabled selected>#</option>
-                            </select>
-                            <button type="button" id="add-chip-btn" style="flex: 1; font-size: 16px; padding: 10px;" disabled>Add</button>
-                        </div>
-                        <div id="perek-mode-controls" style="display: none;">
-                            <select id="perek-picker" size="3" class="roller" style="width: 100%;" disabled>
-                                <option value="" disabled selected>בחר פרק</option>
-                            </select>
+                            <div id="daf-mode-controls" style="display: flex; gap: 15px; flex: 2;">
+                                <select id="num-picker" size="3" class="roller" style="flex: 1;" disabled>
+                                    <option value="" disabled selected>#</option>
+                                </select>
+                                <button type="button" id="add-chip-btn" style="flex: 1; font-size: 16px; padding: 10px;" disabled>Add</button>
+                            </div>
+                            <div id="perek-mode-controls" style="display: none; flex: 2;">
+                                <select id="perek-picker" size="3" class="roller" style="width: 100%;" disabled>
+                                    <option value="" disabled selected>בחר פרק</option>
+                                </select>
+                            </div>
                         </div>
                         <div id="chip-container" style="border: 1px solid #dcd3c6; border-radius: 5px; background: #fdfdfa; padding: 5px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 45px; width: 100%; box-sizing: border-box;">
                             <span style="color: #9c9284; font-size: 12px; padding: 2px;">Select book first...</span>

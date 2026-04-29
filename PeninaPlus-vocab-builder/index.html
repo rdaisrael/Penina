@@ -350,16 +350,18 @@ STAGING
                                 לפי פרקים
                             </label>
                         </div>
-                        <div style="display: flex; gap: 15px; height: 85px;">
-                            <select id="book-select" size="3" class="roller" style="flex: 1;"></select>
-                            <div id="daf-mode-controls" style="display: flex; gap: 15px; flex: 2;">
+                        <div style="display: flex; gap: 15px; height: 85px; align-items: stretch;">
+                            <div id="book-select-container" style="flex: 1; min-width: 0; display: flex;">
+                                <select id="book-select" size="3" class="roller" style="flex: 1;"></select>
+                            </div>
+                            <div id="daf-mode-controls" style="display: flex; gap: 15px; flex: 2; min-width: 0;">
                                 <select id="num-picker" size="3" class="roller" style="flex: 1;" disabled>
                                     <option value="" disabled selected>#</option>
                                 </select>
                                 <button type="button" id="add-chip-btn" style="flex: 1; font-size: 16px; padding: 10px;" disabled>Add</button>
                             </div>
-                            <div id="perek-mode-controls" style="display: none; flex: 2;">
-                                <select id="perek-picker" size="3" class="roller" style="width: 100%;" disabled>
+                            <div id="perek-mode-controls" style="display: none; flex: 2; min-width: 0;">
+                                <select id="perek-picker" size="3" class="roller" style="flex: 1;" disabled>
                                     <option value="" disabled selected>בחר פרק</option>
                                 </select>
                             </div>
@@ -620,6 +622,7 @@ function updateTalmudModeVisibility() {
     const isTalmud = sourceType === 'Talmud';
 
     talmudModeContainer.style.display = isTalmud ? 'flex' : 'none';
+    bookSelect.style.display = (sourceType === 'Modern Hebrew') ? 'none' : 'block';
 
     if (isTalmud) {
         dafModeControls.style.display = talmudMode === 'daf' ? 'flex' : 'none';

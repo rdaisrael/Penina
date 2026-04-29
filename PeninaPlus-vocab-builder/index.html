@@ -912,6 +912,36 @@ function updateTalmudModeVisibility() {
             document.getElementById('vocab-table').style.fontFamily = e.target.value;
         });
 
+        function isLikelyHebrewAbbreviation(text) {
+            const value = String(text || '').trim();
+            if (!value) return false;
+            return /[״׳"'`]/.test(value);
+        }
+
+        async function expandHebrewAbbreviation(rawHebrew) {
+            const value = String(rawHebrew || '').trim();
+            if (!isLikelyHebrewAbbreviation(value)) return "";
+
+            try {
+                const res = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        promptText: `Expand this Hebrew abbreviation or acronym into its most likely full Hebrew wording: "${value}". Return ONLY the full Hebrew wording, with no explanation and no punctuation around it.`
+                    })
+                });
+
+                if (!res.ok) return "";
+
+                const data = await res.json();
+                return String(data.text || "")
+                    .replace(/^[\s\(\)\[\]"'״׳]+|[\s\(\)\[\]"'״׳]+$/g, '')
+                    .trim();
+            } catch (e) {
+                return "";
+            }
+        }
+
         generateBtn.addEventListener('click', async () => {
             const title = document.getElementById('list-title').value.trim();
             const rawInput = document.getElementById('word-list').value.trim();
@@ -944,7 +974,8 @@ function updateTalmudModeVisibility() {
                     
                     return {
                         hebrew: hebrew,
-                        english: english.length > 0 ? english : null
+                        english: english.length > 0 ? english : null,
+                        expandedHebrew: ""
                     };
                 });
 
@@ -955,7 +986,9 @@ function updateTalmudModeVisibility() {
                 let htmlOutput = "";
 
                 for (let item of vocabList) {
-                    let cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '');
+                    let cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '').trim();
+                    item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew);
+                    const searchHebrew = item.expandedHebrew ? `${cleanHebrew} / ${item.expandedHebrew}` : cleanHebrew;
                     
                     if (!item.english) {
                         const transRes = await fetch('/api/translate', {
@@ -976,14 +1009,14 @@ function updateTalmudModeVisibility() {
                     let hebrewContext = "";
                     let englishContext = "";
                     let citation = "";
-                    let matchedHebrewCandidate = cleanHebrew;
+                    let matchedHebrewCandidate = searchHebrew;
 
                     if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                        let searchResult = await performSefariaSearch(cleanHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
+                        let searchResult = await performSefariaSearch(searchHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
                         if (searchResult) {
                             hebrewContext = searchResult.he || "";
                             englishContext = "";
-                            matchedHebrewCandidate = searchResult.matchedCandidate || cleanHebrew;
+                            matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
                             citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
                         } else { 
                             hebrewContext = "Word not found in context."; 
@@ -1094,9 +1127,14 @@ for (const candidate of englishCandidates) {
         break;
     }
 }
+
+                    const expandedHebrewHtml = item.expandedHebrew
+                        ? `<div style="font-size:0.72em; font-weight:normal; margin-top:4px;">(${item.expandedHebrew})</div>`
+                        : '';
+
                     htmlOutput += `
                     <tr>
-                        <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
+                        <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span>${expandedHebrewHtml}</td>
                         <td class="col-english" contenteditable="true">${item.english}</td>
                         <td class="col-context">
                             <div class="hebrew-text">${highlightedHebrew}</div>
@@ -1147,7 +1185,7 @@ for (const candidate of englishCandidates) {
 
             function splitSearchCandidates(raw) {
                 return String(raw || '')
-                    .split(/\s*\/\s*/)
+                    .split(/\s*(?:\/|-)\s*/)
                     .map(s => normalizeHebrewForMatch(s))
                     .filter(Boolean)
                     .filter((v, i, a) => a.indexOf(v) === i);
@@ -1180,6 +1218,28 @@ for (const candidate of englishCandidates) {
                 return Array.from(results);
             }
 
+            function matchSingleToken(lineToken, candidateToken) {
+                if (!lineToken || !candidateToken) return null;
+
+                if (candidateToken.length <= 3) {
+                    if (lineToken === candidateToken) {
+                        return { strength: 3 };
+                    }
+                    return null;
+                }
+
+                if (lineToken === candidateToken) {
+                    return { strength: 3 };
+                }
+
+                const strippedOptions = stripAllowedPrefixes(lineToken);
+                if (strippedOptions.includes(candidateToken)) {
+                    return { strength: 2 };
+                }
+
+                return null;
+            }
+
             function findCandidateMatchInNormalizedLine(normalizedLine) {
                 const line = normalizeHebrewForMatch(normalizedLine);
                 if (!line) return null;
@@ -1190,26 +1250,49 @@ for (const candidate of englishCandidates) {
                     const candidateTokens = candidate.split(' ').filter(Boolean);
                     if (!candidateTokens.length) continue;
 
-                    for (let i = 0; i <= lineTokens.length - candidateTokens.length; i++) {
-                        const firstTokenOptions = stripAllowedPrefixes(lineTokens[i]);
-                        if (!firstTokenOptions.includes(candidateTokens[0])) continue;
+                    const isPhrase = candidateTokens.length > 1;
 
+                    for (let i = 0; i <= lineTokens.length - candidateTokens.length; i++) {
+                        let totalStrength = 0;
                         let matches = true;
-                        for (let j = 1; j < candidateTokens.length; j++) {
-                            if (lineTokens[i + j] !== candidateTokens[j]) {
-                                matches = false;
-                                break;
+
+                        for (let j = 0; j < candidateTokens.length; j++) {
+                            const lineToken = lineTokens[i + j];
+                            const candidateToken = candidateTokens[j];
+
+                            if (j === 0) {
+                                const firstMatch = matchSingleToken(lineToken, candidateToken);
+                                if (!firstMatch) {
+                                    matches = false;
+                                    break;
+                                }
+                                totalStrength += firstMatch.strength;
+                            } else {
+                                if (lineToken !== candidateToken) {
+                                    matches = false;
+                                    break;
+                                }
+                                totalStrength += 3;
                             }
                         }
 
-                        if (matches) {
+                        if (!matches) continue;
+
+                        if (isPhrase) {
                             return {
                                 candidate,
                                 tokenIndex: i,
                                 tokenLength: candidateTokens.length,
-                                strength: firstTokenOptions[0] === candidateTokens[0] ? 2 : 1
+                                strength: totalStrength + 5
                             };
                         }
+
+                        return {
+                            candidate,
+                            tokenIndex: i,
+                            tokenLength: candidateTokens.length,
+                            strength: totalStrength
+                        };
                     }
                 }
 

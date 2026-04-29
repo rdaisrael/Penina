@@ -976,12 +976,14 @@ function updateTalmudModeVisibility() {
                     let hebrewContext = "";
                     let englishContext = "";
                     let citation = "";
+                    let matchedHebrewCandidate = cleanHebrew;
 
                     if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
                         let searchResult = await performSefariaSearch(cleanHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
                         if (searchResult) {
                             hebrewContext = searchResult.he || "";
-                            englishContext = searchResult.en || "";
+                            englishContext = "";
+                            matchedHebrewCandidate = searchResult.matchedCandidate || cleanHebrew;
                             citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
                         } else { 
                             hebrewContext = "Word not found in context."; 
@@ -1002,15 +1004,15 @@ function updateTalmudModeVisibility() {
                         citation = "Modern Hebrew Context";
                     }
 
-                    if (
-                        sourceType === 'Modern Hebrew' &&
-                        hebrewContext &&
-                        hebrewContext !== "Word not found in context."
-                    ) {
+                    if (hebrewContext && hebrewContext !== "Word not found in context.") {
+                        const classicalPrompt = sourceType === 'Modern Hebrew'
+                            ? `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english.toLowerCase()}" as the translation for "${cleanHebrew}". Return ONLY the English translation.`
+                            : `Translate this Hebrew/Aramaic source sentence to natural English: "${hebrewContext}". Use "${item.english}" if it fits naturally, but prioritize the actual meaning of the sentence. Return ONLY the English translation.`;
+
                         const sentTransRes = await fetch('/api/translate', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ promptText: `Translate this Hebrew sentence to English: "${hebrewContext}". You MUST use the specific word "${item.english.toLowerCase()}" as the translation for "${cleanHebrew}". Return ONLY the English translation.` })
+                            body: JSON.stringify({ promptText: classicalPrompt })
                         });
                         
                         if (sentTransRes.ok) {
@@ -1021,21 +1023,48 @@ function updateTalmudModeVisibility() {
                         }
                     }
 
-                    if (
-                        (sourceType === 'Tanakh' || sourceType === 'Talmud') &&
-                        hebrewContext &&
-                        hebrewContext !== "Word not found in context." &&
-                        !englishContext
-                    ) {
-                        englishContext = "[Davidson translation unavailable]";
+                    function normalizeHebrewForDisplayMatch(text) {
+                        return String(text || '')
+                            .replace(/[\u0591-\u05C7]/g, '')
+                            .replace(/[^\u05D0-\u05EA\s]/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim();
                     }
 
-                    const phrasePattern = cleanHebrew.trim().split(/\s+/).map(word => 
-                        word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
-                    ).join('[\\s\\p{P}]+');
-                    
-                    let hebrewRegex = new RegExp(`(^|[^\\u05D0-\\u05EA])([משהכלבו]{0,3}[\\u0591-\\u05C7]*)(${phrasePattern})(?=[^\\u05D0-\\u05EA]|$)`, 'gu');
-                    let highlightedHebrew = hebrewContext.replace(hebrewRegex, `$1$2<span style="font-weight:bold;">$3</span>`);
+                    function splitHebrewCandidates(raw) {
+                        return String(raw || '')
+                            .split(/\s*\/\s*/)
+                            .map(s => s.trim())
+                            .filter(Boolean);
+                    }
+
+                    function buildSafeHebrewHighlightRegex(candidate) {
+                        const cleaned = String(candidate || '').trim();
+                        if (!cleaned) return null;
+
+                        const phrasePattern = cleaned.split(/\s+/).map(word =>
+                            word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
+                        ).join('[\\s\\p{P}]+');
+
+                        return new RegExp(
+                            `(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה]{1,2}[\\u0591-\\u05C7]*)?)(${phrasePattern})(?=[^\\u05D0-\\u05EA]|$)`,
+                            'gu'
+                        );
+                    }
+
+                    let highlightedHebrew = hebrewContext;
+                    const hebrewCandidatesForHighlight = splitHebrewCandidates(matchedHebrewCandidate)
+                        .sort((a, b) => b.length - a.length);
+
+                    for (const candidate of hebrewCandidatesForHighlight) {
+                        const regex = buildSafeHebrewHighlightRegex(candidate);
+                        if (!regex) continue;
+
+                        if (regex.test(hebrewContext)) {
+                            highlightedHebrew = hebrewContext.replace(regex, `$1$2<span style="font-weight:bold;">$3</span>`);
+                            break;
+                        }
+                    }
                     
 let displayEnglish = englishContext;
 
@@ -1085,7 +1114,7 @@ for (const candidate of englishCandidates) {
 
         // --- SEARCH LOGIC: SELECTED CHAPTER/DAF -> SELECTED BOOK/MASSECHET -> WHOLE CORPUS ---
         async function performSefariaSearch(word, corpus, book, chapter) {
-            const cleanWord = word.replace(/[^\u05D0-\u05EA\s]/g, '');
+            const cleanWord = word.replace(/[\u0591-\u05C7]/g, '').trim();
 
             const getEnglishName = async (b) => {
                 if (!b || b === 'ANY') return null;
@@ -1109,19 +1138,6 @@ for (const candidate of englishCandidates) {
                     .trim();
             };
 
-            const buildStrictRegex = (target) => {
-                const phrasePattern = target.trim().split(/\s+/).map(token =>
-                    token.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
-                ).join('[\\s\\p{P}]+');
-
-                return new RegExp(
-                    `(?:^|[^\\u05D0-\\u05EA])(?:[משהכלבו]{0,3}[\\u0591-\\u05C7]*)?(${phrasePattern})(?=[^\\u05D0-\\u05EA]|$)`,
-                    'u'
-                );
-            };
-
-            const exactMatchRegex = buildStrictRegex(cleanWord);
-            const normalizedTarget = normalizeHebrewForMatch(cleanWord);
             const englishBook = await getEnglishName(book);
             const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
             const corpusFilter = isTalmud ? ['Talmud'] : ['Tanakh'];
@@ -1129,48 +1145,87 @@ for (const candidate of englishCandidates) {
             const talmudMode = isTalmud ? getSelectedTalmudMode() : 'daf';
             const selectedPerekIndex = hiddenPerekInput.value !== '' ? parseInt(hiddenPerekInput.value, 10) : null;
 
-            function buildLooseBoundaryRegex(target) {
-                const normalized = normalizeHebrewForMatch(target);
-                if (!normalized) return null;
-
-                const compactTarget = normalized.replace(/\s+/g, '\\s+');
-
-                return new RegExp(
-                    `(^|[^א-ת])([משהכלבו]{0,3})(${compactTarget})(?=$|[^א-ת])`,
-                    'u'
-                );
+            function splitSearchCandidates(raw) {
+                return String(raw || '')
+                    .split(/\s*\/\s*/)
+                    .map(s => normalizeHebrewForMatch(s))
+                    .filter(Boolean)
+                    .filter((v, i, a) => a.indexOf(v) === i);
             }
 
-            const looseBoundaryRegex = buildLooseBoundaryRegex(cleanWord);
+            const searchCandidates = splitSearchCandidates(cleanWord);
 
             function refStartsWithBook(ref, bookName) {
                 if (!ref || !bookName) return false;
                 return ref === bookName || ref.startsWith(bookName + ' ');
             }
 
-            function buildExcerptFromMatch(heArray, enArray, matchIndex, exactMatchRegex, normalizedTarget) {
+            function stripAllowedPrefixes(token) {
+                const prefixes = ['ו', 'ב', 'ל', 'כ', 'מ', 'ש', 'ה'];
+                const results = new Set([token]);
+
+                const walk = (current, depth) => {
+                    if (depth >= 2 || !current || current.length <= 1) return;
+                    const first = current.charAt(0);
+                    if (prefixes.includes(first)) {
+                        const stripped = current.slice(1);
+                        if (stripped.length > 0 && !results.has(stripped)) {
+                            results.add(stripped);
+                            walk(stripped, depth + 1);
+                        }
+                    }
+                };
+
+                walk(token, 0);
+                return Array.from(results);
+            }
+
+            function findCandidateMatchInNormalizedLine(normalizedLine) {
+                const line = normalizeHebrewForMatch(normalizedLine);
+                if (!line) return null;
+
+                const lineTokens = line.split(' ').filter(Boolean);
+
+                for (const candidate of searchCandidates) {
+                    const candidateTokens = candidate.split(' ').filter(Boolean);
+                    if (!candidateTokens.length) continue;
+
+                    for (let i = 0; i <= lineTokens.length - candidateTokens.length; i++) {
+                        const firstTokenOptions = stripAllowedPrefixes(lineTokens[i]);
+                        if (!firstTokenOptions.includes(candidateTokens[0])) continue;
+
+                        let matches = true;
+                        for (let j = 1; j < candidateTokens.length; j++) {
+                            if (lineTokens[i + j] !== candidateTokens[j]) {
+                                matches = false;
+                                break;
+                            }
+                        }
+
+                        if (matches) {
+                            return {
+                                candidate,
+                                tokenIndex: i,
+                                tokenLength: candidateTokens.length,
+                                strength: firstTokenOptions[0] === candidateTokens[0] ? 2 : 1
+                            };
+                        }
+                    }
+                }
+
+                return null;
+            }
+
+            function buildExcerptFromMatch(heArray, matchIndex, matchedCandidate) {
                 const fullHebrew =
                     typeof heArray[matchIndex] === 'string'
                         ? stripHtml(heArray[matchIndex])
-                        : '';
-
-                const fullEnglish =
-                    typeof enArray[matchIndex] === 'string'
-                        ? stripHtml(enArray[matchIndex])
                         : '';
 
                 const splitHebrewSentences = (text) => {
                     return String(text || '')
                         .replace(/\s+/g, ' ')
                         .split(/(?<=[.!?;:\u05C3])\s+/u)
-                        .map(s => s.trim())
-                        .filter(Boolean);
-                };
-
-                const splitEnglishSentences = (text) => {
-                    return String(text || '')
-                        .replace(/\s+/g, ' ')
-                        .split(/(?<=[.!?;:])\s+/)
                         .map(s => s.trim())
                         .filter(Boolean);
                 };
@@ -1183,98 +1238,53 @@ for (const candidate of englishCandidates) {
                         .length;
                 };
 
-                const isWeakEnglishSentence = (text) => {
-                    const t = String(text || '').trim();
-                    if (!t) return true;
-
-                    const weakPatterns = [
-                        /^GEMARA:?$/i,
-                        /^He said to him:?$/i,
-                        /^The Gemara raises an objection:?$/i,
-                        /^It was asked of them:?$/i
-                    ];
-
-                    if (weakPatterns.some(pattern => pattern.test(t))) return true;
-                    if (t.length < 18) return true;
-
-                    return false;
-                };
-
                 const scoreHebrewCandidate = (sentence) => {
                     const IDEAL_LENGTH = 80;
                     return Math.abs(sentence.length - IDEAL_LENGTH);
                 };
 
                 const hebrewSentences = splitHebrewSentences(fullHebrew);
-                const englishSentences = splitEnglishSentences(fullEnglish);
-
-                const exactSentenceMatches = [];
-                const looseSentenceMatches = [];
+                const sentenceMatches = [];
 
                 hebrewSentences.forEach((sentence, index) => {
-                    if (exactMatchRegex.test(sentence)) {
-                        exactSentenceMatches.push({ sentence, index });
-                    } else if (normalizedTarget && normalizeHebrewForMatch(sentence).includes(normalizedTarget)) {
-                        looseSentenceMatches.push({ sentence, index });
+                    const match = findCandidateMatchInNormalizedLine(sentence);
+                    if (match) {
+                        sentenceMatches.push({
+                            sentence,
+                            index,
+                            candidate: match.candidate,
+                            strength: match.strength
+                        });
                     }
                 });
 
                 const MIN_HEBREW_LENGTH = 25;
-                const MAX_HEBREW_LENGTH = 140;
-                const MIN_HEBREW_WORDS = 4;
+                const MAX_HEBREW_LENGTH = 180;
+                const MIN_HEBREW_WORDS = 3;
 
-                const chooseBestFromPool = (matches) => {
-                    if (!matches.length) return null;
+                const filtered = sentenceMatches.filter(m =>
+                    m.sentence.length >= MIN_HEBREW_LENGTH &&
+                    m.sentence.length <= MAX_HEBREW_LENGTH &&
+                    countWords(m.sentence) >= MIN_HEBREW_WORDS
+                );
 
-                    const filtered = matches.filter(m =>
-                        m.sentence.length >= MIN_HEBREW_LENGTH &&
-                        m.sentence.length <= MAX_HEBREW_LENGTH &&
-                        countWords(m.sentence) >= MIN_HEBREW_WORDS
-                    );
+                const pool = filtered.length ? filtered : sentenceMatches;
 
-                    const pool = filtered.length ? filtered : matches.slice();
-
-                    pool.sort((a, b) => scoreHebrewCandidate(a.sentence) - scoreHebrewCandidate(b.sentence));
-                    return pool[0];
-                };
-
-                const bestExact = chooseBestFromPool(exactSentenceMatches);
-                const bestLoose = chooseBestFromPool(looseSentenceMatches);
-
-                const chosenMatch = bestExact || bestLoose || { sentence: fullHebrew, index: 0 };
-
-                let chosenHebrew = chosenMatch.sentence || fullHebrew;
-                let chosenHebrewIndex = typeof chosenMatch.index === 'number' ? chosenMatch.index : 0;
-
-                let chosenEnglish = fullEnglish;
-
-                if (englishSentences.length === 1) {
-                    chosenEnglish = englishSentences[0];
-                } else if (englishSentences.length > 1) {
-                    const englishCandidates = englishSentences.map((sentence, index) => ({
-                        sentence,
-                        index,
-                        weak: isWeakEnglishSentence(sentence),
-                        indexDistance: Math.abs(index - chosenHebrewIndex),
-                        lengthDistance: Math.abs(sentence.length - chosenHebrew.length)
-                    }));
-
-                    englishCandidates.sort((a, b) => {
-                        if (a.weak !== b.weak) return a.weak ? 1 : -1;
-                        if (a.indexDistance !== b.indexDistance) return a.indexDistance - b.indexDistance;
-                        return a.lengthDistance - b.lengthDistance;
+                if (pool.length) {
+                    pool.sort((a, b) => {
+                        if (a.strength !== b.strength) return b.strength - a.strength;
+                        return scoreHebrewCandidate(a.sentence) - scoreHebrewCandidate(b.sentence);
                     });
 
-                    chosenEnglish = englishCandidates[0]?.sentence || fullEnglish;
-                }
-
-                if (isWeakEnglishSentence(chosenEnglish) && fullEnglish && !isWeakEnglishSentence(fullEnglish)) {
-                    chosenEnglish = fullEnglish;
+                    return {
+                        he: pool[0].sentence,
+                        matchedCandidate: pool[0].candidate || matchedCandidate
+                    };
                 }
 
                 return {
-                    he: chosenHebrew,
-                    en: chosenEnglish
+                    he: fullHebrew,
+                    matchedCandidate
                 };
             }
 
@@ -1292,7 +1302,6 @@ for (const candidate of englishCandidates) {
                         ref: data.ref,
                         heRef: data.heRef,
                         heArray: Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he],
-                        enArray: Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text],
                         dafLabel: dafLabel || ref
                     };
                 } catch (e) {
@@ -1300,51 +1309,50 @@ for (const candidate of englishCandidates) {
                 }
             }
 
-            function findMatchInArrays(heArray, enArray, ref, heRef, sourceRef = ref) {
-                let matchIndex = heArray.findIndex(line =>
-                    typeof line === 'string' && exactMatchRegex.test(stripHtml(line))
-                );
+            function findMatchInArrays(heArray, ref, heRef, sourceRef = ref) {
+                let bestMatch = null;
 
-                let matchStrength = 0;
+                for (let i = 0; i < heArray.length; i++) {
+                    const line = typeof heArray[i] === 'string' ? heArray[i] : '';
+                    if (!line) continue;
 
-                if (matchIndex !== -1) {
-                    matchStrength = 2;
-                } else if (normalizedTarget && looseBoundaryRegex) {
-                    matchIndex = heArray.findIndex(line => {
-                        if (typeof line !== 'string') return false;
-                        const normalizedLine = normalizeHebrewForMatch(line);
-                        return looseBoundaryRegex.test(normalizedLine);
-                    });
+                    const match = findCandidateMatchInNormalizedLine(line);
+                    if (!match) continue;
 
-                    if (matchIndex !== -1) {
-                        matchStrength = 1;
+                    if (
+                        !bestMatch ||
+                        match.strength > bestMatch.matchStrength
+                    ) {
+                        bestMatch = {
+                            matchIndex: i,
+                            matchStrength: match.strength,
+                            matchedCandidate: match.candidate
+                        };
                     }
                 }
 
-                if (matchIndex === -1) return null;
+                if (!bestMatch) return null;
 
                 const excerpt = buildExcerptFromMatch(
                     heArray,
-                    enArray,
-                    matchIndex,
-                    exactMatchRegex,
-                    normalizedTarget
+                    bestMatch.matchIndex,
+                    bestMatch.matchedCandidate
                 );
 
                 return {
                     he: excerpt.he,
-                    en: excerpt.en,
                     ref,
                     heRef,
-                    matchStrength,
-                    sourceRef
+                    matchStrength: bestMatch.matchStrength,
+                    sourceRef,
+                    matchedCandidate: excerpt.matchedCandidate || bestMatch.matchedCandidate
                 };
             }
 
             async function fetchRefAndFindMatch(ref, dafLabel = null) {
                 const data = await fetchRefData(ref, dafLabel);
                 if (!data) return null;
-                return findMatchInArrays(data.heArray, data.enArray, data.ref, data.heRef, ref);
+                return findMatchInArrays(data.heArray, data.ref, data.heRef, dafLabel || ref);
             }
 
             function scoreMatch(found, preferredRef = null) {
@@ -1388,7 +1396,7 @@ for (const candidate of englishCandidates) {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            query: cleanWord,
+                            query: searchCandidates.join(' OR '),
                             type: 'text',
                             field: 'naive_lemmatizer',
                             filters: filters
@@ -1433,11 +1441,10 @@ for (const candidate of englishCandidates) {
                 dataList.forEach((data, dataIndex) => {
                     if (!data) return;
                     const dafLabel = dafOptions[dataIndex];
-                    const segmentCount = Math.max(data.heArray.length, data.enArray.length);
+                    const segmentCount = data.heArray.length;
 
                     for (let i = 0; i < segmentCount; i++) {
                         const he = typeof data.heArray[i] === 'string' ? data.heArray[i] : '';
-                        const en = typeof data.enArray[i] === 'string' ? data.enArray[i] : '';
 
                         if (!perakim[currentPerek]) {
                             perakim[currentPerek] = [];
@@ -1445,7 +1452,6 @@ for (const candidate of englishCandidates) {
 
                         perakim[currentPerek].push({
                             he,
-                            en,
                             ref: data.ref,
                             heRef: data.heRef,
                             dafLabel
@@ -1472,46 +1478,39 @@ for (const candidate of englishCandidates) {
             function findMatchInSegments(segments) {
                 if (!segments || !segments.length) return null;
 
-                const heArray = segments.map(segment => segment.he);
-                const enArray = segments.map(segment => segment.en);
+                let bestMatch = null;
 
-                let matchIndex = heArray.findIndex(line =>
-                    typeof line === 'string' && exactMatchRegex.test(stripHtml(line))
-                );
+                for (let i = 0; i < segments.length; i++) {
+                    const line = typeof segments[i].he === 'string' ? segments[i].he : '';
+                    if (!line) continue;
 
-                let matchStrength = 0;
+                    const match = findCandidateMatchInNormalizedLine(line);
+                    if (!match) continue;
 
-                if (matchIndex !== -1) {
-                    matchStrength = 2;
-                } else if (normalizedTarget && looseBoundaryRegex) {
-                    matchIndex = heArray.findIndex(line => {
-                        if (typeof line !== 'string') return false;
-                        const normalizedLine = normalizeHebrewForMatch(line);
-                        return looseBoundaryRegex.test(normalizedLine);
-                    });
-
-                    if (matchIndex !== -1) {
-                        matchStrength = 1;
+                    if (!bestMatch || match.strength > bestMatch.matchStrength) {
+                        bestMatch = {
+                            matchIndex: i,
+                            matchStrength: match.strength,
+                            matchedCandidate: match.candidate
+                        };
                     }
                 }
 
-                if (matchIndex === -1) return null;
+                if (!bestMatch) return null;
 
                 const excerpt = buildExcerptFromMatch(
-                    heArray,
-                    enArray,
-                    matchIndex,
-                    exactMatchRegex,
-                    normalizedTarget
+                    segments.map(segment => segment.he),
+                    bestMatch.matchIndex,
+                    bestMatch.matchedCandidate
                 );
 
                 return {
                     he: excerpt.he,
-                    en: excerpt.en,
-                    ref: segments[matchIndex].ref,
-                    heRef: segments[matchIndex].heRef,
-                    matchStrength,
-                    sourceRef: segments[matchIndex].dafLabel
+                    ref: segments[bestMatch.matchIndex].ref,
+                    heRef: segments[bestMatch.matchIndex].heRef,
+                    matchStrength: bestMatch.matchStrength,
+                    sourceRef: segments[bestMatch.matchIndex].dafLabel,
+                    matchedCandidate: excerpt.matchedCandidate || bestMatch.matchedCandidate
                 };
             }
 
@@ -1530,9 +1529,9 @@ for (const candidate of englishCandidates) {
                     if (bestDafMatch) {
                         return {
                             he: bestDafMatch.he,
-                            en: bestDafMatch.en,
                             ref: bestDafMatch.ref,
-                            heRef: bestDafMatch.heRef
+                            heRef: bestDafMatch.heRef,
+                            matchedCandidate: bestDafMatch.matchedCandidate
                         };
                     }
 
@@ -1550,9 +1549,9 @@ for (const candidate of englishCandidates) {
                         if (bestPerekMatch) {
                             return {
                                 he: bestPerekMatch.he,
-                                en: bestPerekMatch.en,
                                 ref: bestPerekMatch.ref,
-                                heRef: bestPerekMatch.heRef
+                                heRef: bestPerekMatch.heRef,
+                                matchedCandidate: bestPerekMatch.matchedCandidate
                             };
                         }
                     }
@@ -1565,9 +1564,9 @@ for (const candidate of englishCandidates) {
                         if (perekMatch) {
                             return {
                                 he: perekMatch.he,
-                                en: perekMatch.en,
                                 ref: perekMatch.ref,
-                                heRef: perekMatch.heRef
+                                heRef: perekMatch.heRef,
+                                matchedCandidate: perekMatch.matchedCandidate
                             };
                         }
                     }
@@ -1588,9 +1587,9 @@ for (const candidate of englishCandidates) {
                 if (bestMatch) {
                     return {
                         he: bestMatch.he,
-                        en: bestMatch.en,
                         ref: bestMatch.ref,
-                        heRef: bestMatch.heRef
+                        heRef: bestMatch.heRef,
+                        matchedCandidate: bestMatch.matchedCandidate
                     };
                 }
             }
@@ -1600,9 +1599,9 @@ for (const candidate of englishCandidates) {
                 if (foundInBook) {
                     return {
                         he: foundInBook.he,
-                        en: foundInBook.en,
                         ref: foundInBook.ref,
-                        heRef: foundInBook.heRef
+                        heRef: foundInBook.heRef,
+                        matchedCandidate: foundInBook.matchedCandidate
                     };
                 }
             }
@@ -1611,9 +1610,9 @@ for (const candidate of englishCandidates) {
             if (foundInCorpus) {
                 return {
                     he: foundInCorpus.he,
-                    en: foundInCorpus.en,
                     ref: foundInCorpus.ref,
-                    heRef: foundInCorpus.heRef
+                    heRef: foundInCorpus.heRef,
+                    matchedCandidate: foundInCorpus.matchedCandidate
                 };
             }
 

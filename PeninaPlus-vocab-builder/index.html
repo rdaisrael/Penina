@@ -294,7 +294,7 @@ STAGING
 <body class="mode-full">
 
     <div class="bg-pattern"></div>
-<a href="/"" class="home-btn" aria-label="Return to Home">
+<a href="/" class="home-btn" aria-label="Return to Home">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
         </svg>
@@ -478,12 +478,83 @@ STAGING
         const docTitle = document.getElementById('doc-title');
         const searchStatusNotice = document.getElementById('search-status-notice');
 
-        const bookSelect = document.getElementById('book-select');
-        const numPicker = document.getElementById('num-picker');
-        const addChipBtn = document.getElementById('add-chip-btn');
-        const chipContainer = document.getElementById('chip-container');
-        const hiddenChapterInput = document.getElementById('hidden-chapter-input');
-        let selectedPagesList = [];
+const bookSelect = document.getElementById('book-select');
+const numPicker = document.getElementById('num-picker');
+const addChipBtn = document.getElementById('add-chip-btn');
+const chipContainer = document.getElementById('chip-container');
+const hiddenChapterInput = document.getElementById('hidden-chapter-input');
+let selectedPagesList = [];
+
+const talmudDafRanges = {
+    "ברכות": { start: "2a", end: "64a" },
+    "שבת": { start: "2a", end: "157b" },
+    "עירובין": { start: "2a", end: "105a" },
+    "פסחים": { start: "2a", end: "121b" },
+    "ראש השנה": { start: "2a", end: "35b" },
+    "יומא": { start: "2a", end: "88a" },
+    "סוכה": { start: "2a", end: "56b" },
+    "ביצה": { start: "2a", end: "40b" },
+    "תענית": { start: "2a", end: "31a" },
+    "מגילה": { start: "2a", end: "32a" },
+    "מועד קטן": { start: "2a", end: "29a" },
+    "חגיגה": { start: "2a", end: "27a" },
+    "יבמות": { start: "2a", end: "122b" },
+    "כתובות": { start: "2a", end: "112b" },
+    "נדרים": { start: "2a", end: "91b" },
+    "נזיר": { start: "2a", end: "66b" },
+    "סוטה": { start: "2a", end: "49b" },
+    "גיטין": { start: "2a", end: "90b" },
+    "קידושין": { start: "2a", end: "82b" },
+    "בבא קמא": { start: "2a", end: "119b" },
+    "בבא מציעא": { start: "2a", end: "119a" },
+    "בבא בתרא": { start: "2a", end: "176a" },
+    "סנהדרין": { start: "2a", end: "113b" },
+    "מכות": { start: "2a", end: "24b" },
+    "שבועות": { start: "2a", end: "49b" },
+    "עבודה זרה": { start: "2a", end: "76b" },
+    "הוריות": { start: "2a", end: "14a" },
+    "זבחים": { start: "2a", end: "120b" },
+    "מנחות": { start: "2a", end: "110a" },
+    "חולין": { start: "2a", end: "142a" },
+    "בכורות": { start: "2a", end: "61a" },
+    "ערכין": { start: "2a", end: "34a" },
+    "תמורה": { start: "2a", end: "34a" },
+    "כריתות": { start: "2a", end: "28b" },
+    "מעילה": { start: "2a", end: "22a" },
+    "תמיד": { start: "25b", end: "33b" },
+    "נידה": { start: "2a", end: "73a" }
+};
+
+function generateDafOptions(startDaf, endDaf) {
+    const parseDaf = (daf) => {
+        const match = String(daf).trim().match(/^(\d+)([ab])$/i);
+        if (!match) return null;
+        return {
+            page: parseInt(match[1], 10),
+            side: match[2].toLowerCase()
+        };
+    };
+
+    const start = parseDaf(startDaf);
+    const end = parseDaf(endDaf);
+
+    if (!start || !end) return [];
+
+    const options = [];
+
+    for (let page = start.page; page <= end.page; page++) {
+        const sides = ['a', 'b'];
+
+        for (const side of sides) {
+            if (page === start.page && side === 'a' && start.side === 'b') continue;
+            if (page === end.page && side === 'b' && end.side === 'a') continue;
+
+            options.push(`${page}${side}`);
+        }
+    }
+
+    return options;
+}
 
         const sourceData = {
             Tanakh: {
@@ -595,17 +666,22 @@ STAGING
                     numPicker.appendChild(option);
                 }
             } else if (sourceType === 'Talmud') {
-                for (let i = 2; i <= 176; i++) {
-                    const optionA = document.createElement('option');
-                    optionA.value = i + "a";
-                    optionA.textContent = i + "a";
-                    numPicker.appendChild(optionA);
-                    
-                    const optionB = document.createElement('option');
-                    optionB.value = i + "b";
-                    optionB.textContent = i + "b";
-                    numPicker.appendChild(optionB);
+                const range = talmudDafRanges[selectedBook];
+
+                if (!range) {
+                    numPicker.disabled = true;
+                    addChipBtn.disabled = true;
+                    return;
                 }
+
+                const dafOptions = generateDafOptions(range.start, range.end);
+
+                dafOptions.forEach(daf => {
+                    const option = document.createElement('option');
+                    option.value = daf;
+                    option.textContent = daf;
+                    numPicker.appendChild(option);
+                });
             }
         }
 

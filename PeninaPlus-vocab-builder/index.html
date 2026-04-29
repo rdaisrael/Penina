@@ -1066,22 +1066,45 @@ function updateTalmudModeVisibility() {
 
                     function splitHebrewCandidates(raw) {
                         return String(raw || '')
-                            .split(/\s*\/\s*/)
+                            .split(/\s*(?:\/|-)\s*/)
                             .map(s => s.trim())
                             .filter(Boolean);
                     }
 
-                    function buildSafeHebrewHighlightRegex(candidate) {
+                    function buildStrictHighlightRegex(candidate) {
                         const cleaned = String(candidate || '').trim();
                         if (!cleaned) return null;
 
-                        const phrasePattern = cleaned.split(/\s+/).map(word =>
-                            word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*'
-                        ).join('[\\s\\p{P}]+');
+                        const words = cleaned.split(/\s+/).filter(Boolean);
+                        if (!words.length) return null;
+
+                        const buildWordPattern = (word) =>
+                            word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
+
+                        const firstWordPattern = buildWordPattern(words[0]);
+
+                        if (words.length === 1) {
+                            if (words[0].replace(/[\u0591-\u05C7]/g, '').length <= 3) {
+                                return new RegExp(
+                                    `(^|[^\\u05D0-\\u05EA])(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`,
+                                    'u'
+                                );
+                            }
+
+                            return new RegExp(
+                                `(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`,
+                                'u'
+                            );
+                        }
+
+                        const remainingPatterns = words
+                            .slice(1)
+                            .map(buildWordPattern)
+                            .join('[\\s\\p{P}]+');
 
                         return new RegExp(
-                            `(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה]{1,2}[\\u0591-\\u05C7]*)?)(${phrasePattern})(?=[^\\u05D0-\\u05EA]|$)`,
-                            'gu'
+                            `(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern}(?:[\\s\\p{P}]+${remainingPatterns}))(?=[^\\u05D0-\\u05EA]|$)`,
+                            'u'
                         );
                     }
 
@@ -1090,13 +1113,20 @@ function updateTalmudModeVisibility() {
                         .sort((a, b) => b.length - a.length);
 
                     for (const candidate of hebrewCandidatesForHighlight) {
-                        const regex = buildSafeHebrewHighlightRegex(candidate);
+                        const regex = buildStrictHighlightRegex(candidate);
                         if (!regex) continue;
 
-                        if (regex.test(hebrewContext)) {
+                        const match = hebrewContext.match(regex);
+                        if (!match) continue;
+
+                        if (match.length >= 4) {
                             highlightedHebrew = hebrewContext.replace(regex, `$1$2<span style="font-weight:bold;">$3</span>`);
-                            break;
+                        } else if (match.length >= 3) {
+                            highlightedHebrew = hebrewContext.replace(regex, `$1<span style="font-weight:bold;">$2</span>`);
+                        } else {
+                            highlightedHebrew = hebrewContext.replace(regex, `<span style="font-weight:bold;">$&</span>`);
                         }
+                        break;
                     }
                     
 let displayEnglish = englishContext;

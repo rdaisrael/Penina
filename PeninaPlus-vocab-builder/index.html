@@ -624,7 +624,7 @@ function updateTalmudModeVisibility() {
     if (isTalmud) {
         dafModeControls.style.display = talmudMode === 'daf' ? 'flex' : 'none';
         chipContainer.style.display = talmudMode === 'daf' ? 'flex' : 'none';
-        perekModeControls.style.display = talmudMode === 'perek' ? 'block' : 'none';
+        perekModeControls.style.display = talmudMode === 'perek' ? 'flex' : 'none';
 
         if (talmudMode === 'perek') {
             hiddenChapterInput.value = 'ANY';

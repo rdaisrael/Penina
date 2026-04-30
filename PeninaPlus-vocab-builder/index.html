@@ -1110,7 +1110,7 @@ function updateTalmudModeVisibility() {
 
                     if (isAbbreviationEntry) {
                         row.hebrewContext = item.expandedHebrew;
-                        row.englishContext = item.english || "[Translation unavailable]";
+                        row.englishContext = "";
                         row.citation = "Expanded abbreviation / acronym";
                         row.matchedHebrewCandidate = semanticHebrew;
                     } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {

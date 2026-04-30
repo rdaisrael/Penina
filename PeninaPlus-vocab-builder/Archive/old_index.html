@@ -1053,90 +1053,89 @@ function updateTalmudModeVisibility() {
                     return "";
                 }
 
-                const preparedItems = [];
-
-                for (let item of vocabList) {
-                    let cleanHebrew = item.hebrew.replace(/[֑-ׇ]/g, '').trim();
-                    item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew, sourceType);
-                    const isAbbreviationEntry = isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
-                    const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
-                    const searchHebrew = semanticHebrew;
-
-                    preparedItems.push({
-                        item,
-                        cleanHebrew,
-                        semanticHebrew,
-                        searchHebrew,
-                        hebrewContext: "",
-                        englishContext: "",
-                        citation: "",
-                        matchedHebrewCandidate: searchHebrew,
-                        isAbbreviationEntry
-                    });
-                }
-
                 const definitionPrompts = [];
                 const definitionIndexesNeedingTranslation = [];
 
-                for (let i = 0; i < preparedItems.length; i++) {
-                    const row = preparedItems[i];
+                for (let i = 0; i < vocabList.length; i++) {
+                    const item = vocabList[i];
+                    const cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '').trim();
 
-                    if (!row.item.english) {
+                    if (!item.english) {
                         definitionIndexesNeedingTranslation.push(i);
-                        definitionPrompts.push(`Translate this Hebrew vocabulary item into concise English according to the ${sourceType} category: "${row.semanticHebrew}". Return ONLY the English translation.`);
+                        definitionPrompts.push(`Translate this Hebrew vocabulary word to English: ${cleanHebrew}. Return ONLY the English word.`);
                     }
                 }
 
                 if (definitionPrompts.length > 0) {
                     try {
                         const definitionResults = await callTranslateBatch(definitionPrompts);
-                        definitionIndexesNeedingTranslation.forEach((rowIndex, batchIndex) => {
+                        definitionIndexesNeedingTranslation.forEach((itemIndex, batchIndex) => {
                             const result = definitionResults[batchIndex];
                             if (result && result.ok && result.text) {
-                                preparedItems[rowIndex].item.english = String(result.text).replace(/^[,.\s]+|[,.\s]+$/g, "");
+                                vocabList[itemIndex].english = String(result.text).replace(/^[,.\s]+|[,.\s]+$/g, "");
                             } else {
-                                preparedItems[rowIndex].item.english = "[Translation unavailable]";
+                                vocabList[itemIndex].english = "[Translation unavailable]";
                             }
                         });
                     } catch (e) {
-                        definitionIndexesNeedingTranslation.forEach((rowIndex) => {
-                            preparedItems[rowIndex].item.english = "[Translation unavailable]";
+                        definitionIndexesNeedingTranslation.forEach((itemIndex) => {
+                            vocabList[itemIndex].english = "[Translation unavailable]";
                         });
                     }
                 }
 
-                for (const row of preparedItems) {
-                    const { item, semanticHebrew, searchHebrew, isAbbreviationEntry } = row;
+                const preparedItems = [];
+
+                for (let item of vocabList) {
+                    let cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '').trim();
+                    item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew, sourceType);
+                    const isAbbreviationEntry = isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
+                    const searchHebrew = isAbbreviationEntry ? cleanHebrew : (item.expandedHebrew ? `${cleanHebrew} / ${item.expandedHebrew}` : cleanHebrew);
+
+                    let hebrewContext = "";
+                    let englishContext = "";
+                    let citation = "";
+                    let matchedHebrewCandidate = searchHebrew;
 
                     if (isAbbreviationEntry) {
-                        row.hebrewContext = item.expandedHebrew;
-                        row.englishContext = item.english || "[Translation unavailable]";
-                        row.citation = "Expanded abbreviation / acronym";
-                        row.matchedHebrewCandidate = semanticHebrew;
+                        hebrewContext = item.expandedHebrew;
+                        englishContext = item.english || "[Translation unavailable]";
+                        citation = "Expanded abbreviation / acronym";
                     } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
                         let searchResult = await performSefariaSearch(searchHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
                         if (searchResult) {
-                            row.hebrewContext = searchResult.he || "";
-                            row.matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
-                            row.citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
+                            hebrewContext = searchResult.he || "";
+                            matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
+                            citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
                         } else {
-                            row.hebrewContext = "Word not found in context.";
+                            hebrewContext = "Word not found in context.";
                         }
                     } else {
                         const contextRes = await fetch('/api/translate', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ promptText: `Write exactly one short, natural Modern Hebrew sentence using the expression "${semanticHebrew}" (meaning "${item.english}"). Return ONLY the Hebrew sentence.` })
+                            body: JSON.stringify({ promptText: `Write exactly one short, natural Modern Hebrew sentence using the word "${cleanHebrew}" (meaning "${item.english}"). Return ONLY the Hebrew sentence.` })
                         });
 
                         if (contextRes.ok) {
                             const contextData = await contextRes.json();
-                            row.hebrewContext = contextData.text || "[Context generation failed]";
+                            hebrewContext = contextData.text || "[Context generation failed]";
                         } else {
-                            row.hebrewContext = "Word not found in context.";
+                            hebrewContext = "Word not found in context.";
                         }
-                        row.citation = "Modern Hebrew Context";
+                        citation = "Modern Hebrew Context";
                     }
+
+                    preparedItems.push({
+                        item,
+                        cleanHebrew,
+                        searchHebrew,
+                        hebrewContext,
+                        englishContext,
+                        citation,
+                        matchedHebrewCandidate,
+                        isAbbreviationEntry
+                    });
                 }
 
                 const contextPromptIndexes = [];

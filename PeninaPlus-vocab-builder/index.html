@@ -943,16 +943,30 @@ function updateTalmudModeVisibility() {
             return /[״׳"'`]/.test(value);
         }
 
-        async function expandHebrewAbbreviation(rawHebrew) {
+        async function expandHebrewAbbreviation(rawHebrew, sourceType) {
             const value = String(rawHebrew || '').trim();
             if (!isLikelyHebrewAbbreviation(value)) return "";
+
+            let domainLabel = "general Hebrew";
+            let examples = `Example: גמ׳ -> גמרא, מת׳ -> מתניתין, חז״ל -> חכמינו זכרונם לברכה.`;
+
+            if (sourceType === 'Talmud') {
+                domainLabel = "Talmud Bavli / rabbinic Hebrew and Aramaic";
+                examples = `Examples in Talmud Bavli: ב״ה -> בית הלל, גמ׳ -> גמרא, מת׳ -> מתניתין, ת״ק -> תנא קמא.`;
+            } else if (sourceType === 'Tanakh') {
+                domainLabel = "Tanakh / Biblical Hebrew";
+                examples = `Examples in Tanakh-style usage: ה׳ -> יהוה, ביהמ״ק -> בית המקדש.`;
+            } else if (sourceType === 'Modern Hebrew') {
+                domainLabel = "modern Hebrew";
+                examples = `Examples in modern Hebrew: ב״ה -> בעזרת השם, רה״מ -> ראש הממשלה.`;
+            }
 
             try {
                 const res = await fetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        promptText: `Expand this Hebrew abbreviation or acronym into its most likely full Hebrew wording. If it is an abbreviation, return the full word. If it is an acronym, return the full phrase. Example: גמ׳ -> גמרא, מת׳ -> מתניתין, חז״ל -> חכמינו זכרונם לברכה. Input: "${value}". Return ONLY the expanded Hebrew wording, with no explanation and no punctuation around it.`
+                        promptText: `Expand this Hebrew abbreviation or acronym into its most likely full Hebrew wording in ${domainLabel}. Prefer the most common meaning in that source domain. If it is an abbreviation, return the full word. If it is an acronym, return the full phrase. ${examples} Input: "${value}". Return ONLY the expanded Hebrew wording, with no explanation and no punctuation around it.`
                     })
                 });
 
@@ -1074,7 +1088,7 @@ function updateTalmudModeVisibility() {
 
                 for (let item of vocabList) {
                     let cleanHebrew = item.hebrew.replace(/[\u0591-\u05C7]/g, '').trim();
-                    item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew);
+                    item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew, sourceType);
                     const isAbbreviationEntry = isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
                     const searchHebrew = isAbbreviationEntry ? cleanHebrew : (item.expandedHebrew ? `${cleanHebrew} / ${item.expandedHebrew}` : cleanHebrew);
 

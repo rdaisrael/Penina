@@ -102,7 +102,23 @@
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        .card.silver-theme {
+        
+        .beta-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #ffcc00;
+            color: #333;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            z-index: 2;
+        }
+
+.card.silver-theme {
             border-color: var(--silver-border);
             background: linear-gradient(135deg, #ffffff 0%, #f4f4f4 100%);
         }
@@ -211,6 +227,7 @@
         
         <!-- Penina Hebrew Reader (Silver Theme) -->
         <div class="card silver-theme">
+            <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
                 <img src="/penina-logo.png" alt="Penina Silver Logo">
             </div>
@@ -222,6 +239,7 @@
 
         <!-- PeninaPlus Hebrew Reader (Gold Theme) -->
         <div class="card">
+            <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
                 <img src="/peninaplus-logo.png" alt="PeninaPlus Gold Logo">
             </div>
@@ -232,6 +250,7 @@
 
         <!-- PeninaPlus Vocabulary Builder (Gold Theme) -->
         <div class="card">
+            <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
                 <img src="/peninaplus-logo.png" alt="PeninaPlus Gold Logo">
             </div>

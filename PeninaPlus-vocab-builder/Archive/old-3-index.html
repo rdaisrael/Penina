@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
-    <link rel="icon" type="image/png" href="./Penina-favicon.png?v=4">
-    <link rel="shortcut icon" href="./Penina-favicon.png?v=4">
+    <link rel="icon" type="image/png" href="Penina-favicon.png?v=3">
     <style>
         /* --- EMBEDDED DYSLEXIC FONT --- */
         @font-face {
@@ -291,49 +290,12 @@
         [dir="ltr"], .english-text, .col-english, #vocab-table th {
             font-family: var(--english-font) !important;
         }
-    
-
-        /* --- AUDITED TYPOGRAPHY + PRINT FOOTER OVERRIDES --- */
-        :root {
-            --english-font: Arial, sans-serif;
-            --hebrew-font: Arial, sans-serif;
-            --global-letter-spacing: 0px;
-            --base-font-size: 14pt;
-            --title-font-size: 18pt;
-        }
-        h1.doc-title { font-size: var(--title-font-size, 18pt); }
-        table { font-size: var(--base-font-size, 14pt); }
-        th, td, .col-hebrew, .col-english, .col-context, .english-text, .citation {
-            font-size: var(--base-font-size, 14pt) !important;
-            letter-spacing: var(--global-letter-spacing, 0px) !important;
-        }
-        .col-hebrew { width: 22% !important; }
-        .col-english { width: 22% !important; }
-        .col-context { width: 56% !important; }
-        #search-status-notice { text-align: center; }
-        #page, #page * { letter-spacing: var(--global-letter-spacing, 0px) !important; }
-        .title-hebrew, .lang-hebrew, .hebrew-word, .hebrew-text, .citation {
-            font-family: var(--hebrew-font, Arial, sans-serif) !important;
-            direction: rtl;
-            unicode-bidi: plaintext;
-        }
-        .title-english, .lang-english, .col-english, .english-text, #vocab-table th, [dir="ltr"] {
-            font-family: var(--english-font, Arial, sans-serif) !important;
-        }
-        .penina-footer {
-            margin-top: 24px;
-            text-align: center;
-            font-size: calc(var(--base-font-size, 14pt) - 2pt);
-            color: #6a6258;
-            letter-spacing: var(--global-letter-spacing, 0px);
-        }
-
     </style>
 </head>
 <body class="mode-full">
 
     <div class="bg-pattern"></div>
-<a href="./index.html" class="home-btn" aria-label="Return to Home">
+<a href="/" class="home-btn" aria-label="Return to Home">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
         </svg>
@@ -374,7 +336,6 @@
                         <option value="Tanakh">תנ''ך</option>
                         <option value="Talmud">תלמוד בבלי</option>
                         <option value="Modern Hebrew">עברית מודרנית</option>
-                        <option value="No Context Quotes">No Context Quotes</option>
                     </select>
                 </div>
                 <div style="flex: 1; display: none;" id="specific-source-container">
@@ -521,78 +482,25 @@
     </div>
 
     <script>
-        function stylizeTitleText(text) {
-            return String(text || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/([֐-׿יִ-ﭏ][֐-׿יִ-ﭏ\s'"׳״-]*)/g, '<span class="title-hebrew">$1</span>')
-                .replace(/([^<]+)/g, function(part) {
-                    return part.includes('title-hebrew') ? part : '<span class="title-english">' + part + '</span>';
-                })
-                .replace(/<span class="title-english"><\/span>/g, '');
-        }
-
-        function applyTitleText(rawTitle) {
-            const titleEl = document.getElementById('doc-title');
-            if (!titleEl) return;
-            titleEl.innerHTML = stylizeTitleText(rawTitle);
-        }
-
-        function stylizeMixedText(text) {
-            const escaped = String(text || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-            return escaped
-                .replace(/([֐-׿יִ-ﭏ][֐-׿יִ-ﭏ\s'"׳״-]*)/g, '<span class="lang-hebrew">$1</span>')
-                .replace(/([^<]+)/g, function(part) {
-                    return part.includes('lang-hebrew') ? part : '<span class="lang-english">' + part + '</span>';
-                })
-                .replace(/<span class="lang-english"><\/span>/g, '');
-        }
-
-        function updateViewModeLock() {
-            const sourceType = document.getElementById('source-type').value;
-            const viewMode = document.getElementById('view-mode');
-            if (!viewMode) return;
-
-            if (sourceType === 'No Context Quotes') {
-                viewMode.value = 'mode-basic';
-                viewMode.disabled = true;
-                document.body.className = 'mode-basic';
-            } else {
-                viewMode.disabled = false;
-                document.body.className = viewMode.value;
-            }
-        }
-
         document.addEventListener("DOMContentLoaded", function() {
             const engFontDropdown = document.getElementById('english-font-choice');
             const hebFontDropdown = document.getElementById('font-choice');
-            const fontSizeSlider = document.getElementById('font-size');
-            const kerningSlider = document.getElementById('kerning');
 
             if (engFontDropdown) {
                 document.documentElement.style.setProperty('--english-font', engFontDropdown.value);
+                engFontDropdown.addEventListener('change', function(e) {
+                    document.documentElement.style.setProperty('--english-font', e.target.value);
+                });
             }
 
             if (hebFontDropdown) {
                 document.documentElement.style.setProperty('--hebrew-font', hebFontDropdown.value);
             }
 
-            if (fontSizeSlider) {
-                const baseSize = parseInt(fontSizeSlider.value, 10);
-                document.documentElement.style.setProperty('--base-font-size', baseSize + 'pt');
-                document.documentElement.style.setProperty('--title-font-size', (baseSize + 4) + 'pt');
-            }
-
+            const kerningSlider = document.getElementById('kerning');
             if (kerningSlider) {
-                document.documentElement.style.setProperty('--global-letter-spacing', kerningSlider.value + 'px');
+                document.documentElement.style.setProperty('--hebrew-letter-spacing', kerningSlider.value + 'px');
             }
-
-            applyTitleText(document.getElementById('list-title').value);
-            updateViewModeLock();
         });
 
         const generateBtn = document.getElementById('generate-btn');
@@ -616,9 +524,6 @@ const perekModeControls = document.getElementById('perek-mode-controls');
 const perekPicker = document.getElementById('perek-picker');
 const talmudModeRadios = Array.from(document.querySelectorAll('input[name="talmud-mode"]'));
 let selectedPagesList = [];
-const englishBookCache = new Map();
-const refDataCache = new Map();
-const talmudPerekDataCache = new Map();
 
 const talmudDafRanges = {
     "ברכות": { start: "2a", end: "64a" },
@@ -731,7 +636,7 @@ function updateTalmudModeVisibility() {
     const isTalmud = sourceType === 'Talmud';
 
     talmudModeContainer.style.display = isTalmud ? 'flex' : 'none';
-    bookSelect.style.display = (sourceType === 'Modern Hebrew' || sourceType === 'No Context Quotes') ? 'none' : 'block';
+    bookSelect.style.display = (sourceType === 'Modern Hebrew') ? 'none' : 'block';
 
     if (isTalmud) {
         dafModeControls.style.display = talmudMode === 'daf' ? 'flex' : 'none';
@@ -745,11 +650,6 @@ function updateTalmudModeVisibility() {
         } else {
             hiddenPerekInput.value = '';
         }
-    } else if (sourceType === 'No Context Quotes' || sourceType === 'Modern Hebrew') {
-        dafModeControls.style.display = 'none';
-        chipContainer.style.display = 'none';
-        perekModeControls.style.display = 'none';
-        hiddenPerekInput.value = '';
     } else {
         dafModeControls.style.display = 'flex';
         chipContainer.style.display = 'flex';
@@ -848,8 +748,6 @@ function updateTalmudModeVisibility() {
                 specificSourceContainer.style.display = 'none';
                 updateTalmudModeVisibility();
             }
-
-            updateViewModeLock();
         });
 
         function updateSecondaryPickers() {
@@ -997,28 +895,45 @@ function updateTalmudModeVisibility() {
         document.getElementById('font-size').addEventListener('input', (e) => {
             const baseSize = parseInt(e.target.value, 10);
             document.getElementById('font-size-val').innerText = baseSize + 'pt';
-            document.documentElement.style.setProperty('--base-font-size', baseSize + 'pt');
-            document.documentElement.style.setProperty('--title-font-size', (baseSize + 4) + 'pt');
+
+            const table = document.getElementById('vocab-table');
+            table.style.fontSize = baseSize + 'pt';
+
+            document.querySelectorAll('#vocab-table th').forEach(el => {
+                el.style.fontSize = baseSize + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .col-hebrew').forEach(el => {
+                el.style.fontSize = baseSize + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .col-english').forEach(el => {
+                el.style.fontSize = Math.max(baseSize - 2, 8) + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .col-context').forEach(el => {
+                el.style.fontSize = Math.max(baseSize - 4, 8) + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .citation').forEach(el => {
+                el.style.fontSize = Math.max(baseSize - 4, 8) + 'pt';
+            });
         });
 
         document.getElementById('kerning').addEventListener('input', (e) => {
             const kerningValue = e.target.value + 'px';
             document.getElementById('kerning-val').innerText = kerningValue;
-            document.documentElement.style.setProperty('--global-letter-spacing', kerningValue);
+            document.documentElement.style.setProperty('--hebrew-letter-spacing', kerningValue);
+            document.querySelectorAll('#vocab-table .col-hebrew, #vocab-table .hebrew-word, #vocab-table .hebrew-text, #vocab-table .citation').forEach(el => {
+                el.style.letterSpacing = kerningValue;
+            });
         });
 
         document.getElementById('font-choice').addEventListener('change', (e) => {
             document.documentElement.style.setProperty('--hebrew-font', e.target.value);
-            applyTitleText(document.getElementById('list-title').value);
-        });
-
-        document.getElementById('english-font-choice').addEventListener('change', (e) => {
-            document.documentElement.style.setProperty('--english-font', e.target.value);
-            applyTitleText(document.getElementById('list-title').value);
-        });
-
-        document.getElementById('list-title').addEventListener('input', (e) => {
-            applyTitleText(e.target.value);
+            document.querySelectorAll('#vocab-table .col-hebrew, #vocab-table .hebrew-word, #vocab-table .hebrew-text, #vocab-table .citation').forEach(el => {
+                el.style.fontFamily = e.target.value;
+            });
         });
 
         function isLikelyHebrewAbbreviation(text) {
@@ -1073,7 +988,6 @@ function updateTalmudModeVisibility() {
             if (searchStatusNotice) {
                 searchStatusNotice.style.display = (sourceType === 'Tanakh' || sourceType === 'Talmud') ? 'block' : 'none';
             }
-            updateViewModeLock();
 
             let missing = [];
             if (!title) missing.push("a list title");
@@ -1087,7 +1001,7 @@ function updateTalmudModeVisibility() {
             generateBtn.disabled = true;
             vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
             pageContainer.style.display = 'block';
-            applyTitleText(title);
+            docTitle.innerText = title;
 
             try {
                 let lines = rawInput.split('\n').filter(line => line.trim() !== '');
@@ -1139,12 +1053,11 @@ function updateTalmudModeVisibility() {
                 }
 
                 const preparedItems = [];
-                const noContextMode = sourceType === "No Context Quotes";
 
                 for (let item of vocabList) {
                     let cleanHebrew = item.hebrew.replace(/[֑-ׇ]/g, '').trim();
-                    item.expandedHebrew = noContextMode ? "" : await expandHebrewAbbreviation(cleanHebrew, sourceType);
-                    const isAbbreviationEntry = !noContextMode && isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
+                    item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew, sourceType);
+                    const isAbbreviationEntry = isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
                     const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
                     const searchHebrew = semanticHebrew;
 
@@ -1208,10 +1121,6 @@ function updateTalmudModeVisibility() {
                         } else {
                             row.hebrewContext = "Word not found in context.";
                         }
-                    } else if (sourceType === 'No Context Quotes') {
-                        row.hebrewContext = '';
-                        row.englishContext = '';
-                        row.citation = '';
                     } else {
                         const contextRes = await fetch('/api/translate', {
                             method: 'POST',
@@ -1246,7 +1155,7 @@ function updateTalmudModeVisibility() {
                     }
                 }
 
-                if (!noContextMode && contextPrompts.length > 0) {
+                if (contextPrompts.length > 0) {
                     try {
                         const contextResults = await callTranslateBatch(contextPrompts);
                         contextPromptIndexes.forEach((rowIndex, batchIndex) => {
@@ -1382,9 +1291,9 @@ for (const candidate of englishCandidates) {
                         <td class="col-hebrew"><span class="hebrew-word">${stylizeMixedText(item.hebrew)}</span></td>
                         <td class="col-english" contenteditable="true">${stylizeMixedText(item.english)}</td>
                         <td class="col-context">
-                            <div class="hebrew-text">${stylizeMixedText(highlightedHebrew)}</div>
-                            <div class="english-text output-english" contenteditable="true">${stylizeMixedText(highlightedEnglish)}</div>
-                            <div class="citation" dir="rtl">${stylizeMixedText(citation)}</div>
+                            <div class="hebrew-text">${highlightedHebrew}</div>
+                            <div class="english-text output-english" contenteditable="true">${highlightedEnglish}</div>
+                            <div class="citation" dir="rtl">${citation}</div>
                         </td>
                     </tr>`;
                 }

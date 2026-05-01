@@ -1,12 +1,11 @@
-<!-- PP VOCAB BUILDER -->
+<<!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
-    <link rel="icon" type="image/png" href="./Penina-favicon.png?v=4">
-    <link rel="shortcut icon" href="./Penina-favicon.png?v=4">
+    <link rel="icon" type="image/png" href="Penina-favicon.png?v=3">
     <style>
         /* --- EMBEDDED DYSLEXIC FONT --- */
         @font-face {
@@ -119,10 +118,8 @@
             color: #5a5248; 
             outline: none; 
             text-align: center;
-            list-style: none;
+            list-style-position: inside;
         }
-        summary.about-summary::-webkit-details-marker { display: none; }
-        summary.about-summary::marker { content: ''; }
         summary.about-summary:hover { color: #3a332a; }
         .about-content { 
             margin-top: 15px; 
@@ -248,23 +245,19 @@
             direction: ltr;
         }
         
-        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 10px; margin-top: 0; font-size: var(--title-font-size, 18pt); border-radius: 4px; letter-spacing: var(--global-letter-spacing, 0px); }
-        table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; table-layout: fixed; font-size: var(--base-font-size, 14pt); }
-        th, td { border: 1px solid #dcd3c6; padding: 10pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); letter-spacing: var(--global-letter-spacing, 0px); }
+        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 10px; margin-top: 0; font-size: 18pt; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; table-layout: fixed; }
+        th, td { border: 1px solid #dcd3c6; padding: 10pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; }
         th { background-color: #f4efe6; font-weight: bold; text-align: center; color: #4a4238; }
         
-        .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; width: 22%; min-width: 0; max-width: 0; padding: 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
-        .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); width: 22%; min-width: 0; padding: 10pt; overflow-wrap: anywhere; word-break: break-word; }
-        .col-context { width: 56%; min-width: 0; font-size: var(--base-font-size, 14pt); line-height: 1.4; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+        .col-hebrew { direction: rtl; text-align: right; font-size: 14pt; white-space: normal; width: 20%; min-width: 0; max-width: 0; padding: 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
+        .col-english { direction: ltr; text-align: left; font-size: 12pt; width: 24%; min-width: 0; padding: 10pt; overflow-wrap: anywhere; word-break: break-word; }
+        .col-context { width: 56%; min-width: 0; font-size: 10pt; line-height: 1.4; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
-        .hebrew-word, .hebrew-text, .citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
+        .hebrew-word, .hebrew-text, .citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--hebrew-letter-spacing, 0px); }
         .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
-        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 4px; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); letter-spacing: var(--global-letter-spacing, 0px); }
-        .citation { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); margin-top: 4px; color: #666; white-space: normal; }
-        #search-status-notice { text-align: center; }
-        #page, #page * { letter-spacing: var(--global-letter-spacing, 0px); }
-        .title-hebrew { font-family: var(--hebrew-font, Arial, sans-serif) !important; }
-        .title-english { font-family: var(--english-font, Arial, sans-serif) !important; }
+        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 4px; overflow-wrap: anywhere; word-break: break-word; }
+        .citation { direction: rtl; text-align: right; font-size: 10pt; margin-top: 4px; color: #666; white-space: normal; }
         
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
         .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
@@ -291,9 +284,7 @@
         :root {
             --english-font: Arial, sans-serif;
             --hebrew-font: Arial, sans-serif;
-            --global-letter-spacing: 0px;
-            --base-font-size: 14pt;
-            --title-font-size: 18pt;
+            --hebrew-letter-spacing: 0px;
         }
         
         [dir="ltr"], .english-text, .col-english, #vocab-table th {
@@ -345,7 +336,6 @@
                         <option value="Tanakh">תנ''ך</option>
                         <option value="Talmud">תלמוד בבלי</option>
                         <option value="Modern Hebrew">עברית מודרנית</option>
-                        <option value="No Context Quotes">No Context Quotes</option>
                     </select>
                 </div>
                 <div style="flex: 1; display: none;" id="specific-source-container">
@@ -407,7 +397,7 @@
                 <h3>Word Styling and Formatting</h3>
                 
                 <div class="checkbox-group" style="margin-bottom: 20px;">
-                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()" checked> Substitute 'ה and אלוקים</label>
+                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()"> Substitute 'ה and אלוקים</label>
                 </div>
 
                 <div class="slider-group">
@@ -491,65 +481,25 @@
     </div>
 
     <script>
-        function stylizeTitleText(text) {
-            return String(text || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/([\u0590-\u05FF\uFB1D-\uFB4F][\u0590-\u05FF\uFB1D-\uFB4F\s'"׳״-]*)/g, '<span class="title-hebrew">$1</span>')
-                .replace(/([^<]+)/g, function(part) {
-                    return part.includes('title-hebrew') ? part : '<span class="title-english">' + part + '</span>';
-                })
-                .replace(/<span class="title-english"><\/span>/g, '');
-        }
-
-        function applyTitleText(rawTitle) {
-            const titleEl = document.getElementById('doc-title');
-            if (!titleEl) return;
-            titleEl.innerHTML = stylizeTitleText(rawTitle);
-        }
-
-        function updateViewModeLock() {
-            const sourceType = document.getElementById('source-type').value;
-            const viewMode = document.getElementById('view-mode');
-            if (!viewMode) return;
-
-            if (sourceType === 'No Context Quotes') {
-                viewMode.value = 'mode-basic';
-                viewMode.disabled = true;
-                document.body.className = 'mode-basic';
-            } else {
-                viewMode.disabled = false;
-                document.body.className = viewMode.value;
-            }
-        }
-
         document.addEventListener("DOMContentLoaded", function() {
             const engFontDropdown = document.getElementById('english-font-choice');
             const hebFontDropdown = document.getElementById('font-choice');
-            const fontSizeSlider = document.getElementById('font-size');
-            const kerningSlider = document.getElementById('kerning');
 
             if (engFontDropdown) {
                 document.documentElement.style.setProperty('--english-font', engFontDropdown.value);
+                engFontDropdown.addEventListener('change', function(e) {
+                    document.documentElement.style.setProperty('--english-font', e.target.value);
+                });
             }
 
             if (hebFontDropdown) {
                 document.documentElement.style.setProperty('--hebrew-font', hebFontDropdown.value);
             }
 
-            if (fontSizeSlider) {
-                const baseSize = parseInt(fontSizeSlider.value, 10);
-                document.documentElement.style.setProperty('--base-font-size', baseSize + 'pt');
-                document.documentElement.style.setProperty('--title-font-size', (baseSize + 4) + 'pt');
-            }
-
+            const kerningSlider = document.getElementById('kerning');
             if (kerningSlider) {
-                document.documentElement.style.setProperty('--global-letter-spacing', kerningSlider.value + 'px');
+                document.documentElement.style.setProperty('--hebrew-letter-spacing', kerningSlider.value + 'px');
             }
-
-            applyTitleText(document.getElementById('list-title').value);
-            updateViewModeLock();
         });
 
         const generateBtn = document.getElementById('generate-btn');
@@ -573,9 +523,6 @@ const perekModeControls = document.getElementById('perek-mode-controls');
 const perekPicker = document.getElementById('perek-picker');
 const talmudModeRadios = Array.from(document.querySelectorAll('input[name="talmud-mode"]'));
 let selectedPagesList = [];
-const englishBookCache = new Map();
-const refDataCache = new Map();
-const talmudPerekDataCache = new Map();
 
 const talmudDafRanges = {
     "ברכות": { start: "2a", end: "64a" },
@@ -688,7 +635,7 @@ function updateTalmudModeVisibility() {
     const isTalmud = sourceType === 'Talmud';
 
     talmudModeContainer.style.display = isTalmud ? 'flex' : 'none';
-    bookSelect.style.display = (sourceType === 'Modern Hebrew' || sourceType === 'No Context Quotes') ? 'none' : 'block';
+    bookSelect.style.display = (sourceType === 'Modern Hebrew') ? 'none' : 'block';
 
     if (isTalmud) {
         dafModeControls.style.display = talmudMode === 'daf' ? 'flex' : 'none';
@@ -702,11 +649,6 @@ function updateTalmudModeVisibility() {
         } else {
             hiddenPerekInput.value = '';
         }
-    } else if (sourceType === 'No Context Quotes' || sourceType === 'Modern Hebrew') {
-        dafModeControls.style.display = 'none';
-        chipContainer.style.display = 'none';
-        perekModeControls.style.display = 'none';
-        hiddenPerekInput.value = '';
     } else {
         dafModeControls.style.display = 'flex';
         chipContainer.style.display = 'flex';
@@ -805,8 +747,6 @@ function updateTalmudModeVisibility() {
                 specificSourceContainer.style.display = 'none';
                 updateTalmudModeVisibility();
             }
-
-            updateViewModeLock();
         });
 
         function updateSecondaryPickers() {
@@ -954,28 +894,45 @@ function updateTalmudModeVisibility() {
         document.getElementById('font-size').addEventListener('input', (e) => {
             const baseSize = parseInt(e.target.value, 10);
             document.getElementById('font-size-val').innerText = baseSize + 'pt';
-            document.documentElement.style.setProperty('--base-font-size', baseSize + 'pt');
-            document.documentElement.style.setProperty('--title-font-size', (baseSize + 4) + 'pt');
+
+            const table = document.getElementById('vocab-table');
+            table.style.fontSize = baseSize + 'pt';
+
+            document.querySelectorAll('#vocab-table th').forEach(el => {
+                el.style.fontSize = baseSize + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .col-hebrew').forEach(el => {
+                el.style.fontSize = baseSize + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .col-english').forEach(el => {
+                el.style.fontSize = Math.max(baseSize - 2, 8) + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .col-context').forEach(el => {
+                el.style.fontSize = Math.max(baseSize - 4, 8) + 'pt';
+            });
+
+            document.querySelectorAll('#vocab-table .citation').forEach(el => {
+                el.style.fontSize = Math.max(baseSize - 4, 8) + 'pt';
+            });
         });
 
         document.getElementById('kerning').addEventListener('input', (e) => {
             const kerningValue = e.target.value + 'px';
             document.getElementById('kerning-val').innerText = kerningValue;
-            document.documentElement.style.setProperty('--global-letter-spacing', kerningValue);
+            document.documentElement.style.setProperty('--hebrew-letter-spacing', kerningValue);
+            document.querySelectorAll('#vocab-table .col-hebrew, #vocab-table .hebrew-word, #vocab-table .hebrew-text, #vocab-table .citation').forEach(el => {
+                el.style.letterSpacing = kerningValue;
+            });
         });
 
         document.getElementById('font-choice').addEventListener('change', (e) => {
             document.documentElement.style.setProperty('--hebrew-font', e.target.value);
-            applyTitleText(document.getElementById('list-title').value);
-        });
-
-        document.getElementById('english-font-choice').addEventListener('change', (e) => {
-            document.documentElement.style.setProperty('--english-font', e.target.value);
-            applyTitleText(document.getElementById('list-title').value);
-        });
-
-        document.getElementById('list-title').addEventListener('input', (e) => {
-            applyTitleText(e.target.value);
+            document.querySelectorAll('#vocab-table .col-hebrew, #vocab-table .hebrew-word, #vocab-table .hebrew-text, #vocab-table .citation').forEach(el => {
+                el.style.fontFamily = e.target.value;
+            });
         });
 
         function isLikelyHebrewAbbreviation(text) {
@@ -1030,7 +987,6 @@ function updateTalmudModeVisibility() {
             if (searchStatusNotice) {
                 searchStatusNotice.style.display = (sourceType === 'Tanakh' || sourceType === 'Talmud') ? 'block' : 'none';
             }
-            updateViewModeLock();
 
             let missing = [];
             if (!title) missing.push("a list title");
@@ -1044,7 +1000,7 @@ function updateTalmudModeVisibility() {
             generateBtn.disabled = true;
             vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
             pageContainer.style.display = 'block';
-            applyTitleText(title);
+            docTitle.innerText = title;
 
             try {
                 let lines = rawInput.split('\n').filter(line => line.trim() !== '');
@@ -1096,12 +1052,11 @@ function updateTalmudModeVisibility() {
                 }
 
                 const preparedItems = [];
-                const noContextMode = sourceType === 'No Context Quotes';
 
                 for (let item of vocabList) {
                     let cleanHebrew = item.hebrew.replace(/[֑-ׇ]/g, '').trim();
-                    item.expandedHebrew = noContextMode ? "" : await expandHebrewAbbreviation(cleanHebrew, sourceType);
-                    const isAbbreviationEntry = !noContextMode && isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
+                    item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew, sourceType);
+                    const isAbbreviationEntry = isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
                     const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
                     const searchHebrew = semanticHebrew;
 
@@ -1165,10 +1120,6 @@ function updateTalmudModeVisibility() {
                         } else {
                             row.hebrewContext = "Word not found in context.";
                         }
-                    } else if (sourceType === 'No Context Quotes') {
-                        row.hebrewContext = "";
-                        row.englishContext = "";
-                        row.citation = "";
                     } else {
                         const contextRes = await fetch('/api/translate', {
                             method: 'POST',
@@ -1203,7 +1154,7 @@ function updateTalmudModeVisibility() {
                     }
                 }
 
-                if (!noContextMode && contextPrompts.length > 0) {
+                if (contextPrompts.length > 0) {
                     try {
                         const contextResults = await callTranslateBatch(contextPrompts);
                         contextPromptIndexes.forEach((rowIndex, batchIndex) => {
@@ -1358,15 +1309,11 @@ for (const candidate of englishCandidates) {
 
             const getEnglishName = async (b) => {
                 if (!b || b === 'ANY') return null;
-                if (englishBookCache.has(b)) return englishBookCache.get(b);
                 try {
                     const res = await fetch(`https://www.sefaria.org/api/name/${encodeURIComponent(b)}`);
                     const data = await res.json();
-                    const resolved = data.index || data.ref || b;
-                    englishBookCache.set(b, resolved);
-                    return resolved;
+                    return data.index || data.ref || b;
                 } catch (e) {
-                    englishBookCache.set(b, b);
                     return b;
                 }
             };
@@ -1715,15 +1662,9 @@ for (const candidate of englishCandidates) {
             }
 
             async function buildTalmudPerekData(englishBook, hebrewBook) {
-                const cacheKey = `${englishBook}||${hebrewBook}`;
-                if (talmudPerekDataCache.has(cacheKey)) return talmudPerekDataCache.get(cacheKey);
-
                 const range = talmudDafRanges[hebrewBook];
                 const perekNames = sourceData.Talmud[hebrewBook] || [];
-                if (!range || !perekNames.length) {
-                    talmudPerekDataCache.set(cacheKey, null);
-                    return null;
-                }
+                if (!range || !perekNames.length) return null;
 
                 const dafOptions = generateDafOptions(range.start, range.end);
                 const refs = dafOptions.map(daf => `${englishBook} ${daf}`);
@@ -1767,9 +1708,7 @@ for (const candidate of englishCandidates) {
                     }
                 });
 
-                const result = { perakim, dafToPerakim };
-                talmudPerekDataCache.set(cacheKey, result);
-                return result;
+                return { perakim, dafToPerakim };
             }
 
             function findMatchInSegments(segments) {
@@ -1832,6 +1771,26 @@ for (const candidate of englishCandidates) {
                         };
                     }
 
+                    const perekData = await buildTalmudPerekData(englishBook, book);
+                    if (perekData) {
+                        const targetPerekIndexes = Array.from(new Set(
+                            targetPages.flatMap(page => Array.from(perekData.dafToPerakim[page] || []))
+                        ));
+
+                        const perekMatches = targetPerekIndexes
+                            .map(index => findMatchInSegments(perekData.perakim[index]))
+                            .filter(Boolean);
+
+                        const bestPerekMatch = pickBestMatch(perekMatches);
+                        if (bestPerekMatch) {
+                            return {
+                                he: bestPerekMatch.he,
+                                ref: bestPerekMatch.ref,
+                                heRef: bestPerekMatch.heRef,
+                                matchedCandidate: bestPerekMatch.matchedCandidate
+                            };
+                        }
+                    }
                 }
 
                 if (talmudMode === 'perek' && selectedPerekIndex !== null && !Number.isNaN(selectedPerekIndex)) {
@@ -1927,9 +1886,6 @@ for (const candidate of englishCandidates) {
 
         window.addEventListener('load', () => {
     sourceTypeSelect.dispatchEvent(new Event('change'));
-    updateTextDisplay();
-    applyTitleText(document.getElementById('list-title').value);
-    updateViewModeLock();
 });
         
     </script>

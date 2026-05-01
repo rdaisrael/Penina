@@ -1,4 +1,4 @@
-<<!-- PP VOCAB BUILDER -->
+<!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -119,8 +119,10 @@
             color: #5a5248; 
             outline: none; 
             text-align: center;
-            list-style-position: inside;
+            list-style: none;
         }
+        summary.about-summary::-webkit-details-marker { display: none; }
+        summary.about-summary::marker { content: ''; }
         summary.about-summary:hover { color: #3a332a; }
         .about-content { 
             margin-top: 15px; 
@@ -246,19 +248,23 @@
             direction: ltr;
         }
         
-        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 10px; margin-top: 0; font-size: 18pt; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; table-layout: fixed; }
-        th, td { border: 1px solid #dcd3c6; padding: 10pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; }
+        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 10px; margin-top: 0; font-size: var(--title-font-size, 18pt); border-radius: 4px; letter-spacing: var(--global-letter-spacing, 0px); }
+        table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; table-layout: fixed; font-size: var(--base-font-size, 14pt); }
+        th, td { border: 1px solid #dcd3c6; padding: 10pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); letter-spacing: var(--global-letter-spacing, 0px); }
         th { background-color: #f4efe6; font-weight: bold; text-align: center; color: #4a4238; }
         
-        .col-hebrew { direction: rtl; text-align: right; font-size: 14pt; white-space: normal; width: 20%; min-width: 0; max-width: 0; padding: 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
-        .col-english { direction: ltr; text-align: left; font-size: 12pt; width: 24%; min-width: 0; padding: 10pt; overflow-wrap: anywhere; word-break: break-word; }
-        .col-context { width: 56%; min-width: 0; font-size: 10pt; line-height: 1.4; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+        .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; width: 22%; min-width: 0; max-width: 0; padding: 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
+        .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); width: 22%; min-width: 0; padding: 10pt; overflow-wrap: anywhere; word-break: break-word; }
+        .col-context { width: 56%; min-width: 0; font-size: var(--base-font-size, 14pt); line-height: 1.4; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
-        .hebrew-word, .hebrew-text, .citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--hebrew-letter-spacing, 0px); }
+        .hebrew-word, .hebrew-text, .citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
         .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
-        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 4px; overflow-wrap: anywhere; word-break: break-word; }
-        .citation { direction: rtl; text-align: right; font-size: 10pt; margin-top: 4px; color: #666; white-space: normal; }
+        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 4px; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); letter-spacing: var(--global-letter-spacing, 0px); }
+        .citation { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); margin-top: 4px; color: #666; white-space: normal; }
+        #search-status-notice { text-align: center; }
+        #page, #page * { letter-spacing: var(--global-letter-spacing, 0px); }
+        .title-hebrew { font-family: var(--hebrew-font, Arial, sans-serif) !important; }
+        .title-english { font-family: var(--english-font, Arial, sans-serif) !important; }
         
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
         .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
@@ -285,55 +291,20 @@
         :root {
             --english-font: Arial, sans-serif;
             --hebrew-font: Arial, sans-serif;
-            --hebrew-letter-spacing: 0px;
+            --global-letter-spacing: 0px;
+            --base-font-size: 14pt;
+            --title-font-size: 18pt;
         }
         
         [dir="ltr"], .english-text, .col-english, #vocab-table th {
             font-family: var(--english-font) !important;
         }
-    
-
-        /* --- AUDITED TYPOGRAPHY + PRINT FOOTER OVERRIDES --- */
-        :root {
-            --english-font: Arial, sans-serif;
-            --hebrew-font: Arial, sans-serif;
-            --global-letter-spacing: 0px;
-            --base-font-size: 14pt;
-            --title-font-size: 18pt;
-        }
-        h1.doc-title { font-size: var(--title-font-size, 18pt); }
-        table { font-size: var(--base-font-size, 14pt); }
-        th, td, .col-hebrew, .col-english, .col-context, .english-text, .citation {
-            font-size: var(--base-font-size, 14pt) !important;
-            letter-spacing: var(--global-letter-spacing, 0px) !important;
-        }
-        .col-hebrew { width: 22% !important; }
-        .col-english { width: 22% !important; }
-        .col-context { width: 56% !important; }
-        #search-status-notice { text-align: center; }
-        #page, #page * { letter-spacing: var(--global-letter-spacing, 0px) !important; }
-        .title-hebrew, .lang-hebrew, .hebrew-word, .hebrew-text, .citation {
-            font-family: var(--hebrew-font, Arial, sans-serif) !important;
-            direction: rtl;
-            unicode-bidi: plaintext;
-        }
-        .title-english, .lang-english, .col-english, .english-text, #vocab-table th, [dir="ltr"] {
-            font-family: var(--english-font, Arial, sans-serif) !important;
-        }
-        .penina-footer {
-            margin-top: 24px;
-            text-align: center;
-            font-size: calc(var(--base-font-size, 14pt) - 2pt);
-            color: #6a6258;
-            letter-spacing: var(--global-letter-spacing, 0px);
-        }
-
     </style>
 </head>
 <body class="mode-full">
 
     <div class="bg-pattern"></div>
-<a href="./index.html" class="home-btn" aria-label="Return to Home">
+<a href="/" class="home-btn" aria-label="Return to Home">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
         </svg>
@@ -436,7 +407,7 @@
                 <h3>Word Styling and Formatting</h3>
                 
                 <div class="checkbox-group" style="margin-bottom: 20px;">
-                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()"> Substitute 'ה and אלוקים</label>
+                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()" checked> Substitute 'ה and אלוקים</label>
                 </div>
 
                 <div class="slider-group">
@@ -516,7 +487,6 @@
                 </thead>
                 <tbody id="vocab-tbody"></tbody>
             </table>
-            <div id="penina-footer" class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>
         </div>
     </div>
 
@@ -526,7 +496,7 @@
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
-                .replace(/([֐-׿יִ-ﭏ][֐-׿יִ-ﭏ\s'"׳״-]*)/g, '<span class="title-hebrew">$1</span>')
+                .replace(/([\u0590-\u05FF\uFB1D-\uFB4F][\u0590-\u05FF\uFB1D-\uFB4F\s'"׳״-]*)/g, '<span class="title-hebrew">$1</span>')
                 .replace(/([^<]+)/g, function(part) {
                     return part.includes('title-hebrew') ? part : '<span class="title-english">' + part + '</span>';
                 })
@@ -537,19 +507,6 @@
             const titleEl = document.getElementById('doc-title');
             if (!titleEl) return;
             titleEl.innerHTML = stylizeTitleText(rawTitle);
-        }
-
-        function stylizeMixedText(text) {
-            const escaped = String(text || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-            return escaped
-                .replace(/([֐-׿יִ-ﭏ][֐-׿יִ-ﭏ\s'"׳״-]*)/g, '<span class="lang-hebrew">$1</span>')
-                .replace(/([^<]+)/g, function(part) {
-                    return part.includes('lang-hebrew') ? part : '<span class="lang-english">' + part + '</span>';
-                })
-                .replace(/<span class="lang-english"><\/span>/g, '');
         }
 
         function updateViewModeLock() {
@@ -1139,7 +1096,7 @@ function updateTalmudModeVisibility() {
                 }
 
                 const preparedItems = [];
-                const noContextMode = sourceType === "No Context Quotes";
+                const noContextMode = sourceType === 'No Context Quotes';
 
                 for (let item of vocabList) {
                     let cleanHebrew = item.hebrew.replace(/[֑-ׇ]/g, '').trim();
@@ -1209,9 +1166,9 @@ function updateTalmudModeVisibility() {
                             row.hebrewContext = "Word not found in context.";
                         }
                     } else if (sourceType === 'No Context Quotes') {
-                        row.hebrewContext = '';
-                        row.englishContext = '';
-                        row.citation = '';
+                        row.hebrewContext = "";
+                        row.englishContext = "";
+                        row.citation = "";
                     } else {
                         const contextRes = await fetch('/api/translate', {
                             method: 'POST',
@@ -1379,12 +1336,12 @@ for (const candidate of englishCandidates) {
 
                     htmlOutput += `
                     <tr>
-                        <td class="col-hebrew"><span class="hebrew-word">${stylizeMixedText(item.hebrew)}</span></td>
-                        <td class="col-english" contenteditable="true">${stylizeMixedText(item.english)}</td>
+                        <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
+                        <td class="col-english" contenteditable="true">${item.english}</td>
                         <td class="col-context">
-                            <div class="hebrew-text">${stylizeMixedText(highlightedHebrew)}</div>
-                            <div class="english-text output-english" contenteditable="true">${stylizeMixedText(highlightedEnglish)}</div>
-                            <div class="citation" dir="rtl">${stylizeMixedText(citation)}</div>
+                            <div class="hebrew-text">${highlightedHebrew}</div>
+                            <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
+                            <div class="citation" dir="rtl">${citation}</div>
                         </td>
                     </tr>`;
                 }
@@ -1401,11 +1358,15 @@ for (const candidate of englishCandidates) {
 
             const getEnglishName = async (b) => {
                 if (!b || b === 'ANY') return null;
+                if (englishBookCache.has(b)) return englishBookCache.get(b);
                 try {
                     const res = await fetch(`https://www.sefaria.org/api/name/${encodeURIComponent(b)}`);
                     const data = await res.json();
-                    return data.index || data.ref || b;
+                    const resolved = data.index || data.ref || b;
+                    englishBookCache.set(b, resolved);
+                    return resolved;
                 } catch (e) {
+                    englishBookCache.set(b, b);
                     return b;
                 }
             };
@@ -1754,9 +1715,15 @@ for (const candidate of englishCandidates) {
             }
 
             async function buildTalmudPerekData(englishBook, hebrewBook) {
+                const cacheKey = `${englishBook}||${hebrewBook}`;
+                if (talmudPerekDataCache.has(cacheKey)) return talmudPerekDataCache.get(cacheKey);
+
                 const range = talmudDafRanges[hebrewBook];
                 const perekNames = sourceData.Talmud[hebrewBook] || [];
-                if (!range || !perekNames.length) return null;
+                if (!range || !perekNames.length) {
+                    talmudPerekDataCache.set(cacheKey, null);
+                    return null;
+                }
 
                 const dafOptions = generateDafOptions(range.start, range.end);
                 const refs = dafOptions.map(daf => `${englishBook} ${daf}`);
@@ -1800,7 +1767,9 @@ for (const candidate of englishCandidates) {
                     }
                 });
 
-                return { perakim, dafToPerakim };
+                const result = { perakim, dafToPerakim };
+                talmudPerekDataCache.set(cacheKey, result);
+                return result;
             }
 
             function findMatchInSegments(segments) {
@@ -1863,26 +1832,6 @@ for (const candidate of englishCandidates) {
                         };
                     }
 
-                    const perekData = await buildTalmudPerekData(englishBook, book);
-                    if (perekData) {
-                        const targetPerekIndexes = Array.from(new Set(
-                            targetPages.flatMap(page => Array.from(perekData.dafToPerakim[page] || []))
-                        ));
-
-                        const perekMatches = targetPerekIndexes
-                            .map(index => findMatchInSegments(perekData.perakim[index]))
-                            .filter(Boolean);
-
-                        const bestPerekMatch = pickBestMatch(perekMatches);
-                        if (bestPerekMatch) {
-                            return {
-                                he: bestPerekMatch.he,
-                                ref: bestPerekMatch.ref,
-                                heRef: bestPerekMatch.heRef,
-                                matchedCandidate: bestPerekMatch.matchedCandidate
-                            };
-                        }
-                    }
                 }
 
                 if (talmudMode === 'perek' && selectedPerekIndex !== null && !Number.isNaN(selectedPerekIndex)) {
@@ -1978,6 +1927,9 @@ for (const candidate of englishCandidates) {
 
         window.addEventListener('load', () => {
     sourceTypeSelect.dispatchEvent(new Event('change'));
+    updateTextDisplay();
+    applyTitleText(document.getElementById('list-title').value);
+    updateViewModeLock();
 });
         
     </script>

@@ -395,8 +395,7 @@ S
             </div>
 
             <div class="form-group checkbox-group" style="margin-bottom: 15px;">
-                <label><input type="checkbox" id="alphabetize-list" checked> Alphabetize List</label>
-                <label><input type="checkbox" id="context-quotes" checked> Context Quotes</label>
+                <label><input type="checkbox" id="alphabetize-list"> Alphabetize List</label>
             </div>
 
             <button id="generate-btn">Generate Vocabulary Table</button>
@@ -513,17 +512,12 @@ S
             titleEl.innerHTML = stylizeTitleText(rawTitle);
         }
 
-        function contextQuotesEnabled() {
-            const contextQuotesCheckbox = document.getElementById('context-quotes');
-            return !contextQuotesCheckbox || contextQuotesCheckbox.checked;
-        }
-
         function updateViewModeLock() {
             const sourceType = document.getElementById('source-type').value;
             const viewMode = document.getElementById('view-mode');
             if (!viewMode) return;
 
-            if (sourceType === 'No Context Quotes' || !contextQuotesEnabled()) {
+            if (sourceType === 'No Context Quotes') {
                 viewMode.value = 'mode-basic';
                 viewMode.disabled = true;
                 document.body.className = 'mode-basic';
@@ -569,10 +563,6 @@ S
         const pageContainer = document.getElementById('page');
         const docTitle = document.getElementById('doc-title');
         const searchStatusNotice = document.getElementById('search-status-notice');
-        const contextQuotesCheckbox = document.getElementById('context-quotes');
-        if (contextQuotesCheckbox) {
-            contextQuotesCheckbox.addEventListener('change', updateViewModeLock);
-        }
 
 const bookSelect = document.getElementById('book-select');
 const numPicker = document.getElementById('num-picker');
@@ -1164,7 +1154,7 @@ function updateTalmudModeVisibility() {
             const sourceType = document.getElementById('source-type').value;
 
             if (searchStatusNotice) {
-                searchStatusNotice.style.display = (contextQuotesEnabled() && (sourceType === 'Tanakh' || sourceType === 'Talmud')) ? 'block' : 'none';
+                searchStatusNotice.style.display = (sourceType === 'Tanakh' || sourceType === 'Talmud') ? 'block' : 'none';
             }
             updateViewModeLock();
 
@@ -1232,7 +1222,7 @@ function updateTalmudModeVisibility() {
                 }
 
                 const preparedItems = [];
-                const noContextMode = sourceType === 'No Context Quotes' || !contextQuotesEnabled();
+                const noContextMode = sourceType === 'No Context Quotes';
 
                 for (let item of vocabList) {
                     let cleanHebrew = item.hebrew.replace(/[֑-ׇ]/g, '').trim();
@@ -1288,11 +1278,7 @@ function updateTalmudModeVisibility() {
                 for (const row of preparedItems) {
                     const { item, semanticHebrew, searchHebrew, isAbbreviationEntry } = row;
 
-                    if (noContextMode) {
-                        row.hebrewContext = "";
-                        row.englishContext = "";
-                        row.citation = "";
-                    } else if (isAbbreviationEntry) {
+                    if (isAbbreviationEntry) {
                         row.hebrewContext = item.expandedHebrew;
                         row.englishContext = "";
                         row.citation = "Expanded abbreviation / acronym";

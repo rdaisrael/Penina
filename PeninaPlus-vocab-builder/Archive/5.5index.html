@@ -1935,7 +1935,7 @@ for (const candidate of englishCandidates) {
                 }
 
                 for (const target of wholeBookTargets) {
-                    const foundInBook = await searchViaSefaria(corpusFilter, target.englishBook);
+                    const foundInBook = await searchViaSefaria([target.englishBook], target.englishBook);
                     if (foundInBook) {
                         return {
                             he: foundInBook.he,
@@ -1975,9 +1975,6 @@ for (const candidate of englishCandidates) {
             document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
                 let html = el.dataset.original;
 
-                // Strip Taamei Mikra (keep nikkud)
-                html = html.replace(/[\u0591-\u05AF\u05BD\u05BF\u05C0\u05C4\u05C5]/g, '');
-
                 if (subNames) {
                     html = html.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, 'ה׳');
                     html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*ו[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, '$1ק$2');
@@ -1992,16 +1989,12 @@ for (const candidate of englishCandidates) {
         }
 
 
-        function initializeSourcePicker() {
+        window.addEventListener('load', () => {
     sourceTypeSelect.dispatchEvent(new Event('change'));
-    updateSecondaryPickers();
-    renderChips();
-}
-
-initializeSourcePicker();
-updateTextDisplay();
-applyTitleText(document.getElementById('list-title').value);
-updateViewModeLock();
+    updateTextDisplay();
+    applyTitleText(document.getElementById('list-title').value);
+    updateViewModeLock();
+});
         
     </script>
 </body>

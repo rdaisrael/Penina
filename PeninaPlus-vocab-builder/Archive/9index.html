@@ -262,7 +262,7 @@ S
         .hebrew-word, .hebrew-text, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
         .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.2; }
         .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 2px; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.2; letter-spacing: var(--global-letter-spacing, 0px); }
-        .citation { font-size: calc(var(--base-font-size, 14pt) - 2pt); line-height: 1.1; margin-top: 2px; color: #666; white-space: normal; font-weight: normal; }
+        .citation { font-size: calc(var(--base-font-size, 14pt) - 2px); line-height: 1.1; margin-top: 2px; color: #666; white-space: normal; font-weight: normal; }
         .hebrew-citation { direction: rtl; text-align: right; }
         .english-citation { direction: ltr; text-align: left; font-family: var(--english-font, Arial, sans-serif) !important; }
         #search-status-notice { text-align: center; }
@@ -1319,7 +1319,6 @@ function updateTalmudModeVisibility() {
                         let searchResult = await performSefariaSearch(searchHebrew, sourceType, getSelectedSourceTargets());
                         if (searchResult) {
                             row.hebrewContext = searchResult.he || "";
-                            row.englishContext = searchResult.en || "";
                             row.matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
                             const citationParts = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
                             row.hebrewCitation = citationParts.hebrew;
@@ -1358,7 +1357,7 @@ function updateTalmudModeVisibility() {
                     const row = preparedItems[i];
                     if (row.isAbbreviationEntry) continue;
 
-                    if (row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.englishContext) {
+                    if (row.hebrewContext && row.hebrewContext !== "Word not found in context.") {
                         const prompt = sourceType === 'Modern Hebrew'
                             ? `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation.`
                             : `Translate this Hebrew/Aramaic source sentence to natural English: "${row.hebrewContext}". Use "${row.item.english}" if it fits naturally, but prioritize the actual meaning of the sentence. Return ONLY the English translation.`;
@@ -1670,11 +1669,11 @@ for (const candidate of englishCandidates) {
                 return null;
             }
 
-            function buildExcerptFromMatch(heArray, enArray, matchIndex, matchedCandidate) {
-                const cleanHebrewSegments = heArray.map(segment => stripHtml(segment));
-                const cleanEnglishSegments = (Array.isArray(enArray) ? enArray : []).map(segment => stripHtml(segment));
-                const fullHebrew = typeof cleanHebrewSegments[matchIndex] === 'string' ? cleanHebrewSegments[matchIndex] : '';
-                const fullEnglish = typeof cleanEnglishSegments[matchIndex] === 'string' ? cleanEnglishSegments[matchIndex] : '';
+            function buildExcerptFromMatch(heArray, matchIndex, matchedCandidate) {
+                const fullHebrew =
+                    typeof heArray[matchIndex] === 'string'
+                        ? stripHtml(heArray[matchIndex])
+                        : '';
 
                 const splitHebrewSentences = (text) => {
                     return String(text || '')
@@ -1709,33 +1708,30 @@ for (const candidate of englishCandidates) {
                 };
 
                 const buildExpandedSegmentExcerpt = (candidate) => {
-                    const centerIndex = matchIndex;
+                    const cleanSegments = heArray.map(segment => stripHtml(segment)).filter(segment => String(segment || '').trim());
+                    const center = cleanSegments.indexOf(fullHebrew);
+                    const centerIndex = center >= 0 ? center : matchIndex;
+                    const pieces = [];
                     const MAX_HEBREW_LENGTH = 180;
 
-                    for (let radius = 0; radius <= 4; radius++) {
-                        const hePieces = [];
-                        const enPieces = [];
-
-                        for (let i = Math.max(0, centerIndex - radius); i <= Math.min(cleanHebrewSegments.length - 1, centerIndex + radius); i++) {
-                            const hePiece = String(cleanHebrewSegments[i] || '').trim();
-                            const enPiece = String(cleanEnglishSegments[i] || '').trim();
-                            if (hePiece) hePieces.push(hePiece);
-                            if (enPiece) enPieces.push(enPiece);
+                    for (let radius = 0; radius <= 3; radius++) {
+                        pieces.length = 0;
+                        for (let i = Math.max(0, centerIndex - radius); i <= Math.min(cleanSegments.length - 1, centerIndex + radius); i++) {
+                            const piece = String(cleanSegments[i] || '').trim();
+                            if (piece) pieces.push(piece);
                         }
 
-                        let combinedHe = hePieces.join(' ').replace(/\s+/g, ' ').trim();
-                        let combinedEn = enPieces.join(' ').replace(/\s+/g, ' ').trim();
-
-                        if (combinedHe.length > MAX_HEBREW_LENGTH) {
-                            combinedHe = combinedHe.slice(0, MAX_HEBREW_LENGTH).replace(/\s+\S*$/, '').trim() + '…';
+                        let combined = pieces.join(' ').replace(/\s+/g, ' ').trim();
+                        if (combined.length > MAX_HEBREW_LENGTH) {
+                            combined = combined.slice(0, MAX_HEBREW_LENGTH).replace(/\s+\S*$/, '').trim() + '…';
                         }
 
-                        if (hasEnoughSurroundingContext(combinedHe, candidate)) {
-                            return { he: combinedHe, en: combinedEn };
+                        if (hasEnoughSurroundingContext(combined, candidate)) {
+                            return combined;
                         }
                     }
 
-                    return { he: '', en: '' };
+                    return fullHebrew;
                 };
 
                 const hebrewSentences = splitHebrewSentences(fullHebrew);
@@ -1745,18 +1741,15 @@ for (const candidate of englishCandidates) {
                     const match = findCandidateMatchInNormalizedLine(sentence);
                     if (match) {
                         const sentenceWithContext = hasEnoughSurroundingContext(sentence, match.candidate)
-                            ? { he: sentence, en: fullEnglish }
+                            ? sentence
                             : buildExpandedSegmentExcerpt(match.candidate);
 
-                        if (sentenceWithContext.he && hasEnoughSurroundingContext(sentenceWithContext.he, match.candidate)) {
-                            sentenceMatches.push({
-                                sentence: sentenceWithContext.he,
-                                english: sentenceWithContext.en || fullEnglish,
-                                index,
-                                candidate: match.candidate,
-                                strength: match.strength
-                            });
-                        }
+                        sentenceMatches.push({
+                            sentence: sentenceWithContext,
+                            index,
+                            candidate: match.candidate,
+                            strength: match.strength
+                        });
                     }
                 });
 
@@ -1781,19 +1774,12 @@ for (const candidate of englishCandidates) {
 
                     return {
                         he: pool[0].sentence,
-                        en: pool[0].english || '',
                         matchedCandidate: pool[0].candidate || matchedCandidate
                     };
                 }
 
-                const expanded = buildExpandedSegmentExcerpt(matchedCandidate);
-                if (!expanded.he || !hasEnoughSurroundingContext(expanded.he, matchedCandidate)) {
-                    return { he: '', en: '', matchedCandidate };
-                }
-
                 return {
-                    he: expanded.he,
-                    en: expanded.en || fullEnglish,
+                    he: buildExpandedSegmentExcerpt(matchedCandidate),
                     matchedCandidate
                 };
             }
@@ -1812,7 +1798,6 @@ for (const candidate of englishCandidates) {
                         ref: data.ref,
                         heRef: data.heRef,
                         heArray: Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he],
-                        enArray: Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text || ''],
                         dafLabel: dafLabel || ref
                     };
                 } catch (e) {
@@ -1820,7 +1805,7 @@ for (const candidate of englishCandidates) {
                 }
             }
 
-            function findMatchInArrays(heArray, enArray, ref, heRef, sourceRef = ref) {
+            function findMatchInArrays(heArray, ref, heRef, sourceRef = ref) {
                 let bestMatch = null;
 
                 for (let i = 0; i < heArray.length; i++) {
@@ -1846,16 +1831,12 @@ for (const candidate of englishCandidates) {
 
                 const excerpt = buildExcerptFromMatch(
                     heArray,
-                    enArray,
                     bestMatch.matchIndex,
                     bestMatch.matchedCandidate
                 );
 
-                if (!excerpt.he) return null;
-
                 return {
                     he: excerpt.he,
-                    en: excerpt.en || '', 
                     ref,
                     heRef,
                     matchStrength: bestMatch.matchStrength,
@@ -1867,7 +1848,7 @@ for (const candidate of englishCandidates) {
             async function fetchRefAndFindMatch(ref, dafLabel = null) {
                 const data = await fetchRefData(ref, dafLabel);
                 if (!data) return null;
-                return findMatchInArrays(data.heArray, data.enArray, data.ref, data.heRef, dafLabel || ref);
+                return findMatchInArrays(data.heArray, data.ref, data.heRef, dafLabel || ref);
             }
 
             function scoreMatch(found, preferredRef = null) {
@@ -1966,7 +1947,6 @@ for (const candidate of englishCandidates) {
 
                     for (let i = 0; i < segmentCount; i++) {
                         const he = typeof data.heArray[i] === 'string' ? data.heArray[i] : '';
-                        const en = Array.isArray(data.enArray) && typeof data.enArray[i] === 'string' ? data.enArray[i] : '';
 
                         if (!perakim[currentPerek]) {
                             perakim[currentPerek] = [];
@@ -1974,7 +1954,6 @@ for (const candidate of englishCandidates) {
 
                         perakim[currentPerek].push({
                             he,
-                            en,
                             ref: data.ref,
                             heRef: data.heRef,
                             dafLabel
@@ -2025,16 +2004,12 @@ for (const candidate of englishCandidates) {
 
                 const excerpt = buildExcerptFromMatch(
                     segments.map(segment => segment.he),
-                    segments.map(segment => segment.en || ''),
                     bestMatch.matchIndex,
                     bestMatch.matchedCandidate
                 );
 
-                if (!excerpt.he) return null;
-
                 return {
                     he: excerpt.he,
-                    en: excerpt.en || '',
                     ref: segments[bestMatch.matchIndex].ref,
                     heRef: segments[bestMatch.matchIndex].heRef,
                     matchStrength: bestMatch.matchStrength,
@@ -2079,7 +2054,6 @@ for (const candidate of englishCandidates) {
                 if (bestDirectMatch) {
                     return {
                         he: bestDirectMatch.he,
-                        en: bestDirectMatch.en || '',
                         ref: bestDirectMatch.ref,
                         heRef: bestDirectMatch.heRef,
                         matchedCandidate: bestDirectMatch.matchedCandidate
@@ -2091,7 +2065,6 @@ for (const candidate of englishCandidates) {
                     if (foundInBook) {
                         return {
                             he: foundInBook.he,
-                            en: foundInBook.en || '',
                             ref: foundInBook.ref,
                             heRef: foundInBook.heRef,
                             matchedCandidate: foundInBook.matchedCandidate
@@ -2104,7 +2077,6 @@ for (const candidate of englishCandidates) {
             if (foundInCorpus) {
                 return {
                     he: foundInCorpus.he,
-                    en: foundInCorpus.en || '',
                     ref: foundInCorpus.ref,
                     heRef: foundInCorpus.heRef,
                     matchedCandidate: foundInCorpus.matchedCandidate

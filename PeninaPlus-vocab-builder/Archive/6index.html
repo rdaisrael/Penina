@@ -1105,49 +1105,6 @@ function updateTalmudModeVisibility() {
             }
         }
 
-        function containsHebrew(text) {
-            return /[\u05D0-\u05EA]/.test(String(text || ''));
-        }
-
-        function containsNekudotOrTaamim(text) {
-            return /[\u0591-\u05C7]/.test(String(text || ''));
-        }
-
-        function getDictaNakdanGenre(sourceType) {
-            if (sourceType === 'Talmud') return 'rabbinic';
-            if (sourceType === 'Tanakh') return 'biblical';
-            return 'modern';
-        }
-
-        async function addNikkudWithDicta(rawHebrew, sourceType) {
-            const value = String(rawHebrew || '').trim();
-
-            if (!value) return value;
-            if (!containsHebrew(value)) return value;
-            if (containsNekudotOrTaamim(value)) return value;
-            if (isLikelyHebrewAbbreviation(value)) return value;
-
-            try {
-                const res = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        suppliedText: value,
-                        dictaGenre: getDictaNakdanGenre(sourceType)
-                    })
-                });
-
-                if (!res.ok) return value;
-
-                const data = await res.json();
-                const vowelized = String(data.text || data.vowelized || data.result || '').trim();
-
-                return vowelized || value;
-            } catch (e) {
-                return value;
-            }
-        }
-
         generateBtn.addEventListener('click', async () => {
             const title = document.getElementById('list-title').value.trim();
             const rawInput = document.getElementById('word-list').value.trim();
@@ -1226,7 +1183,6 @@ function updateTalmudModeVisibility() {
 
                 for (let item of vocabList) {
                     let cleanHebrew = item.hebrew.replace(/[֑-ׇ]/g, '').trim();
-                    item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
                     item.expandedHebrew = noContextMode ? "" : await expandHebrewAbbreviation(cleanHebrew, sourceType);
                     const isAbbreviationEntry = !noContextMode && isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
                     const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
@@ -1474,7 +1430,6 @@ for (const candidate of englishCandidates) {
                 }
                 vocabTbody.innerHTML = htmlOutput;
                 document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
-                updateTextDisplay();
             } catch (e) {
                 vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
             } finally { generateBtn.disabled = false; }
@@ -2025,7 +1980,7 @@ for (const candidate of englishCandidates) {
 
                 if (subNames) {
                     html = html.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, 'ה׳');
-                    html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*(?:ו[\u0591-\u05C7]*)?)ה([\u0591-\u05C7]*)/g, '$1ק$2');
+                    html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*ו[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, '$1ק$2');
                 }
 
                 if (stripNekudot) {

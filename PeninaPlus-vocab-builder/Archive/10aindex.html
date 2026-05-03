@@ -2043,18 +2043,11 @@ for (const candidate of englishCandidates) {
 
             if (relevantTargets.length) {
                 const directMatches = [];
-                const parentBookTargets = [];
-                const addParentBookTarget = (englishBook, hebrewBook) => {
-                    if (!englishBook || englishBook === 'ANY') return;
-                    if (!parentBookTargets.some(existing => existing.englishBook === englishBook)) {
-                        parentBookTargets.push({ englishBook, hebrewBook });
-                    }
-                };
+                const wholeBookTargets = [];
 
                 for (const target of relevantTargets) {
                     const englishBook = await getEnglishName(target.book);
                     if (!englishBook || englishBook === 'ANY') continue;
-                    addParentBookTarget(englishBook, target.book);
 
                     if (!isTalmud && target.scope === 'chapter') {
                         directMatches.push(await fetchRefAndFindMatch(`${englishBook} ${target.value}`));
@@ -2074,6 +2067,10 @@ for (const candidate of englishCandidates) {
                         }
                         continue;
                     }
+
+                    if (target.scope === 'whole') {
+                        wholeBookTargets.push({ englishBook, hebrewBook: target.book });
+                    }
                 }
 
                 const bestDirectMatch = pickBestMatch(directMatches);
@@ -2087,7 +2084,7 @@ for (const candidate of englishCandidates) {
                     };
                 }
 
-                for (const target of parentBookTargets) {
+                for (const target of wholeBookTargets) {
                     const foundInBook = await searchViaSefaria(corpusFilter, target.englishBook);
                     if (foundInBook) {
                         return {

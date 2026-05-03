@@ -1,4 +1,4 @@
-<!-- PP VOCAB BUILDER -->
+<<!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -119,10 +119,8 @@
             color: #5a5248; 
             outline: none; 
             text-align: center;
-            list-style: none;
+            list-style-position: inside;
         }
-        summary.about-summary::-webkit-details-marker { display: none; }
-        summary.about-summary::marker { content: ''; }
         summary.about-summary:hover { color: #3a332a; }
         .about-content { 
             margin-top: 15px; 
@@ -248,26 +246,19 @@
             direction: ltr;
         }
         
-        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 14px 10px; margin-top: 0; margin-bottom: 12px; font-size: var(--title-font-size, 18pt); border-radius: 4px; letter-spacing: var(--global-letter-spacing, 0px); }
-        table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; table-layout: fixed; font-size: var(--base-font-size, 14pt); }
-        th, td { border: 1px solid #dcd3c6; padding: 7pt 10pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); letter-spacing: var(--global-letter-spacing, 0px); }
+        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 10px; margin-top: 0; font-size: 18pt; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; table-layout: fixed; }
+        th, td { border: 1px solid #dcd3c6; padding: 10pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; }
         th { background-color: #f4efe6; font-weight: bold; text-align: center; color: #4a4238; }
         
-        .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; width: 22%; min-width: 0; max-width: 0; padding: 7pt 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
-        .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); width: 22%; min-width: 0; padding: 7pt 10pt; overflow-wrap: anywhere; word-break: break-word; }
-        .col-context { width: 56%; min-width: 0; font-size: var(--base-font-size, 14pt); line-height: 1.2; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+        .col-hebrew { direction: rtl; text-align: right; font-size: 14pt; white-space: normal; width: 20%; min-width: 0; max-width: 0; padding: 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
+        .col-english { direction: ltr; text-align: left; font-size: 12pt; width: 24%; min-width: 0; padding: 10pt; overflow-wrap: anywhere; word-break: break-word; }
+        .col-context { width: 56%; min-width: 0; font-size: 10pt; line-height: 1.4; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
-        .hebrew-word, .hebrew-text, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
-        .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.2; }
-        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 2px; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.2; letter-spacing: var(--global-letter-spacing, 0px); }
-        .citation { font-size: calc(var(--base-font-size, 14pt) - 2pt); line-height: 1.1; margin-top: 2px; color: #666; white-space: normal; font-weight: normal; }
-        .hebrew-citation { direction: rtl; text-align: right; }
-        .english-citation { direction: ltr; text-align: left; font-family: var(--english-font, Arial, sans-serif) !important; }
-        #search-status-notice { text-align: center; }
-        .penina-footer { margin-top: 20px; text-align: center; font-size: 10pt; color: #6a6258; line-height: 1.3; }
-        #page, #page * { letter-spacing: var(--global-letter-spacing, 0px); }
-        .title-hebrew { font-family: var(--hebrew-font, Arial, sans-serif) !important; }
-        .title-english { font-family: var(--english-font, Arial, sans-serif) !important; }
+        .hebrew-word, .hebrew-text, .citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--hebrew-letter-spacing, 0px); }
+        .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 4px; overflow-wrap: anywhere; word-break: break-word; }
+        .citation { direction: rtl; text-align: right; font-size: 10pt; margin-top: 4px; color: #666; white-space: normal; }
         
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
         .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
@@ -289,26 +280,60 @@
             .home-btn { display: none; }
             .control-panel-wrapper { display: none !important; }
             .page-container { margin: 0 !important; width: 100% !important; box-shadow: none !important; border: none !important; }
-            .penina-footer { margin-top: 30px; font-size: 9pt; }
         }
 
         :root {
             --english-font: Arial, sans-serif;
             --hebrew-font: Arial, sans-serif;
-            --global-letter-spacing: 0px;
-            --base-font-size: 14pt;
-            --title-font-size: 21pt;
+            --hebrew-letter-spacing: 0px;
         }
         
         [dir="ltr"], .english-text, .col-english, #vocab-table th {
             font-family: var(--english-font) !important;
         }
+    
+
+        /* --- AUDITED TYPOGRAPHY + PRINT FOOTER OVERRIDES --- */
+        :root {
+            --english-font: Arial, sans-serif;
+            --hebrew-font: Arial, sans-serif;
+            --global-letter-spacing: 0px;
+            --base-font-size: 14pt;
+            --title-font-size: 18pt;
+        }
+        h1.doc-title { font-size: var(--title-font-size, 18pt); }
+        table { font-size: var(--base-font-size, 14pt); }
+        th, td, .col-hebrew, .col-english, .col-context, .english-text, .citation {
+            font-size: var(--base-font-size, 14pt) !important;
+            letter-spacing: var(--global-letter-spacing, 0px) !important;
+        }
+        .col-hebrew { width: 22% !important; }
+        .col-english { width: 22% !important; }
+        .col-context { width: 56% !important; }
+        #search-status-notice { text-align: center; }
+        #page, #page * { letter-spacing: var(--global-letter-spacing, 0px) !important; }
+        .title-hebrew, .lang-hebrew, .hebrew-word, .hebrew-text, .citation {
+            font-family: var(--hebrew-font, Arial, sans-serif) !important;
+            direction: rtl;
+            unicode-bidi: plaintext;
+        }
+        .title-english, .lang-english, .col-english, .english-text, #vocab-table th, [dir="ltr"] {
+            font-family: var(--english-font, Arial, sans-serif) !important;
+        }
+        .penina-footer {
+            margin-top: 24px;
+            text-align: center;
+            font-size: calc(var(--base-font-size, 14pt) - 2pt);
+            color: #6a6258;
+            letter-spacing: var(--global-letter-spacing, 0px);
+        }
+
     </style>
 </head>
 <body class="mode-full">
 
     <div class="bg-pattern"></div>
-<a href="/" class="home-btn" aria-label="Return to Home">
+<a href="./index.html" class="home-btn" aria-label="Return to Home">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
         </svg>
@@ -343,9 +368,9 @@
             </div>
 
             <div class="form-group" style="display: flex; gap: 20px;">
-                <div style="flex: 0 0 230px;">
+                <div style="flex: 1;">
                     <label for="source-type">Context Source:</label>
-                    <select id="source-type" style="width: 100%;">
+                    <select id="source-type">
                         <option value="Tanakh">תנ''ך</option>
                         <option value="Talmud">תלמוד בבלי</option>
                         <option value="Modern Hebrew">עברית מודרנית</option>
@@ -369,23 +394,22 @@
                             <div id="book-select-container" style="flex: 1; min-width: 0; display: flex;">
                                 <select id="book-select" size="3" class="roller" style="flex: 1;"></select>
                             </div>
-                            <div id="daf-mode-controls" style="display: flex; gap: 15px; flex: 1; min-width: 0;">
-                                <select id="num-picker" size="3" class="roller" style="flex: 1; min-width: 0;" disabled>
+                            <div id="daf-mode-controls" style="display: flex; gap: 15px; flex: 2; min-width: 0;">
+                                <select id="num-picker" size="3" class="roller" style="flex: 1;" disabled>
                                     <option value="" disabled selected>#</option>
                                 </select>
-                                <button type="button" id="add-chip-btn" style="flex: 0 0 90px; font-size: 15px; padding: 8px;" disabled>Add</button>
+                                <button type="button" id="add-chip-btn" style="flex: 1; font-size: 16px; padding: 10px;" disabled>Add</button>
                             </div>
-                            <div id="perek-mode-controls" style="display: none; flex: 1; min-width: 0; gap: 15px;">
-                                <select id="perek-picker" size="3" class="roller" style="flex: 1; min-width: 0; width: 100%;" disabled>
+                            <div id="perek-mode-controls" style="display: none; flex: 2; min-width: 0;">
+                                <select id="perek-picker" size="3" class="roller" style="flex: 1;" disabled>
                                     <option value="" disabled selected>בחר פרק</option>
                                 </select>
-                                <button type="button" id="add-perek-chip-btn" style="flex: 0 0 90px; font-size: 15px; padding: 8px;" disabled>Add</button>
                             </div>
                         </div>
                         <div id="chip-container" style="border: 1px solid #dcd3c6; border-radius: 5px; background: #fdfdfa; padding: 5px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 45px; width: 100%; box-sizing: border-box;">
                             <span style="color: #9c9284; font-size: 12px; padding: 2px;">Select book first...</span>
                         </div>
-                        <input type="hidden" id="hidden-chapter-input" value="[]">
+                        <input type="hidden" id="hidden-chapter-input" value="ANY">
                         <input type="hidden" id="hidden-perek-input" value="">
                     </div>
                 </div>
@@ -397,8 +421,7 @@
             </div>
 
             <div class="form-group checkbox-group" style="margin-bottom: 15px;">
-                <label><input type="checkbox" id="alphabetize-list" checked> Alphabetize List</label>
-                <label><input type="checkbox" id="context-quotes" checked> Context Quotes</label>
+                <label><input type="checkbox" id="alphabetize-list"> Alphabetize List</label>
             </div>
 
             <button id="generate-btn">Generate Vocabulary Table</button>
@@ -413,7 +436,7 @@
                 <h3>Word Styling and Formatting</h3>
                 
                 <div class="checkbox-group" style="margin-bottom: 20px;">
-                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()" checked> Substitute 'ה and אלוקים</label>
+                    <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()"> Substitute 'ה and אלוקים</label>
                 </div>
 
                 <div class="slider-group">
@@ -493,7 +516,7 @@
                 </thead>
                 <tbody id="vocab-tbody"></tbody>
             </table>
-            <div class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>
+            <div id="penina-footer" class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>
         </div>
     </div>
 
@@ -503,7 +526,7 @@
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
-                .replace(/([\u0590-\u05FF\uFB1D-\uFB4F][\u0590-\u05FF\uFB1D-\uFB4F\s'"׳״-]*)/g, '<span class="title-hebrew">$1</span>')
+                .replace(/([֐-׿יִ-ﭏ][֐-׿יִ-ﭏ\s'"׳״-]*)/g, '<span class="title-hebrew">$1</span>')
                 .replace(/([^<]+)/g, function(part) {
                     return part.includes('title-hebrew') ? part : '<span class="title-english">' + part + '</span>';
                 })
@@ -516,9 +539,17 @@
             titleEl.innerHTML = stylizeTitleText(rawTitle);
         }
 
-        function contextQuotesEnabled() {
-            const contextQuotesCheckbox = document.getElementById('context-quotes');
-            return !contextQuotesCheckbox || contextQuotesCheckbox.checked;
+        function stylizeMixedText(text) {
+            const escaped = String(text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            return escaped
+                .replace(/([֐-׿יִ-ﭏ][֐-׿יִ-ﭏ\s'"׳״-]*)/g, '<span class="lang-hebrew">$1</span>')
+                .replace(/([^<]+)/g, function(part) {
+                    return part.includes('lang-hebrew') ? part : '<span class="lang-english">' + part + '</span>';
+                })
+                .replace(/<span class="lang-english"><\/span>/g, '');
         }
 
         function updateViewModeLock() {
@@ -526,14 +557,13 @@
             const viewMode = document.getElementById('view-mode');
             if (!viewMode) return;
 
-            if (sourceType === 'No Context Quotes' || !contextQuotesEnabled()) {
+            if (sourceType === 'No Context Quotes') {
                 viewMode.value = 'mode-basic';
                 viewMode.disabled = true;
                 document.body.className = 'mode-basic';
             } else {
                 viewMode.disabled = false;
-                viewMode.value = 'mode-full';
-                document.body.className = 'mode-full';
+                document.body.className = viewMode.value;
             }
         }
 
@@ -554,7 +584,7 @@
             if (fontSizeSlider) {
                 const baseSize = parseInt(fontSizeSlider.value, 10);
                 document.documentElement.style.setProperty('--base-font-size', baseSize + 'pt');
-                document.documentElement.style.setProperty('--title-font-size', (baseSize + 7) + 'pt');
+                document.documentElement.style.setProperty('--title-font-size', (baseSize + 4) + 'pt');
             }
 
             if (kerningSlider) {
@@ -573,10 +603,6 @@
         const pageContainer = document.getElementById('page');
         const docTitle = document.getElementById('doc-title');
         const searchStatusNotice = document.getElementById('search-status-notice');
-        const contextQuotesCheckbox = document.getElementById('context-quotes');
-        if (contextQuotesCheckbox) {
-            contextQuotesCheckbox.addEventListener('change', updateViewModeLock);
-        }
 
 const bookSelect = document.getElementById('book-select');
 const numPicker = document.getElementById('num-picker');
@@ -588,9 +614,8 @@ const talmudModeContainer = document.getElementById('talmud-mode-container');
 const dafModeControls = document.getElementById('daf-mode-controls');
 const perekModeControls = document.getElementById('perek-mode-controls');
 const perekPicker = document.getElementById('perek-picker');
-const addPerekChipBtn = document.getElementById('add-perek-chip-btn');
 const talmudModeRadios = Array.from(document.querySelectorAll('input[name="talmud-mode"]'));
-let selectedSourceTargets = [];
+let selectedPagesList = [];
 const englishBookCache = new Map();
 const refDataCache = new Map();
 const talmudPerekDataCache = new Map();
@@ -635,85 +660,6 @@ const talmudDafRanges = {
     "נידה": { start: "2a", end: "73a" }
 };
 
-
-function getHebrewChapterLabel(num) {
-    const numeric = parseInt(num, 10);
-    return Number.isFinite(numeric) ? toHebrewNumber(numeric) : String(num);
-}
-
-function buildTargetLabel(target) {
-    if (!target) return '';
-    const book = target.book || '';
-    if (target.scope === 'whole') return book;
-    if (target.scope === 'chapter') return `${book} ${getHebrewChapterLabel(target.value)}`;
-    if (target.scope === 'daf') return `${book} ${toHebrewDafLabel(target.value)}`;
-    if (target.scope === 'perek') {
-        const idx = parseInt(target.value, 10);
-        const perekNumber = Number.isFinite(idx) ? idx + 1 : target.value;
-        return `${book} פרק ${toHebrewNumber(perekNumber)}`;
-    }
-    return book;
-}
-
-function serializeTargets() {
-    hiddenChapterInput.value = JSON.stringify(selectedSourceTargets);
-    const talmudPerekTargets = selectedSourceTargets.filter(t => t.scope === 'perek');
-    hiddenPerekInput.value = talmudPerekTargets.length ? JSON.stringify(talmudPerekTargets) : '';
-}
-
-function isSameTarget(a, b) {
-    return !!a && !!b && a.corpus === b.corpus && a.book === b.book && a.scope === b.scope && String(a.value || '') === String(b.value || '');
-}
-
-function createCurrentSelectionTarget() {
-    const sourceType = sourceTypeSelect.value;
-    const selectedBook = bookSelect.value;
-    if (!(sourceType === 'Tanakh' || sourceType === 'Talmud')) return null;
-    if (!selectedBook || selectedBook === 'ANY') return null;
-
-    if (sourceType === 'Tanakh') {
-        const chapterValue = numPicker.value;
-        if (chapterValue) {
-            return { corpus: 'Tanakh', book: selectedBook, scope: 'chapter', value: String(chapterValue) };
-        }
-        return { corpus: 'Tanakh', book: selectedBook, scope: 'whole', value: '' };
-    }
-
-    const talmudMode = getSelectedTalmudMode();
-    if (talmudMode === 'daf') {
-        const dafValue = numPicker.value;
-        if (dafValue) {
-            return { corpus: 'Talmud', book: selectedBook, scope: 'daf', value: String(dafValue) };
-        }
-        return { corpus: 'Talmud', book: selectedBook, scope: 'whole', value: '' };
-    }
-
-    const perekValue = perekPicker.value;
-    if (perekValue !== '') {
-        return { corpus: 'Talmud', book: selectedBook, scope: 'perek', value: String(perekValue) };
-    }
-    return { corpus: 'Talmud', book: selectedBook, scope: 'whole', value: '' };
-}
-
-function addCurrentSelectionAsChip() {
-    const target = createCurrentSelectionTarget();
-    if (!target) return;
-
-    if (selectedSourceTargets.length >= 25) {
-        alert('You can only select up to 25 targets at a time.');
-        return;
-    }
-
-    if (!selectedSourceTargets.some(existing => isSameTarget(existing, target))) {
-        selectedSourceTargets.push(target);
-        renderChips();
-    }
-}
-
-function getSelectedSourceTargets() {
-    return selectedSourceTargets.slice();
-}
-
 function generateDafOptions(startDaf, endDaf) {
     const parseDaf = (daf) => {
         const match = String(daf).trim().match(/^(\d+)([ab])$/i);
@@ -748,16 +694,6 @@ function generateDafOptions(startDaf, endDaf) {
 function getSelectedTalmudMode() {
     const checked = talmudModeRadios.find(radio => radio.checked);
     return checked ? checked.value : 'daf';
-}
-
-
-function toHebrewDafLabel(daf) {
-    const match = String(daf || '').trim().match(/^(\d+)([ab])$/i);
-    if (!match) return String(daf || '');
-    const num = parseInt(match[1], 10);
-    const side = match[2].toLowerCase();
-    const hebNum = toHebrewNumber(num);
-    return hebNum + (side === 'a' ? '.' : ':');
 }
 
 function toHebrewNumber(num) {
@@ -799,11 +735,13 @@ function updateTalmudModeVisibility() {
 
     if (isTalmud) {
         dafModeControls.style.display = talmudMode === 'daf' ? 'flex' : 'none';
-        chipContainer.style.display = 'flex';
+        chipContainer.style.display = talmudMode === 'daf' ? 'flex' : 'none';
         perekModeControls.style.display = talmudMode === 'perek' ? 'flex' : 'none';
 
         if (talmudMode === 'perek') {
-            hiddenChapterInput.value = hiddenChapterInput.value || '[]';
+            hiddenChapterInput.value = 'ANY';
+            selectedPagesList = [];
+            renderChips();
         } else {
             hiddenPerekInput.value = '';
         }
@@ -877,10 +815,9 @@ function updateTalmudModeVisibility() {
             numPicker.disabled = true;
             perekPicker.disabled = true;
             addChipBtn.disabled = true;
-            addPerekChipBtn.disabled = true;
-            addChipBtn.innerText = 'Add';
-            selectedSourceTargets = [];
-            hiddenChapterInput.value = '[]';
+            addChipBtn.innerText = value === 'Tanakh' ? 'Add Chapter' : (value === 'Talmud' ? 'Add Daf' : 'Add');
+            selectedPagesList = [];
+            hiddenChapterInput.value = 'ANY';
             hiddenPerekInput.value = '';
             renderChips();
 
@@ -925,7 +862,6 @@ function updateTalmudModeVisibility() {
             numPicker.disabled = true;
             perekPicker.disabled = true;
             addChipBtn.disabled = true;
-            addPerekChipBtn.disabled = true;
 
             if (!selectedBook || selectedBook === 'ANY') {
                 return;
@@ -958,31 +894,31 @@ function updateTalmudModeVisibility() {
                     dafOptions.forEach(daf => {
                         const option = document.createElement('option');
                         option.value = daf;
-                        option.textContent = toHebrewDafLabel(daf);
-                        option.setAttribute('dir', 'rtl');
-                        option.style.direction = 'rtl';
-                        option.style.unicodeBidi = 'plaintext';
+                        option.textContent = daf;
                         numPicker.appendChild(option);
                     });
                 } else {
                     populatePerekPicker(selectedBook);
-                    addPerekChipBtn.disabled = false;
                 }
             }
         }
 
         bookSelect.addEventListener('change', () => {
+            selectedPagesList = [];
+            hiddenChapterInput.value = 'ANY';
             hiddenPerekInput.value = '';
-            updateSecondaryPickers();
             renderChips();
+            updateSecondaryPickers();
         });
 
         talmudModeRadios.forEach(radio => {
             radio.addEventListener('change', () => {
+                selectedPagesList = [];
+                hiddenChapterInput.value = 'ANY';
                 hiddenPerekInput.value = '';
+                renderChips();
                 updateTalmudModeVisibility();
                 updateSecondaryPickers();
-                renderChips();
             });
         });
 
@@ -991,33 +927,43 @@ function updateTalmudModeVisibility() {
         });
 
         addChipBtn.addEventListener('click', () => {
-            addCurrentSelectionAsChip();
-        });
+            const finalSelection = numPicker.value;
+            if (!finalSelection) return;
 
-        addPerekChipBtn.addEventListener('click', () => {
-            addCurrentSelectionAsChip();
+            if (selectedPagesList.length >= 10) {
+                alert("You can only select up to 10 targets at a time.");
+                return;
+            }
+            if (!selectedPagesList.includes(finalSelection)) {
+                selectedPagesList.push(finalSelection);
+                renderChips();
+            }
         });
 
         function renderChips() {
-            const activeTargets = getSelectedSourceTargets();
+            if (sourceTypeSelect.value === 'Talmud' && getSelectedTalmudMode() === 'perek') {
+                chipContainer.innerHTML = '<span style="color: #9c9284; font-size: 12px; padding: 2px;">Perek mode selected</span>';
+                hiddenChapterInput.value = 'ANY';
+                return;
+            }
 
-            if (!activeTargets.length) {
-                chipContainer.innerHTML = '<span style="color: #9c9284; font-size: 12px; padding: 2px;">Select a sefer / masechet, then click Add.</span>';
-                serializeTargets();
+            if (selectedPagesList.length === 0) {
+                chipContainer.innerHTML = '<span style="color: #9c9284; font-size: 12px; padding: 2px;">ANY (Whole Book)</span>';
+                hiddenChapterInput.value = 'ANY';
                 return;
             }
 
             chipContainer.innerHTML = '';
-            activeTargets.forEach(target => {
+            selectedPagesList.forEach(page => {
                 const chip = document.createElement('div');
                 chip.className = 'page-chip';
-                chip.textContent = buildTargetLabel(target);
+                chip.textContent = page;
 
                 const closeBtn = document.createElement('span');
                 closeBtn.className = 'chip-x';
                 closeBtn.innerHTML = '&#10005;';
                 closeBtn.onclick = () => {
-                    selectedSourceTargets = selectedSourceTargets.filter(existing => !isSameTarget(existing, target));
+                    selectedPagesList = selectedPagesList.filter(p => p !== page);
                     renderChips();
                 };
 
@@ -1025,7 +971,7 @@ function updateTalmudModeVisibility() {
                 chipContainer.appendChild(chip);
             });
 
-            serializeTargets();
+            hiddenChapterInput.value = selectedPagesList.join(',');
         }
 
 
@@ -1052,7 +998,7 @@ function updateTalmudModeVisibility() {
             const baseSize = parseInt(e.target.value, 10);
             document.getElementById('font-size-val').innerText = baseSize + 'pt';
             document.documentElement.style.setProperty('--base-font-size', baseSize + 'pt');
-            document.documentElement.style.setProperty('--title-font-size', (baseSize + 7) + 'pt');
+            document.documentElement.style.setProperty('--title-font-size', (baseSize + 4) + 'pt');
         });
 
         document.getElementById('kerning').addEventListener('input', (e) => {
@@ -1119,64 +1065,13 @@ function updateTalmudModeVisibility() {
             }
         }
 
-        function containsHebrew(text) {
-            return /[\u05D0-\u05EA]/.test(String(text || ''));
-        }
-
-        function containsNekudotOrTaamim(text) {
-            return /[\u0591-\u05C7]/.test(String(text || ''));
-        }
-
-        function getDictaNakdanGenre(sourceType) {
-            if (sourceType === 'Talmud') return 'rabbinic';
-            if (sourceType === 'Tanakh') return 'biblical';
-            return 'modern';
-        }
-
-        async function addNikkudWithDicta(rawHebrew, sourceType) {
-            const value = String(rawHebrew || '').trim();
-
-            if (!value) return value;
-            if (!containsHebrew(value)) return value;
-            if (containsNekudotOrTaamim(value)) return value;
-            if (isLikelyHebrewAbbreviation(value)) return value;
-
-            try {
-                const res = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        suppliedText: value,
-                        dictaGenre: getDictaNakdanGenre(sourceType)
-                    })
-                });
-
-                if (!res.ok) return value;
-
-                const data = await res.json();
-                const vowelized = String(data.text || data.vowelized || data.result || '').trim();
-
-                return vowelized || value;
-            } catch (e) {
-                return value;
-            }
-        }
-
         generateBtn.addEventListener('click', async () => {
             const title = document.getElementById('list-title').value.trim();
             const rawInput = document.getElementById('word-list').value.trim();
             const sourceType = document.getElementById('source-type').value;
 
             if (searchStatusNotice) {
-                if (!contextQuotesEnabled() || sourceType === 'No Context Quotes') {
-                    searchStatusNotice.innerHTML = 'Penina utilizes AI and can make mistakes.';
-                    searchStatusNotice.style.display = 'block';
-                } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                    searchStatusNotice.innerHTML = 'Penina utilizes AI and can make mistakes. Hebrew texts are pulled directly from Sefaria.';
-                    searchStatusNotice.style.display = 'block';
-                } else {
-                    searchStatusNotice.style.display = 'none';
-                }
+                searchStatusNotice.style.display = (sourceType === 'Tanakh' || sourceType === 'Talmud') ? 'block' : 'none';
             }
             updateViewModeLock();
 
@@ -1244,11 +1139,10 @@ function updateTalmudModeVisibility() {
                 }
 
                 const preparedItems = [];
-                const noContextMode = sourceType === 'No Context Quotes' || !contextQuotesEnabled();
+                const noContextMode = sourceType === "No Context Quotes";
 
                 for (let item of vocabList) {
                     let cleanHebrew = item.hebrew.replace(/[֑-ׇ]/g, '').trim();
-                    item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
                     item.expandedHebrew = noContextMode ? "" : await expandHebrewAbbreviation(cleanHebrew, sourceType);
                     const isAbbreviationEntry = !noContextMode && isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
                     const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
@@ -1261,8 +1155,6 @@ function updateTalmudModeVisibility() {
                         searchHebrew,
                         hebrewContext: "",
                         englishContext: "",
-                        hebrewCitation: "",
-                        englishCitation: "",
                         citation: "",
                         matchedHebrewCandidate: searchHebrew,
                         isAbbreviationEntry
@@ -1302,34 +1194,24 @@ function updateTalmudModeVisibility() {
                 for (const row of preparedItems) {
                     const { item, semanticHebrew, searchHebrew, isAbbreviationEntry } = row;
 
-                    if (noContextMode) {
-                        row.hebrewContext = "";
-                        row.englishContext = "";
-                        row.citation = "";
-                    } else if (isAbbreviationEntry) {
+                    if (isAbbreviationEntry) {
                         row.hebrewContext = item.expandedHebrew;
                         row.englishContext = "";
                         row.citation = "Expanded abbreviation / acronym";
-                        row.hebrewCitation = "";
-                        row.englishCitation = "Expanded abbreviation / acronym";
                         row.matchedHebrewCandidate = semanticHebrew;
                     } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                        let searchResult = await performSefariaSearch(searchHebrew, sourceType, getSelectedSourceTargets());
+                        let searchResult = await performSefariaSearch(searchHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
                         if (searchResult) {
                             row.hebrewContext = searchResult.he || "";
-                            row.englishContext = searchResult.en || "";
                             row.matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
-                            const citationParts = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
-                            row.hebrewCitation = citationParts.hebrew;
-                            row.englishCitation = citationParts.english;
-                            row.citation = citationParts.combined;
+                            row.citation = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
                         } else {
                             row.hebrewContext = "Word not found in context.";
                         }
                     } else if (sourceType === 'No Context Quotes') {
-                        row.hebrewContext = "";
-                        row.englishContext = "";
-                        row.citation = "";
+                        row.hebrewContext = '';
+                        row.englishContext = '';
+                        row.citation = '';
                     } else {
                         const contextRes = await fetch('/api/translate', {
                             method: 'POST',
@@ -1344,8 +1226,6 @@ function updateTalmudModeVisibility() {
                             row.hebrewContext = "Word not found in context.";
                         }
                         row.citation = "Modern Hebrew Context";
-                        row.hebrewCitation = "";
-                        row.englishCitation = "Modern Hebrew Context";
                     }
                 }
 
@@ -1356,7 +1236,7 @@ function updateTalmudModeVisibility() {
                     const row = preparedItems[i];
                     if (row.isAbbreviationEntry) continue;
 
-                    if (row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.englishContext) {
+                    if (row.hebrewContext && row.hebrewContext !== "Word not found in context.") {
                         const prompt = sourceType === 'Modern Hebrew'
                             ? `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation.`
                             : `Translate this Hebrew/Aramaic source sentence to natural English: "${row.hebrewContext}". Use "${row.item.english}" if it fits naturally, but prioritize the actual meaning of the sentence. Return ONLY the English translation.`;
@@ -1393,7 +1273,7 @@ function updateTalmudModeVisibility() {
                 }
 
                 for (const row of preparedItems) {
-                    const { item, hebrewContext, englishContext, hebrewCitation, englishCitation, matchedHebrewCandidate } = row;
+                    const { item, hebrewContext, englishContext, citation, matchedHebrewCandidate } = row;
 
                     function normalizeHebrewForDisplayMatch(text) {
                         return String(text || '')
@@ -1499,39 +1379,33 @@ for (const candidate of englishCandidates) {
 
                     htmlOutput += `
                     <tr>
-                        <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
-                        <td class="col-english" contenteditable="true">${item.english}</td>
+                        <td class="col-hebrew"><span class="hebrew-word">${stylizeMixedText(item.hebrew)}</span></td>
+                        <td class="col-english" contenteditable="true">${stylizeMixedText(item.english)}</td>
                         <td class="col-context">
-                            <div class="hebrew-text">${highlightedHebrew}</div>
-                            ${hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl">${hebrewCitation}</div>` : ''}
-                            <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
-                            ${englishCitation ? `<div class="citation english-citation" dir="ltr">${englishCitation}</div>` : ''}
+                            <div class="hebrew-text">${stylizeMixedText(highlightedHebrew)}</div>
+                            <div class="english-text output-english" contenteditable="true">${stylizeMixedText(highlightedEnglish)}</div>
+                            <div class="citation" dir="rtl">${stylizeMixedText(citation)}</div>
                         </td>
                     </tr>`;
                 }
                 vocabTbody.innerHTML = htmlOutput;
-                document.querySelectorAll('.hebrew-word, .hebrew-text, .hebrew-citation').forEach(el => el.dataset.original = el.innerHTML);
-                updateTextDisplay();
+                document.querySelectorAll('.hebrew-word, .hebrew-text, .citation').forEach(el => el.dataset.original = el.innerHTML);
             } catch (e) {
                 vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
             } finally { generateBtn.disabled = false; }
         });
 
         // --- SEARCH LOGIC: SELECTED CHAPTER/DAF -> SELECTED BOOK/MASSECHET -> WHOLE CORPUS ---
-        async function performSefariaSearch(word, corpus, selectedTargets = []) {
+        async function performSefariaSearch(word, corpus, book, chapter) {
             const cleanWord = word.replace(/[\u0591-\u05C7]/g, '').trim();
 
             const getEnglishName = async (b) => {
                 if (!b || b === 'ANY') return null;
-                if (englishBookCache.has(b)) return englishBookCache.get(b);
                 try {
                     const res = await fetch(`https://www.sefaria.org/api/name/${encodeURIComponent(b)}`);
                     const data = await res.json();
-                    const resolved = data.index || data.ref || b;
-                    englishBookCache.set(b, resolved);
-                    return resolved;
+                    return data.index || data.ref || b;
                 } catch (e) {
-                    englishBookCache.set(b, b);
                     return b;
                 }
             };
@@ -1547,10 +1421,12 @@ for (const candidate of englishCandidates) {
                     .trim();
             };
 
+            const englishBook = await getEnglishName(book);
             const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
             const corpusFilter = isTalmud ? ['Talmud'] : ['Tanakh'];
             const davidsonTitle = 'William Davidson Edition - English';
-            const relevantTargets = (Array.isArray(selectedTargets) ? selectedTargets : []).filter(target => target && target.corpus === (isTalmud ? 'Talmud' : 'Tanakh'));
+            const talmudMode = isTalmud ? getSelectedTalmudMode() : 'daf';
+            const selectedPerekIndex = hiddenPerekInput.value !== '' ? parseInt(hiddenPerekInput.value, 10) : null;
 
             function splitSearchCandidates(raw) {
                 return String(raw || '')
@@ -1668,11 +1544,11 @@ for (const candidate of englishCandidates) {
                 return null;
             }
 
-            function buildExcerptFromMatch(heArray, enArray, matchIndex, matchedCandidate) {
-                const cleanHebrewSegments = heArray.map(segment => stripHtml(segment));
-                const cleanEnglishSegments = (Array.isArray(enArray) ? enArray : []).map(segment => stripHtml(segment));
-                const fullHebrew = typeof cleanHebrewSegments[matchIndex] === 'string' ? cleanHebrewSegments[matchIndex] : '';
-                const fullEnglish = typeof cleanEnglishSegments[matchIndex] === 'string' ? cleanEnglishSegments[matchIndex] : '';
+            function buildExcerptFromMatch(heArray, matchIndex, matchedCandidate) {
+                const fullHebrew =
+                    typeof heArray[matchIndex] === 'string'
+                        ? stripHtml(heArray[matchIndex])
+                        : '';
 
                 const splitHebrewSentences = (text) => {
                     return String(text || '')
@@ -1695,66 +1571,18 @@ for (const candidate of englishCandidates) {
                     return Math.abs(sentence.length - IDEAL_LENGTH);
                 };
 
-                const hasEnoughSurroundingContext = (text, candidate) => {
-                    const normalizedText = normalizeHebrewForMatch(text);
-                    const normalizedCandidate = normalizeHebrewForMatch(candidate || matchedCandidate);
-                    if (!normalizedText || !normalizedCandidate) return false;
-
-                    const textWords = normalizedText.split(' ').filter(Boolean).length;
-                    const candidateWords = normalizedCandidate.split(' ').filter(Boolean).length;
-
-                    return normalizedText !== normalizedCandidate && textWords >= candidateWords + 2;
-                };
-
-                const buildExpandedSegmentExcerpt = (candidate) => {
-                    const centerIndex = matchIndex;
-                    const MAX_HEBREW_LENGTH = 180;
-
-                    for (let radius = 0; radius <= 4; radius++) {
-                        const hePieces = [];
-                        const enPieces = [];
-
-                        for (let i = Math.max(0, centerIndex - radius); i <= Math.min(cleanHebrewSegments.length - 1, centerIndex + radius); i++) {
-                            const hePiece = String(cleanHebrewSegments[i] || '').trim();
-                            const enPiece = String(cleanEnglishSegments[i] || '').trim();
-                            if (hePiece) hePieces.push(hePiece);
-                            if (enPiece) enPieces.push(enPiece);
-                        }
-
-                        let combinedHe = hePieces.join(' ').replace(/\s+/g, ' ').trim();
-                        let combinedEn = enPieces.join(' ').replace(/\s+/g, ' ').trim();
-
-                        if (combinedHe.length > MAX_HEBREW_LENGTH) {
-                            combinedHe = combinedHe.slice(0, MAX_HEBREW_LENGTH).replace(/\s+\S*$/, '').trim() + '…';
-                        }
-
-                        if (hasEnoughSurroundingContext(combinedHe, candidate)) {
-                            return { he: combinedHe, en: combinedEn };
-                        }
-                    }
-
-                    return { he: '', en: '' };
-                };
-
                 const hebrewSentences = splitHebrewSentences(fullHebrew);
                 const sentenceMatches = [];
 
                 hebrewSentences.forEach((sentence, index) => {
                     const match = findCandidateMatchInNormalizedLine(sentence);
                     if (match) {
-                        const sentenceWithContext = hasEnoughSurroundingContext(sentence, match.candidate)
-                            ? { he: sentence, en: fullEnglish }
-                            : buildExpandedSegmentExcerpt(match.candidate);
-
-                        if (sentenceWithContext.he && hasEnoughSurroundingContext(sentenceWithContext.he, match.candidate)) {
-                            sentenceMatches.push({
-                                sentence: sentenceWithContext.he,
-                                english: sentenceWithContext.en || fullEnglish,
-                                index,
-                                candidate: match.candidate,
-                                strength: match.strength
-                            });
-                        }
+                        sentenceMatches.push({
+                            sentence,
+                            index,
+                            candidate: match.candidate,
+                            strength: match.strength
+                        });
                     }
                 });
 
@@ -1765,11 +1593,10 @@ for (const candidate of englishCandidates) {
                 const filtered = sentenceMatches.filter(m =>
                     m.sentence.length >= MIN_HEBREW_LENGTH &&
                     m.sentence.length <= MAX_HEBREW_LENGTH &&
-                    countWords(m.sentence) >= MIN_HEBREW_WORDS &&
-                    hasEnoughSurroundingContext(m.sentence, m.candidate)
+                    countWords(m.sentence) >= MIN_HEBREW_WORDS
                 );
 
-                const pool = filtered.length ? filtered : sentenceMatches.filter(m => hasEnoughSurroundingContext(m.sentence, m.candidate));
+                const pool = filtered.length ? filtered : sentenceMatches;
 
                 if (pool.length) {
                     pool.sort((a, b) => {
@@ -1779,19 +1606,12 @@ for (const candidate of englishCandidates) {
 
                     return {
                         he: pool[0].sentence,
-                        en: pool[0].english || '',
                         matchedCandidate: pool[0].candidate || matchedCandidate
                     };
                 }
 
-                const expanded = buildExpandedSegmentExcerpt(matchedCandidate);
-                if (!expanded.he || !hasEnoughSurroundingContext(expanded.he, matchedCandidate)) {
-                    return { he: '', en: '', matchedCandidate };
-                }
-
                 return {
-                    he: expanded.he,
-                    en: expanded.en || fullEnglish,
+                    he: fullHebrew,
                     matchedCandidate
                 };
             }
@@ -1810,7 +1630,6 @@ for (const candidate of englishCandidates) {
                         ref: data.ref,
                         heRef: data.heRef,
                         heArray: Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he],
-                        enArray: Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text || ''],
                         dafLabel: dafLabel || ref
                     };
                 } catch (e) {
@@ -1818,7 +1637,7 @@ for (const candidate of englishCandidates) {
                 }
             }
 
-            function findMatchInArrays(heArray, enArray, ref, heRef, sourceRef = ref) {
+            function findMatchInArrays(heArray, ref, heRef, sourceRef = ref) {
                 let bestMatch = null;
 
                 for (let i = 0; i < heArray.length; i++) {
@@ -1844,16 +1663,12 @@ for (const candidate of englishCandidates) {
 
                 const excerpt = buildExcerptFromMatch(
                     heArray,
-                    enArray,
                     bestMatch.matchIndex,
                     bestMatch.matchedCandidate
                 );
 
-                if (!excerpt.he) return null;
-
                 return {
                     he: excerpt.he,
-                    en: excerpt.en || '', 
                     ref,
                     heRef,
                     matchStrength: bestMatch.matchStrength,
@@ -1865,7 +1680,7 @@ for (const candidate of englishCandidates) {
             async function fetchRefAndFindMatch(ref, dafLabel = null) {
                 const data = await fetchRefData(ref, dafLabel);
                 if (!data) return null;
-                return findMatchInArrays(data.heArray, data.enArray, data.ref, data.heRef, dafLabel || ref);
+                return findMatchInArrays(data.heArray, data.ref, data.heRef, dafLabel || ref);
             }
 
             function scoreMatch(found, preferredRef = null) {
@@ -1939,15 +1754,9 @@ for (const candidate of englishCandidates) {
             }
 
             async function buildTalmudPerekData(englishBook, hebrewBook) {
-                const cacheKey = `${englishBook}||${hebrewBook}`;
-                if (talmudPerekDataCache.has(cacheKey)) return talmudPerekDataCache.get(cacheKey);
-
                 const range = talmudDafRanges[hebrewBook];
                 const perekNames = sourceData.Talmud[hebrewBook] || [];
-                if (!range || !perekNames.length) {
-                    talmudPerekDataCache.set(cacheKey, null);
-                    return null;
-                }
+                if (!range || !perekNames.length) return null;
 
                 const dafOptions = generateDafOptions(range.start, range.end);
                 const refs = dafOptions.map(daf => `${englishBook} ${daf}`);
@@ -1964,7 +1773,6 @@ for (const candidate of englishCandidates) {
 
                     for (let i = 0; i < segmentCount; i++) {
                         const he = typeof data.heArray[i] === 'string' ? data.heArray[i] : '';
-                        const en = Array.isArray(data.enArray) && typeof data.enArray[i] === 'string' ? data.enArray[i] : '';
 
                         if (!perakim[currentPerek]) {
                             perakim[currentPerek] = [];
@@ -1972,7 +1780,6 @@ for (const candidate of englishCandidates) {
 
                         perakim[currentPerek].push({
                             he,
-                            en,
                             ref: data.ref,
                             heRef: data.heRef,
                             dafLabel
@@ -1993,9 +1800,7 @@ for (const candidate of englishCandidates) {
                     }
                 });
 
-                const result = { perakim, dafToPerakim };
-                talmudPerekDataCache.set(cacheKey, result);
-                return result;
+                return { perakim, dafToPerakim };
             }
 
             function findMatchInSegments(segments) {
@@ -2023,16 +1828,12 @@ for (const candidate of englishCandidates) {
 
                 const excerpt = buildExcerptFromMatch(
                     segments.map(segment => segment.he),
-                    segments.map(segment => segment.en || ''),
                     bestMatch.matchIndex,
                     bestMatch.matchedCandidate
                 );
 
-                if (!excerpt.he) return null;
-
                 return {
                     he: excerpt.he,
-                    en: excerpt.en || '',
                     ref: segments[bestMatch.matchIndex].ref,
                     heRef: segments[bestMatch.matchIndex].heRef,
                     matchStrength: bestMatch.matchStrength,
@@ -2041,63 +1842,95 @@ for (const candidate of englishCandidates) {
                 };
             }
 
-            if (relevantTargets.length) {
-                const directMatches = [];
-                const parentBookTargets = [];
-                const addParentBookTarget = (englishBook, hebrewBook) => {
-                    if (!englishBook || englishBook === 'ANY') return;
-                    if (!parentBookTargets.some(existing => existing.englishBook === englishBook)) {
-                        parentBookTargets.push({ englishBook, hebrewBook });
-                    }
-                };
+            if (isTalmud && englishBook && englishBook !== 'ANY') {
+                if (talmudMode === 'daf' && chapter && chapter !== 'ANY') {
+                    const targetPages = chapter
+                        .split(',')
+                        .map(p => p.trim())
+                        .filter(Boolean)
+                        .slice(0, 10);
 
-                for (const target of relevantTargets) {
-                    const englishBook = await getEnglishName(target.book);
-                    if (!englishBook || englishBook === 'ANY') continue;
-                    addParentBookTarget(englishBook, target.book);
+                    const refs = targetPages.map(page => `${englishBook} ${page}`);
+                    const results = await Promise.all(refs.map((ref, index) => fetchRefAndFindMatch(ref, targetPages[index])));
+                    const bestDafMatch = pickBestMatch(results, refs[0]);
 
-                    if (!isTalmud && target.scope === 'chapter') {
-                        directMatches.push(await fetchRefAndFindMatch(`${englishBook} ${target.value}`));
-                        continue;
-                    }
-
-                    if (isTalmud && target.scope === 'daf') {
-                        directMatches.push(await fetchRefAndFindMatch(`${englishBook} ${target.value}`, target.value));
-                        continue;
-                    }
-
-                    if (isTalmud && target.scope === 'perek') {
-                        const perekIndex = parseInt(target.value, 10);
-                        const perekData = await buildTalmudPerekData(englishBook, target.book);
-                        if (perekData && Number.isFinite(perekIndex) && perekData.perakim[perekIndex]) {
-                            directMatches.push(findMatchInSegments(perekData.perakim[perekIndex]));
-                        }
-                        continue;
-                    }
-                }
-
-                const bestDirectMatch = pickBestMatch(directMatches);
-                if (bestDirectMatch) {
-                    return {
-                        he: bestDirectMatch.he,
-                        en: bestDirectMatch.en || '',
-                        ref: bestDirectMatch.ref,
-                        heRef: bestDirectMatch.heRef,
-                        matchedCandidate: bestDirectMatch.matchedCandidate
-                    };
-                }
-
-                for (const target of parentBookTargets) {
-                    const foundInBook = await searchViaSefaria(corpusFilter, target.englishBook);
-                    if (foundInBook) {
+                    if (bestDafMatch) {
                         return {
-                            he: foundInBook.he,
-                            en: foundInBook.en || '',
-                            ref: foundInBook.ref,
-                            heRef: foundInBook.heRef,
-                            matchedCandidate: foundInBook.matchedCandidate
+                            he: bestDafMatch.he,
+                            ref: bestDafMatch.ref,
+                            heRef: bestDafMatch.heRef,
+                            matchedCandidate: bestDafMatch.matchedCandidate
                         };
                     }
+
+                    const perekData = await buildTalmudPerekData(englishBook, book);
+                    if (perekData) {
+                        const targetPerekIndexes = Array.from(new Set(
+                            targetPages.flatMap(page => Array.from(perekData.dafToPerakim[page] || []))
+                        ));
+
+                        const perekMatches = targetPerekIndexes
+                            .map(index => findMatchInSegments(perekData.perakim[index]))
+                            .filter(Boolean);
+
+                        const bestPerekMatch = pickBestMatch(perekMatches);
+                        if (bestPerekMatch) {
+                            return {
+                                he: bestPerekMatch.he,
+                                ref: bestPerekMatch.ref,
+                                heRef: bestPerekMatch.heRef,
+                                matchedCandidate: bestPerekMatch.matchedCandidate
+                            };
+                        }
+                    }
+                }
+
+                if (talmudMode === 'perek' && selectedPerekIndex !== null && !Number.isNaN(selectedPerekIndex)) {
+                    const perekData = await buildTalmudPerekData(englishBook, book);
+                    if (perekData && perekData.perakim[selectedPerekIndex]) {
+                        const perekMatch = findMatchInSegments(perekData.perakim[selectedPerekIndex]);
+                        if (perekMatch) {
+                            return {
+                                he: perekMatch.he,
+                                ref: perekMatch.ref,
+                                heRef: perekMatch.heRef,
+                                matchedCandidate: perekMatch.matchedCandidate
+                            };
+                        }
+                    }
+                }
+            }
+
+            if (!isTalmud && englishBook && chapter && chapter !== 'ANY') {
+                const targetPages = chapter
+                    .split(',')
+                    .map(p => p.trim())
+                    .filter(Boolean)
+                    .slice(0, 10);
+
+                const refs = targetPages.map(page => `${englishBook} ${page}`);
+                const results = await Promise.all(refs.map(ref => fetchRefAndFindMatch(ref)));
+                const bestMatch = pickBestMatch(results, refs[0]);
+
+                if (bestMatch) {
+                    return {
+                        he: bestMatch.he,
+                        ref: bestMatch.ref,
+                        heRef: bestMatch.heRef,
+                        matchedCandidate: bestMatch.matchedCandidate
+                    };
+                }
+            }
+
+            if (englishBook && englishBook !== 'ANY') {
+                const foundInBook = await searchViaSefaria([englishBook], englishBook);
+                if (foundInBook) {
+                    return {
+                        he: foundInBook.he,
+                        ref: foundInBook.ref,
+                        heRef: foundInBook.heRef,
+                        matchedCandidate: foundInBook.matchedCandidate
+                    };
                 }
             }
 
@@ -2105,7 +1938,6 @@ for (const candidate of englishCandidates) {
             if (foundInCorpus) {
                 return {
                     he: foundInCorpus.he,
-                    en: foundInCorpus.en || '',
                     ref: foundInCorpus.ref,
                     heRef: foundInCorpus.heRef,
                     matchedCandidate: foundInCorpus.matchedCandidate
@@ -2115,36 +1947,12 @@ for (const candidate of englishCandidates) {
             return null;
         }
 
-        function stripSefariaLineNumber(ref, sourceType) {
-            if (!ref) return "";
-            const cleanedRef = String(ref).trim();
-
-            // In Talmud citations, Sefaria search refs often append a segment/line
-            // number after the daf/amud, e.g. "Berakhot 2a:5" or "ברכות ב ע״א:5".
-            // That segment number is not useful for this worksheet citation.
-            if (sourceType && sourceType.includes('Talmud')) {
-                return cleanedRef.replace(/:\d+(?:-\d+)?$/, '');
-            }
-
-            return cleanedRef;
-        }
-
         function formatSefariaCitation(heRef, enRef, sourceType) {
-            if (!heRef || !enRef) {
-                return { hebrew: "", english: "", combined: "" };
-            }
-
-            heRef = stripSefariaLineNumber(heRef, sourceType);
-            enRef = stripSefariaLineNumber(enRef, sourceType);
-
+            if (!heRef || !enRef) return "";
             if (sourceType.includes('Talmud')) {
                 heRef = heRef.replace(/ ע"א/g, '.').replace(/ ע"ב/g, ':');
             }
-            return {
-                hebrew: heRef,
-                english: enRef,
-                combined: `${heRef}<br><span dir="ltr">${enRef}</span>`
-            };
+            return `${heRef}<br><span dir="ltr">${enRef}</span>`;
         }
 
         function updateTextDisplay() {
@@ -2154,12 +1962,9 @@ for (const candidate of englishCandidates) {
             document.querySelectorAll('.hebrew-word, .hebrew-text').forEach(el => {
                 let html = el.dataset.original;
 
-                // Strip Taamei Mikra (keep nikkud)
-                html = html.replace(/[\u0591-\u05AF\u05BD\u05BF\u05C0\u05C4\u05C5]/g, '');
-
                 if (subNames) {
                     html = html.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, 'ה׳');
-                    html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*(?:ו[\u0591-\u05C7]*)?)ה([\u0591-\u05C7]*)/g, '$1ק$2');
+                    html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*ו[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, '$1ק$2');
                 }
 
                 if (stripNekudot) {
@@ -2171,16 +1976,9 @@ for (const candidate of englishCandidates) {
         }
 
 
-        function initializeSourcePicker() {
+        window.addEventListener('load', () => {
     sourceTypeSelect.dispatchEvent(new Event('change'));
-    updateSecondaryPickers();
-    renderChips();
-}
-
-initializeSourcePicker();
-updateTextDisplay();
-applyTitleText(document.getElementById('list-title').value);
-updateViewModeLock();
+});
         
     </script>
 </body>

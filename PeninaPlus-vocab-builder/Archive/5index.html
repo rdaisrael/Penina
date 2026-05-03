@@ -341,9 +341,9 @@ S
             </div>
 
             <div class="form-group" style="display: flex; gap: 20px;">
-                <div style="flex: 0 0 230px;">
+                <div style="flex: 1;">
                     <label for="source-type">Context Source:</label>
-                    <select id="source-type" style="width: 100%;">
+                    <select id="source-type">
                         <option value="Tanakh">תנ''ך</option>
                         <option value="Talmud">תלמוד בבלי</option>
                         <option value="Modern Hebrew">עברית מודרנית</option>
@@ -367,23 +367,22 @@ S
                             <div id="book-select-container" style="flex: 1; min-width: 0; display: flex;">
                                 <select id="book-select" size="3" class="roller" style="flex: 1;"></select>
                             </div>
-                            <div id="daf-mode-controls" style="display: flex; gap: 15px; flex: 1; min-width: 0;">
-                                <select id="num-picker" size="3" class="roller" style="flex: 1; min-width: 0;" disabled>
+                            <div id="daf-mode-controls" style="display: flex; gap: 15px; flex: 2; min-width: 0;">
+                                <select id="num-picker" size="3" class="roller" style="flex: 1;" disabled>
                                     <option value="" disabled selected>#</option>
                                 </select>
-                                <button type="button" id="add-chip-btn" style="flex: 0 0 90px; font-size: 15px; padding: 8px;" disabled>Add</button>
+                                <button type="button" id="add-chip-btn" style="flex: 1; font-size: 16px; padding: 10px;" disabled>Add</button>
                             </div>
-                            <div id="perek-mode-controls" style="display: none; flex: 1; min-width: 0; gap: 15px;">
-                                <select id="perek-picker" size="3" class="roller" style="flex: 1; min-width: 0; width: 100%;" disabled>
+                            <div id="perek-mode-controls" style="display: none; flex: 2; min-width: 0;">
+                                <select id="perek-picker" size="3" class="roller" style="flex: 1;" disabled>
                                     <option value="" disabled selected>בחר פרק</option>
                                 </select>
-                                <button type="button" id="add-perek-chip-btn" style="flex: 0 0 90px; font-size: 15px; padding: 8px;" disabled>Add</button>
                             </div>
                         </div>
                         <div id="chip-container" style="border: 1px solid #dcd3c6; border-radius: 5px; background: #fdfdfa; padding: 5px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 45px; width: 100%; box-sizing: border-box;">
                             <span style="color: #9c9284; font-size: 12px; padding: 2px;">Select book first...</span>
                         </div>
-                        <input type="hidden" id="hidden-chapter-input" value="[]">
+                        <input type="hidden" id="hidden-chapter-input" value="ANY">
                         <input type="hidden" id="hidden-perek-input" value="">
                     </div>
                 </div>
@@ -574,9 +573,8 @@ const talmudModeContainer = document.getElementById('talmud-mode-container');
 const dafModeControls = document.getElementById('daf-mode-controls');
 const perekModeControls = document.getElementById('perek-mode-controls');
 const perekPicker = document.getElementById('perek-picker');
-const addPerekChipBtn = document.getElementById('add-perek-chip-btn');
 const talmudModeRadios = Array.from(document.querySelectorAll('input[name="talmud-mode"]'));
-let selectedSourceTargets = [];
+let selectedPagesList = [];
 const englishBookCache = new Map();
 const refDataCache = new Map();
 const talmudPerekDataCache = new Map();
@@ -621,85 +619,6 @@ const talmudDafRanges = {
     "נידה": { start: "2a", end: "73a" }
 };
 
-
-function getHebrewChapterLabel(num) {
-    const numeric = parseInt(num, 10);
-    return Number.isFinite(numeric) ? toHebrewNumber(numeric) : String(num);
-}
-
-function buildTargetLabel(target) {
-    if (!target) return '';
-    const book = target.book || '';
-    if (target.scope === 'whole') return book;
-    if (target.scope === 'chapter') return `${book} ${getHebrewChapterLabel(target.value)}`;
-    if (target.scope === 'daf') return `${book} ${toHebrewDafLabel(target.value)}`;
-    if (target.scope === 'perek') {
-        const idx = parseInt(target.value, 10);
-        const perekNumber = Number.isFinite(idx) ? idx + 1 : target.value;
-        return `${book} פרק ${toHebrewNumber(perekNumber)}`;
-    }
-    return book;
-}
-
-function serializeTargets() {
-    hiddenChapterInput.value = JSON.stringify(selectedSourceTargets);
-    const talmudPerekTargets = selectedSourceTargets.filter(t => t.scope === 'perek');
-    hiddenPerekInput.value = talmudPerekTargets.length ? JSON.stringify(talmudPerekTargets) : '';
-}
-
-function isSameTarget(a, b) {
-    return !!a && !!b && a.corpus === b.corpus && a.book === b.book && a.scope === b.scope && String(a.value || '') === String(b.value || '');
-}
-
-function createCurrentSelectionTarget() {
-    const sourceType = sourceTypeSelect.value;
-    const selectedBook = bookSelect.value;
-    if (!(sourceType === 'Tanakh' || sourceType === 'Talmud')) return null;
-    if (!selectedBook || selectedBook === 'ANY') return null;
-
-    if (sourceType === 'Tanakh') {
-        const chapterValue = numPicker.value;
-        if (chapterValue) {
-            return { corpus: 'Tanakh', book: selectedBook, scope: 'chapter', value: String(chapterValue) };
-        }
-        return { corpus: 'Tanakh', book: selectedBook, scope: 'whole', value: '' };
-    }
-
-    const talmudMode = getSelectedTalmudMode();
-    if (talmudMode === 'daf') {
-        const dafValue = numPicker.value;
-        if (dafValue) {
-            return { corpus: 'Talmud', book: selectedBook, scope: 'daf', value: String(dafValue) };
-        }
-        return { corpus: 'Talmud', book: selectedBook, scope: 'whole', value: '' };
-    }
-
-    const perekValue = perekPicker.value;
-    if (perekValue !== '') {
-        return { corpus: 'Talmud', book: selectedBook, scope: 'perek', value: String(perekValue) };
-    }
-    return { corpus: 'Talmud', book: selectedBook, scope: 'whole', value: '' };
-}
-
-function addCurrentSelectionAsChip() {
-    const target = createCurrentSelectionTarget();
-    if (!target) return;
-
-    if (selectedSourceTargets.length >= 25) {
-        alert('You can only select up to 25 targets at a time.');
-        return;
-    }
-
-    if (!selectedSourceTargets.some(existing => isSameTarget(existing, target))) {
-        selectedSourceTargets.push(target);
-        renderChips();
-    }
-}
-
-function getSelectedSourceTargets() {
-    return selectedSourceTargets.slice();
-}
-
 function generateDafOptions(startDaf, endDaf) {
     const parseDaf = (daf) => {
         const match = String(daf).trim().match(/^(\d+)([ab])$/i);
@@ -734,16 +653,6 @@ function generateDafOptions(startDaf, endDaf) {
 function getSelectedTalmudMode() {
     const checked = talmudModeRadios.find(radio => radio.checked);
     return checked ? checked.value : 'daf';
-}
-
-
-function toHebrewDafLabel(daf) {
-    const match = String(daf || '').trim().match(/^(\d+)([ab])$/i);
-    if (!match) return String(daf || '');
-    const num = parseInt(match[1], 10);
-    const side = match[2].toLowerCase();
-    const hebNum = toHebrewNumber(num);
-    return hebNum + (side === 'a' ? '.' : ':');
 }
 
 function toHebrewNumber(num) {
@@ -785,11 +694,13 @@ function updateTalmudModeVisibility() {
 
     if (isTalmud) {
         dafModeControls.style.display = talmudMode === 'daf' ? 'flex' : 'none';
-        chipContainer.style.display = 'flex';
+        chipContainer.style.display = talmudMode === 'daf' ? 'flex' : 'none';
         perekModeControls.style.display = talmudMode === 'perek' ? 'flex' : 'none';
 
         if (talmudMode === 'perek') {
-            hiddenChapterInput.value = hiddenChapterInput.value || '[]';
+            hiddenChapterInput.value = 'ANY';
+            selectedPagesList = [];
+            renderChips();
         } else {
             hiddenPerekInput.value = '';
         }
@@ -863,10 +774,9 @@ function updateTalmudModeVisibility() {
             numPicker.disabled = true;
             perekPicker.disabled = true;
             addChipBtn.disabled = true;
-            addPerekChipBtn.disabled = true;
-            addChipBtn.innerText = 'Add';
-            selectedSourceTargets = [];
-            hiddenChapterInput.value = '[]';
+            addChipBtn.innerText = value === 'Tanakh' ? 'Add Chapter' : (value === 'Talmud' ? 'Add Daf' : 'Add');
+            selectedPagesList = [];
+            hiddenChapterInput.value = 'ANY';
             hiddenPerekInput.value = '';
             renderChips();
 
@@ -911,7 +821,6 @@ function updateTalmudModeVisibility() {
             numPicker.disabled = true;
             perekPicker.disabled = true;
             addChipBtn.disabled = true;
-            addPerekChipBtn.disabled = true;
 
             if (!selectedBook || selectedBook === 'ANY') {
                 return;
@@ -944,31 +853,31 @@ function updateTalmudModeVisibility() {
                     dafOptions.forEach(daf => {
                         const option = document.createElement('option');
                         option.value = daf;
-                        option.textContent = toHebrewDafLabel(daf);
-                        option.setAttribute('dir', 'rtl');
-                        option.style.direction = 'rtl';
-                        option.style.unicodeBidi = 'plaintext';
+                        option.textContent = daf;
                         numPicker.appendChild(option);
                     });
                 } else {
                     populatePerekPicker(selectedBook);
-                    addPerekChipBtn.disabled = false;
                 }
             }
         }
 
         bookSelect.addEventListener('change', () => {
+            selectedPagesList = [];
+            hiddenChapterInput.value = 'ANY';
             hiddenPerekInput.value = '';
-            updateSecondaryPickers();
             renderChips();
+            updateSecondaryPickers();
         });
 
         talmudModeRadios.forEach(radio => {
             radio.addEventListener('change', () => {
+                selectedPagesList = [];
+                hiddenChapterInput.value = 'ANY';
                 hiddenPerekInput.value = '';
+                renderChips();
                 updateTalmudModeVisibility();
                 updateSecondaryPickers();
-                renderChips();
             });
         });
 
@@ -977,33 +886,43 @@ function updateTalmudModeVisibility() {
         });
 
         addChipBtn.addEventListener('click', () => {
-            addCurrentSelectionAsChip();
-        });
+            const finalSelection = numPicker.value;
+            if (!finalSelection) return;
 
-        addPerekChipBtn.addEventListener('click', () => {
-            addCurrentSelectionAsChip();
+            if (selectedPagesList.length >= 10) {
+                alert("You can only select up to 10 targets at a time.");
+                return;
+            }
+            if (!selectedPagesList.includes(finalSelection)) {
+                selectedPagesList.push(finalSelection);
+                renderChips();
+            }
         });
 
         function renderChips() {
-            const activeTargets = getSelectedSourceTargets();
+            if (sourceTypeSelect.value === 'Talmud' && getSelectedTalmudMode() === 'perek') {
+                chipContainer.innerHTML = '<span style="color: #9c9284; font-size: 12px; padding: 2px;">Perek mode selected</span>';
+                hiddenChapterInput.value = 'ANY';
+                return;
+            }
 
-            if (!activeTargets.length) {
-                chipContainer.innerHTML = '<span style="color: #9c9284; font-size: 12px; padding: 2px;">Select a sefer / masechet, then click Add.</span>';
-                serializeTargets();
+            if (selectedPagesList.length === 0) {
+                chipContainer.innerHTML = '<span style="color: #9c9284; font-size: 12px; padding: 2px;">ANY (Whole Book)</span>';
+                hiddenChapterInput.value = 'ANY';
                 return;
             }
 
             chipContainer.innerHTML = '';
-            activeTargets.forEach(target => {
+            selectedPagesList.forEach(page => {
                 const chip = document.createElement('div');
                 chip.className = 'page-chip';
-                chip.textContent = buildTargetLabel(target);
+                chip.textContent = page;
 
                 const closeBtn = document.createElement('span');
                 closeBtn.className = 'chip-x';
                 closeBtn.innerHTML = '&#10005;';
                 closeBtn.onclick = () => {
-                    selectedSourceTargets = selectedSourceTargets.filter(existing => !isSameTarget(existing, target));
+                    selectedPagesList = selectedPagesList.filter(p => p !== page);
                     renderChips();
                 };
 
@@ -1011,7 +930,7 @@ function updateTalmudModeVisibility() {
                 chipContainer.appendChild(chip);
             });
 
-            serializeTargets();
+            hiddenChapterInput.value = selectedPagesList.join(',');
         }
 
 
@@ -1240,7 +1159,7 @@ function updateTalmudModeVisibility() {
                         row.citation = "Expanded abbreviation / acronym";
                         row.matchedHebrewCandidate = semanticHebrew;
                     } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                        let searchResult = await performSefariaSearch(searchHebrew, sourceType, getSelectedSourceTargets());
+                        let searchResult = await performSefariaSearch(searchHebrew, sourceType, bookSelect.value, hiddenChapterInput.value);
                         if (searchResult) {
                             row.hebrewContext = searchResult.he || "";
                             row.matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
@@ -1436,7 +1355,7 @@ for (const candidate of englishCandidates) {
         });
 
         // --- SEARCH LOGIC: SELECTED CHAPTER/DAF -> SELECTED BOOK/MASSECHET -> WHOLE CORPUS ---
-        async function performSefariaSearch(word, corpus, selectedTargets = []) {
+        async function performSefariaSearch(word, corpus, book, chapter) {
             const cleanWord = word.replace(/[\u0591-\u05C7]/g, '').trim();
 
             const getEnglishName = async (b) => {
@@ -1465,10 +1384,12 @@ for (const candidate of englishCandidates) {
                     .trim();
             };
 
+            const englishBook = await getEnglishName(book);
             const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
             const corpusFilter = isTalmud ? ['Talmud'] : ['Tanakh'];
             const davidsonTitle = 'William Davidson Edition - English';
-            const relevantTargets = (Array.isArray(selectedTargets) ? selectedTargets : []).filter(target => target && target.corpus === (isTalmud ? 'Talmud' : 'Tanakh'));
+            const talmudMode = isTalmud ? getSelectedTalmudMode() : 'daf';
+            const selectedPerekIndex = hiddenPerekInput.value !== '' ? parseInt(hiddenPerekInput.value, 10) : null;
 
             function splitSearchCandidates(raw) {
                 return String(raw || '')
@@ -1892,58 +1813,75 @@ for (const candidate of englishCandidates) {
                 };
             }
 
-            if (relevantTargets.length) {
-                const directMatches = [];
-                const wholeBookTargets = [];
+            if (isTalmud && englishBook && englishBook !== 'ANY') {
+                if (talmudMode === 'daf' && chapter && chapter !== 'ANY') {
+                    const targetPages = chapter
+                        .split(',')
+                        .map(p => p.trim())
+                        .filter(Boolean)
+                        .slice(0, 10);
 
-                for (const target of relevantTargets) {
-                    const englishBook = await getEnglishName(target.book);
-                    if (!englishBook || englishBook === 'ANY') continue;
+                    const refs = targetPages.map(page => `${englishBook} ${page}`);
+                    const results = await Promise.all(refs.map((ref, index) => fetchRefAndFindMatch(ref, targetPages[index])));
+                    const bestDafMatch = pickBestMatch(results, refs[0]);
 
-                    if (!isTalmud && target.scope === 'chapter') {
-                        directMatches.push(await fetchRefAndFindMatch(`${englishBook} ${target.value}`));
-                        continue;
-                    }
-
-                    if (isTalmud && target.scope === 'daf') {
-                        directMatches.push(await fetchRefAndFindMatch(`${englishBook} ${target.value}`, target.value));
-                        continue;
-                    }
-
-                    if (isTalmud && target.scope === 'perek') {
-                        const perekIndex = parseInt(target.value, 10);
-                        const perekData = await buildTalmudPerekData(englishBook, target.book);
-                        if (perekData && Number.isFinite(perekIndex) && perekData.perakim[perekIndex]) {
-                            directMatches.push(findMatchInSegments(perekData.perakim[perekIndex]));
-                        }
-                        continue;
-                    }
-
-                    if (target.scope === 'whole') {
-                        wholeBookTargets.push({ englishBook, hebrewBook: target.book });
-                    }
-                }
-
-                const bestDirectMatch = pickBestMatch(directMatches);
-                if (bestDirectMatch) {
-                    return {
-                        he: bestDirectMatch.he,
-                        ref: bestDirectMatch.ref,
-                        heRef: bestDirectMatch.heRef,
-                        matchedCandidate: bestDirectMatch.matchedCandidate
-                    };
-                }
-
-                for (const target of wholeBookTargets) {
-                    const foundInBook = await searchViaSefaria([target.englishBook], target.englishBook);
-                    if (foundInBook) {
+                    if (bestDafMatch) {
                         return {
-                            he: foundInBook.he,
-                            ref: foundInBook.ref,
-                            heRef: foundInBook.heRef,
-                            matchedCandidate: foundInBook.matchedCandidate
+                            he: bestDafMatch.he,
+                            ref: bestDafMatch.ref,
+                            heRef: bestDafMatch.heRef,
+                            matchedCandidate: bestDafMatch.matchedCandidate
                         };
                     }
+
+                }
+
+                if (talmudMode === 'perek' && selectedPerekIndex !== null && !Number.isNaN(selectedPerekIndex)) {
+                    const perekData = await buildTalmudPerekData(englishBook, book);
+                    if (perekData && perekData.perakim[selectedPerekIndex]) {
+                        const perekMatch = findMatchInSegments(perekData.perakim[selectedPerekIndex]);
+                        if (perekMatch) {
+                            return {
+                                he: perekMatch.he,
+                                ref: perekMatch.ref,
+                                heRef: perekMatch.heRef,
+                                matchedCandidate: perekMatch.matchedCandidate
+                            };
+                        }
+                    }
+                }
+            }
+
+            if (!isTalmud && englishBook && chapter && chapter !== 'ANY') {
+                const targetPages = chapter
+                    .split(',')
+                    .map(p => p.trim())
+                    .filter(Boolean)
+                    .slice(0, 10);
+
+                const refs = targetPages.map(page => `${englishBook} ${page}`);
+                const results = await Promise.all(refs.map(ref => fetchRefAndFindMatch(ref)));
+                const bestMatch = pickBestMatch(results, refs[0]);
+
+                if (bestMatch) {
+                    return {
+                        he: bestMatch.he,
+                        ref: bestMatch.ref,
+                        heRef: bestMatch.heRef,
+                        matchedCandidate: bestMatch.matchedCandidate
+                    };
+                }
+            }
+
+            if (englishBook && englishBook !== 'ANY') {
+                const foundInBook = await searchViaSefaria([englishBook], englishBook);
+                if (foundInBook) {
+                    return {
+                        he: foundInBook.he,
+                        ref: foundInBook.ref,
+                        heRef: foundInBook.heRef,
+                        matchedCandidate: foundInBook.matchedCandidate
+                    };
                 }
             }
 

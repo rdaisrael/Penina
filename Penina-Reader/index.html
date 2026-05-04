@@ -445,12 +445,20 @@
                 <details class="color-key-details">
                     <summary class="color-key-summary">🎨 Nikkud & Color Settings (Click to Open)</summary>
                     
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 10px;">
-                        <p style="margin: 0; font-size: 14px; color: #666; font-style: italic;">Check a box to apply color. Uncheck to leave that vowel the default black color.</p>
-                        <div style="flex-shrink: 0;">
+                    <p style="margin: 10px 0 5px 0; font-size: 14px; color: #666; font-style: italic;">
+                        Check a box to apply color. Uncheck to leave that vowel the default black color.
+                    </p>
+
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <div>
                             <button type="button" id="select-all-btn" style="padding: 6px 12px; font-size: 13px; margin-right: 5px; background-color: #6c757d; color: white; border: none; cursor: pointer;">Select All</button>
                             <button type="button" id="unselect-all-btn" style="padding: 6px 12px; font-size: 13px; background-color: #6c757d; color: white; border: none; cursor: pointer;">Unselect All</button>
                         </div>
+
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; margin: 0;">
+                            <input type="checkbox" id="traditional-ashkenazi-pronunciation">
+                            Traditional Ashkenazi Pronunciation
+                        </label>
                     </div>
 
                     <div class="vowel-grid">
@@ -563,7 +571,44 @@
         if (suppliedTextInput) { suppliedTextInput.addEventListener('input', validateHebrewInput); }
         if (suppliedTitleInput) { suppliedTitleInput.addEventListener('input', validateHebrewInput); }
 
+        let savedStandardPronunciationColors = null;
+
+        function updateTraditionalPronunciationSettings() {
+            const traditionalCheckbox = document.getElementById('traditional-ashkenazi-pronunciation');
+            if (!traditionalCheckbox) return;
+
+            const isTraditional = traditionalCheckbox.checked;
+            const kamatzColor = document.getElementById('col-kamatz');
+            const kamatzKatanColor = document.getElementById('col-kamatz-katan');
+            const tzereChaserColor = document.getElementById('col-tzere-chaser');
+            const tzereMalehColor = document.getElementById('col-tzere-maleh');
+            const kamatzText = document.getElementById('text-kamatz');
+            const tzereChaserText = document.getElementById('text-tzere-chaser');
+
+            if (isTraditional) {
+                if (!savedStandardPronunciationColors) {
+                    savedStandardPronunciationColors = {
+                        kamatz: kamatzColor.value,
+                        tzereChaser: tzereChaserColor.value
+                    };
+                }
+                kamatzText.innerText = 'AUburn (Kamatz)';
+                tzereChaserText.innerText = 'Acorn (Tzere Chaser)';
+                kamatzColor.value = kamatzKatanColor.value;
+                tzereChaserColor.value = tzereMalehColor.value;
+            } else {
+                kamatzText.innerText = 'Aqua (Kamatz)';
+                tzereChaserText.innerText = 'rEd (Tzere Chaser)';
+                if (savedStandardPronunciationColors) {
+                    kamatzColor.value = savedStandardPronunciationColors.kamatz;
+                    tzereChaserColor.value = savedStandardPronunciationColors.tzereChaser;
+                    savedStandardPronunciationColors = null;
+                }
+            }
+        }
+
         function syncUIColors() {
+            updateTraditionalPronunciationSettings();
             const vowelIds = ['kamatz', 'kamatz-katan', 'patach', 'segol', 'tzere-chaser', 'tzere-maleh', 'chirik', 'cholam', 'shuruk', 'kubutz', 'shva-nach', 'shva-na'];
             vowelIds.forEach(id => {
                 const colorValue = document.getElementById(`col-${id}`).value;
@@ -573,6 +618,11 @@
         
         window.addEventListener('DOMContentLoaded', () => {
             syncUIColors();
+        });
+
+        document.getElementById('traditional-ashkenazi-pronunciation').addEventListener('change', () => {
+            syncUIColors();
+            renderStoryToScreen();
         });
 
         document.getElementById('select-all-btn').addEventListener('click', () => {

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Important FAQs | Penina-Hebrew Suite</title>
+    <link rel="icon" type="image/png" href="/Penina-favicon.png">
+    <style>
+        :root {
+            --primary-bg: #fcfaf5;
+            --card-bg: #ffffff;
+            --text-dark: #3a332a;
+            --text-muted: #6b6051;
+            --gold-border: #d4c29e;
+            --silver-border: #c0c0c0;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Georgia', serif;
+            background: radial-gradient(circle at center, #ffffff 0%, var(--primary-bg) 50%, #f0e9d8 100%);
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .bg-pattern {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='20' y='50' font-size='40' font-family='serif' fill='%238b7355'%3Eא%3C/text%3E%3Ctext x='150' y='80' font-size='60' font-family='serif' fill='%238b7355'%3Eפ%3C/text%3E%3Ctext x='250' y='40' font-size='35' font-family='serif' fill='%238b7355'%3Eג%3C/text%3E%3Ctext x='50' y='180' font-size='50' font-family='serif' fill='%238b7355'%3Eש%3C/text%3E%3Ctext x='200' y='220' font-size='45' font-family='serif' fill='%238b7355'%3Eל%3C/text%3E%3Ctext x='100' y='280' font-size='30' font-family='serif' fill='%238b7355'%3Eמ%3C/text%3E%3C/svg%3E");
+            background-repeat: repeat;
+        }
+
+        header {
+            text-align: center;
+            margin-top: 55px;
+            margin-bottom: 30px;
+            padding: 0 20px;
+        }
+
+        h1 {
+            font-size: 3.1rem;
+            font-style: italic;
+            font-weight: normal;
+            margin: 0;
+            color: #2c2822;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            display: inline-block;
+        }
+
+        h1::after {
+            content: '';
+            display: block;
+            width: 60%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #c7a771, transparent);
+            margin: 15px auto 0;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            margin-top: 18px;
+            color: var(--text-muted);
+            font-family: Arial, sans-serif;
+        }
+
+        .faq-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,242,229,0.95) 100%);
+            border: 2px solid var(--gold-border);
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+            backdrop-filter: blur(5px);
+            max-width: 900px;
+            width: calc(100% - 40px);
+            box-sizing: border-box;
+            padding: 38px 46px;
+            margin: 15px 20px 45px;
+            font-family: Arial, sans-serif;
+            line-height: 1.55;
+        }
+
+        .faq-card h2 {
+            font-size: 1.65rem;
+            color: #1a1a1a;
+            margin: 12px 0 10px;
+            font-family: Arial, sans-serif;
+        }
+
+        .faq-card section:not(:first-child) h2 {
+            margin-top: 30px;
+        }
+
+        .cost-section h2 {
+            margin-bottom: 10px;
+        }
+
+        .faq-card p {
+            color: var(--text-dark);
+            font-size: 1.08rem;
+            margin: 0 0 18px;
+            padding-left: 15px;
+        }
+
+        .faq-card ul {
+            margin: 8px 0 0 22px;
+            padding: 0;
+        }
+
+        .faq-card li {
+            color: var(--text-dark);
+            font-size: 1.05rem;
+            margin: 9px 0;
+            padding-left: 6px;
+        }
+
+
+        .home-button {
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            background: #ffffff;
+            border: 1px solid #ded7cb;
+            color: #5a544a;
+            text-decoration: none;
+            font-family: Arial, sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            line-height: 1;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.12);
+            z-index: 20;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .home-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 28px rgba(0,0,0,0.16);
+        }
+
+        .home-button svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+            flex: 0 0 auto;
+        }
+footer {
+            margin-top: auto;
+            padding: 25px 20px 20px;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 700px) {
+            h1 {
+                font-size: 2.35rem;
+            }
+
+            .faq-card {
+                padding: 28px 24px;
+            }
+        }
+    
+
+</style>
+</head>
+<body>
+
+    <div class="bg-pattern"></div>
+
+    <a href="/" class="home-button" aria-label="Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path>
+        </svg>
+        <span>Home</span>
+    </a>
+
+    <header>
+        <h1>Important FAQs</h1>
+        <div class="subtitle">Penina-Hebrew Suite</div>
+    </header>
+
+    <main class="faq-card">
+        <section>
+            <h2>Why?</h2>
+            <p><strong>Penina-Hebrew</strong> began as a method of creating consistent Talmud vocabulary word lists and grew as I began to work on Hebrew reading with a dyslexic student. It soon became clear that these tools might be helpful to other teachers working with young and adult learners of Hebrew as a second language.</p>
+        </section>
+
+        <section>
+            <h2>What is unique about Penina-Hebrew?</h2>
+            <p><strong>Penina-Hebrew</strong> is a suite of three web-based apps for teachers developing differentiated materials for students - ranging from those who are just beginning to read, to those who are already working on building their ease with advanced Hebrew vocabulary and conjugation. It is hoped that Penina will be helpful to Hebrew language instructors, Tanakh and Talmud teachers, Tefillah guides, and Adult educators looking to differentiate for their students and professionalize their materials.</p>
+
+            <p><strong>Peinina-Hebrew</strong> might be used in some of the following ways:</p>
+            <ul>
+                <li>Teachers who want to use color-coded Nikkud to help beginning Hebrew students.</li>
+                <li>Teachers who want the ability to add Nikkud to texts and adjust Hebrew fonts, sizing and spacing for ease of reading.</li>
+                <li>Teachers working with dyslexic students and others who would benefit from dyslexic-friendly fonts, type-sizing, and spacing.</li>
+                <li>Teachers who want to produce personalized AI-generated content or adjust existing writings or Tefillot with Penina's specialized Nikkud or layout tools.</li>
+                <li>Teachers who want to keep track of students' mastery of vocabulary and use AI to create readings of personal interest to students with precise footnotes for unmastered words and accompanying comprehension questions.</li>
+                <li>Tanakh, Talmud, and Hebrew language teachers who want to provide their students with consistently formatted word lists with quotations drawn from traditional texts or generated by AI to provide context.</li>
+            </ul>
+        </section>
+
+        <section class="cost-section">
+            <h2>How much does it cost to use Penina-Hebrew?</h2>
+            <p>Penina-Hebrew is absolutely free to use (and you don't even need to sign in).</p>
+        </section>
+    </main>
+
+    
+
+    <footer>
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <span>Penina-Hebrew Suite</span>
+            <span>&copy; 2026 David Israel</span>
+        </div>
+    </footer>
+
+</body>
+</html>

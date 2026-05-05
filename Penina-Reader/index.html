@@ -1127,7 +1127,7 @@
                     let color = '#000000';
                     let isShuruk = false; 
                     let currentHasShva = false;
-                    let shouldExtendKamatzKatan = false;
+                    let shouldUseKamatzKatanDisplay = false;
                     
                     if (vowelMatch) {
                         vowel = vowelMatch[0];
@@ -1136,7 +1136,7 @@
                             const hasKamatzKatanOverride = kamatzKatanOverrideWords.has(segmentInfo.clean);
                             if (hasKamatzKatanOverride && !kamatzKatanOverrideAppliedSegments.has(segmentInfo.start)) {
                                 color = getCol('kamatz-katan');
-                                shouldExtendKamatzKatan = true;
+                                shouldUseKamatzKatanDisplay = true;
                                 kamatzKatanOverrideAppliedSegments.add(segmentInfo.start);
                             } else {
                                 color = getCol('kamatz');
@@ -1145,7 +1145,7 @@
                         else if (vowel === '\u05B3') color = getCol('kamatz');
                         else if (vowel === '\u05C7') {
                             color = getCol('kamatz-katan');
-                            shouldExtendKamatzKatan = true;
+                            shouldUseKamatzKatanDisplay = true;
                         }
                         else if (vowel === '\u05B7') color = getCol('patach');
                         else if (vowel === '\u05B2') color = getCol('patach'); 
@@ -1201,31 +1201,28 @@
                     let topSpanStyle = `color: ${topColor};`;
                     if (currentOutline) { topSpanStyle += ` ${currentOutline}`; }
 
-                    let bottomContent = `${letter}${newMarks}`;
+                    const displayMarks = shouldUseKamatzKatanDisplay
+                        ? newMarks.replace('\u05B8', '\u05C7')
+                        : newMarks;
+                    let bottomContent = `${letter}${displayMarks}`;
                     let customVowelTuck = '';
-                    let kamatzKatanExtension = '';
                     let applyTuck = (isDyslexicFont && letter === 'ך' && (vowel === '\u05B8' || vowel === '\u05B7' || vowel === '\u05C7' || vowel === '\u05B0'));
-
-                    if (shouldExtendKamatzKatan) {
-                        let extensionColor = document.getElementById('en-kamatz-katan').checked ? document.getElementById('col-kamatz-katan').value : '#000000';
-                        kamatzKatanExtension = `<span aria-hidden="true" style="position: absolute; display: inline-block; width: 0.055em; height: 0.28em; background-color: ${extensionColor}; right: 0.47em; top: 0.70em; z-index: 4; pointer-events: none; border-radius: 1px;"></span>`;
-                    }
 
                     if (applyTuck) {
                         bottomContent = bottomContent.replace(vowel, '');
                         let tuckColor = (color && color !== '#000000') ? color : '#000000';
-                        customVowelTuck = `<span style="position: absolute; margin-right: 0.25em; margin-top: -0.65em; color: ${tuckColor}; z-index: 3; pointer-events: none;">&nbsp;${vowel}</span>`;
+                        const tuckVowel = shouldUseKamatzKatanDisplay && vowel === '\u05B8' ? '\u05C7' : vowel;
+                        customVowelTuck = `<span style="position: absolute; margin-right: 0.25em; margin-top: -0.65em; color: ${tuckColor}; z-index: 3; pointer-events: none;">&nbsp;${tuckVowel}</span>`;
                     }
 
-                    if (!applyTuck && !kamatzKatanExtension && (!color || color === '#000000')) {
-                        return `<span class="heb-cluster" style="font-weight: ${letterWeight}; ${extraStyle}"><span class="layer-top" style="${topSpanStyle}">${letter}${newMarks}</span></span>`;
+                    if (!applyTuck && (!color || color === '#000000')) {
+                        return `<span class="heb-cluster" style="font-weight: ${letterWeight}; ${extraStyle}"><span class="layer-top" style="${topSpanStyle}">${letter}${displayMarks}</span></span>`;
                     }
                     
                     return `<span class="heb-cluster" style="position: relative; font-weight: ${letterWeight}; ${extraStyle}">
                                 <span class="layer-bottom" style="color: ${color || 'transparent'};">${bottomContent}</span>
                                 <span class="layer-top" style="${topSpanStyle}">${letter}${structuralDots}</span>
                                 ${customVowelTuck}
-                                ${kamatzKatanExtension}
                             </span>`;
                 });
 

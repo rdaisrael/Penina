@@ -1380,43 +1380,13 @@ function updateTalmudModeVisibility() {
 
                 const contextPromptIndexes = [];
                 const contextPrompts = [];
-                const contextPromptModes = [];
 
                 const buildDirectTranslationPrompt = (row) => {
                     if (sourceType === 'Modern Hebrew') {
                         return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation.`;
                     }
 
-                    return `Translate ONLY this Hebrew/Aramaic excerpt to concise, close English: "${row.hebrewContext}". Do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context. Return ONLY the English translation.`;
-                };
-
-                const buildTalmudExtractionPrompt = (row) => {
-                    return `You are aligning a Talmud quote with Sefaria's English translation.
-
-Hebrew/Aramaic excerpt shown to the student:
-"${row.hebrewContext}"
-
-Broader Sefaria English translation, possibly with HTML tags such as <b> or <strong> around the close translation:
-"${row.rawSefariaEnglishContext}"
-
-Vocabulary item:
-Hebrew/Aramaic: "${row.cleanHebrew}"
-Preferred English vocabulary translation: "${row.item.english}"
-
-Task:
-Return ONLY the English words that correspond to the Hebrew/Aramaic excerpt shown to the student.
-
-Rules:
-- Use the Sefaria English translation as the source text for your answer whenever it is not empty and not obviously unrelated.
-- Prefer the words already present in the Sefaria English translation over translating from scratch.
-- If HTML bold or strong tags mark the close/literal translation, use those bolded words as the strongest evidence.
-- Remove explanatory filler, connective argument-summary language, and surrounding context.
-- Do not add explanation.
-- Do not quote or label the result.
-- Keep it concise and close to the Hebrew/Aramaic.
-- Use the preferred English vocabulary translation naturally if it is accurate in context, so the vocabulary word can be bolded later.
-- Return NEEDS_DIRECT_TRANSLATION only if the Sefaria English translation is empty or clearly does not contain a usable corresponding translation.
-- Otherwise, return your best concise extraction from the Sefaria English translation.`;
+                    return `Translate ONLY this Hebrew/Aramaic excerpt to concise, clear English: "${row.hebrewContext}". Make the result read naturally as an English sentence or phrase, but do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context, so the vocabulary word can be bolded later. Return ONLY the English translation.`;
                 };
 
                 for (let i = 0; i < preparedItems.length; i++) {
@@ -1424,39 +1394,22 @@ Rules:
                     if (row.isAbbreviationEntry) continue;
 
                     if (row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.englishContext) {
-                        if (sourceType === 'Talmud' && row.rawSefariaEnglishContext) {
-                            contextPromptIndexes.push(i);
-                            contextPrompts.push(buildTalmudExtractionPrompt(row));
-                            contextPromptModes.push('talmud-extract');
-                        } else {
-                            contextPromptIndexes.push(i);
-                            contextPrompts.push(buildDirectTranslationPrompt(row));
-                            contextPromptModes.push(sourceType === 'Modern Hebrew' ? 'modern-direct' : 'direct');
-                        }
+                        contextPromptIndexes.push(i);
+                        contextPrompts.push(buildDirectTranslationPrompt(row));
                     }
                 }
 
                 if (!noContextMode && contextPrompts.length > 0) {
                     try {
                         const contextResults = await callTranslateBatch(contextPrompts);
-                        const directRetryPrompts = [];
-                        const directRetryIndexes = [];
 
                         contextPromptIndexes.forEach((rowIndex, batchIndex) => {
                             const row = preparedItems[rowIndex];
                             const result = contextResults[batchIndex];
-                            const mode = contextPromptModes[batchIndex];
                             const text = result && result.ok && result.text ? String(result.text).trim() : '';
 
-                            const needsDirectTranslation = text.toUpperCase().replace(/[.\s]+$/g, '') === 'NEEDS_DIRECT_TRANSLATION';
-
-                            if (text && mode === 'talmud-extract' && !needsDirectTranslation) {
-                                row.englishContext = `${text} (AI Extracted from Sefaria Translation)`;
-                            } else if (text && mode !== 'talmud-extract') {
+                            if (text) {
                                 row.englishContext = `${text} (AI Translation)`;
-                            } else if (mode === 'talmud-extract') {
-                                directRetryIndexes.push(rowIndex);
-                                directRetryPrompts.push(buildDirectTranslationPrompt(row));
                             } else {
                                 row.englishContext = fallbackEnglishContext(
                                     sourceType,
@@ -1465,25 +1418,6 @@ Rules:
                                 );
                             }
                         });
-
-                        if (directRetryPrompts.length > 0) {
-                            try {
-                                const retryResults = await callTranslateBatch(directRetryPrompts);
-                                directRetryIndexes.forEach((rowIndex, retryIndex) => {
-                                    const row = preparedItems[rowIndex];
-                                    const result = retryResults[retryIndex];
-                                    const text = result && result.ok && result.text ? String(result.text).trim() : '';
-                                    row.englishContext = text
-                                        ? `${text} (AI Translation)`
-                                        : fallbackEnglishContext(sourceType, row.item.english, row.hebrewContext);
-                                });
-                            } catch (e) {
-                                directRetryIndexes.forEach((rowIndex) => {
-                                    const row = preparedItems[rowIndex];
-                                    row.englishContext = fallbackEnglishContext(sourceType, row.item.english, row.hebrewContext);
-                                });
-                            }
-                        }
                     } catch (e) {
                         contextPromptIndexes.forEach((rowIndex) => {
                             preparedItems[rowIndex].englishContext = fallbackEnglishContext(

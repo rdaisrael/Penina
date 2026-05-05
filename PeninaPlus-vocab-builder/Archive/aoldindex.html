@@ -73,32 +73,6 @@
             fill: currentColor;
         }
 
-        .beta-feedback-btn {
-            position: absolute;
-            top: 75px;
-            left: 25px;
-            display: inline-block;
-            background: #ffcc00;
-            color: #333;
-            font-family: 'Georgia', serif;
-            font-size: 11px;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            min-width: 185px;
-            padding: 10px 14px;
-            text-align: center;
-            border-radius: 8px;
-            border: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            text-decoration: none;
-            z-index: 1000;
-        }
-
-        .beta-feedback-btn:hover {
-            background: #ffcc00;
-            color: #333;
-        }
-
         @media (max-width: 768px) {
             .home-btn {
                 position: relative;
@@ -312,7 +286,7 @@
         @media print {
             body { background: white; padding: 0; }
             .bg-pattern { display: none; }
-            .home-btn, .beta-feedback-btn { display: none; }
+            .home-btn { display: none; }
             .control-panel-wrapper { display: none !important; }
             .page-container { margin: 0 !important; width: 100% !important; box-shadow: none !important; border: none !important; }
             .penina-footer { margin-top: 30px; font-size: 9pt; }
@@ -340,7 +314,6 @@
         </svg>
         Home
     </a>
-    <a href="https://forms.gle/jx83quNMrWcgQA7h7" target="_blank" class="beta-feedback-btn">2 MINUTE BETA FEEDBACK</a>
     <div class="control-panel-wrapper">
         
         <div class="header-container">
@@ -1288,8 +1261,7 @@ function updateTalmudModeVisibility() {
                         searchHebrew,
                         hebrewContext: "",
                         englishContext: "",
-                        rawSefariaEnglishContext: "",
-                        englishCitation: "",
+                        hebrewCitation: "",
                         englishCitation: "",
                         citation: "",
                         matchedHebrewCandidate: searchHebrew,
@@ -1346,7 +1318,6 @@ function updateTalmudModeVisibility() {
                         if (searchResult) {
                             row.hebrewContext = searchResult.he || "";
                             row.englishContext = searchResult.en || "";
-                            row.rawSefariaEnglishContext = searchResult.sourceEnglish || searchResult.rawEn || "";
                             row.matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
                             const citationParts = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
                             row.hebrewCitation = citationParts.hebrew;
@@ -1381,50 +1352,32 @@ function updateTalmudModeVisibility() {
                 const contextPromptIndexes = [];
                 const contextPrompts = [];
 
-                const cleanAiText = (text) => {
-                    return String(text || '')
-                        .replace(/\*\*(.*?)\*\*/g, '$1')
-                        .replace(/__(.*?)__/g, '$1')
-                        .replace(/\*(.*?)\*/g, '$1')
-                        .replace(/_(.*?)_/g, '$1')
-                        .replace(/\s+/g, ' ')
-                        .trim();
-                };
-
-                const buildDirectTranslationPrompt = (row) => {
-                    if (sourceType === 'Modern Hebrew') {
-                        return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
-                    }
-
-                    return `Translate ONLY this Hebrew/Aramaic excerpt to concise, clear English: "${row.hebrewContext}". Make the result read naturally as an English sentence or phrase, but do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context, so the vocabulary word can be bolded later. Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
-                };
-
                 for (let i = 0; i < preparedItems.length; i++) {
                     const row = preparedItems[i];
                     if (row.isAbbreviationEntry) continue;
 
                     if (row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.englishContext) {
+                        const prompt = sourceType === 'Modern Hebrew'
+                            ? `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation.`
+                            : `Translate this Hebrew/Aramaic source sentence to natural English: "${row.hebrewContext}". Use "${row.item.english}" if it fits naturally, but prioritize the actual meaning of the sentence. Return ONLY the English translation.`;
+
                         contextPromptIndexes.push(i);
-                        contextPrompts.push(buildDirectTranslationPrompt(row));
+                        contextPrompts.push(prompt);
                     }
                 }
 
                 if (!noContextMode && contextPrompts.length > 0) {
                     try {
                         const contextResults = await callTranslateBatch(contextPrompts);
-
                         contextPromptIndexes.forEach((rowIndex, batchIndex) => {
-                            const row = preparedItems[rowIndex];
                             const result = contextResults[batchIndex];
-                            const text = result && result.ok && result.text ? cleanAiText(result.text) : '';
-
-                            if (text) {
-                                row.englishContext = `${text} (AI Translation)`;
+                            if (result && result.ok && result.text) {
+                                preparedItems[rowIndex].englishContext = result.text;
                             } else {
-                                row.englishContext = fallbackEnglishContext(
+                                preparedItems[rowIndex].englishContext = fallbackEnglishContext(
                                     sourceType,
-                                    row.item.english,
-                                    row.hebrewContext
+                                    preparedItems[rowIndex].item.english,
+                                    preparedItems[rowIndex].hebrewContext
                                 );
                             }
                         });
@@ -1585,7 +1538,6 @@ for (const candidate of englishCandidates) {
 
             const stripHtml = (s) => String(s || '').replace(/<\/?[^>]+(>|$)/g, '');
 
-
             const normalizeHebrewForMatch = (s) => {
                 return String(s || '')
                     .replace(/<\/?[^>]+(>|$)/g, '')
@@ -1599,14 +1551,6 @@ for (const candidate of englishCandidates) {
             const corpusFilter = isTalmud ? ['Talmud'] : ['Tanakh'];
             const davidsonTitle = 'William Davidson Edition - English';
             const relevantTargets = (Array.isArray(selectedTargets) ? selectedTargets : []).filter(target => target && target.corpus === (isTalmud ? 'Talmud' : 'Tanakh'));
-            const hasExplicitSourceTargets = relevantTargets.length > 0;
-
-            function isAllowedSefariaRef(ref) {
-                const value = String(ref || '').trim();
-                if (!isTalmud) return true;
-                return !/^(Jerusalem Talmud|Talmud Yerushalmi)(?:\s|$)/i.test(value)
-                    && !/^תלמוד ירושלמי(?:\s|$)/.test(value);
-            }
 
             function splitSearchCandidates(raw) {
                 return String(raw || '')
@@ -1726,11 +1670,9 @@ for (const candidate of englishCandidates) {
 
             function buildExcerptFromMatch(heArray, enArray, matchIndex, matchedCandidate) {
                 const cleanHebrewSegments = heArray.map(segment => stripHtml(segment));
-                const rawEnglishSegments = Array.isArray(enArray) ? enArray.map(segment => String(segment || '')) : [];
-                const cleanEnglishSegments = rawEnglishSegments.map(segment => stripHtml(segment));
-                const displayEnglishSegments = isTalmud ? rawEnglishSegments : cleanEnglishSegments;
+                const cleanEnglishSegments = (Array.isArray(enArray) ? enArray : []).map(segment => stripHtml(segment));
                 const fullHebrew = typeof cleanHebrewSegments[matchIndex] === 'string' ? cleanHebrewSegments[matchIndex] : '';
-                const fullEnglish = typeof displayEnglishSegments[matchIndex] === 'string' ? displayEnglishSegments[matchIndex] : '';
+                const fullEnglish = typeof cleanEnglishSegments[matchIndex] === 'string' ? cleanEnglishSegments[matchIndex] : '';
 
                 const splitHebrewSentences = (text) => {
                     return String(text || '')
@@ -1764,10 +1706,6 @@ for (const candidate of englishCandidates) {
                     return normalizedText !== normalizedCandidate && textWords >= candidateWords + 2;
                 };
 
-                const cleanEnglishForDisplay = (englishText) => {
-                    return String(englishText || '').replace(/\s+/g, ' ').trim();
-                };
-
                 const buildExpandedSegmentExcerpt = (candidate) => {
                     const centerIndex = matchIndex;
                     const MAX_HEBREW_LENGTH = 180;
@@ -1778,7 +1716,7 @@ for (const candidate of englishCandidates) {
 
                         for (let i = Math.max(0, centerIndex - radius); i <= Math.min(cleanHebrewSegments.length - 1, centerIndex + radius); i++) {
                             const hePiece = String(cleanHebrewSegments[i] || '').trim();
-                            const enPiece = String(displayEnglishSegments[i] || '').trim();
+                            const enPiece = String(cleanEnglishSegments[i] || '').trim();
                             if (hePiece) hePieces.push(hePiece);
                             if (enPiece) enPieces.push(enPiece);
                         }
@@ -1805,14 +1743,13 @@ for (const candidate of englishCandidates) {
                     const match = findCandidateMatchInNormalizedLine(sentence);
                     if (match) {
                         const sentenceWithContext = hasEnoughSurroundingContext(sentence, match.candidate)
-                            ? { he: sentence, en: cleanEnglishForDisplay(fullEnglish) }
+                            ? { he: sentence, en: fullEnglish }
                             : buildExpandedSegmentExcerpt(match.candidate);
 
                         if (sentenceWithContext.he && hasEnoughSurroundingContext(sentenceWithContext.he, match.candidate)) {
                             sentenceMatches.push({
                                 sentence: sentenceWithContext.he,
-                                english: isTalmud ? '' : cleanEnglishForDisplay(sentenceWithContext.en),
-                                sourceEnglish: cleanEnglishForDisplay(sentenceWithContext.en),
+                                english: sentenceWithContext.en || fullEnglish,
                                 index,
                                 candidate: match.candidate,
                                 strength: match.strength
@@ -1842,8 +1779,7 @@ for (const candidate of englishCandidates) {
 
                     return {
                         he: pool[0].sentence,
-                        en: isTalmud ? '' : (pool[0].english || ''),
-                        sourceEnglish: pool[0].sourceEnglish || pool[0].english || '',
+                        en: pool[0].english || '',
                         matchedCandidate: pool[0].candidate || matchedCandidate
                     };
                 }
@@ -1855,19 +1791,16 @@ for (const candidate of englishCandidates) {
 
                 return {
                     he: expanded.he,
-                    en: isTalmud ? '' : cleanEnglishForDisplay(expanded.en),
-                    sourceEnglish: cleanEnglishForDisplay(expanded.en),
+                    en: expanded.en || fullEnglish,
                     matchedCandidate
                 };
             }
 
             async function fetchRefData(ref, dafLabel = null) {
                 try {
-                    const textUrl = isTalmud
-                        ? `https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`
-                        : `https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0&ven=${encodeURIComponent(davidsonTitle)}`;
-
-                    const sRes = await fetch(textUrl);
+                    const sRes = await fetch(
+                        `https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0&ven=${encodeURIComponent(davidsonTitle)}`
+                    );
                     if (!sRes.ok) return null;
 
                     const data = await sRes.json();
@@ -1877,7 +1810,7 @@ for (const candidate of englishCandidates) {
                         ref: data.ref,
                         heRef: data.heRef,
                         heArray: Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he],
-                        enArray: isTalmud ? [] : (Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text || '']),
+                        enArray: Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text || ''],
                         dafLabel: dafLabel || ref
                     };
                 } catch (e) {
@@ -1921,8 +1854,6 @@ for (const candidate of englishCandidates) {
                 return {
                     he: excerpt.he,
                     en: excerpt.en || '', 
-                    sourceEnglish: excerpt.sourceEnglish || '',
-                    rawEn: excerpt.sourceEnglish || '',
                     ref,
                     heRef,
                     matchStrength: bestMatch.matchStrength,
@@ -1992,10 +1923,6 @@ for (const candidate of englishCandidates) {
 
                     for (const hit of data.hits.hits) {
                         const ref = hit._source?.ref || hit._id.split(' (')[0];
-
-                        if (!isAllowedSefariaRef(ref)) {
-                            continue;
-                        }
 
                         if (enforceBookName && !refStartsWithBook(ref, enforceBookName)) {
                             continue;
@@ -2106,8 +2033,6 @@ for (const candidate of englishCandidates) {
                 return {
                     he: excerpt.he,
                     en: excerpt.en || '',
-                    sourceEnglish: excerpt.sourceEnglish || '',
-                    rawEn: excerpt.sourceEnglish || '',
                     ref: segments[bestMatch.matchIndex].ref,
                     heRef: segments[bestMatch.matchIndex].heRef,
                     matchStrength: bestMatch.matchStrength,
@@ -2156,8 +2081,6 @@ for (const candidate of englishCandidates) {
                     return {
                         he: bestDirectMatch.he,
                         en: bestDirectMatch.en || '',
-                        sourceEnglish: bestDirectMatch.sourceEnglish || bestDirectMatch.rawEn || '',
-                        rawEn: bestDirectMatch.rawEn || bestDirectMatch.sourceEnglish || '',
                         ref: bestDirectMatch.ref,
                         heRef: bestDirectMatch.heRef,
                         matchedCandidate: bestDirectMatch.matchedCandidate
@@ -2170,8 +2093,6 @@ for (const candidate of englishCandidates) {
                         return {
                             he: foundInBook.he,
                             en: foundInBook.en || '',
-                            sourceEnglish: foundInBook.sourceEnglish || foundInBook.rawEn || '',
-                            rawEn: foundInBook.rawEn || foundInBook.sourceEnglish || '',
                             ref: foundInBook.ref,
                             heRef: foundInBook.heRef,
                             matchedCandidate: foundInBook.matchedCandidate
@@ -2185,8 +2106,6 @@ for (const candidate of englishCandidates) {
                 return {
                     he: foundInCorpus.he,
                     en: foundInCorpus.en || '',
-                    sourceEnglish: foundInCorpus.sourceEnglish || foundInCorpus.rawEn || '',
-                    rawEn: foundInCorpus.rawEn || foundInCorpus.sourceEnglish || '',
                     ref: foundInCorpus.ref,
                     heRef: foundInCorpus.heRef,
                     matchedCandidate: foundInCorpus.matchedCandidate

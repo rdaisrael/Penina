@@ -1,12 +1,10 @@
-<!--Penina Hebrew Reader Index File-->
-
-
 <!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Penina Hebrew Reader</title>
-    <link rel="icon" type="image/png" href="Penina-favicon.png">
+    <title>Penina 3.1</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <style>
         /* --- EMBEDDED DYSLEXIC FONT --- */
         @font-face {
@@ -230,99 +228,9 @@
                 widows: 1 !important;
             }
         }
-
-        /* --- HOME BUTTON --- */
-        .home-btn {
-            position: absolute;
-            top: 25px;
-            left: 25px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background-color: #fdfbf7;
-            color: #5a5248;
-            border: 1px solid #dcd3c6;
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-size: 15px;
-            font-weight: bold;
-            text-decoration: none;
-            box-shadow: 0 4px 8px rgba(139, 115, 85, 0.15);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            z-index: 1000;
-        }
-
-        .home-btn:hover {
-            transform: translateY(-2px);
-            background-color: #f4f0e6;
-            box-shadow: 0 6px 12px rgba(139, 115, 85, 0.25);
-            color: #3a332a;
-        }
-        
-        .home-btn svg {
-            width: 18px;
-            height: 18px;
-            fill: currentColor;
-        }
-
-        .beta-feedback-btn {
-            position: absolute;
-            top: 75px;
-            left: 25px;
-            display: inline-block;
-            background: #ffcc00;
-            color: #333;
-            font-family: 'Georgia', serif;
-            font-size: 11px;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            min-width: 185px;
-            padding: 10px 14px;
-            text-align: center;
-            border-radius: 8px;
-            border: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            text-decoration: none;
-            z-index: 1000;
-        }
-
-        .beta-feedback-btn:hover {
-            background: #ffcc00;
-            color: #333;
-        }
-
-        @media print {
-            .home-btn { display: none; }
-        }
-
-        @media print {
-            .beta-feedback-btn { display: none; }
-        }
-
-
-        @media (max-width: 768px) {
-            .home-btn {
-                position: relative;
-                top: 0;
-                left: 0;
-                margin: 20px auto 0 auto;
-                width: fit-content;
-                justify-content: center;
-            }
-        }
     </style>
 </head>
 <body>
-
-    <a href="/" class="home-btn" aria-label="Return to Home">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-        </svg>
-        Home
-    </a>
-
-    <a href="https://forms.gle/jx83quNMrWcgQA7h7" target="_blank" class="beta-feedback-btn">2 MINUTE BETA FEEDBACK</a>
 
     <div class="bg-pattern"></div>
 
@@ -330,14 +238,14 @@
         
         <div class="header-container">
             <img src="/penina-logo.png" alt="Penina Logo" class="app-logo">
-            <h1 style="margin: 0; margin-top: 15px;">Penina Hebrew Reader</h1>
+            <h1 style="margin: 0; margin-top: 15px;">Penina 3.1</h1>
         </div>
         <div class="copyright">&copy; 2026 David Israel</div>
 
         <details class="about-details">
             <summary class="about-summary">ℹ️ About & Credits</summary>
             <div class="about-content">
-                <p><strong>About Penina Hebrew Reader:</strong><br>
+                <p><strong>About Penina:</strong><br>
                 Penina is a specialized, AI-assisted text-generation and vocalization tool designed to create formatted, highly accessible, vowelized Hebrew reading materials. Phonetic color-coding for vowels was inspired by the Hebrew Guru system; Penina expands this concept with additional unique color mappings and offers granular control over typography, spacing, and other visual cues to support diverse reading needs.</p>
                 <p><strong>Credits:</strong><br>
                 • Developed by <strong>David Israel</strong><br>
@@ -366,11 +274,11 @@
             <div id="pathway-a-section">
                 <div class="form-group">
                     <label for="theme">a. נושא הסיפור (Story Prompt/Topic):</label>
-                    <textarea id="theme" rows="2" placeholder="What should the story be about? (English or Hebrew)"></textarea>
+                    <textarea id="theme" rows="2" placeholder="Tell the AI what the story should be about (English or Hebrew)..."></textarea>
                 </div>
                 <div class="form-group">
                     <label for="target-input-a">b. מילות מטרה (Target Words to Highlight - Optional):</label>
-                    <textarea id="target-input-a" class="hebrew-input" rows="2" placeholder="Enter words separated by comma or on new lines (English or Hebrew)"></textarea>
+                    <textarea id="target-input-a" class="hebrew-input" rows="2" placeholder="Type words separated by commas/newlines (English or Hebrew)..."></textarea>
                 </div>
                 <div class="form-group" style="display: flex; gap: 20px;">
                     <div style="flex: 1;">
@@ -397,7 +305,7 @@
             <div id="pathway-b-section" style="display: none;">
                 <div class="form-group">
                     <label for="supplied-text">a. טקסט מוכן (Supplied Text):</label>
-                    <textarea id="supplied-text" class="hebrew-input" rows="4" placeholder="Paste pre-written Hebrew text here"></textarea>
+                    <textarea id="supplied-text" class="hebrew-input" rows="4" placeholder="Paste pre-written Hebrew text here..."></textarea>
                 </div>
                 
                 <div class="form-group panel-secondary">
@@ -412,11 +320,11 @@
 
                 <div class="form-group">
                     <label for="supplied-title">c. כותרת (Supply a title for the supplied text):</label>
-                    <input type="text" id="supplied-title" class="hebrew-input" placeholder="Enter a title for your story">
+                    <input type="text" id="supplied-title" class="hebrew-input" placeholder="Enter a title for your story...">
                 </div>
                 <div class="form-group">
                     <label for="target-input-b">d. מילות מטרה (Target Words to Highlight - Optional):</label>
-                    <textarea id="target-input-b" class="hebrew-input" rows="2" placeholder="Enter words separated by commas or new lines (English or Hebrew)"></textarea>
+                    <textarea id="target-input-b" class="hebrew-input" rows="2" placeholder="Type words separated by commas/newlines (English or Hebrew)..."></textarea>
                 </div>
             </div>
 
@@ -440,15 +348,11 @@
                 <div class="slider-group">
                     <div class="slider-container">
                         <label for="font-size">Font Size: <span id="font-size-val">38px</span></label>
-                        <input type="range" id="font-size" min="10" max="60" value="38" class="layout-control">
+                        <input type="range" id="font-size" min="20" max="80" value="38" class="layout-control">
                     </div>
                     <div class="slider-container">
                         <label for="kerning">Letter Spacing (Kerning): <span id="kerning-val">0px</span></label>
                         <input type="range" id="kerning" min="0" max="20" value="0" class="layout-control">
-                    </div>
-                    <div class="slider-container">
-                        <label for="line-spacing">Line Spacing: <span id="line-spacing-val">2.5</span></label>
-                        <input type="range" id="line-spacing" min="1" max="5" step="0.1" value="2.5" class="layout-control">
                     </div>
                 </div>
 
@@ -478,20 +382,12 @@
                 <details class="color-key-details">
                     <summary class="color-key-summary">🎨 Nikkud & Color Settings (Click to Open)</summary>
                     
-                    <p style="margin: 10px 0 5px 0; font-size: 14px; color: #666; font-style: italic;">
-                        Check a box to apply color. Uncheck to leave that vowel the default black color.
-                    </p>
-
-                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 10px;">
-                        <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 10px;">
+                        <p style="margin: 0; font-size: 14px; color: #666; font-style: italic;">Check a box to apply color. Uncheck to leave that vowel the default black color.</p>
+                        <div style="flex-shrink: 0;">
                             <button type="button" id="select-all-btn" style="padding: 6px 12px; font-size: 13px; margin-right: 5px; background-color: #6c757d; color: white; border: none; cursor: pointer;">Select All</button>
                             <button type="button" id="unselect-all-btn" style="padding: 6px 12px; font-size: 13px; background-color: #6c757d; color: white; border: none; cursor: pointer;">Unselect All</button>
                         </div>
-
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; margin: 0;">
-                            <input type="checkbox" id="traditional-ashkenazi-pronunciation">
-                            Traditional Ashkenazi Pronunciation
-                        </label>
                     </div>
 
                     <div class="vowel-grid">
@@ -604,44 +500,7 @@
         if (suppliedTextInput) { suppliedTextInput.addEventListener('input', validateHebrewInput); }
         if (suppliedTitleInput) { suppliedTitleInput.addEventListener('input', validateHebrewInput); }
 
-        let savedStandardPronunciationColors = null;
-
-        function updateTraditionalPronunciationSettings() {
-            const traditionalCheckbox = document.getElementById('traditional-ashkenazi-pronunciation');
-            if (!traditionalCheckbox) return;
-
-            const isTraditional = traditionalCheckbox.checked;
-            const kamatzColor = document.getElementById('col-kamatz');
-            const kamatzKatanColor = document.getElementById('col-kamatz-katan');
-            const tzereChaserColor = document.getElementById('col-tzere-chaser');
-            const tzereMalehColor = document.getElementById('col-tzere-maleh');
-            const kamatzText = document.getElementById('text-kamatz');
-            const tzereChaserText = document.getElementById('text-tzere-chaser');
-
-            if (isTraditional) {
-                if (!savedStandardPronunciationColors) {
-                    savedStandardPronunciationColors = {
-                        kamatz: kamatzColor.value,
-                        tzereChaser: tzereChaserColor.value
-                    };
-                }
-                kamatzText.innerText = 'AUburn (Kamatz)';
-                tzereChaserText.innerText = 'Acorn (Tzere Chaser)';
-                kamatzColor.value = kamatzKatanColor.value;
-                tzereChaserColor.value = tzereMalehColor.value;
-            } else {
-                kamatzText.innerText = 'Aqua (Kamatz)';
-                tzereChaserText.innerText = 'rEd (Tzere Chaser)';
-                if (savedStandardPronunciationColors) {
-                    kamatzColor.value = savedStandardPronunciationColors.kamatz;
-                    tzereChaserColor.value = savedStandardPronunciationColors.tzereChaser;
-                    savedStandardPronunciationColors = null;
-                }
-            }
-        }
-
         function syncUIColors() {
-            updateTraditionalPronunciationSettings();
             const vowelIds = ['kamatz', 'kamatz-katan', 'patach', 'segol', 'tzere-chaser', 'tzere-maleh', 'chirik', 'cholam', 'shuruk', 'kubutz', 'shva-nach', 'shva-na'];
             vowelIds.forEach(id => {
                 const colorValue = document.getElementById(`col-${id}`).value;
@@ -651,11 +510,6 @@
         
         window.addEventListener('DOMContentLoaded', () => {
             syncUIColors();
-        });
-
-        document.getElementById('traditional-ashkenazi-pronunciation').addEventListener('change', () => {
-            syncUIColors();
-            renderStoryToScreen();
         });
 
         document.getElementById('select-all-btn').addEventListener('click', () => {
@@ -917,11 +771,6 @@
             document.getElementById('kerning-val').innerText = e.target.value + 'px';
             applyStyles();
         });
-
-        document.getElementById('line-spacing').addEventListener('input', (e) => {
-            document.getElementById('line-spacing-val').innerText = e.target.value;
-            applyStyles();
-        });
         
         document.getElementById('margin-choice').addEventListener('change', function() {
             applyStyles();
@@ -961,7 +810,7 @@
             if (words.length === 0) return;
 
             let baseFontSize = parseInt(document.getElementById('font-size').value);
-            let wrapThreshold = baseFontSize * 0.5; 
+            let wrapThreshold = baseFontSize * 1.2; 
             
             let lineCount = 1;
             let currentLineAnchor = words[0].offsetTop; 
@@ -1208,7 +1057,7 @@
             finalOutput += processTextChunk(bodyRaw, targetWords, false);
             finalOutput += `</div>`;
 
-            finalOutput += `<div class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>`;
+            finalOutput += `<div class="penina-footer">Generated with Penina 3.1<br><em>&copy; 2026 David Israel</em></div>`;
 
             return finalOutput;
         }
@@ -1219,16 +1068,10 @@
             const margin = document.getElementById('margin-choice').value;
             const fontSize = document.getElementById('font-size').value;
             const kerning = document.getElementById('kerning').value;
-            const lineSpacing = document.getElementById('line-spacing').value;
 
             outputDiv.style.fontFamily = font;
             outputDiv.style.fontSize = fontSize + 'px';
             outputDiv.style.letterSpacing = kerning + 'px';
-            
-            const storyBody = outputDiv.querySelector('.story-body');
-            if (storyBody) {
-                storyBody.style.lineHeight = lineSpacing;
-            }
             
             if (margin === 'right' || margin === 'alternate-right' || margin === 'alternate-left') {
                 outputDiv.style.padding = '0.75in 1.25in 0.75in 0.75in';

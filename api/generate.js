@@ -1,18 +1,71 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+const PRIMARY_GEMINI_MODEL = "gemini-2.5-flash";
+const FALLBACK_GEMINI_MODEL = "gemini-1.5-pro-002";
+const RETRYABLE_STATUSES = new Set([429, 500, 503, 529]);
+
+function isRetryableGeminiError(error) {
+    const status = Number(error && error.status);
+    if (RETRYABLE_STATUSES.has(status)) return true;
+
+    const message = String(error && error.message ? error.message : error || "").toLowerCase();
+    return (
+        message.includes("429") ||
+        message.includes("500") ||
+        message.includes("503") ||
+        message.includes("529") ||
+        message.includes("quota") ||
+        message.includes("rate") ||
+        message.includes("resource exhausted") ||
+        message.includes("timeout") ||
+        message.includes("unavailable") ||
+        message.includes("internal") ||
+        message.includes("overloaded") ||
+        message.includes("empty response") ||
+        message.includes("blank response")
+    );
+}
+
+async function generateTextWithFallback(primaryModel, fallbackModel, prompt) {
+    try {
+        const result = await primaryModel.generateContent(prompt);
+        const text = result && result.response ? String(result.response.text() || "").trim() : "";
+
+        if (!text) {
+            throw new Error("AI generated an empty response.");
+        }
+
+        return text;
+    } catch (primaryError) {
+        if (!isRetryableGeminiError(primaryError)) {
+            throw primaryError;
+        }
+
+        const fallbackResult = await fallbackModel.generateContent(prompt);
+        const fallbackText = fallbackResult && fallbackResult.response
+            ? String(fallbackResult.response.text() || "").trim()
+            : "";
+
+        if (!fallbackText) {
+            throw new Error("AI fallback generated an empty response.");
+        }
+
+        return fallbackText;
+    }
+}
+
 module.exports = async function (req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
-    
-    const { prompt, suppliedText, dictaGenre } = req.body;
-    
-    // Intercept "biblical" and route it to Dicta's "poetry" model 
+
+    const { prompt, suppliedText, dictaGenre } = req.body || {};
+
     const targetGenre = dictaGenre === "biblical" ? "poetry" : dictaGenre;
-    
     const validGenres = ["modern", "rabbinic", "poetry"];
     const genreToUse = validGenres.includes(targetGenre) ? targetGenre : "modern";
 
-    // 1. Enforce payload size limit to protect quotas
-    if (suppliedText && suppliedText.length > 10000) return res.status(413).json({ error: 'Payload too large' });
+    if (suppliedText && suppliedText.length > 10000) {
+        return res.status(413).json({ error: 'Payload too large' });
+    }
 
     try {
         let textToVowelize = suppliedText;
@@ -22,27 +75,10 @@ module.exports = async function (req, res) {
             if (!googleKey) return res.status(500).json({ error: "Missing GOOGLE_GENERATIVE_AI_API_KEY." });
 
             const genAI = new GoogleGenerativeAI(googleKey, { apiVersion: 'v1' });
-            let result;
-            
-            try {
-                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-                result = await model.generateContent(prompt);
-            } catch (apiError) {
-                const status = apiError.status || (apiError.message.match(/\b(500|503|529|400)\b/) || [])[0];
-                
-                if (status) {
-                    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
-                    result = await fallbackModel.generateContent(prompt);
-                } else {
-                    throw apiError; 
-                }
-            }
-            
-            // 3. Catch empty responses before Dicta fails
-            if (!result || !result.response || !result.response.text()) {
-                throw new Error("AI generated an empty response (likely blocked by safety filters).");
-            }
-            textToVowelize = result.response.text();
+            const primaryModel = genAI.getGenerativeModel({ model: PRIMARY_GEMINI_MODEL });
+            const fallbackModel = genAI.getGenerativeModel({ model: FALLBACK_GEMINI_MODEL });
+
+            textToVowelize = await generateTextWithFallback(primaryModel, fallbackModel, prompt);
         }
 
         if (textToVowelize) {
@@ -56,7 +92,7 @@ module.exports = async function (req, res) {
                     task: "nakdan",
                     apiKey: dictaKey,
                     genre: genreToUse,
-                    data: textToVowelize.trim(),
+                    data: String(textToVowelize).trim(),
                     useTokenization: true,
                     matchpartial: true
                 })
@@ -68,17 +104,18 @@ module.exports = async function (req, res) {
             }
 
             const dictaData = await dictaRes.json();
-            
+
             let finalHebrew = "";
             for (const token of dictaData.data) {
                 if (token.sep) {
                     finalHebrew += (token.nakdan && token.nakdan.word) ? token.nakdan.word : token.str;
-                } else if (token.nakdan?.options?.length > 0) {
-                    finalHebrew += token.nakdan.options[0].w.replace(/\|/g, ''); 
+                } else if (token.nakdan && token.nakdan.options && token.nakdan.options.length > 0) {
+                    finalHebrew += token.nakdan.options[0].w.replace(/\|/g, '');
                 } else {
                     finalHebrew += token.str;
                 }
             }
+
             return res.status(200).json({ text: finalHebrew });
         }
 

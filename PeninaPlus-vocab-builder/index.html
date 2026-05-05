@@ -1407,14 +1407,16 @@ Task:
 Return ONLY the English words that correspond to the Hebrew/Aramaic excerpt shown to the student.
 
 Rules:
-- Prefer words already present in the Sefaria English translation.
-- If HTML bold or strong tags mark the close translation, use that as strong evidence.
+- Use the Sefaria English translation as the source text for your answer whenever it is not empty and not obviously unrelated.
+- Prefer the words already present in the Sefaria English translation over translating from scratch.
+- If HTML bold or strong tags mark the close/literal translation, use those bolded words as the strongest evidence.
 - Remove explanatory filler, connective argument-summary language, and surrounding context.
 - Do not add explanation.
 - Do not quote or label the result.
 - Keep it concise and close to the Hebrew/Aramaic.
 - Use the preferred English vocabulary translation naturally if it is accurate in context, so the vocabulary word can be bolded later.
-- If no corresponding English can be confidently identified, return exactly: NEEDS_DIRECT_TRANSLATION`;
+- Return NEEDS_DIRECT_TRANSLATION only if the Sefaria English translation is empty or clearly does not contain a usable corresponding translation.
+- Otherwise, return your best concise extraction from the Sefaria English translation.`;
                 };
 
                 for (let i = 0; i < preparedItems.length; i++) {
@@ -1639,36 +1641,6 @@ for (const candidate of englishCandidates) {
 
             const stripHtml = (s) => String(s || '').replace(/<\/?[^>]+(>|$)/g, '');
 
-            function extractBoldTextFromHtml(s) {
-                const html = String(s || '');
-                if (!html.trim()) return '';
-
-                const container = document.createElement('div');
-                container.innerHTML = html;
-
-                const boldNodes = Array.from(container.querySelectorAll('b, strong, [style], [class]'))
-                    .filter(el => {
-                        const style = String(el.getAttribute('style') || '').toLowerCase();
-                        const className = String(el.getAttribute('class') || '').toLowerCase();
-                        return (
-                            el.tagName === 'B' ||
-                            el.tagName === 'STRONG' ||
-                            /font-weight\s*:\s*(bold|[6-9]00)/.test(style) ||
-                            /(^|[-_\s])bold([-_\s]|$)/.test(className)
-                        );
-                    });
-
-                return boldNodes
-                    .map(el => el.textContent.trim())
-                    .filter(Boolean)
-                    .join(' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-            }
-
-            const cleanSefariaEnglishSegment = (segment) => {
-                return isTalmud ? extractBoldTextFromHtml(segment) : stripHtml(segment);
-            };
 
             const normalizeHebrewForMatch = (s) => {
                 return String(s || '')
@@ -2176,6 +2148,8 @@ for (const candidate of englishCandidates) {
                 return {
                     he: excerpt.he,
                     en: excerpt.en || '',
+                    sourceEnglish: excerpt.sourceEnglish || '',
+                    rawEn: excerpt.sourceEnglish || '',
                     ref: segments[bestMatch.matchIndex].ref,
                     heRef: segments[bestMatch.matchIndex].heRef,
                     matchStrength: bestMatch.matchStrength,

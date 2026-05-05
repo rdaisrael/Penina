@@ -1655,6 +1655,14 @@ for (const candidate of englishCandidates) {
             const corpusFilter = isTalmud ? ['Talmud'] : ['Tanakh'];
             const davidsonTitle = 'William Davidson Edition - English';
             const relevantTargets = (Array.isArray(selectedTargets) ? selectedTargets : []).filter(target => target && target.corpus === (isTalmud ? 'Talmud' : 'Tanakh'));
+            const hasExplicitSourceTargets = relevantTargets.length > 0;
+
+            function isAllowedSefariaRef(ref) {
+                const value = String(ref || '').trim();
+                if (!isTalmud) return true;
+                return !/^(Jerusalem Talmud|Talmud Yerushalmi)(?:\s|$)/i.test(value)
+                    && !/^תלמוד ירושלמי(?:\s|$)/.test(value);
+            }
 
             function splitSearchCandidates(raw) {
                 return String(raw || '')
@@ -2039,6 +2047,10 @@ for (const candidate of englishCandidates) {
                     for (const hit of data.hits.hits) {
                         const ref = hit._source?.ref || hit._id.split(' (')[0];
 
+                        if (!isAllowedSefariaRef(ref)) {
+                            continue;
+                        }
+
                         if (enforceBookName && !refStartsWithBook(ref, enforceBookName)) {
                             continue;
                         }
@@ -2198,6 +2210,8 @@ for (const candidate of englishCandidates) {
                     return {
                         he: bestDirectMatch.he,
                         en: bestDirectMatch.en || '',
+                        sourceEnglish: bestDirectMatch.sourceEnglish || bestDirectMatch.rawEn || '',
+                        rawEn: bestDirectMatch.rawEn || bestDirectMatch.sourceEnglish || '',
                         ref: bestDirectMatch.ref,
                         heRef: bestDirectMatch.heRef,
                         matchedCandidate: bestDirectMatch.matchedCandidate
@@ -2210,6 +2224,8 @@ for (const candidate of englishCandidates) {
                         return {
                             he: foundInBook.he,
                             en: foundInBook.en || '',
+                            sourceEnglish: foundInBook.sourceEnglish || foundInBook.rawEn || '',
+                            rawEn: foundInBook.rawEn || foundInBook.sourceEnglish || '',
                             ref: foundInBook.ref,
                             heRef: foundInBook.heRef,
                             matchedCandidate: foundInBook.matchedCandidate
@@ -2223,6 +2239,8 @@ for (const candidate of englishCandidates) {
                 return {
                     he: foundInCorpus.he,
                     en: foundInCorpus.en || '',
+                    sourceEnglish: foundInCorpus.sourceEnglish || foundInCorpus.rawEn || '',
+                    rawEn: foundInCorpus.rawEn || foundInCorpus.sourceEnglish || '',
                     ref: foundInCorpus.ref,
                     heRef: foundInCorpus.heRef,
                     matchedCandidate: foundInCorpus.matchedCandidate

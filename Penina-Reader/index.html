@@ -1038,13 +1038,10 @@
             let fontChoice = document.getElementById('font-choice').value;
             let isDyslexicFont = fontChoice.includes('Dyslexic-Kriah');
             const getCol = (id) => document.getElementById(`en-${id}`).checked ? document.getElementById(`col-${id}`).value : '#000000';
-            const kamatzKatanOverrideWords = new Set([
-                'כל', 'וכל', 'בכל', 'לכל', 'הכל',
-                'חכמה', 'חכמת', 'אמנם'
-            ]);
+            const kamatzKatanOverrideWords = new Set(['כל', 'וכל', 'בכל', 'לכל', 'הכל', 'חכמה', 'חכמת', 'אמנם']);
             const stripNikkud = (text) => text.replace(/[\u0591-\u05C7]/g, '');
-            const stripPunctuation = (text) => text.replace(/[.,?!:;"'()\[\]{}\-־]/g, '');
-            const segmentBoundaryRegex = /[\s\n.,?!:;"'()\[\]{}\-־]/;
+            const stripPunctuation = (text) => text.replace(/[.,?!:;\"'()\[\]{}\-־]/g, '');
+            const segmentBoundaryRegex = /[\s\n.,?!:;\"'()\[\]{}\-־]/;
             const getSegmentInfoAtOffset = (fullText, offset) => {
                 let start = offset;
                 while (start > 0 && !segmentBoundaryRegex.test(fullText[start - 1])) start--;
@@ -1132,7 +1129,7 @@
                         else if (vowel === '\u05C7') {
                             color = getCol('kamatz-katan');
                             shouldExtendKamatzKatan = true;
-                        }
+                        } 
                         else if (vowel === '\u05B7') color = getCol('patach');
                         else if (vowel === '\u05B2') color = getCol('patach'); 
                         else if (vowel === '\u05B6') color = getCol('segol');
@@ -1194,7 +1191,12 @@
 
                     if (shouldExtendKamatzKatan) {
                         let extensionColor = document.getElementById('en-kamatz-katan').checked ? document.getElementById('col-kamatz-katan').value : '#000000';
-                        kamatzKatanExtension = `<span aria-hidden="true" style="position: absolute; display: inline-block; width: 0.055em; height: 0.28em; background-color: ${extensionColor}; right: 0.47em; top: 0.70em; z-index: 4; pointer-events: none; border-radius: 1px;"></span>`;
+                        // Center the leg under the cluster instead of anchoring to a fixed right offset.
+                        // These three constants are the only values to tune for a specific font.
+                        const kamatzKatanLegWidth = '0.045em';
+                        const kamatzKatanLegHeight = '0.22em';
+                        const kamatzKatanLegTop = '0.82em';
+                        kamatzKatanExtension = `<span aria-hidden="true" style="position: absolute; display: block; width: ${kamatzKatanLegWidth}; height: ${kamatzKatanLegHeight}; background-color: ${extensionColor}; right: 50%; top: ${kamatzKatanLegTop}; transform: translateX(50%); z-index: 4; pointer-events: none; border-radius: 1px;"></span>`;
                     }
 
                     if (applyTuck) {

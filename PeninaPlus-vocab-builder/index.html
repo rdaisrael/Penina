@@ -1288,7 +1288,8 @@ function updateTalmudModeVisibility() {
                         searchHebrew,
                         hebrewContext: "",
                         englishContext: "",
-                        hebrewCitation: "",
+                        rawSefariaEnglishContext: "",
+                        englishCitation: "",
                         englishCitation: "",
                         citation: "",
                         matchedHebrewCandidate: searchHebrew,
@@ -1345,6 +1346,7 @@ function updateTalmudModeVisibility() {
                         if (searchResult) {
                             row.hebrewContext = searchResult.he || "";
                             row.englishContext = searchResult.en || "";
+                            row.rawSefariaEnglishContext = searchResult.sourceEnglish || searchResult.rawEn || "";
                             row.matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
                             const citationParts = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
                             row.hebrewCitation = citationParts.hebrew;
@@ -1378,36 +1380,108 @@ function updateTalmudModeVisibility() {
 
                 const contextPromptIndexes = [];
                 const contextPrompts = [];
+                const contextPromptModes = [];
+
+                const buildDirectTranslationPrompt = (row) => {
+                    if (sourceType === 'Modern Hebrew') {
+                        return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation.`;
+                    }
+
+                    return `Translate ONLY this Hebrew/Aramaic excerpt to concise, close English: "${row.hebrewContext}". Do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context. Return ONLY the English translation.`;
+                };
+
+                const buildTalmudExtractionPrompt = (row) => {
+                    return `You are aligning a Talmud quote with Sefaria's English translation.
+
+Hebrew/Aramaic excerpt shown to the student:
+"${row.hebrewContext}"
+
+Broader Sefaria English translation, possibly with HTML tags such as <b> or <strong> around the close translation:
+"${row.rawSefariaEnglishContext}"
+
+Vocabulary item:
+Hebrew/Aramaic: "${row.cleanHebrew}"
+Preferred English vocabulary translation: "${row.item.english}"
+
+Task:
+Return ONLY the English words that correspond to the Hebrew/Aramaic excerpt shown to the student.
+
+Rules:
+- Prefer words already present in the Sefaria English translation.
+- If HTML bold or strong tags mark the close translation, use that as strong evidence.
+- Remove explanatory filler, connective argument-summary language, and surrounding context.
+- Do not add explanation.
+- Do not quote or label the result.
+- Keep it concise and close to the Hebrew/Aramaic.
+- Use the preferred English vocabulary translation naturally if it is accurate in context, so the vocabulary word can be bolded later.
+- If no corresponding English can be confidently identified, return exactly: NEEDS_DIRECT_TRANSLATION`;
+                };
 
                 for (let i = 0; i < preparedItems.length; i++) {
                     const row = preparedItems[i];
                     if (row.isAbbreviationEntry) continue;
 
                     if (row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.englishContext) {
-                        const prompt = sourceType === 'Modern Hebrew'
-                            ? `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation.`
-                            : `Translate this Hebrew/Aramaic source sentence to natural English: "${row.hebrewContext}". Use "${row.item.english}" if it fits naturally, but prioritize the actual meaning of the sentence. Return ONLY the English translation.`;
-
-                        contextPromptIndexes.push(i);
-                        contextPrompts.push(prompt);
+                        if (sourceType === 'Talmud' && row.rawSefariaEnglishContext) {
+                            contextPromptIndexes.push(i);
+                            contextPrompts.push(buildTalmudExtractionPrompt(row));
+                            contextPromptModes.push('talmud-extract');
+                        } else {
+                            contextPromptIndexes.push(i);
+                            contextPrompts.push(buildDirectTranslationPrompt(row));
+                            contextPromptModes.push(sourceType === 'Modern Hebrew' ? 'modern-direct' : 'direct');
+                        }
                     }
                 }
 
                 if (!noContextMode && contextPrompts.length > 0) {
                     try {
                         const contextResults = await callTranslateBatch(contextPrompts);
+                        const directRetryPrompts = [];
+                        const directRetryIndexes = [];
+
                         contextPromptIndexes.forEach((rowIndex, batchIndex) => {
+                            const row = preparedItems[rowIndex];
                             const result = contextResults[batchIndex];
-                            if (result && result.ok && result.text) {
-                                preparedItems[rowIndex].englishContext = `${String(result.text).trim()} (AI Translation)`;
+                            const mode = contextPromptModes[batchIndex];
+                            const text = result && result.ok && result.text ? String(result.text).trim() : '';
+
+                            const needsDirectTranslation = text.toUpperCase().replace(/[.\s]+$/g, '') === 'NEEDS_DIRECT_TRANSLATION';
+
+                            if (text && mode === 'talmud-extract' && !needsDirectTranslation) {
+                                row.englishContext = `${text} (AI Extracted from Sefaria Translation)`;
+                            } else if (text && mode !== 'talmud-extract') {
+                                row.englishContext = `${text} (AI Translation)`;
+                            } else if (mode === 'talmud-extract') {
+                                directRetryIndexes.push(rowIndex);
+                                directRetryPrompts.push(buildDirectTranslationPrompt(row));
                             } else {
-                                preparedItems[rowIndex].englishContext = fallbackEnglishContext(
+                                row.englishContext = fallbackEnglishContext(
                                     sourceType,
-                                    preparedItems[rowIndex].item.english,
-                                    preparedItems[rowIndex].hebrewContext
+                                    row.item.english,
+                                    row.hebrewContext
                                 );
                             }
                         });
+
+                        if (directRetryPrompts.length > 0) {
+                            try {
+                                const retryResults = await callTranslateBatch(directRetryPrompts);
+                                directRetryIndexes.forEach((rowIndex, retryIndex) => {
+                                    const row = preparedItems[rowIndex];
+                                    const result = retryResults[retryIndex];
+                                    const text = result && result.ok && result.text ? String(result.text).trim() : '';
+                                    row.englishContext = text
+                                        ? `${text} (AI Translation)`
+                                        : fallbackEnglishContext(sourceType, row.item.english, row.hebrewContext);
+                                });
+                            } catch (e) {
+                                directRetryIndexes.forEach((rowIndex) => {
+                                    const row = preparedItems[rowIndex];
+                                    row.englishContext = fallbackEnglishContext(sourceType, row.item.english, row.hebrewContext);
+                                });
+                            }
+                        }
                     } catch (e) {
                         contextPromptIndexes.forEach((rowIndex) => {
                             preparedItems[rowIndex].englishContext = fallbackEnglishContext(
@@ -1572,22 +1646,19 @@ for (const candidate of englishCandidates) {
                 const container = document.createElement('div');
                 container.innerHTML = html;
 
-                // Sefaria stores inline formatting as HTML. Prefer explicit bold tags,
-                // but also catch common inline/class-based bold markup if present.
-                const boldSelector = [
-                    'b',
-                    'strong',
-                    '[style*="font-weight:bold"]',
-                    '[style*="font-weight: bold"]',
-                    '[style*="font-weight:700"]',
-                    '[style*="font-weight: 700"]',
-                    '[class*="bold" i]'
-                ].join(',');
+                const boldNodes = Array.from(container.querySelectorAll('b, strong, [style], [class]'))
+                    .filter(el => {
+                        const style = String(el.getAttribute('style') || '').toLowerCase();
+                        const className = String(el.getAttribute('class') || '').toLowerCase();
+                        return (
+                            el.tagName === 'B' ||
+                            el.tagName === 'STRONG' ||
+                            /font-weight\s*:\s*(bold|[6-9]00)/.test(style) ||
+                            /(^|[-_\s])bold([-_\s]|$)/.test(className)
+                        );
+                    });
 
-                const boldElements = Array.from(container.querySelectorAll(boldSelector))
-                    .filter(el => !boldElementsContainAncestor(el, boldSelector));
-
-                return boldElements
+                return boldNodes
                     .map(el => el.textContent.trim())
                     .filter(Boolean)
                     .join(' ')
@@ -1595,21 +1666,7 @@ for (const candidate of englishCandidates) {
                     .trim();
             }
 
-            function boldElementsContainAncestor(el, selector) {
-                let parent = el.parentElement;
-                while (parent) {
-                    if (parent.matches && parent.matches(selector)) return true;
-                    parent = parent.parentElement;
-                }
-                return false;
-            }
-
             const cleanSefariaEnglishSegment = (segment) => {
-                // For Talmud, do not silently fall back to the full Steinsaltz/WDE
-                // explanatory translation. If Sefaria's API response contains bold
-                // markup, use only that close-translation text. If it does not, return
-                // blank so the existing later fallback can create a short translation
-                // from the Hebrew instead of displaying the long explanatory text.
                 return isTalmud ? extractBoldTextFromHtml(segment) : stripHtml(segment);
             };
 
@@ -1745,9 +1802,11 @@ for (const candidate of englishCandidates) {
 
             function buildExcerptFromMatch(heArray, enArray, matchIndex, matchedCandidate) {
                 const cleanHebrewSegments = heArray.map(segment => stripHtml(segment));
-                const cleanEnglishSegments = (Array.isArray(enArray) ? enArray : []).map(segment => cleanSefariaEnglishSegment(segment));
+                const rawEnglishSegments = Array.isArray(enArray) ? enArray.map(segment => String(segment || '')) : [];
+                const cleanEnglishSegments = rawEnglishSegments.map(segment => stripHtml(segment));
+                const displayEnglishSegments = isTalmud ? rawEnglishSegments : cleanEnglishSegments;
                 const fullHebrew = typeof cleanHebrewSegments[matchIndex] === 'string' ? cleanHebrewSegments[matchIndex] : '';
-                const fullEnglish = typeof cleanEnglishSegments[matchIndex] === 'string' ? cleanEnglishSegments[matchIndex] : '';
+                const fullEnglish = typeof displayEnglishSegments[matchIndex] === 'string' ? displayEnglishSegments[matchIndex] : '';
 
                 const splitHebrewSentences = (text) => {
                     return String(text || '')
@@ -1781,6 +1840,10 @@ for (const candidate of englishCandidates) {
                     return normalizedText !== normalizedCandidate && textWords >= candidateWords + 2;
                 };
 
+                const cleanEnglishForDisplay = (englishText) => {
+                    return String(englishText || '').replace(/\s+/g, ' ').trim();
+                };
+
                 const buildExpandedSegmentExcerpt = (candidate) => {
                     const centerIndex = matchIndex;
                     const MAX_HEBREW_LENGTH = 180;
@@ -1791,7 +1854,7 @@ for (const candidate of englishCandidates) {
 
                         for (let i = Math.max(0, centerIndex - radius); i <= Math.min(cleanHebrewSegments.length - 1, centerIndex + radius); i++) {
                             const hePiece = String(cleanHebrewSegments[i] || '').trim();
-                            const enPiece = String(cleanEnglishSegments[i] || '').trim();
+                            const enPiece = String(displayEnglishSegments[i] || '').trim();
                             if (hePiece) hePieces.push(hePiece);
                             if (enPiece) enPieces.push(enPiece);
                         }
@@ -1818,13 +1881,14 @@ for (const candidate of englishCandidates) {
                     const match = findCandidateMatchInNormalizedLine(sentence);
                     if (match) {
                         const sentenceWithContext = hasEnoughSurroundingContext(sentence, match.candidate)
-                            ? { he: sentence, en: fullEnglish }
+                            ? { he: sentence, en: cleanEnglishForDisplay(fullEnglish) }
                             : buildExpandedSegmentExcerpt(match.candidate);
 
                         if (sentenceWithContext.he && hasEnoughSurroundingContext(sentenceWithContext.he, match.candidate)) {
                             sentenceMatches.push({
                                 sentence: sentenceWithContext.he,
-                                english: sentenceWithContext.en || fullEnglish,
+                                english: isTalmud ? '' : cleanEnglishForDisplay(sentenceWithContext.en),
+                                sourceEnglish: cleanEnglishForDisplay(sentenceWithContext.en),
                                 index,
                                 candidate: match.candidate,
                                 strength: match.strength
@@ -1854,7 +1918,8 @@ for (const candidate of englishCandidates) {
 
                     return {
                         he: pool[0].sentence,
-                        en: pool[0].english || '',
+                        en: isTalmud ? '' : (pool[0].english || ''),
+                        sourceEnglish: pool[0].sourceEnglish || pool[0].english || '',
                         matchedCandidate: pool[0].candidate || matchedCandidate
                     };
                 }
@@ -1866,7 +1931,8 @@ for (const candidate of englishCandidates) {
 
                 return {
                     he: expanded.he,
-                    en: expanded.en || fullEnglish,
+                    en: isTalmud ? '' : cleanEnglishForDisplay(expanded.en),
+                    sourceEnglish: cleanEnglishForDisplay(expanded.en),
                     matchedCandidate
                 };
             }
@@ -1929,6 +1995,8 @@ for (const candidate of englishCandidates) {
                 return {
                     he: excerpt.he,
                     en: excerpt.en || '', 
+                    sourceEnglish: excerpt.sourceEnglish || '',
+                    rawEn: excerpt.sourceEnglish || '',
                     ref,
                     heRef,
                     matchStrength: bestMatch.matchStrength,

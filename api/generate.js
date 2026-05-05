@@ -1,7 +1,7 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const PRIMARY_GEMINI_MODEL = "gemini-2.5-flash";
-const FALLBACK_GEMINI_MODEL = "gemini-1.5-pro-002";
+const FALLBACK_GEMINI_MODEL = "gemini-2.5-pro";
 const RETRYABLE_STATUSES = new Set([429, 500, 503, 529]);
 
 function isRetryableGeminiError(error) {

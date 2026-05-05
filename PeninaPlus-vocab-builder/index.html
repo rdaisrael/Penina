@@ -1381,12 +1381,22 @@ function updateTalmudModeVisibility() {
                 const contextPromptIndexes = [];
                 const contextPrompts = [];
 
+                const cleanAiText = (text) => {
+                    return String(text || '')
+                        .replace(/\*\*(.*?)\*\*/g, '$1')
+                        .replace(/__(.*?)__/g, '$1')
+                        .replace(/\*(.*?)\*/g, '$1')
+                        .replace(/_(.*?)_/g, '$1')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                };
+
                 const buildDirectTranslationPrompt = (row) => {
                     if (sourceType === 'Modern Hebrew') {
-                        return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation.`;
+                        return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
                     }
 
-                    return `Translate ONLY this Hebrew/Aramaic excerpt to concise, clear English: "${row.hebrewContext}". Make the result read naturally as an English sentence or phrase, but do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context, so the vocabulary word can be bolded later. Return ONLY the English translation.`;
+                    return `Translate ONLY this Hebrew/Aramaic excerpt to concise, clear English: "${row.hebrewContext}". Make the result read naturally as an English sentence or phrase, but do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context, so the vocabulary word can be bolded later. Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
                 };
 
                 for (let i = 0; i < preparedItems.length; i++) {
@@ -1406,7 +1416,7 @@ function updateTalmudModeVisibility() {
                         contextPromptIndexes.forEach((rowIndex, batchIndex) => {
                             const row = preparedItems[rowIndex];
                             const result = contextResults[batchIndex];
-                            const text = result && result.ok && result.text ? String(result.text).trim() : '';
+                            const text = result && result.ok && result.text ? cleanAiText(result.text) : '';
 
                             if (text) {
                                 row.englishContext = `${text} (AI Translation)`;
@@ -1853,9 +1863,11 @@ for (const candidate of englishCandidates) {
 
             async function fetchRefData(ref, dafLabel = null) {
                 try {
-                    const sRes = await fetch(
-                        `https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0&ven=${encodeURIComponent(davidsonTitle)}`
-                    );
+                    const textUrl = isTalmud
+                        ? `https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`
+                        : `https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0&ven=${encodeURIComponent(davidsonTitle)}`;
+
+                    const sRes = await fetch(textUrl);
                     if (!sRes.ok) return null;
 
                     const data = await sRes.json();
@@ -1865,7 +1877,7 @@ for (const candidate of englishCandidates) {
                         ref: data.ref,
                         heRef: data.heRef,
                         heArray: Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he],
-                        enArray: Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text || ''],
+                        enArray: isTalmud ? [] : (Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text || '']),
                         dafLabel: dafLabel || ref
                     };
                 } catch (e) {

@@ -1168,6 +1168,20 @@ function updateTalmudModeVisibility() {
             return /[\u0591-\u05C7]/.test(String(text || ''));
         }
 
+
+        function normalizeKamatzKatanOverrides(text) {
+            const kamatzKatanOverrideWords = new Set([
+                'כל', 'וכל', 'בכל', 'לכל', 'הכל',
+                'חכמה', 'חכמת', 'אמנם'
+            ]);
+
+            return String(text || '').replace(/[\u05D0-\u05EA][\u0591-\u05C7]*(?:[\u05D0-\u05EA][\u0591-\u05C7]*)*/g, function(word) {
+                const cleanWord = word.replace(/[\u0591-\u05C7]/g, '');
+                if (!kamatzKatanOverrideWords.has(cleanWord)) return word;
+                return word.replace('\u05B8', '\u05C7');
+            });
+        }
+
         function getDictaNakdanGenre(sourceType) {
             if (sourceType === 'Talmud') return 'rabbinic';
             if (sourceType === 'Tanakh') return 'biblical';
@@ -1179,7 +1193,7 @@ function updateTalmudModeVisibility() {
 
             if (!value) return value;
             if (!containsHebrew(value)) return value;
-            if (containsNekudotOrTaamim(value)) return value;
+            if (containsNekudotOrTaamim(value)) return normalizeKamatzKatanOverrides(value);
             if (isLikelyHebrewAbbreviation(value)) return value;
 
             try {
@@ -1197,7 +1211,7 @@ function updateTalmudModeVisibility() {
                 const data = await res.json();
                 const vowelized = String(data.text || data.vowelized || data.result || '').trim();
 
-                return vowelized || value;
+                return normalizeKamatzKatanOverrides(vowelized || value);
             } catch (e) {
                 return value;
             }
@@ -2256,6 +2270,8 @@ for (const candidate of englishCandidates) {
                     html = html.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, 'ה׳');
                     html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*(?:ו[\u0591-\u05C7]*)?)ה([\u0591-\u05C7]*)/g, '$1ק$2');
                 }
+
+                html = normalizeKamatzKatanOverrides(html);
 
                 if (stripNekudot) {
                     html = html.replace(/[\u0591-\u05C7]/g, '');

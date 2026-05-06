@@ -298,13 +298,11 @@
         
         .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; min-width: 0; padding: 7pt 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
         .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); min-width: 0; padding: 7pt 10pt; overflow-wrap: anywhere; word-break: break-word; }
-        .col-context { min-width: 0; font-size: calc(var(--base-font-size, 14pt) - 2pt); line-height: 1.2; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+        .col-context { min-width: 0; font-size: var(--base-font-size, 14pt); line-height: 1.2; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
         .hebrew-word, .hebrew-text, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
         .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.2; }
-        .col-context .hebrew-text { font-size: calc(var(--base-font-size, 14pt) - 2pt); }
         .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 2px; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.2; letter-spacing: var(--global-letter-spacing, 0px); }
-        .col-context .english-text { font-size: calc(var(--base-font-size, 14pt) - 2pt); }
         .citation { font-size: calc(var(--base-font-size, 14pt) - 2pt); line-height: 1.1; margin-top: 2px; color: #666; white-space: normal; font-weight: normal; }
         .hebrew-citation { direction: rtl; text-align: right; }
         .english-citation { direction: ltr; text-align: left; font-family: var(--english-font, Arial, sans-serif) !important; }

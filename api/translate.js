@@ -46,7 +46,10 @@ function getErrorMessage(error) {
 
 function isRetryableGeminiError(error) {
     const status = getErrorStatus(error);
-    if (RETRYABLE_STATUSES.has(status)) return true;
+
+    if (RETRYABLE_STATUSES.has(status)) {
+        return true;
+    }
 
     const message = getErrorMessage(error).toLowerCase();
 
@@ -81,7 +84,9 @@ function sanitizePrompt(prompt) {
 }
 
 function extractText(result) {
-    if (!result || !result.response) return "";
+    if (!result || !result.response) {
+        return "";
+    }
 
     try {
         return String(result.response.text() || "").trim();
@@ -119,8 +124,18 @@ async function generateTextOnce(model, promptText, timeoutMs) {
 
 async function generateTextWithRetry(primaryModel, fallbackModel, promptText, options = {}) {
     const retries = clampInteger(options.retries, DEFAULT_RETRIES, 0, 4);
-    const initialDelayMs = clampInteger(options.initialDelayMs, DEFAULT_INITIAL_DELAY_MS, 100, 10000);
-    const timeoutMs = clampInteger(options.timeoutMs, DEFAULT_TIMEOUT_MS, 3000, 60000);
+    const initialDelayMs = clampInteger(
+        options.initialDelayMs,
+        DEFAULT_INITIAL_DELAY_MS,
+        100,
+        10000
+    );
+    const timeoutMs = clampInteger(
+        options.timeoutMs,
+        DEFAULT_TIMEOUT_MS,
+        3000,
+        60000
+    );
 
     let lastError = null;
 
@@ -130,7 +145,9 @@ async function generateTextWithRetry(primaryModel, fallbackModel, promptText, op
         } catch (error) {
             lastError = error;
 
-            if (!isRetryableGeminiError(error)) throw error;
+            if (!isRetryableGeminiError(error)) {
+                throw error;
+            }
 
             if (attempt < retries) {
                 await sleep(buildBackoffMs(initialDelayMs, attempt));
@@ -153,14 +170,31 @@ async function translatePrompt(primaryModel, fallbackModel, promptText, options 
     const cleanedPrompt = sanitizePrompt(promptText);
 
     if (!cleanedPrompt) {
-        return { ok: false, error: "Blank prompt.", text: "" };
+        return {
+            ok: false,
+            error: "Blank prompt.",
+            text: ""
+        };
     }
 
     try {
-        const text = await generateTextWithRetry(primaryModel, fallbackModel, cleanedPrompt, options);
-        return { ok: true, text };
+        const text = await generateTextWithRetry(
+            primaryModel,
+            fallbackModel,
+            cleanedPrompt,
+            options
+        );
+
+        return {
+            ok: true,
+            text
+        };
     } catch (error) {
-        return { ok: false, error: getErrorMessage(error), text: "" };
+        return {
+            ok: false,
+            error: getErrorMessage(error),
+            text: ""
+        };
     }
 }
 
@@ -180,7 +214,9 @@ async function translateBatch(primaryModel, fallbackModel, prompts, options = {}
             const index = nextIndex;
             nextIndex += 1;
 
-            if (index >= prompts.length) return;
+            if (index >= prompts.length) {
+                return;
+            }
 
             results[index] = await translatePrompt(
                 primaryModel,
@@ -199,28 +235,40 @@ async function translateBatch(primaryModel, fallbackModel, prompts, options = {}
     }
 
     await Promise.all(workers);
+
     return results;
 }
 
 module.exports = async function (req, res) {
     if (req.method !== "POST") {
-        return res.status(405).json({ error: "Method Not Allowed" });
+        return res.status(405).json({
+            error: "Method Not Allowed"
+        });
     }
 
     const body = req.body || {};
     const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
     if (!googleKey) {
-        return res.status(500).json({ error: "Missing GOOGLE_GENERATIVE_AI_API_KEY." });
+        return res.status(500).json({
+            error: "Missing GOOGLE_GENERATIVE_AI_API_KEY."
+        });
     }
 
-    const promptText = typeof body.promptText === "string" ? sanitizePrompt(body.promptText) : "";
-    const prompts = Array.isArray(body.prompts)
-        ? body.prompts.map((prompt) => sanitizePrompt(prompt))
-        : [];
+    const promptText =
+        typeof body.promptText === "string"
+            ? sanitizePrompt(body.promptText)
+            : "";
+
+    const prompts =
+        Array.isArray(body.prompts)
+            ? body.prompts.map((prompt) => sanitizePrompt(prompt))
+            : [];
 
     if (!promptText && prompts.length === 0) {
-        return res.status(400).json({ error: "Missing promptText or prompts" });
+        return res.status(400).json({
+            error: "Missing promptText or prompts"
+        });
     }
 
     if (prompts.length > DEFAULT_MAX_PROMPTS) {
@@ -230,21 +278,40 @@ module.exports = async function (req, res) {
     }
 
     try {
-        const genAI = new GoogleGenerativeAI(googleKey, { apiVersion: "v1" });
-        const primaryModel = genAI.getGenerativeModel({ model: PRIMARY_GEMINI_MODEL });
-        const fallbackModel = USE_FALLBACK_MODEL && FALLBACK_GEMINI_MODEL
-            ? genAI.getGenerativeModel({ model: FALLBACK_GEMINI_MODEL })
-            : null;
+        const genAI = new GoogleGenerativeAI(googleKey, {
+            apiVersion: "v1"
+        });
+
+        const primaryModel = genAI.getGenerativeModel({
+            model: PRIMARY_GEMINI_MODEL
+        });
+
+        const fallbackModel =
+            USE_FALLBACK_MODEL && FALLBACK_GEMINI_MODEL
+                ? genAI.getGenerativeModel({
+                      model: FALLBACK_GEMINI_MODEL
+                  })
+                : null;
 
         const options = {
-            retries: clampInteger(process.env.GEMINI_RETRIES, DEFAULT_RETRIES, 0, 4),
+            retries: clampInteger(
+                process.env.GEMINI_RETRIES,
+                DEFAULT_RETRIES,
+                0,
+                4
+            ),
             initialDelayMs: clampInteger(
                 process.env.GEMINI_INITIAL_DELAY_MS,
                 DEFAULT_INITIAL_DELAY_MS,
                 100,
                 10000
             ),
-            timeoutMs: clampInteger(process.env.GEMINI_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, 3000, 60000),
+            timeoutMs: clampInteger(
+                process.env.GEMINI_TIMEOUT_MS,
+                DEFAULT_TIMEOUT_MS,
+                3000,
+                60000
+            ),
             concurrency: clampInteger(
                 process.env.GEMINI_BATCH_CONCURRENCY,
                 DEFAULT_BATCH_CONCURRENCY,
@@ -254,10 +321,17 @@ module.exports = async function (req, res) {
         };
 
         if (prompts.length > 0) {
-            const results = await translateBatch(primaryModel, fallbackModel, prompts, options);
+            const results = await translateBatch(
+                primaryModel,
+                fallbackModel,
+                prompts,
+                options
+            );
+
             const okCount = results.filter((result) => result && result.ok).length;
             const failCount = results.length - okCount;
-            const firstError = results.find((result) => result && !result.ok)?.error || "";
+            const firstError =
+                results.find((result) => result && !result.ok)?.error || "";
 
             if (failCount > 0) {
                 console.error(
@@ -265,10 +339,20 @@ module.exports = async function (req, res) {
                 );
             }
 
-            return res.status(200).json({ results, okCount, failCount, firstError });
+            return res.status(200).json({
+                results,
+                okCount,
+                failCount,
+                firstError
+            });
         }
 
-        const singleResult = await translatePrompt(primaryModel, fallbackModel, promptText, options);
+        const singleResult = await translatePrompt(
+            primaryModel,
+            fallbackModel,
+            promptText,
+            options
+        );
 
         if (!singleResult.ok) {
             return res.status(500).json({
@@ -276,7 +360,9 @@ module.exports = async function (req, res) {
             });
         }
 
-        return res.status(200).json({ text: singleResult.text });
+        return res.status(200).json({
+            text: singleResult.text
+        });
     } catch (error) {
         const status = getErrorStatus(error);
         const message = getErrorMessage(error);
@@ -285,6 +371,8 @@ module.exports = async function (req, res) {
 
         return res
             .status(status && status >= 400 && status < 600 ? status : 500)
-            .json({ error: message });
+            .json({
+                error: message
+            });
     }
 };

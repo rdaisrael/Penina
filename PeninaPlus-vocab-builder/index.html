@@ -1318,21 +1318,55 @@ function updateTalmudModeVisibility() {
 
                 let htmlOutput = "";
 
-                async function callTranslateBatch(prompts) {
-                    const cleanedPrompts = prompts.map(p => String(p || '').trim());
-                    const res = await fetch('/api/translate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompts: cleanedPrompts })
-                    });
+                async function callTranslateBatch(prompts, options = {}) {
+    const chunkSize = Number.isInteger(options.chunkSize) ? options.chunkSize : 12;
+    const cleanedPrompts = prompts
+        .map(p => String(p || '').trim())
+        .filter(Boolean);
 
-                    if (!res.ok) {
-                        throw new Error(`Batch translate failed with status ${res.status}`);
-                    }
+    const allResults = [];
 
-                    const data = await res.json();
-                    return Array.isArray(data.results) ? data.results : [];
-                }
+    for (let i = 0; i < cleanedPrompts.length; i += chunkSize) {
+        const chunk = cleanedPrompts.slice(i, i + chunkSize);
+
+        try {
+            const res = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompts: chunk })
+            });
+
+            if (!res.ok) {
+                throw new Error(`Batch translate failed with status ${res.status}`);
+            }
+
+            const data = await res.json();
+            const results = Array.isArray(data.results) ? data.results : [];
+
+            for (let j = 0; j < chunk.length; j++) {
+                allResults.push(
+                    results[j] && typeof results[j] === 'object'
+                        ? results[j]
+                        : {
+                              ok: false,
+                              error: data.firstError || "Missing translation result.",
+                              text: ""
+                          }
+                );
+            }
+        } catch (error) {
+            for (let j = 0; j < chunk.length; j++) {
+                allResults.push({
+                    ok: false,
+                    error: error && error.message ? error.message : "Translation request failed.",
+                    text: ""
+                });
+            }
+        }
+    }
+
+    return allResults;
+}
 
                 function fallbackEnglishContext(sourceTypeValue, existingEnglish, hebrewText) {
                     if (sourceTypeValue === 'Modern Hebrew') {

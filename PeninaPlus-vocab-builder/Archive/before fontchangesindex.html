@@ -21,20 +21,6 @@
             font-weight: normal; font-style: normal;
         }
 
-        @font-face {
-            font-family: 'David Libre';
-            src: url('./DavidLibre-Regular.ttf') format('truetype');
-            font-weight: 400;
-            font-style: normal;
-        }
-
-        @font-face {
-            font-family: 'David Libre';
-            src: url('./DavidLibre-Bold.ttf') format('truetype');
-            font-weight: 700;
-            font-style: normal;
-        }
-
         body { 
             font-family: Arial, sans-serif; 
             padding: 20px 0; 
@@ -290,15 +276,12 @@
         
         h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 14px 10px; margin-top: 0; margin-bottom: 12px; font-size: var(--title-font-size, 18pt); border-radius: 4px; letter-spacing: var(--global-letter-spacing, 0px); }
         table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; table-layout: fixed; font-size: var(--base-font-size, 14pt); }
-        #vocab-table col.col-word { width: 25%; }
-        #vocab-table col.col-definition { width: 25%; }
-        #vocab-table col.col-context-layout { width: 50%; }
         th, td { border: 1px solid #dcd3c6; padding: 7pt 10pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); letter-spacing: var(--global-letter-spacing, 0px); }
         th { background-color: #f4efe6; font-weight: bold; text-align: center; color: #4a4238; }
         
-        .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; min-width: 0; padding: 7pt 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
-        .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); min-width: 0; padding: 7pt 10pt; overflow-wrap: anywhere; word-break: break-word; }
-        .col-context { min-width: 0; font-size: var(--base-font-size, 14pt); line-height: 1.2; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+        .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; width: 22%; min-width: 0; max-width: 0; padding: 7pt 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
+        .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); width: 22%; min-width: 0; padding: 7pt 10pt; overflow-wrap: anywhere; word-break: break-word; }
+        .col-context { width: 56%; min-width: 0; font-size: var(--base-font-size, 14pt); line-height: 1.2; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
         .hebrew-word, .hebrew-text, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
         .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.2; }
@@ -312,9 +295,6 @@
         .title-hebrew { font-family: var(--hebrew-font, Arial, sans-serif) !important; }
         .title-english { font-family: var(--english-font, Arial, sans-serif) !important; }
         
-        .mode-basic #vocab-table col.col-word { width: 50%; }
-        .mode-basic #vocab-table col.col-definition { width: 50%; }
-        .mode-basic #vocab-table col.col-context-layout { width: 0; }
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
         .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
 
@@ -330,30 +310,11 @@
         .chip-x:hover { color: #ff0000; }
 
         @media print {
-            @page { size: letter; margin: 0.75in; }
-            html, body { margin: 0; min-height: 100%; }
             body { background: white; padding: 0; }
             .bg-pattern { display: none; }
             .home-btn, .beta-feedback-btn { display: none; }
             .control-panel-wrapper { display: none !important; }
-            .page-container {
-                margin: 0 !important;
-                width: 100% !important;
-                min-height: auto !important;
-                padding: 0 !important;
-                box-shadow: none !important;
-                border: none !important;
-                box-sizing: border-box;
-            }
-            table { page-break-inside: auto; break-inside: auto; }
-            thead { display: table-header-group; }
-            tfoot { display: table-footer-group; }
-            tr, td {
-                break-inside: avoid;
-                page-break-inside: avoid;
-                orphans: 1;
-                widows: 1;
-            }
+            .page-container { margin: 0 !important; width: 100% !important; box-shadow: none !important; border: none !important; }
             .penina-footer { margin-top: 30px; font-size: 9pt; }
         }
 
@@ -470,7 +431,7 @@
             <button id="generate-btn">Generate Vocabulary Table</button>
 
             <div id="search-status-notice" style="display: none; margin-top: 15px; padding: 12px 14px; border-radius: 6px; background: #fff8e1; border: 1px solid #e6d39b; color: #6a5a2b; font-size: 14px; line-height: 1.4;">
-                Penina utilizes AI and can make mistakes. Traditional Hebrew texts are pulled directly from Sefaria.
+                Penina utilizes AI and can make mistakes. Hebrew texts are pulled directly from Sefaria.
             </div>
 
             <hr style="border: 0; height: 1px; background: #dcd3c6; margin: 30px 0;">
@@ -515,7 +476,7 @@
                         <label for="font-choice">Choose Hebrew Font:</label>
                         <select id="font-choice">
                             <option value="Arial, sans-serif">Arial (Modern)</option>
-                            <option value="'David Libre', serif">David Libre (Classic Book Style)</option>
+                            <option value="'David', serif">David (Classic Book Style)</option>
                             <option value="'Dyslexic-Kriah', 'Alef', sans-serif">Dyslexic-Kriah</option>
                         </select>
                     </div>
@@ -550,11 +511,6 @@
         <div id="page" class="page-container" style="display: none;">
             <h1 id="doc-title" class="doc-title"></h1>
             <table id="vocab-table">
-                <colgroup>
-                    <col class="col-word">
-                    <col class="col-definition">
-                    <col class="col-context-layout">
-                </colgroup>
                 <thead>
                     <tr>
                         <th>Word</th>
@@ -1114,8 +1070,8 @@ function updateTalmudModeVisibility() {
             let css = `@media print { @page { size: letter; margin: 0.75in; } }`;
             if (margin === 'right') css = `@media print { @page { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; } }`;
             if (margin === 'left') css = `@media print { @page { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; } }`;
-            if (margin === 'alternate-right') css = `@media print { @page:right { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; } @page:left { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; } }`;
-            if (margin === 'alternate-left') css = `@media print { @page:right { size: letter; margin: 0.75in 0.75in 0.75in 1.25in; } @page:left { size: letter; margin: 0.75in 1.25in 0.75in 0.75in; } }`;
+            if (margin === 'alternate-right') css = `@media print { @page:right { margin: 0.75in 1.25in 0.75in 0.75in; } @page:left { margin: 0.75in 0.75in 0.75in 1.25in; } }`;
+            if (margin === 'alternate-left') css = `@media print { @page:right { margin: 0.75in 0.75in 0.75in 1.25in; } @page:left { margin: 0.75in 1.25in 0.75in 0.75in; } }`;
             styleTag.innerHTML = css;
         }
 
@@ -1194,43 +1150,8 @@ function updateTalmudModeVisibility() {
             return /[\u05D0-\u05EA]/.test(String(text || ''));
         }
 
-        function isEnglishOnly(text) {
-            const value = String(text || '').trim();
-            if (!value || containsHebrew(value)) return false;
-            return /[A-Za-z]/.test(value) && /^[A-Za-z0-9\s'’\-().,;:!?]+$/.test(value);
-        }
-
-        function cleanGeneratedHebrew(text) {
-            return String(text || '')
-                .replace(/^[\s,.;:!?\-–—\(\)\[\]\"'״׳]+|[\s,.;:!?\-–—\(\)\[\]\"'״׳]+$/g, '')
-                .trim();
-        }
-
-        function containsLatin(text) {
-            return /[A-Za-z]/.test(String(text || ''));
-        }
-
-        function containsHebrewOnlyCandidate(text) {
-            const value = String(text || '').trim();
-            return containsHebrew(value) && !containsLatin(value);
-        }
-
         function containsNekudotOrTaamim(text) {
             return /[\u0591-\u05C7]/.test(String(text || ''));
-        }
-
-
-        function normalizeKamatzKatanOverrides(text) {
-            const kamatzKatanOverrideWords = new Set([
-                'כל', 'וכל', 'בכל', 'לכל', 'הכל',
-                'חכמה', 'חכמת', 'אמנם'
-            ]);
-
-            return String(text || '').replace(/[\u05D0-\u05EA][\u0591-\u05C7]*(?:[\u05D0-\u05EA][\u0591-\u05C7]*)*/g, function(word) {
-                const cleanWord = word.replace(/[\u0591-\u05C7]/g, '');
-                if (!kamatzKatanOverrideWords.has(cleanWord)) return word;
-                return word.replace('\u05B8', '\u05C7');
-            });
         }
 
         function getDictaNakdanGenre(sourceType) {
@@ -1244,7 +1165,7 @@ function updateTalmudModeVisibility() {
 
             if (!value) return value;
             if (!containsHebrew(value)) return value;
-            if (containsNekudotOrTaamim(value)) return normalizeKamatzKatanOverrides(value);
+            if (containsNekudotOrTaamim(value)) return value;
             if (isLikelyHebrewAbbreviation(value)) return value;
 
             try {
@@ -1262,7 +1183,7 @@ function updateTalmudModeVisibility() {
                 const data = await res.json();
                 const vowelized = String(data.text || data.vowelized || data.result || '').trim();
 
-                return normalizeKamatzKatanOverrides(vowelized || value);
+                return vowelized || value;
             } catch (e) {
                 return value;
             }
@@ -1278,7 +1199,7 @@ function updateTalmudModeVisibility() {
                     searchStatusNotice.innerHTML = 'Penina utilizes AI and can make mistakes.';
                     searchStatusNotice.style.display = 'block';
                 } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                    searchStatusNotice.innerHTML = 'Penina utilizes AI and can make mistakes. Traditional Hebrew texts are pulled directly from Sefaria.';
+                    searchStatusNotice.innerHTML = 'Penina utilizes AI and can make mistakes. Hebrew texts are pulled directly from Sefaria.';
                     searchStatusNotice.style.display = 'block';
                 } else {
                     searchStatusNotice.style.display = 'none';
@@ -1314,6 +1235,10 @@ function updateTalmudModeVisibility() {
                     };
                 });
 
+                if (document.getElementById('alphabetize-list').checked) {
+                    vocabList.sort((a, b) => a.hebrew.localeCompare(b.hebrew, 'he'));
+                }
+
                 let htmlOutput = "";
 
                 async function callTranslateBatch(prompts) {
@@ -1345,70 +1270,12 @@ function updateTalmudModeVisibility() {
                     return "";
                 }
 
-                function englishToHebrewPrompt(englishText, sourceTypeValue) {
-                    const value = String(englishText || '').trim();
-                    if (sourceTypeValue === 'Talmud') {
-                        return `Translate this English vocabulary item into the most likely Talmudic Hebrew or Aramaic word or short expression: "${value}". Return ONLY the Hebrew/Aramaic word or short expression, with no English, punctuation, labels, or explanation.`;
-                    }
-                    if (sourceTypeValue === 'Tanakh') {
-                        return `Translate this English vocabulary item into the most likely Biblical Hebrew word or short expression: "${value}". Return ONLY the Hebrew word or short expression, with no English, punctuation, labels, or explanation.`;
-                    }
-                    return `Translate this English vocabulary item into natural Hebrew as a vocabulary word or short expression: "${value}". Return ONLY the Hebrew word or short expression, with no English, punctuation, labels, or explanation.`;
-                }
-
-                const englishInputPrompts = [];
-                const englishInputIndexes = [];
-
-                vocabList.forEach((item, index) => {
-                    const enteredWord = String(item.hebrew || '').trim();
-                    if (isEnglishOnly(enteredWord)) {
-                        item.originalEnglishInput = enteredWord;
-                        item.inputLanguage = 'english';
-                        item.english = item.english || enteredWord;
-                        englishInputIndexes.push(index);
-                        englishInputPrompts.push(englishToHebrewPrompt(enteredWord, sourceType));
-                    } else {
-                        item.inputLanguage = containsHebrew(enteredWord) ? 'hebrew' : 'unknown';
-                    }
-                });
-
-                if (englishInputPrompts.length > 0) {
-                    try {
-                        const englishInputResults = await callTranslateBatch(englishInputPrompts);
-                        englishInputIndexes.forEach((itemIndex, batchIndex) => {
-                            const result = englishInputResults[batchIndex];
-                            const generatedHebrew = result && result.ok ? cleanGeneratedHebrew(result.text) : '';
-
-                            if (containsHebrewOnlyCandidate(generatedHebrew)) {
-                                vocabList[itemIndex].hebrew = generatedHebrew;
-                                vocabList[itemIndex].translatedFromEnglish = true;
-                            } else {
-                                vocabList[itemIndex].hebrew = vocabList[itemIndex].originalEnglishInput;
-                                vocabList[itemIndex].translationError = true;
-                            }
-                        });
-                    } catch (e) {
-                        englishInputIndexes.forEach((itemIndex) => {
-                            vocabList[itemIndex].hebrew = vocabList[itemIndex].originalEnglishInput;
-                            vocabList[itemIndex].translationError = true;
-                        });
-                    }
-                }
-
-                if (document.getElementById('alphabetize-list').checked) {
-                    vocabList.sort((a, b) => a.hebrew.localeCompare(b.hebrew, 'he'));
-                }
-
                 const preparedItems = [];
                 const noContextMode = sourceType === 'No Context Quotes' || !contextQuotesEnabled();
 
                 for (let item of vocabList) {
-                    let cleanHebrew = String(item.hebrew || '').replace(/[֑-ׇ]/g, '').trim();
-                    if (item.translationError) {
-                        item.english = item.english || item.originalEnglishInput || '[Translation unavailable]';
-                    } else {
-                        item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
-                    }
+                    let cleanHebrew = item.hebrew.replace(/[֑-ׇ]/g, '').trim();
+                    item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
                     item.expandedHebrew = noContextMode ? "" : await expandHebrewAbbreviation(cleanHebrew, sourceType);
                     const isAbbreviationEntry = !noContextMode && isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
                     const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
@@ -1422,6 +1289,7 @@ function updateTalmudModeVisibility() {
                         hebrewContext: "",
                         englishContext: "",
                         rawSefariaEnglishContext: "",
+                        englishCitation: "",
                         englishCitation: "",
                         citation: "",
                         matchedHebrewCandidate: searchHebrew,
@@ -1462,13 +1330,7 @@ function updateTalmudModeVisibility() {
                 for (const row of preparedItems) {
                     const { item, semanticHebrew, searchHebrew, isAbbreviationEntry } = row;
 
-                    if (item.translationError) {
-                        row.hebrewContext = "Hebrew translation unavailable.";
-                        row.englishContext = "";
-                        row.citation = "English-to-Hebrew translation unavailable";
-                        row.hebrewCitation = "";
-                        row.englishCitation = "English-to-Hebrew translation unavailable";
-                    } else if (noContextMode) {
+                    if (noContextMode) {
                         row.hebrewContext = "";
                         row.englishContext = "";
                         row.citation = "";
@@ -1506,19 +1368,13 @@ function updateTalmudModeVisibility() {
 
                         if (contextRes.ok) {
                             const contextData = await contextRes.json();
-                            const generatedContext = cleanGeneratedHebrew(contextData.text || "");
-
-                            if (generatedContext && containsHebrew(generatedContext)) {
-                                row.hebrewContext = await addNikkudWithDicta(generatedContext, sourceType);
-                            } else {
-                                row.hebrewContext = "[Context generation failed]";
-                            }
+                            row.hebrewContext = contextData.text || "[Context generation failed]";
                         } else {
                             row.hebrewContext = "Word not found in context.";
                         }
                         row.citation = "Modern Hebrew Context";
                         row.hebrewCitation = "";
-                        row.englishCitation = `<span>(AI translation)</span><br><span>Modern Hebrew Context</span>`;
+                        row.englishCitation = "Modern Hebrew Context";
                     }
                 }
 
@@ -1563,7 +1419,7 @@ function updateTalmudModeVisibility() {
                             const text = result && result.ok && result.text ? cleanAiText(result.text) : '';
 
                             if (text) {
-                                row.englishContext = text;
+                                row.englishContext = `${text} (AI Translation)`;
                             } else {
                                 row.englishContext = fallbackEnglishContext(
                                     sourceType,
@@ -2386,8 +2242,6 @@ for (const candidate of englishCandidates) {
                     html = html.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, 'ה׳');
                     html = html.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*(?:ו[\u0591-\u05C7]*)?)ה([\u0591-\u05C7]*)/g, '$1ק$2');
                 }
-
-                html = normalizeKamatzKatanOverrides(html);
 
                 if (stripNekudot) {
                     html = html.replace(/[\u0591-\u05C7]/g, '');

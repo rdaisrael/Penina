@@ -16,20 +16,6 @@
             font-style: normal;
         }
 
-        @font-face {
-            font-family: 'David Libre';
-            src: url('./DavidLibre-Regular.ttf') format('truetype');
-            font-weight: 400;
-            font-style: normal;
-        }
-
-        @font-face {
-            font-family: 'David Libre';
-            src: url('./DavidLibre-Bold.ttf') format('truetype');
-            font-weight: 700;
-            font-style: normal;
-        }
-
         body { 
             font-family: Arial, sans-serif; 
             padding: 20px 0; 
@@ -471,7 +457,7 @@
                         <label for="font-choice">Choose Font:</label>
                         <select id="font-choice" class="layout-control">
                             <option value="Arial, sans-serif">Arial (Modern)</option>
-                            <option value="'David Libre', serif">David Libre (Classic Book Style)</option>
+                            <option value="'David', serif">David (Classic Book Style)</option>
                             <option value="'Dyslexic-Kriah', 'Alef', sans-serif">Dyslexia-Friendly (Dyslexic-Kriah)</option>
                         </select>
                     </div>
@@ -1052,25 +1038,6 @@
             let fontChoice = document.getElementById('font-choice').value;
             let isDyslexicFont = fontChoice.includes('Dyslexic-Kriah');
             const getCol = (id) => document.getElementById(`en-${id}`).checked ? document.getElementById(`col-${id}`).value : '#000000';
-            const kamatzKatanOverrideWords = new Set([
-                'כל', 'וכל', 'בכל', 'לכל', 'הכל',
-                'חכמה', 'חכמת', 'אמנם'
-            ]);
-            const stripNikkud = (text) => text.replace(/[\u0591-\u05C7]/g, '');
-            const stripPunctuation = (text) => text.replace(/[.,?!:;"'()\[\]{}\-־]/g, '');
-            const segmentBoundaryRegex = /[\s\n.,?!:;"'()\[\]{}\-־]/;
-            const getSegmentInfoAtOffset = (fullText, offset) => {
-                let start = offset;
-                while (start > 0 && !segmentBoundaryRegex.test(fullText[start - 1])) start--;
-
-                let end = offset + 1;
-                while (end < fullText.length && !segmentBoundaryRegex.test(fullText[end])) end++;
-
-                return {
-                    start,
-                    clean: stripPunctuation(stripNikkud(fullText.substring(start, end)))
-                };
-            };
 
             const tokens = textSegment.split(/([\s\n]+)/);
             let outputHtml = "";
@@ -1084,9 +1051,8 @@
                 let previousHadShva = false;
                 let lastHebrewIndex = -1; 
 
-                let tokenWithoutNikkud = stripNikkud(token);
-                let cleanToken = stripPunctuation(tokenWithoutNikkud);
-                let kamatzKatanOverrideAppliedSegments = new Set();
+                let tokenWithoutNikkud = token.replace(/[\u0591-\u05C7]/g, '');
+                let cleanToken = tokenWithoutNikkud.replace(/[.,?!:;"'()\-]/g, '');
                 
                 let isTarget = targetWords.some(target => {
                     return cleanToken === target || cleanToken === 'ה' + target || cleanToken === 'ב' + target;
@@ -1127,26 +1093,12 @@
                     let color = '#000000';
                     let isShuruk = false; 
                     let currentHasShva = false;
-                    let shouldUseKamatzKatanDisplay = false;
                     
                     if (vowelMatch) {
                         vowel = vowelMatch[0];
-                        if (vowel === '\u05B8') {
-                            const segmentInfo = getSegmentInfoAtOffset(fullText, offset);
-                            const hasKamatzKatanOverride = kamatzKatanOverrideWords.has(segmentInfo.clean);
-                            if (hasKamatzKatanOverride && !kamatzKatanOverrideAppliedSegments.has(segmentInfo.start)) {
-                                color = getCol('kamatz-katan');
-                                shouldUseKamatzKatanDisplay = true;
-                                kamatzKatanOverrideAppliedSegments.add(segmentInfo.start);
-                            } else {
-                                color = getCol('kamatz');
-                            }
-                        }
+                        if (vowel === '\u05B8') color = getCol('kamatz');
                         else if (vowel === '\u05B3') color = getCol('kamatz');
-                        else if (vowel === '\u05C7') {
-                            color = getCol('kamatz-katan');
-                            shouldUseKamatzKatanDisplay = true;
-                        }
+                        else if (vowel === '\u05C7') color = getCol('kamatz-katan'); 
                         else if (vowel === '\u05B7') color = getCol('patach');
                         else if (vowel === '\u05B2') color = getCol('patach'); 
                         else if (vowel === '\u05B6') color = getCol('segol');
@@ -1201,22 +1153,18 @@
                     let topSpanStyle = `color: ${topColor};`;
                     if (currentOutline) { topSpanStyle += ` ${currentOutline}`; }
 
-                    const displayMarks = shouldUseKamatzKatanDisplay
-                        ? newMarks.replace('\u05B8', '\u05C7')
-                        : newMarks;
-                    let bottomContent = `${letter}${displayMarks}`;
+                    let bottomContent = `${letter}${newMarks}`;
                     let customVowelTuck = '';
                     let applyTuck = (isDyslexicFont && letter === 'ך' && (vowel === '\u05B8' || vowel === '\u05B7' || vowel === '\u05C7' || vowel === '\u05B0'));
 
                     if (applyTuck) {
                         bottomContent = bottomContent.replace(vowel, '');
                         let tuckColor = (color && color !== '#000000') ? color : '#000000';
-                        const tuckVowel = shouldUseKamatzKatanDisplay && vowel === '\u05B8' ? '\u05C7' : vowel;
-                        customVowelTuck = `<span style="position: absolute; margin-right: 0.25em; margin-top: -0.65em; color: ${tuckColor}; z-index: 3; pointer-events: none;">&nbsp;${tuckVowel}</span>`;
+                        customVowelTuck = `<span style="position: absolute; margin-right: 0.25em; margin-top: -0.65em; color: ${tuckColor}; z-index: 3; pointer-events: none;">&nbsp;${vowel}</span>`;
                     }
 
                     if (!applyTuck && (!color || color === '#000000')) {
-                        return `<span class="heb-cluster" style="font-weight: ${letterWeight}; ${extraStyle}"><span class="layer-top" style="${topSpanStyle}">${letter}${displayMarks}</span></span>`;
+                        return `<span class="heb-cluster" style="font-weight: ${letterWeight}; ${extraStyle}"><span class="layer-top" style="${topSpanStyle}">${letter}${newMarks}</span></span>`;
                     }
                     
                     return `<span class="heb-cluster" style="position: relative; font-weight: ${letterWeight}; ${extraStyle}">

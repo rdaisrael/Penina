@@ -534,17 +534,14 @@
                             <strong>Instructions:</strong> Download the template below. For each binyan (e.g., פעל שלם, פיעל ע"ו), mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save and upload your completed file.
                         </p>
                         
-                        <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                            <a href="./Name_of_Student_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                        <div style="margin-bottom: 15px;">
+                            <a href="/Name_of_Student_-_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
                                 📥 Download Template
-                            </a>
-                            <a href="./David_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Sample Completed Template
                             </a>
                         </div>
                         
                         <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Completed Template:</label>
-                        <input type="file" id="vocab-file-a" accept=".csv" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <input type="file" id="vocab-file-a" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                     </div>
                 </div>
 
@@ -640,17 +637,14 @@
                             <strong>Instructions:</strong> Download the template below. For each binyan, mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save and upload your completed file.
                         </p>
                         
-                        <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                            <a href="./Name_of_Student_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                        <div style="margin-bottom: 15px;">
+                            <a href="/Name_of_Student_-_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
                                 📥 Download Template
-                            </a>
-                            <a href="./David_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Sample Completed Template
                             </a>
                         </div>
                         
                         <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Completed Template:</label>
-                        <input type="file" id="vocab-file-b" accept=".csv" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <input type="file" id="vocab-file-b" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                     </div>
                 </div>
             </div>
@@ -884,29 +878,13 @@
             }
         });
 
-        function validateCsvUpload(inputElement, targetPathway) {
-            const file = inputElement.files[0];
-            if (!file) return;
-
-            const isCsv = file.name.toLowerCase().endsWith('.csv');
-            if (!isCsv) {
-                alert('Warning: The uploaded template must be a .csv file. Please save the template as CSV and upload it again.');
-                inputElement.value = '';
-                if (targetPathway === 'A') uploadedVocabA = null;
-                if (targetPathway === 'B') uploadedVocabB = null;
-                return;
-            }
-
-            parseVocabularyCsv(file, targetPathway);
-        }
-
         // Trigger CSV parsing when files are uploaded
         document.getElementById('vocab-file-a').addEventListener('change', function(e) {
-            validateCsvUpload(e.target, 'A');
+            if (e.target.files[0]) parseVocabularyCsv(e.target.files[0], 'A');
         });
 
         document.getElementById('vocab-file-b').addEventListener('change', function(e) {
-            validateCsvUpload(e.target, 'B');
+            if (e.target.files[0]) parseVocabularyCsv(e.target.files[0], 'B');
         });
 
         document.querySelectorAll('input[name="vocab-mode-a"]').forEach(el => {

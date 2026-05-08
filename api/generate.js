@@ -2,7 +2,13 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const PRIMARY_GEMINI_MODEL = "gemini-2.5-flash";
 const FALLBACK_GEMINI_MODEL = "gemini-2.5-pro";
+const PRIMARY_GEMINI_ATTEMPTS = 3;
+const FALLBACK_GEMINI_ATTEMPTS = 2;
 const RETRYABLE_STATUSES = new Set([429, 500, 503, 529]);
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 function isRetryableGeminiError(error) {
     const status = Number(error && error.status);
@@ -22,35 +28,82 @@ function isRetryableGeminiError(error) {
         message.includes("internal") ||
         message.includes("overloaded") ||
         message.includes("empty response") ||
-        message.includes("blank response")
+        message.includes("blank response") ||
+        message.includes("high demand") ||
+        message.includes("service unavailable")
     );
 }
 
-async function generateTextWithFallback(primaryModel, fallbackModel, prompt) {
-    try {
-        const result = await primaryModel.generateContent(prompt);
-        const text = result && result.response ? String(result.response.text() || "").trim() : "";
+function getGeminiErrorMessage(error) {
+    return String(error && error.message ? error.message : error || "Unknown Gemini error");
+}
 
-        if (!text) {
-            throw new Error("AI generated an empty response.");
+async function generateTextWithRetries(model, modelName, prompt, maxAttempts) {
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const result = await model.generateContent(prompt);
+            const text = result && result.response ? String(result.response.text() || "").trim() : "";
+
+            if (!text) {
+                throw new Error(`${modelName} generated an empty response.`);
+            }
+
+            return text;
+        } catch (error) {
+            lastError = error;
+            const retryable = isRetryableGeminiError(error);
+
+            console.warn(
+                `Gemini attempt failed: model=${modelName}, attempt=${attempt}/${maxAttempts}, retryable=${retryable}, error=${getGeminiErrorMessage(error)}`
+            );
+
+            if (!retryable || attempt === maxAttempts) {
+                throw error;
+            }
+
+            await sleep(attempt * 2000);
         }
+    }
 
-        return text;
+    throw lastError || new Error(`${modelName} failed without returning an error.`);
+}
+
+async function generateTextWithFallback(primaryModel, fallbackModel, prompt) {
+    const failures = [];
+
+    try {
+        return await generateTextWithRetries(
+            primaryModel,
+            PRIMARY_GEMINI_MODEL,
+            prompt,
+            PRIMARY_GEMINI_ATTEMPTS
+        );
     } catch (primaryError) {
+        failures.push(`${PRIMARY_GEMINI_MODEL}: ${getGeminiErrorMessage(primaryError)}`);
+
         if (!isRetryableGeminiError(primaryError)) {
             throw primaryError;
         }
+    }
 
-        const fallbackResult = await fallbackModel.generateContent(prompt);
-        const fallbackText = fallbackResult && fallbackResult.response
-            ? String(fallbackResult.response.text() || "").trim()
-            : "";
+    try {
+        return await generateTextWithRetries(
+            fallbackModel,
+            FALLBACK_GEMINI_MODEL,
+            prompt,
+            FALLBACK_GEMINI_ATTEMPTS
+        );
+    } catch (fallbackError) {
+        failures.push(`${FALLBACK_GEMINI_MODEL}: ${getGeminiErrorMessage(fallbackError)}`);
 
-        if (!fallbackText) {
-            throw new Error("AI fallback generated an empty response.");
+        if (!isRetryableGeminiError(fallbackError)) {
+            throw fallbackError;
         }
 
-        return fallbackText;
+        console.error(`All Gemini models failed after retries. ${failures.join(" | ")}`);
+        throw new Error("The AI service is temporarily busy. Please try Generate again in a moment.");
     }
 }
 

@@ -277,11 +277,6 @@
             margin-bottom: 25px;
         }
 
-        .worksheet-question-gap {
-            height: 32px;
-            display: block;
-        }
-
         @media print {
             body { background: white; padding: 0; }
             .bg-pattern { display: none; }
@@ -302,7 +297,7 @@
                 widows: 1 !important;
             }
 
-            /* Force worksheet to print on a separate page when printing story + worksheet */
+            /* Force worksheet to print on a separate page */
             .worksheet-paper {
                 page-break-before: always;
                 width: 100% !important;
@@ -310,18 +305,6 @@
                 padding: 0 !important; 
                 border: none;
                 box-shadow: none;
-            }
-
-            body.print-story-only #questions-viewport {
-                display: none !important;
-            }
-
-            body.print-worksheet-only #story-viewport {
-                display: none !important;
-            }
-
-            body.print-worksheet-only .worksheet-paper {
-                page-break-before: auto !important;
             }
         }
 
@@ -675,8 +658,8 @@
             <div class="form-group panel-secondary" style="margin-top: 25px;">
                 <label for="footnote-display" class="panel-secondary-label">Footnote Display:</label>
                 <select id="footnote-display" class="layout-control">
-                    <option value="all">Show All Footnotes</option>
-                    <option value="first" selected>First Occurrence Only</option>
+                    <option value="all" selected>Show All Footnotes</option>
+                    <option value="first">First Occurrence Only</option>
                     <option value="none">No Footnotes</option>
                 </select>
             </div>
@@ -808,28 +791,21 @@
                 </details>
             </div>
 
-            <div class="print-controls-container" id="print-controls-container">
+            <div class="print-controls-container">
                 <label class="print-checkbox-label" title="Checking this will lock the layout sliders above to ensure numbers align perfectly.">
                     <input type="checkbox" id="toggle-line-numbers"> 
-                    Print Story with Line Numbers
+                    Print with Line Numbers
                 </label>
-                <button id="print-story-btn" type="button" style="background-color: #28a745; margin: 0;">Print Story</button>
-                <button id="print-worksheet-btn" type="button" style="background-color: #17a2b8; margin: 0; display: none;">Print Worksheet</button>
-                <button id="print-story-worksheet-btn" type="button" style="background-color: #6f42c1; margin: 0; display: none;">Print Story and Worksheet</button>
+                <button id="print-btn" onclick="window.print()" style="background-color: #28a745; margin: 0;">Print Story</button>
             </div>
 
             <div id="comprehension-section" style="display: none; margin-top: 25px;" class="panel-secondary">
                 <label class="panel-secondary-label" style="font-size: 18px;">📝 Reading Comprehension Worksheet</label>
+                <p style="font-size: 14px; color: #666; margin-top: 0;">Generate a custom worksheet based on the current story. It will print automatically on a separate page.</p>
                 <div style="display: flex; gap: 15px; align-items: center;">
                     <select id="questions-lang" style="flex: 1; margin-bottom: 0;">
                         <option value="Hebrew">Hebrew Questions</option>
                         <option value="English">English Questions</option>
-                    </select>
-                    <select id="question-count" style="flex: 1; margin-bottom: 0;">
-                        <option value="2">2 Questions</option>
-                        <option value="5" selected>5 Questions</option>
-                        <option value="10">10 Questions</option>
-                        <option value="15">15 Questions</option>
                     </select>
                     <button id="generate-questions-btn" style="background-color: #17a2b8; margin: 0; flex: 1;">Generate Worksheet</button>
                 </div>
@@ -838,7 +814,7 @@
         </div>
     </div> 
     
-    <div class="paper-viewport" id="story-viewport" style="display: none;">
+    <div class="paper-viewport" style="display: none;">
         <div id="story-output" dir="rtl"></div>
     </div>
 
@@ -1048,7 +1024,6 @@
             clearLineNumbers();
 
             btn.disabled = true;
-            hideWorksheetPrintControls();
 
             try {
                 const vocabData = getVocabularyPromptInstructions(isPathwayA);
@@ -1201,41 +1176,6 @@
                 }
             }
         }
-
-        function showWorksheetPrintControls() {
-            document.getElementById('print-worksheet-btn').style.display = 'inline-block';
-            document.getElementById('print-story-worksheet-btn').style.display = 'inline-block';
-        }
-
-        function hideWorksheetPrintControls() {
-            document.getElementById('print-worksheet-btn').style.display = 'none';
-            document.getElementById('print-story-worksheet-btn').style.display = 'none';
-            document.getElementById('questions-viewport').style.display = 'none';
-            document.getElementById('questions-output').innerHTML = '';
-        }
-
-        function printWithMode(mode) {
-            const qViewport = document.getElementById('questions-viewport');
-            if ((mode === 'worksheet-only' || mode === 'story-worksheet') && qViewport.style.display === 'none') {
-                alert('Please generate a worksheet first.');
-                return;
-            }
-
-            document.body.classList.remove('print-story-only', 'print-worksheet-only', 'print-story-worksheet');
-            document.body.classList.add(`print-${mode}`);
-
-            const cleanupPrintMode = () => {
-                document.body.classList.remove('print-story-only', 'print-worksheet-only', 'print-story-worksheet');
-                window.removeEventListener('afterprint', cleanupPrintMode);
-            };
-            window.addEventListener('afterprint', cleanupPrintMode);
-            window.print();
-            setTimeout(cleanupPrintMode, 1000);
-        }
-
-        document.getElementById('print-story-btn').addEventListener('click', () => printWithMode('story-only'));
-        document.getElementById('print-worksheet-btn').addEventListener('click', () => printWithMode('worksheet-only'));
-        document.getElementById('print-story-worksheet-btn').addEventListener('click', () => printWithMode('story-worksheet'));
 
         document.getElementById('toggle-line-numbers').addEventListener('click', function(e) {
             const marginChoice = document.getElementById('margin-choice').value;
@@ -1560,7 +1500,6 @@
         // --- READING COMPREHENSION GENERATOR ---
         document.getElementById('generate-questions-btn').addEventListener('click', async () => {
             const lang = document.getElementById('questions-lang').value;
-            const questionCount = document.getElementById('question-count').value;
             const btn = document.getElementById('generate-questions-btn');
             const qOutput = document.getElementById('questions-output');
             const qViewport = document.getElementById('questions-viewport');
@@ -1570,16 +1509,15 @@
                 return;
             }
 
-            showWorksheetPrintControls();
             btn.disabled = true;
             btn.innerText = "Writing Questions... (Wait)";
             qViewport.style.display = 'block';
             qOutput.innerHTML = "<h2 style='text-align: center; color: #666;'>מכין שאלות... (Preparing Worksheet...)</h2>";
             
-            const prompt = `Based strictly on the following text, create a reading comprehension worksheet in ${lang} with exactly ${questionCount} questions.
+            const prompt = `Based strictly on the following text, create a reading comprehension worksheet in ${lang}.
             CRITICAL RULES:
             1. The first line must be ONLY the exact Title of the story (translated into ${lang}). Do not write the words "Reading Comprehension Worksheet".
-            2. You MUST create exactly ${questionCount} questions and number every question consecutively (1., 2., 3., etc.).
+            2. You MUST number every question consecutively (1., 2., 3., etc.).
             3. Do NOT include the answers anywhere on the worksheet.
             4. Provide physical writing space for the student. Immediately following EVERY question, you must output the exact token [LINE] on a new line to generate a physical line for them to write on.
             5. For a question requiring a short answer, output:
@@ -1610,39 +1548,7 @@
                 
                 let lines = data.text.trim().split('\n');
                 let title = lines.shift().replace(/\*/g, ''); 
-                const escapeHtml = (text) => text
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#039;');
-
-                let restOfTextParts = [];
-                let pendingWriteInLines = 0;
-
-                const flushWriteInLines = () => {
-                    if (pendingWriteInLines === 0) return;
-
-                    for (let i = 0; i < pendingWriteInLines; i++) {
-                        restOfTextParts.push('<div class="write-in-line"></div>');
-                    }
-
-                    restOfTextParts.push('<div class="worksheet-question-gap"></div>');
-                    pendingWriteInLines = 0;
-                };
-
-                lines.join('\n').split('\n').forEach(line => {
-                    if (line.trim() === '[LINE]') {
-                        pendingWriteInLines++;
-                        return;
-                    }
-
-                    flushWriteInLines();
-                    restOfTextParts.push(line.trim() ? `${escapeHtml(line)}<br>` : '<br>');
-                });
-                flushWriteInLines();
-
-                let restOfText = restOfTextParts.join('');
+                let restOfText = lines.join('\n').replace(/\n*\[LINE\]\n*/g, '<div class="write-in-line"></div>').replace(/\n/g, '<br>');
 
                 qOutput.dir = lang === 'English' ? 'ltr' : 'rtl';
                 qOutput.style.textAlign = lang === 'English' ? 'left' : 'right';

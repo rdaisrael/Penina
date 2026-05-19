@@ -461,7 +461,7 @@
 
             <div class="form-group">
                 <label for="word-list">Vocabulary List (Hebrew, English):</label>
-                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא, there is&#10;(A translation into Hebrew or English will be generated if none is provided)"></textarea>
+                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא, there is&#10;(Hebrew is required. English definitions are optional and can be generated if omitted.)"></textarea>
             </div>
 
             <div class="form-group checkbox-group" style="margin-bottom: 15px;">
@@ -1304,10 +1304,15 @@ function updateTalmudModeVisibility() {
 
             try {
                 let lines = rawInput.split('\n').filter(line => line.trim() !== '');
-                let vocabList = lines.map(line => {
+                const invalidVocabLines = [];
+                let vocabList = lines.map((line, lineIndex) => {
                     let parts = line.split(/[,\t]+/).map(p => p.trim()).filter(p => p.length > 0);
                     let hebrew = parts.shift() || "";
                     let english = parts.join(', ');
+
+                    if (!containsHebrew(hebrew)) {
+                        invalidVocabLines.push(lineIndex + 1);
+                    }
                     
                     return {
                         hebrew: hebrew,
@@ -1315,6 +1320,12 @@ function updateTalmudModeVisibility() {
                         expandedHebrew: ""
                     };
                 });
+
+                if (invalidVocabLines.length > 0) {
+                    alert(`Each vocabulary word must start with Hebrew. Please fix line${invalidVocabLines.length === 1 ? '' : 's'} ${invalidVocabLines.join(', ')}. Use either "עברית" or "עברית, English definition".`);
+                    pageContainer.style.display = 'none';
+                    return;
+                }
 
                 let htmlOutput = "";
 
@@ -1379,56 +1390,6 @@ function updateTalmudModeVisibility() {
                         return "[Auto-translation unavailable]";
                     }
                     return "";
-                }
-
-                function englishToHebrewPrompt(englishText, sourceTypeValue) {
-                    const value = String(englishText || '').trim();
-                    if (sourceTypeValue === 'Talmud') {
-                        return `Translate this English vocabulary item into the most likely Talmudic Hebrew or Aramaic word or short expression: "${value}". Return ONLY the Hebrew/Aramaic word or short expression, with no English, punctuation, labels, or explanation.`;
-                    }
-                    if (sourceTypeValue === 'Tanakh') {
-                        return `Translate this English vocabulary item into the most likely Biblical Hebrew word or short expression: "${value}". Return ONLY the Hebrew word or short expression, with no English, punctuation, labels, or explanation.`;
-                    }
-                    return `Translate this English vocabulary item into natural Hebrew as a vocabulary word or short expression: "${value}". Return ONLY the Hebrew word or short expression, with no English, punctuation, labels, or explanation.`;
-                }
-
-                const englishInputPrompts = [];
-                const englishInputIndexes = [];
-
-                vocabList.forEach((item, index) => {
-                    const enteredWord = String(item.hebrew || '').trim();
-                    if (isEnglishOnly(enteredWord)) {
-                        item.originalEnglishInput = enteredWord;
-                        item.inputLanguage = 'english';
-                        item.english = item.english || enteredWord;
-                        englishInputIndexes.push(index);
-                        englishInputPrompts.push(englishToHebrewPrompt(enteredWord, sourceType));
-                    } else {
-                        item.inputLanguage = containsHebrew(enteredWord) ? 'hebrew' : 'unknown';
-                    }
-                });
-
-                if (englishInputPrompts.length > 0) {
-                    try {
-                        const englishInputResults = await callTranslateBatch(englishInputPrompts);
-                        englishInputIndexes.forEach((itemIndex, batchIndex) => {
-                            const result = englishInputResults[batchIndex];
-                            const generatedHebrew = result && result.ok ? cleanGeneratedHebrew(result.text) : '';
-
-                            if (containsHebrewOnlyCandidate(generatedHebrew)) {
-                                vocabList[itemIndex].hebrew = generatedHebrew;
-                                vocabList[itemIndex].translatedFromEnglish = true;
-                            } else {
-                                vocabList[itemIndex].hebrew = vocabList[itemIndex].originalEnglishInput;
-                                vocabList[itemIndex].translationError = true;
-                            }
-                        });
-                    } catch (e) {
-                        englishInputIndexes.forEach((itemIndex) => {
-                            vocabList[itemIndex].hebrew = vocabList[itemIndex].originalEnglishInput;
-                            vocabList[itemIndex].translationError = true;
-                        });
-                    }
                 }
 
                 if (document.getElementById('alphabetize-list').checked) {
@@ -1552,9 +1513,9 @@ function updateTalmudModeVisibility() {
                         } else {
                             row.hebrewContext = "Word not found in context.";
                         }
-                        row.citation = "Modern Hebrew Context";
+                        row.citation = "Modern Hebrew Context - AI";
                         row.hebrewCitation = "";
-                        row.englishCitation = `<span>(AI translation)</span><br><span>Modern Hebrew Context</span>`;
+                        row.englishCitation = "Modern Hebrew Context - AI";
                     }
                 }
 
@@ -1600,6 +1561,9 @@ function updateTalmudModeVisibility() {
 
                             if (text) {
                                 row.englishContext = text;
+                                if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
+                                    row.englishCitation = `${row.englishCitation || row.citation || ''} - AI translation`;
+                                }
                             } else {
                                 row.englishContext = fallbackEnglishContext(
                                     sourceType,

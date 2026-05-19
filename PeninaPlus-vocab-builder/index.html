@@ -462,6 +462,7 @@
             <div class="form-group">
                 <label for="word-list">Vocabulary List (Hebrew, English):</label>
                 <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא&#9;there is&#10;(Hebrew is required. English definitions are optional and can be generated if omitted.)"></textarea>
+                <div id="vocab-input-warning" style="display: none; margin-top: 8px; padding: 10px 12px; border-radius: 5px; background: #fff3cd; border: 1px solid #e6c46a; color: #5f4b00; font-size: 14px; line-height: 1.35;">Vocabulary words must be in Hebrew. The vocabulary word may then be following by tab or comma and an English definition.</div>
             </div>
 
             <div class="form-group checkbox-group" style="margin-bottom: 15px;">
@@ -639,6 +640,9 @@
         });
 
         const generateBtn = document.getElementById('generate-btn');
+        const vocabInput = document.getElementById('word-list');
+        const vocabInputWarning = document.getElementById('vocab-input-warning');
+        const VOCAB_INPUT_WARNING_TEXT = 'Vocabulary words must be in Hebrew. The vocabulary word may then be following by tab or comma and an English definition.';
         const vocabTbody = document.getElementById('vocab-tbody');
         const sourceTypeSelect = document.getElementById('source-type');
         const specificSourceContainer = document.getElementById('specific-source-container');
@@ -1200,6 +1204,28 @@ function updateTalmudModeVisibility() {
             return /[A-Za-z]/.test(String(text || ''));
         }
 
+        function lineStartsWithEnglishLetter(line) {
+            return /^[\s]*[A-Za-z]/.test(String(line || ''));
+        }
+
+        function hasLineStartingWithEnglishLetter(text) {
+            return String(text || '').split('\n').some(line => lineStartsWithEnglishLetter(line));
+        }
+
+        function updateVocabularyInputWarning() {
+            if (!vocabInputWarning || !vocabInput) return false;
+            const shouldWarn = hasLineStartingWithEnglishLetter(vocabInput.value);
+            vocabInputWarning.textContent = VOCAB_INPUT_WARNING_TEXT;
+            vocabInputWarning.style.display = shouldWarn ? 'block' : 'none';
+            return shouldWarn;
+        }
+
+        if (vocabInput) {
+            vocabInput.addEventListener('input', updateVocabularyInputWarning);
+            vocabInput.addEventListener('change', updateVocabularyInputWarning);
+            updateVocabularyInputWarning();
+        }
+
         function isValidHebrewVocabWord(text) {
             const value = String(text || '').trim();
             if (!value) return false;
@@ -1278,6 +1304,7 @@ function updateTalmudModeVisibility() {
             const title = document.getElementById('list-title').value.trim();
             const rawInput = document.getElementById('word-list').value.trim();
             const sourceType = document.getElementById('source-type').value;
+            const hasEnglishFirstLetterLine = updateVocabularyInputWarning();
 
             if (searchStatusNotice) {
                 if (!contextQuotesEnabled() || sourceType === 'No Context Quotes') {
@@ -1298,6 +1325,11 @@ function updateTalmudModeVisibility() {
 
             if (missing.length > 0) {
                 alert(`Hold on! You forgot to add ${missing.join(' and ')}.`);
+                return;
+            }
+
+            if (hasEnglishFirstLetterLine) {
+                alert(VOCAB_INPUT_WARNING_TEXT);
                 return;
             }
 
@@ -1345,7 +1377,7 @@ function updateTalmudModeVisibility() {
                 if (invalidVocabLines.length > 0 || invalidDefinitionLines.length > 0) {
                     const messages = [];
                     if (invalidVocabLines.length > 0) {
-                        messages.push(`Hebrew vocabulary word missing or invalid on line${invalidVocabLines.length === 1 ? '' : 's'} ${invalidVocabLines.join(', ')}.`);
+                        messages.push(VOCAB_INPUT_WARNING_TEXT);
                     }
                     if (invalidDefinitionLines.length > 0) {
                         messages.push(`English definition invalid on line${invalidDefinitionLines.length === 1 ? '' : 's'} ${invalidDefinitionLines.join(', ')}.`);

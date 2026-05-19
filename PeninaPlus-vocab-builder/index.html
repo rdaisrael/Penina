@@ -461,8 +461,8 @@
 
             <div class="form-group">
                 <label for="word-list">Vocabulary List (Hebrew, English):</label>
-                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא&#9;there is&#10;(Hebrew is required. English definitions are optional and can be generated if omitted.)"></textarea>
-                <div id="vocab-input-warning" style="display: none; margin-top: 8px; padding: 10px 12px; border-radius: 5px; background: #fff3cd; border: 1px solid #e6c46a; color: #5f4b00; font-size: 14px; line-height: 1.35;">Vocabulary words must be in Hebrew. The vocabulary word may then be following by tab or comma and an English definition.</div>
+                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא&#9;there is&#10;(Hebrew vocabulary words are required. English definitions are optional.)"></textarea>
+                <div id="vocab-input-warning" style="display: none; margin-top: 8px; padding: 10px 12px; border-radius: 5px; background: #fde8e8; border: 1px solid #f5b5b5; color: #7a1f1f; font-size: 14px; line-height: 1.35;">Vocabulary words must be in Hebrew. The vocabulary word may then be following by tab or comma and an English definition.</div>
             </div>
 
             <div class="form-group checkbox-group" style="margin-bottom: 15px;">
@@ -640,9 +640,6 @@
         });
 
         const generateBtn = document.getElementById('generate-btn');
-        const vocabInput = document.getElementById('word-list');
-        const vocabInputWarning = document.getElementById('vocab-input-warning');
-        const VOCAB_INPUT_WARNING_TEXT = 'Vocabulary words must be in Hebrew. The vocabulary word may then be following by tab or comma and an English definition.';
         const vocabTbody = document.getElementById('vocab-tbody');
         const sourceTypeSelect = document.getElementById('source-type');
         const specificSourceContainer = document.getElementById('specific-source-container');
@@ -1200,51 +1197,152 @@ function updateTalmudModeVisibility() {
             return /[\u05D0-\u05EA]/.test(String(text || ''));
         }
 
+        function isEnglishOnly(text) {
+            const value = String(text || '').trim();
+            if (!value || containsHebrew(value)) return false;
+            return /[A-Za-z]/.test(value) && /^[A-Za-z0-9\s'’\-().,;:!?]+$/.test(value);
+        }
+
+        function cleanGeneratedHebrew(text) {
+            return String(text || '')
+                .replace(/^[\s,.;:!?\-–—\(\)\[\]\"'״׳]+|[\s,.;:!?\-–—\(\)\[\]\"'״׳]+$/g, '')
+                .trim();
+        }
+
         function containsLatin(text) {
             return /[A-Za-z]/.test(String(text || ''));
         }
 
-        function lineStartsWithEnglishLetter(line) {
-            return /^[\s]*[A-Za-z]/.test(String(line || ''));
+        const VOCAB_INPUT_WARNING_TEXT = 'Vocabulary words must be in Hebrew. The vocabulary word may then be following by tab or comma and an English definition.';
+        const vocabInput = document.getElementById('word-list');
+        const vocabInputWarning = document.getElementById('vocab-input-warning');
+
+        function firstNonSpaceChar(text) {
+            const match = String(text || '').match(/\S/);
+            return match ? match[0] : '';
         }
 
-        function hasLineStartingWithEnglishLetter(text) {
-            return String(text || '').split('\n').some(line => lineStartsWithEnglishLetter(line));
+        function firstNonSpaceIsEnglish(text) {
+            return /^[A-Za-z]$/.test(firstNonSpaceChar(text));
         }
 
-        function updateVocabularyInputWarning() {
-            if (!vocabInputWarning || !vocabInput) return false;
-            const shouldWarn = hasLineStartingWithEnglishLetter(vocabInput.value);
+        function getVocabWordSegment(line) {
+            const value = String(line || '');
+            const commaIndex = value.indexOf(',');
+            const tabIndex = value.indexOf('\t');
+            const indexes = [commaIndex, tabIndex].filter(index => index >= 0);
+            const splitIndex = indexes.length ? Math.min(...indexes) : -1;
+            return splitIndex >= 0 ? value.slice(0, splitIndex) : value;
+        }
+
+        function hasSecondEnglishLetterInBadVocabWord(line) {
+            if (!firstNonSpaceIsEnglish(line)) return false;
+            const segment = getVocabWordSegment(line);
+            const englishLetters = String(segment || '').match(/[A-Za-z]/g) || [];
+            return englishLetters.length > 1;
+        }
+
+        function findEnglishFirstVocabLines(text) {
+            return String(text || '')
+                .split('\n')
+                .map((line, index) => ({ line, index }))
+                .filter(({ line }) => firstNonSpaceIsEnglish(line))
+                .map(({ index }) => index + 1);
+        }
+
+        function updateVocabInputWarning() {
+            if (!vocabInputWarning || !vocabInput) return;
+            const hasWarning = findEnglishFirstVocabLines(vocabInput.value).length > 0;
             vocabInputWarning.textContent = VOCAB_INPUT_WARNING_TEXT;
-            vocabInputWarning.style.display = shouldWarn ? 'block' : 'none';
-            return shouldWarn;
+            vocabInputWarning.style.display = hasWarning ? 'block' : 'none';
         }
 
-        if (vocabInput) {
-            vocabInput.addEventListener('input', updateVocabularyInputWarning);
-            vocabInput.addEventListener('change', updateVocabularyInputWarning);
-            updateVocabularyInputWarning();
+        function sanitizeBlockedSecondEnglishLetters(text) {
+            return String(text || '').split('\n').map(line => {
+                if (!firstNonSpaceIsEnglish(line)) return line;
+
+                const value = String(line);
+                const commaIndex = value.indexOf(',');
+                const tabIndex = value.indexOf('\t');
+                const indexes = [commaIndex, tabIndex].filter(index => index >= 0);
+                const splitIndex = indexes.length ? Math.min(...indexes) : -1;
+                const wordPart = splitIndex >= 0 ? value.slice(0, splitIndex) : value;
+                const rest = splitIndex >= 0 ? value.slice(splitIndex) : '';
+                let seenFirstEnglish = false;
+                let cleanedWordPart = '';
+
+                for (const ch of wordPart) {
+                    if (/[A-Za-z]/.test(ch)) {
+                        if (!seenFirstEnglish) {
+                            cleanedWordPart += ch;
+                            seenFirstEnglish = true;
+                        }
+                    } else {
+                        cleanedWordPart += ch;
+                    }
+                }
+
+                return cleanedWordPart + rest;
+            }).join('\n');
+        }
+
+        function parseVocabLine(line) {
+            const trimmedLine = String(line || '').trim();
+            const tabIndex = trimmedLine.indexOf('\t');
+            const commaIndex = trimmedLine.indexOf(',');
+            const indexes = [tabIndex, commaIndex].filter(index => index >= 0);
+            const splitIndex = indexes.length ? Math.min(...indexes) : -1;
+
+            if (splitIndex >= 0) {
+                return {
+                    hebrew: trimmedLine.slice(0, splitIndex).trim(),
+                    english: trimmedLine.slice(splitIndex + 1).trim()
+                };
+            }
+
+            return { hebrew: trimmedLine, english: '' };
         }
 
         function isValidHebrewVocabWord(text) {
             const value = String(text || '').trim();
-            if (!value) return false;
-            if (!containsHebrew(value)) return false;
-            if (containsLatin(value)) return false;
-            return /^[\u0590-\u05FF\s״׳"'`().\-–—]+$/.test(value);
+            return !!value && containsHebrew(value) && !containsLatin(value);
         }
 
         function isValidOptionalEnglishDefinition(text) {
             const value = String(text || '').trim();
             if (!value) return true;
-            if (containsHebrew(value)) return false;
-            return containsLatin(value);
+            return !containsHebrew(value) && /[A-Za-z]/.test(value);
         }
 
-        function cleanGeneratedHebrew(text) {
-            return String(text || '')
-                .replace(/^[\s,.;:?\-–—\(\)\[\]\"'״׳]+|[\s,.;:?\-–—\(\)\[\]\"'״׳]+$/g, '')
-                .trim();
+        if (vocabInput) {
+            vocabInput.addEventListener('beforeinput', (event) => {
+                if (!event.data || !/[A-Za-z]/.test(event.data)) return;
+                const start = vocabInput.selectionStart || 0;
+                const end = vocabInput.selectionEnd || start;
+                const nextValue = vocabInput.value.slice(0, start) + event.data + vocabInput.value.slice(end);
+
+                if (String(nextValue).split('\n').some(hasSecondEnglishLetterInBadVocabWord)) {
+                    event.preventDefault();
+                    updateVocabInputWarning();
+                }
+            });
+
+            vocabInput.addEventListener('input', () => {
+                const sanitized = sanitizeBlockedSecondEnglishLetters(vocabInput.value);
+                if (sanitized !== vocabInput.value) {
+                    const oldLength = vocabInput.value.length;
+                    const cursor = vocabInput.selectionStart || 0;
+                    vocabInput.value = sanitized;
+                    const newCursor = Math.max(0, cursor - (oldLength - sanitized.length));
+                    vocabInput.setSelectionRange(newCursor, newCursor);
+                }
+                updateVocabInputWarning();
+            });
+        }
+
+        function containsHebrewOnlyCandidate(text) {
+            const value = String(text || '').trim();
+            return containsHebrew(value) && !containsLatin(value);
         }
 
         function containsNekudotOrTaamim(text) {
@@ -1304,7 +1402,6 @@ function updateTalmudModeVisibility() {
             const title = document.getElementById('list-title').value.trim();
             const rawInput = document.getElementById('word-list').value.trim();
             const sourceType = document.getElementById('source-type').value;
-            const hasEnglishFirstLetterLine = updateVocabularyInputWarning();
 
             if (searchStatusNotice) {
                 if (!contextQuotesEnabled() || sourceType === 'No Context Quotes') {
@@ -1328,11 +1425,6 @@ function updateTalmudModeVisibility() {
                 return;
             }
 
-            if (hasEnglishFirstLetterLine) {
-                alert(VOCAB_INPUT_WARNING_TEXT);
-                return;
-            }
-
             generateBtn.disabled = true;
             vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
             pageContainer.style.display = 'block';
@@ -1343,21 +1435,9 @@ function updateTalmudModeVisibility() {
                 const invalidVocabLines = [];
                 const invalidDefinitionLines = [];
                 let vocabList = lines.map((line, lineIndex) => {
-                    const trimmedLine = String(line || '').trim();
-                    const tabMatch = trimmedLine.match(/^(.*?)\t+(.+)$/);
-                    const commaIndex = trimmedLine.indexOf(',');
-                    let hebrew = "";
-                    let english = "";
-
-                    if (tabMatch) {
-                        hebrew = tabMatch[1].trim();
-                        english = tabMatch[2].trim();
-                    } else if (commaIndex !== -1) {
-                        hebrew = trimmedLine.slice(0, commaIndex).trim();
-                        english = trimmedLine.slice(commaIndex + 1).trim();
-                    } else {
-                        hebrew = trimmedLine;
-                    }
+                    const parsed = parseVocabLine(line);
+                    const hebrew = parsed.hebrew;
+                    const english = parsed.english;
 
                     if (!isValidHebrewVocabWord(hebrew)) {
                         invalidVocabLines.push(lineIndex + 1);
@@ -1375,15 +1455,9 @@ function updateTalmudModeVisibility() {
                 });
 
                 if (invalidVocabLines.length > 0 || invalidDefinitionLines.length > 0) {
-                    const messages = [];
-                    if (invalidVocabLines.length > 0) {
-                        messages.push(VOCAB_INPUT_WARNING_TEXT);
-                    }
-                    if (invalidDefinitionLines.length > 0) {
-                        messages.push(`English definition invalid on line${invalidDefinitionLines.length === 1 ? '' : 's'} ${invalidDefinitionLines.join(', ')}.`);
-                    }
-                    alert(`${messages.join(' ')} Use "עברית", "עברית, English definition", or "עברית<Tab>English definition".`);
-                    pageContainer.style.display = 'none';
+                    updateVocabInputWarning();
+                    alert(VOCAB_INPUT_WARNING_TEXT);
+                    generateBtn.disabled = false;
                     return;
                 }
 
@@ -1451,6 +1525,7 @@ function updateTalmudModeVisibility() {
                     }
                     return "";
                 }
+
 
                 if (document.getElementById('alphabetize-list').checked) {
                     vocabList.sort((a, b) => a.hebrew.localeCompare(b.hebrew, 'he'));
@@ -1582,6 +1657,12 @@ function updateTalmudModeVisibility() {
                         .trim();
                 };
 
+                const appendAiTranslationLabel = (citation) => {
+                    const value = String(citation || '').trim();
+                    if (!value) return 'AI translation';
+                    return value.includes('AI translation') ? value : `${value} - AI translation`;
+                };
+
                 const buildDirectTranslationPrompt = (row) => {
                     if (sourceType === 'Modern Hebrew') {
                         return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
@@ -1612,7 +1693,7 @@ function updateTalmudModeVisibility() {
                             if (text) {
                                 row.englishContext = text;
                                 if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                                    row.englishCitation = `${row.englishCitation || row.citation || ''} - AI translation`;
+                                    row.englishCitation = appendAiTranslationLabel(row.englishCitation);
                                 }
                             } else {
                                 row.englishContext = fallbackEnglishContext(

@@ -307,20 +307,20 @@
         #vocab-table col.col-word { width: 25%; }
         #vocab-table col.col-definition { width: 25%; }
         #vocab-table col.col-context-layout { width: 50%; }
-        th, td { border: 1px solid #dcd3c6; padding: 7pt 10pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); letter-spacing: var(--global-letter-spacing, 0px); }
+        th, td { border: 1px solid #dcd3c6; padding: 4pt 6pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); line-height: 1.12; letter-spacing: var(--global-letter-spacing, 0px); }
         th { background-color: #f4efe6; font-weight: bold; text-align: center; color: #4a4238; }
         
-        .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; min-width: 0; padding: 7pt 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
-        .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); min-width: 0; padding: 7pt 10pt; overflow-wrap: anywhere; word-break: break-word; }
-        .col-context { min-width: 0; font-size: var(--context-font-size, 12pt); line-height: 1.15; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+        .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; min-width: 0; padding: 4pt 6pt; line-height: 1.12; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
+        .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); min-width: 0; padding: 4pt 6pt; line-height: 1.12; overflow-wrap: anywhere; word-break: break-word; }
+        .col-context { min-width: 0; padding: 3pt 5pt; font-size: var(--context-font-size, 12pt); line-height: 1.08; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
         .hebrew-word, .hebrew-text, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
-        .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.15; }
-        .col-context .hebrew-text { font-size: var(--context-font-size, 12pt); margin: 0 0 1pt 0; }
-        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 1pt; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.15; letter-spacing: var(--global-letter-spacing, 0px); }
-        .col-context .english-text { font-size: var(--context-font-size, 12pt); margin-top: 2pt; }
-        .citation { font-size: var(--citation-font-size, 8pt); line-height: 1.08; margin-top: 0.75pt; color: #666; white-space: normal; font-weight: normal; }
-        .hebrew-citation { direction: rtl; text-align: right; margin-bottom: 0; }
+        .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.08; }
+        .col-context .hebrew-text { font-size: var(--context-font-size, 12pt); margin: 0; }
+        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 0.5pt; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.08; letter-spacing: var(--global-letter-spacing, 0px); }
+        .col-context .english-text { font-size: var(--context-font-size, 12pt); margin-top: 1pt; }
+        .citation { font-size: var(--citation-font-size, 8pt); line-height: 1.0; margin-top: 0.25pt; color: #666; white-space: normal; font-weight: normal; }
+        .hebrew-citation { direction: rtl; text-align: right; margin-bottom: 0.25pt; }
         .english-citation { direction: ltr; text-align: left; font-family: var(--english-font, Arial, sans-serif) !important; }
         .draft-context-tools {
             display: none;
@@ -402,9 +402,9 @@
         .english-citation-row {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             direction: ltr;
-            margin-top: 0.75pt;
+            margin-top: 0.25pt;
         }
         .english-citation-row .english-citation {
             flex: 1 1 auto;
@@ -412,14 +412,14 @@
             margin-top: 0;
         }
         .context-row-checkbox-slot {
-            flex: 0 0 20px;
+            flex: 0 0 16px;
             display: flex;
             justify-content: flex-end;
             align-items: center;
         }
         .context-quote-checkbox {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             margin: 0;
             accent-color: #000000;
             cursor: pointer;
@@ -434,7 +434,7 @@
         .mode-basic #vocab-table col.col-definition { width: 50%; }
         .mode-basic #vocab-table col.col-context-layout { width: 0; }
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
-        .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
+        .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 14pt; padding-bottom: 14pt; }
 
         /* --- CHIP UI STYLES --- */
         .page-chip {
@@ -490,6 +490,7 @@
             font-family: var(--english-font) !important;
         }
     </style>
+    <!-- build: snug-context-rows-2026-05-19 -->
 </head>
 <body class="mode-full">
 

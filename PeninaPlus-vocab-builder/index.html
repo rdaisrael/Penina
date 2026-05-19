@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Penina Vocab Builder build: regenerate-connected-2026-05-19-semantic-context -->
+    <!-- Penina Vocab Builder build: semantic-context-inp-fix-2026-05-19 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
@@ -693,7 +693,7 @@
     </div>
 
     <script>
-        const PENINA_BUILD_ID = 'regenerate-connected-2026-05-19-semantic-context';
+        const PENINA_BUILD_ID = 'semantic-context-inp-fix-2026-05-19';
         function stylizeTitleText(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -789,6 +789,10 @@
 
         function runAfterNextPaint(callback) {
             window.requestAnimationFrame(() => window.requestAnimationFrame(callback));
+        }
+
+        function yieldToBrowser() {
+            return new Promise(resolve => window.setTimeout(resolve, 0));
         }
 
         function setupDraftContextButtons() {
@@ -1919,7 +1923,18 @@ function updateTalmudModeVisibility() {
             updateTextDisplay();
         }
 
-        generateBtn.addEventListener('click', async () => {
+        generateBtn.addEventListener('click', () => {
+            animateDraftToolButton(generateBtn);
+            runAfterNextPaint(() => {
+                handleGenerateVocabularyClick().catch((error) => {
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = 'Generate Vocabulary Table';
+                    vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${error && error.message ? error.message : 'Generation failed.'}</td></tr>`;
+                });
+            });
+        });
+
+        async function handleGenerateVocabularyClick() {
             const title = document.getElementById('list-title').value.trim();
             const rawInput = document.getElementById('word-list').value.trim();
             const sourceType = document.getElementById('source-type').value;
@@ -1958,6 +1973,8 @@ function updateTalmudModeVisibility() {
             }
 
             generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            await yieldToBrowser();
             vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
             pageContainer.style.display = 'block';
             const draftContextTools = document.getElementById('draft-context-tools');
@@ -2068,6 +2085,7 @@ function updateTalmudModeVisibility() {
                         matchedHebrewCandidate: searchHebrew,
                         isAbbreviationEntry
                     });
+                    await yieldToBrowser();
                 }
 
                 async function translateSingleVocabularyDefinition(row) {
@@ -2144,6 +2162,7 @@ function updateTalmudModeVisibility() {
                     for (const rowIndex of indexesStillNeedingDefinition) {
                         const fallbackDefinition = await translateSingleVocabularyDefinition(preparedItems[rowIndex]);
                         preparedItems[rowIndex].item.english = fallbackDefinition || "[Definition unavailable]";
+                        await yieldToBrowser();
                     }
                 }
 
@@ -2205,6 +2224,7 @@ function updateTalmudModeVisibility() {
                         row.hebrewCitation = "";
                         row.englishCitation = "Modern Hebrew Context - AI";
                     }
+                    await yieldToBrowser();
                 }
 
                 const contextPromptIndexes = [];
@@ -2244,6 +2264,7 @@ function updateTalmudModeVisibility() {
                         contextPrompts.push(buildDirectTranslationPrompt(row));
                     }
                 }
+                await yieldToBrowser();
 
                 if (!noContextMode && contextPrompts.length > 0) {
                     try {
@@ -2293,8 +2314,12 @@ function updateTalmudModeVisibility() {
                 updateTextDisplay();
             } catch (e) {
                 vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
-            } finally { generateBtn.disabled = false; }
-        });
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Vocabulary Table';
+            }
+
+        }
 
         // --- SEARCH LOGIC: SELECTED CHAPTER/DAF -> SELECTED BOOK/MASSECHET -> WHOLE CORPUS ---
         async function performSefariaSearch(word, corpus, selectedTargets = [], excludeRefs = [], intendedEnglish = '') {

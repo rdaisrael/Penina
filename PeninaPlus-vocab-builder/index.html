@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Penina Vocab Builder build: regenerate-connected-2026-05-19-1905 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
@@ -374,6 +375,27 @@
             outline-offset: 2px;
             background-color: #f7fbff;
         }
+
+        .context-regenerating {
+            opacity: 0.72;
+            position: relative;
+        }
+        .context-regenerating::after {
+            content: "Regenerating...";
+            display: block;
+            margin-top: 4px;
+            font-size: 10pt;
+            color: #5f1118;
+            direction: ltr;
+            text-align: left;
+        }
+        .context-row-error {
+            margin-top: 4px;
+            font-size: 10pt;
+            color: #721c24;
+            direction: ltr;
+            text-align: left;
+        }
         .english-citation-row {
             display: flex;
             align-items: center;
@@ -553,7 +575,7 @@
 
             <div class="form-group">
                 <label for="word-list">Vocabulary List (Hebrew, English):</label>
-                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא	there is&#10;אגרא"></textarea>
+                <textarea id="word-list" rows="5" dir="auto" placeholder="Hebrew required. Optional English definition may follow a comma or tab.&#10;אגרא, reward&#10;איכא	there is&#10;אגרא"></textarea>
                 <div id="vocab-input-warning" class="vocab-input-warning" style="display: none;">Vocabulary words must be in Hebrew. The vocabulary word may then be following by tab or comma and an English definition.</div>
             </div>
 
@@ -671,6 +693,7 @@
     </div>
 
     <script>
+        const PENINA_BUILD_ID = 'regenerate-connected-2026-05-19-1905';
         function stylizeTitleText(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -764,6 +787,10 @@
             window.setTimeout(() => button.classList.remove('button-pressed'), 120);
         }
 
+        function runAfterNextPaint(callback) {
+            window.requestAnimationFrame(() => window.requestAnimationFrame(callback));
+        }
+
         function setupDraftContextButtons() {
             const regenerateButton = document.getElementById('regenerate-selected-context-quotes-btn');
             const editButton = document.getElementById('edit-context-quote-btn');
@@ -772,12 +799,18 @@
                 regenerateButton.dataset.bound = 'true';
                 regenerateButton.addEventListener('click', function() {
                     animateDraftToolButton(regenerateButton);
-                    const selectedRows = getSelectedContextQuoteRows();
-                    if (selectedRows.length === 0) {
+                    const indexes = getSelectedContextQuoteIndexes();
+                    if (indexes.length === 0) {
                         alert('Please check at least one context quote first.');
                         return;
                     }
-                    alert('Regenerate is selected for ' + selectedRows.length + ' context quote(s). The row-level regeneration workflow still needs to be connected to Sefaria, Dicta, and AI.');
+                    regenerateButton.disabled = true;
+                    regenerateButton.textContent = 'Regenerating...';
+                    runAfterNextPaint(() => {
+                        regenerateSelectedContextQuotes(regenerateButton, indexes).catch((error) => {
+                            alert(error && error.message ? error.message : 'Regeneration failed.');
+                        });
+                    });
                 });
             }
 
@@ -793,7 +826,9 @@
 
                     let firstEditable = null;
                     selectedRows.forEach(row => {
-                        row.querySelectorAll('.hebrew-text, .english-text').forEach(el => {
+                        const rowIndex = Number(row.dataset.rowIndex);
+                        if (Number.isInteger(rowIndex)) syncGeneratedRowFromDom(rowIndex);
+                        row.querySelectorAll('.hebrew-text, .english-text, .hebrew-citation, .english-citation').forEach(el => {
                             el.setAttribute('contenteditable', 'true');
                             el.classList.add('context-editing');
                             if (!firstEditable && el.classList.contains('english-text')) {
@@ -1578,6 +1613,310 @@ function updateTalmudModeVisibility() {
             }
         }
 
+
+
+        let generatedRows = [];
+
+        function getSelectedContextQuoteIndexes() {
+            return Array.from(document.querySelectorAll('.context-quote-checkbox:checked'))
+                .map(checkbox => Number(checkbox.dataset.rowIndex))
+                .filter(index => Number.isInteger(index) && index >= 0)
+                .filter((index, position, all) => all.indexOf(index) === position);
+        }
+
+        function refreshOriginalHebrewDatasets(scope = document) {
+            scope.querySelectorAll('.hebrew-word, .hebrew-text, .hebrew-citation').forEach(el => {
+                el.dataset.original = el.innerHTML;
+            });
+        }
+
+        function stripHtmlToText(html) {
+            const temp = document.createElement('div');
+            temp.innerHTML = String(html || '');
+            return temp.textContent || temp.innerText || '';
+        }
+
+        function syncGeneratedRowFromDom(rowIndex) {
+            const row = generatedRows[rowIndex];
+            const tr = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
+            if (!row || !tr) return;
+            const definitionEl = tr.querySelector('.col-english');
+            const hebrewTextEl = tr.querySelector('.hebrew-text');
+            const englishTextEl = tr.querySelector('.english-text');
+            const hebrewCitationEl = tr.querySelector('.hebrew-citation');
+            const englishCitationEl = tr.querySelector('.english-citation');
+            if (definitionEl) row.item.english = definitionEl.textContent.trim();
+            if (hebrewTextEl) row.hebrewContext = hebrewTextEl.textContent.trim();
+            if (englishTextEl) row.englishContext = englishTextEl.textContent.trim();
+            if (hebrewCitationEl) row.hebrewCitation = hebrewCitationEl.textContent.trim();
+            if (englishCitationEl) row.englishCitation = englishCitationEl.textContent.trim();
+        }
+
+        function cleanAiTextGlobal(text) {
+            return String(text || '')
+                .replace(/\*\*(.*?)\*\*/g, '$1')
+                .replace(/__(.*?)__/g, '$1')
+                .replace(/\*(.*?)\*/g, '$1')
+                .replace(/_(.*?)_/g, '$1')
+                .replace(/^["'“”‘’\s]+|["'“”‘’\s]+$/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        async function callTranslateBatchGlobal(prompts, options = {}) {
+            const chunkSize = Number.isInteger(options.chunkSize) ? options.chunkSize : 12;
+            const cleanedPrompts = prompts.map(p => String(p || '').trim()).filter(Boolean);
+            const allResults = [];
+            for (let i = 0; i < cleanedPrompts.length; i += chunkSize) {
+                const chunk = cleanedPrompts.slice(i, i + chunkSize);
+                try {
+                    const res = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompts: chunk })
+                    });
+                    if (!res.ok) throw new Error(`Batch translate failed with status ${res.status}`);
+                    const data = await res.json();
+                    const results = Array.isArray(data.results) ? data.results : [];
+                    for (let j = 0; j < chunk.length; j++) {
+                        allResults.push(results[j] && typeof results[j] === 'object' ? results[j] : { ok: false, error: data.firstError || 'Missing translation result.', text: '' });
+                    }
+                } catch (error) {
+                    for (let j = 0; j < chunk.length; j++) {
+                        allResults.push({ ok: false, error: error && error.message ? error.message : 'Translation request failed.', text: '' });
+                    }
+                }
+            }
+            return allResults;
+        }
+
+        async function callTranslateOneGlobal(promptText) {
+            const results = await callTranslateBatchGlobal([promptText], { chunkSize: 1 });
+            const result = results[0];
+            return result && result.ok && result.text ? cleanAiTextGlobal(result.text) : '';
+        }
+
+        function markEnglishCitationAsAiTranslationForRow(row) {
+            if (!row || !(row.sourceType === 'Tanakh' || row.sourceType === 'Talmud')) return;
+            if (!row.englishCitation) return;
+            if (/AI translation/i.test(row.englishCitation)) return;
+            row.englishCitation = `${row.englishCitation} - AI translation`;
+        }
+
+        function buildContextTranslationPromptForRow(row) {
+            if (row.sourceType === 'Modern Hebrew') {
+                return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${String(row.item.english || '').toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
+            }
+            return `Translate ONLY this Hebrew/Aramaic excerpt to concise, clear English: "${row.hebrewContext}". Make the result read naturally as an English sentence or phrase, but do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context, so the vocabulary word can be bolded later. Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
+        }
+
+        async function translateContextForRow(row) {
+            if (!row || !row.hebrewContext || row.hebrewContext === 'Word not found in context.') return '';
+            const translated = await callTranslateOneGlobal(buildContextTranslationPromptForRow(row));
+            if (translated) {
+                row.englishContext = translated;
+                markEnglishCitationAsAiTranslationForRow(row);
+            }
+            return translated;
+        }
+
+        function getCitationWithoutAiLabel(value) {
+            return String(value || '').replace(/\s*-\s*AI translation\s*$/i, '').trim();
+        }
+
+        function registerRejectedCurrentRefs(row) {
+            if (!row) return;
+            if (!Array.isArray(row.rejectedRefs)) row.rejectedRefs = [];
+            [row.lastSearchRef, row.lastHeRef, row.hebrewCitation, getCitationWithoutAiLabel(row.englishCitation)].forEach(ref => {
+                const value = String(ref || '').trim();
+                if (value && !row.rejectedRefs.includes(value)) row.rejectedRefs.push(value);
+            });
+        }
+
+        async function regenerateModernHebrewRow(row) {
+            const previous = row.hebrewContext && !/^\[/.test(row.hebrewContext) ? ` Do not reuse this sentence: "${row.hebrewContext}".` : '';
+            const generatedContext = await callTranslateOneGlobal(`Write exactly one different short, natural Modern Hebrew sentence using the expression "${row.semanticHebrew || row.cleanHebrew}" (meaning "${row.item.english}").${previous} Return ONLY the Hebrew sentence.`);
+            const cleaned = cleanGeneratedHebrew(generatedContext);
+            if (!cleaned || !containsHebrew(cleaned)) throw new Error('Modern Hebrew context generation failed.');
+            row.hebrewContext = await addNikkudWithDicta(cleaned, row.sourceType);
+            row.hebrewCitation = '';
+            row.englishCitation = 'Modern Hebrew Context - AI';
+            row.englishContext = '';
+            await translateContextForRow(row);
+        }
+
+        async function regenerateSefariaRow(row) {
+            registerRejectedCurrentRefs(row);
+            const searchResult = await performSefariaSearch(
+                row.searchHebrew || row.semanticHebrew || row.cleanHebrew || row.item.hebrew,
+                row.sourceType,
+                row.selectedTargets || [],
+                row.rejectedRefs || []
+            );
+            if (!searchResult) throw new Error('No alternate Sefaria context quote was found.');
+            row.hebrewContext = searchResult.he || '';
+            row.englishContext = searchResult.en || '';
+            row.rawSefariaEnglishContext = searchResult.sourceEnglish || searchResult.rawEn || '';
+            row.matchedHebrewCandidate = searchResult.matchedCandidate || row.searchHebrew || row.cleanHebrew;
+            row.lastSearchRef = searchResult.ref || '';
+            row.lastHeRef = searchResult.heRef || '';
+            const citationParts = formatSefariaCitation(searchResult.heRef, searchResult.ref, row.sourceType);
+            row.hebrewCitation = citationParts.hebrew;
+            row.englishCitation = citationParts.english;
+            row.citation = citationParts.combined;
+            if (!row.englishContext) await translateContextForRow(row);
+        }
+
+        async function regenerateContextForRow(rowIndex) {
+            const row = generatedRows[rowIndex];
+            const tr = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
+            if (!row || !tr) return;
+            syncGeneratedRowFromDom(rowIndex);
+            const contextCell = tr.querySelector('.col-context');
+            if (contextCell) contextCell.classList.add('context-regenerating');
+            try {
+                if (row.isAbbreviationEntry) throw new Error('Abbreviation expansion rows do not have alternate context quotations.');
+                if (row.sourceType === 'Tanakh' || row.sourceType === 'Talmud') {
+                    await regenerateSefariaRow(row);
+                } else if (row.sourceType === 'Modern Hebrew') {
+                    await regenerateModernHebrewRow(row);
+                } else {
+                    throw new Error('This row does not use context quotations.');
+                }
+                replaceRenderedRow(rowIndex);
+            } catch (error) {
+                if (contextCell) {
+                    contextCell.classList.remove('context-regenerating');
+                    let err = contextCell.querySelector('.context-row-error');
+                    if (!err) {
+                        err = document.createElement('div');
+                        err.className = 'context-row-error';
+                        contextCell.appendChild(err);
+                    }
+                    err.textContent = error && error.message ? error.message : 'Regeneration failed.';
+                }
+            }
+        }
+
+        async function regenerateSelectedContextQuotes(button, providedIndexes = null) {
+            const indexes = Array.isArray(providedIndexes) ? providedIndexes : getSelectedContextQuoteIndexes();
+            if (indexes.length === 0) {
+                alert('Please check at least one context quote first.');
+                return;
+            }
+            if (button) button.disabled = true;
+            try {
+                for (let i = 0; i < indexes.length; i++) {
+                    if (button) button.textContent = `Regenerating ${i + 1}/${indexes.length}...`;
+                    await regenerateContextForRow(indexes[i]);
+                    await new Promise(resolve => window.setTimeout(resolve, 0));
+                }
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Regenerate Selected Context Quotes ↺';
+                }
+            }
+        }
+
+        function normalizeHebrewForDisplayMatchGlobal(text) {
+            return String(text || '')
+                .replace(/[\u0591-\u05C7]/g, '')
+                .replace(/[^\u05D0-\u05EA\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function splitHebrewCandidatesGlobal(raw) {
+            return String(raw || '').split(/\s*(?:\/|-)\s*/).map(s => s.trim()).filter(Boolean);
+        }
+
+        function buildStrictHighlightRegexGlobal(candidate) {
+            const cleaned = String(candidate || '').trim();
+            if (!cleaned) return null;
+            const words = cleaned.split(/\s+/).filter(Boolean);
+            if (!words.length) return null;
+            const buildWordPattern = (word) => word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
+            const firstWordPattern = buildWordPattern(words[0]);
+            if (words.length === 1) {
+                if (words[0].replace(/[\u0591-\u05C7]/g, '').length <= 3) {
+                    return new RegExp(`(^|[^\\u05D0-\\u05EA])(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`, 'u');
+                }
+                return new RegExp(`(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`, 'u');
+            }
+            const remainingPatterns = words.slice(1).map(buildWordPattern).join('[\\s\\p{P}]+');
+            return new RegExp(`(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern}(?:[\\s\\p{P}]+${remainingPatterns}))(?=[^\\u05D0-\\u05EA]|$)`, 'u');
+        }
+
+        function highlightHebrewContext(row) {
+            const hebrewContext = String(row.hebrewContext || '');
+            let highlightedHebrew = hebrewContext;
+            const candidates = splitHebrewCandidatesGlobal(row.matchedHebrewCandidate).sort((a, b) => b.length - a.length);
+            for (const candidate of candidates) {
+                const regex = buildStrictHighlightRegexGlobal(candidate);
+                if (!regex) continue;
+                const match = hebrewContext.match(regex);
+                if (!match) continue;
+                if (match.length >= 4) highlightedHebrew = hebrewContext.replace(regex, `$1$2<span style="font-weight:bold;">$3</span>`);
+                else if (match.length >= 3) highlightedHebrew = hebrewContext.replace(regex, `$1<span style="font-weight:bold;">$2</span>`);
+                else highlightedHebrew = hebrewContext.replace(regex, `<span style="font-weight:bold;">$&</span>`);
+                break;
+            }
+            return highlightedHebrew;
+        }
+
+        function highlightEnglishContext(row) {
+            let highlightedEnglish = String(row.englishContext || '');
+            const englishCandidates = String(row.item && row.item.english || '')
+                .split(/[,;/]+/)
+                .map(s => s.trim())
+                .filter(Boolean)
+                .flatMap(s => {
+                    const withoutParens = s.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+                    return withoutParens && withoutParens !== s ? [s, withoutParens] : [s];
+                })
+                .filter((v, i, a) => v && a.indexOf(v) === i)
+                .sort((a, b) => b.length - a.length);
+            for (const candidate of englishCandidates) {
+                const safeCandidate = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const isSingleWord = !/\s/.test(candidate);
+                const regex = isSingleWord ? new RegExp(`\\b${safeCandidate}(?:s|es|ed|ing)?\\b`, 'i') : new RegExp(`\\b${safeCandidate}\\b`, 'i');
+                if (regex.test(highlightedEnglish)) {
+                    highlightedEnglish = highlightedEnglish.replace(regex, `<span style="font-weight:bold;">$&</span>`);
+                    break;
+                }
+            }
+            return highlightedEnglish;
+        }
+
+        function renderVocabularyRow(row, rowIndex) {
+            const highlightedHebrew = highlightHebrewContext(row);
+            const highlightedEnglish = highlightEnglishContext(row);
+            return `
+                    <tr data-row-index="${rowIndex}">
+                        <td class="col-hebrew"><span class="hebrew-word">${row.item.hebrew}</span></td>
+                        <td class="col-english" contenteditable="true">${row.item.english}</td>
+                        <td class="col-context">
+                            <div class="hebrew-text">${highlightedHebrew}</div>
+                            ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl">${row.hebrewCitation}</div>` : ''}
+                            <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
+                            <div class="english-citation-row">
+                                ${row.englishCitation ? `<div class="citation english-citation" dir="ltr">${row.englishCitation}</div>` : '<div class="citation english-citation" dir="ltr"></div>'}
+                                <label class="context-row-checkbox-slot" aria-label="Select this context quote"><input type="checkbox" class="context-quote-checkbox" data-row-index="${rowIndex}"></label>
+                            </div>
+                        </td>
+                    </tr>`;
+        }
+
+        function replaceRenderedRow(rowIndex) {
+            const oldRow = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
+            if (!oldRow || !generatedRows[rowIndex]) return;
+            oldRow.outerHTML = renderVocabularyRow(generatedRows[rowIndex], rowIndex);
+            const newRow = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
+            if (newRow) refreshOriginalHebrewDatasets(newRow);
+            updateTextDisplay();
+        }
+
         generateBtn.addEventListener('click', async () => {
             const title = document.getElementById('list-title').value.trim();
             const rawInput = document.getElementById('word-list').value.trim();
@@ -1605,6 +1944,17 @@ function updateTalmudModeVisibility() {
                 return;
             }
 
+            const vocabProblems = getVocabularyInputProblems(rawInput);
+            if (vocabProblems.length > 0) {
+                updateVocabInputWarning();
+                const badLines = vocabProblems.map(problem => problem.line).join(', ');
+                alert(`${VOCAB_INPUT_WARNING_TEXT} Problem line(s): ${badLines}.`);
+                pageContainer.style.display = 'none';
+                const draftContextToolsForValidation = document.getElementById('draft-context-tools');
+                if (draftContextToolsForValidation) draftContextToolsForValidation.classList.remove('visible');
+                return;
+            }
+
             generateBtn.disabled = true;
             vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
             pageContainer.style.display = 'block';
@@ -1613,17 +1963,6 @@ function updateTalmudModeVisibility() {
             applyTitleText(title);
 
             try {
-                const vocabProblems = getVocabularyInputProblems(rawInput);
-                if (vocabProblems.length > 0) {
-                    updateVocabInputWarning();
-                    const badLines = vocabProblems.map(problem => problem.line).join(', ');
-                    alert(`${VOCAB_INPUT_WARNING_TEXT} Problem line(s): ${badLines}.`);
-                    pageContainer.style.display = 'none';
-                    const draftContextTools = document.getElementById('draft-context-tools');
-                    if (draftContextTools) draftContextTools.classList.remove('visible');
-                    return;
-                }
-
                 let lines = rawInput.split('\n').filter(line => line.trim() !== '');
                 let vocabList = lines.map(line => {
                     const parsed = parseVocabularyLine(line);
@@ -1784,6 +2123,8 @@ function updateTalmudModeVisibility() {
                             row.hebrewCitation = citationParts.hebrew;
                             row.englishCitation = citationParts.english;
                             row.citation = citationParts.combined;
+                            row.lastSearchRef = searchResult.ref || '';
+                            row.lastHeRef = searchResult.heRef || '';
                         } else {
                             row.hebrewContext = "Word not found in context.";
                         }
@@ -1872,7 +2213,6 @@ function updateTalmudModeVisibility() {
                                     row.item.english,
                                     row.hebrewContext
                                 );
-                                markEnglishCitationAsAiTranslation(row);
                             }
                         });
                     } catch (e) {
@@ -1882,133 +2222,24 @@ function updateTalmudModeVisibility() {
                                 preparedItems[rowIndex].item.english,
                                 preparedItems[rowIndex].hebrewContext
                             );
-                            markEnglishCitationAsAiTranslation(preparedItems[rowIndex]);
                         });
                     }
                 }
 
-                for (const row of preparedItems) {
-                    const { item, hebrewContext, englishContext, hebrewCitation, englishCitation, matchedHebrewCandidate } = row;
+                const generationSelectedTargets = getSelectedSourceTargets();
+                generatedRows = preparedItems.map((row, index) => {
+                    row.rowIndex = index;
+                    row.sourceType = sourceType;
+                    row.selectedTargets = generationSelectedTargets.slice();
+                    row.rejectedRefs = [];
+                    row.lastSearchRef = row.lastSearchRef || getCitationWithoutAiLabel(row.englishCitation);
+                    row.lastHeRef = row.lastHeRef || row.hebrewCitation || '';
+                    return row;
+                });
 
-                    function normalizeHebrewForDisplayMatch(text) {
-                        return String(text || '')
-                            .replace(/[\u0591-\u05C7]/g, '')
-                            .replace(/[^\u05D0-\u05EA\s]/g, ' ')
-                            .replace(/\s+/g, ' ')
-                            .trim();
-                    }
-
-                    function splitHebrewCandidates(raw) {
-                        return String(raw || '')
-                            .split(/\s*(?:\/|-)\s*/)
-                            .map(s => s.trim())
-                            .filter(Boolean);
-                    }
-
-                    function buildStrictHighlightRegex(candidate) {
-                        const cleaned = String(candidate || '').trim();
-                        if (!cleaned) return null;
-
-                        const words = cleaned.split(/\s+/).filter(Boolean);
-                        if (!words.length) return null;
-
-                        const buildWordPattern = (word) =>
-                            word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
-
-                        const firstWordPattern = buildWordPattern(words[0]);
-
-                        if (words.length === 1) {
-                            if (words[0].replace(/[\u0591-\u05C7]/g, '').length <= 3) {
-                                return new RegExp(
-                                    `(^|[^\\u05D0-\\u05EA])(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`,
-                                    'u'
-                                );
-                            }
-
-                            return new RegExp(
-                                `(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`,
-                                'u'
-                            );
-                        }
-
-                        const remainingPatterns = words
-                            .slice(1)
-                            .map(buildWordPattern)
-                            .join('[\\s\\p{P}]+');
-
-                        return new RegExp(
-                            `(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern}(?:[\\s\\p{P}]+${remainingPatterns}))(?=[^\\u05D0-\\u05EA]|$)`,
-                            'u'
-                        );
-                    }
-
-                    let highlightedHebrew = hebrewContext;
-                    const hebrewCandidatesForHighlight = splitHebrewCandidates(matchedHebrewCandidate)
-                        .sort((a, b) => b.length - a.length);
-
-                    for (const candidate of hebrewCandidatesForHighlight) {
-                        const regex = buildStrictHighlightRegex(candidate);
-                        if (!regex) continue;
-
-                        const match = hebrewContext.match(regex);
-                        if (!match) continue;
-
-                        if (match.length >= 4) {
-                            highlightedHebrew = hebrewContext.replace(regex, `$1$2<span style="font-weight:bold;">$3</span>`);
-                        } else if (match.length >= 3) {
-                            highlightedHebrew = hebrewContext.replace(regex, `$1<span style="font-weight:bold;">$2</span>`);
-                        } else {
-                            highlightedHebrew = hebrewContext.replace(regex, `<span style="font-weight:bold;">$&</span>`);
-                        }
-                        break;
-                    }
-
-let displayEnglish = englishContext;
-
-let englishCandidates = String(item.english || "")
-    .split(/[,;/]+/)
-    .map(s => s.trim())
-    .filter(Boolean)
-    .flatMap(s => {
-        const withoutParens = s.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
-        return withoutParens && withoutParens !== s ? [s, withoutParens] : [s];
-    })
-    .filter((v, i, a) => v && a.indexOf(v) === i)
-    .sort((a, b) => b.length - a.length);
-
-let highlightedEnglish = displayEnglish;
-
-for (const candidate of englishCandidates) {
-    const safeCandidate = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const isSingleWord = !/\s/.test(candidate);
-
-    const regex = isSingleWord
-        ? new RegExp(`\\b${safeCandidate}(?:s|es|ed|ing)?\\b`, 'i')
-        : new RegExp(`\\b${safeCandidate}\\b`, 'i');
-
-    if (regex.test(highlightedEnglish)) {
-        highlightedEnglish = highlightedEnglish.replace(regex, `<span style="font-weight:bold;">$&</span>`);
-        break;
-    }
-}
-
-                    htmlOutput += `
-                    <tr>
-                        <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
-                        <td class="col-english" contenteditable="true">${item.english}</td>
-                        <td class="col-context">
-                            <div class="hebrew-text">${highlightedHebrew}</div>
-                            ${hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl">${hebrewCitation}</div>` : ''}
-                            <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
-                            <div class="english-citation-row">
-                                ${englishCitation ? `<div class="citation english-citation" dir="ltr">${englishCitation}</div>` : '<div class="citation english-citation" dir="ltr"></div>'}
-                                <label class="context-row-checkbox-slot" aria-label="Select this context quote"><input type="checkbox" class="context-quote-checkbox"></label>
-                            </div>
-                        </td>
-                    </tr>`;
-                }
+                htmlOutput = generatedRows.map((row, index) => renderVocabularyRow(row, index)).join('');
                 vocabTbody.innerHTML = htmlOutput;
-                document.querySelectorAll('.hebrew-word, .hebrew-text, .hebrew-citation').forEach(el => el.dataset.original = el.innerHTML);
+                refreshOriginalHebrewDatasets();
                 updateTextDisplay();
             } catch (e) {
                 vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
@@ -2016,8 +2247,26 @@ for (const candidate of englishCandidates) {
         });
 
         // --- SEARCH LOGIC: SELECTED CHAPTER/DAF -> SELECTED BOOK/MASSECHET -> WHOLE CORPUS ---
-        async function performSefariaSearch(word, corpus, selectedTargets = []) {
+        async function performSefariaSearch(word, corpus, selectedTargets = [], excludeRefs = []) {
             const cleanWord = word.replace(/[\u0591-\u05C7]/g, '').trim();
+
+            const normalizeRefForExclusion = (ref) => String(ref || '')
+                .replace(/\s*-\s*AI translation\s*$/i, '')
+                .replace(/:\d+(?:-\d+)?$/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            const excludedRefSet = new Set((Array.isArray(excludeRefs) ? excludeRefs : [])
+                .map(normalizeRefForExclusion)
+                .filter(Boolean));
+            const isExcludedRef = (ref) => {
+                const normalized = normalizeRefForExclusion(ref);
+                return !!normalized && excludedRefSet.has(normalized);
+            };
+            const isExcludedMatch = (found) => !!found && (
+                isExcludedRef(found.ref) ||
+                isExcludedRef(found.heRef) ||
+                isExcludedRef(found.sourceRef)
+            );
 
             const getEnglishName = async (b) => {
                 if (!b || b === 'ANY') return null;
@@ -2383,9 +2632,11 @@ for (const candidate of englishCandidates) {
             }
 
             async function fetchRefAndFindMatch(ref, dafLabel = null) {
+                if (isExcludedRef(ref) || isExcludedRef(dafLabel)) return null;
                 const data = await fetchRefData(ref, dafLabel);
                 if (!data) return null;
-                return findMatchInArrays(data.heArray, data.enArray, data.ref, data.heRef, dafLabel || ref);
+                const found = findMatchInArrays(data.heArray, data.enArray, data.ref, data.heRef, dafLabel || ref);
+                return isExcludedMatch(found) ? null : found;
             }
 
             function scoreMatch(found, preferredRef = null) {
@@ -2405,7 +2656,7 @@ for (const candidate of englishCandidates) {
             }
 
             function pickBestMatch(matches, preferredRef = null) {
-                const validMatches = matches.filter(Boolean);
+                const validMatches = matches.filter(match => match && !isExcludedMatch(match));
                 if (!validMatches.length) return null;
 
                 let bestMatch = validMatches[0];
@@ -2444,7 +2695,7 @@ for (const candidate of englishCandidates) {
                     for (const hit of data.hits.hits) {
                         const ref = hit._source?.ref || hit._id.split(' (')[0];
 
-                        if (!isAllowedSefariaRef(ref)) {
+                        if (!isAllowedSefariaRef(ref) || isExcludedRef(ref)) {
                             continue;
                         }
 
@@ -2596,7 +2847,7 @@ for (const candidate of englishCandidates) {
                         const perekIndex = parseInt(target.value, 10);
                         const perekData = await buildTalmudPerekData(englishBook, target.book);
                         if (perekData && Number.isFinite(perekIndex) && perekData.perakim[perekIndex]) {
-                            directMatches.push(findMatchInSegments(perekData.perakim[perekIndex]));
+                            { const perekMatch = findMatchInSegments(perekData.perakim[perekIndex]); if (!isExcludedMatch(perekMatch)) directMatches.push(perekMatch); }
                         }
                         continue;
                     }

@@ -461,7 +461,7 @@
 
             <div class="form-group">
                 <label for="word-list">Vocabulary List (Hebrew, English):</label>
-                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא, there is&#10;(A translation into Hebrew or English will be generated if none is provided)"></textarea>
+                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא, there is&#10;(Hebrew is required. English definitions are optional and can be generated if omitted.)"></textarea>
             </div>
 
             <div class="form-group checkbox-group" style="margin-bottom: 15px;">
@@ -571,27 +571,22 @@
     </div>
 
     <script>
-        function titleTextHasHebrew(text) {
-            return /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(String(text || ''));
-        }
-
-        function splitTitleTextIntoRuns(text) {
-            const titleText = String(text || '');
-            return titleText.match(/[\u0590-\u05FF\uFB1D-\uFB4F]+|[^\u0590-\u05FF\uFB1D-\uFB4F]+/g) || [];
+        function stylizeTitleText(text) {
+            return String(text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/([\u0590-\u05FF\uFB1D-\uFB4F][\u0590-\u05FF\uFB1D-\uFB4F\s'"׳״-]*)/g, '<span class="title-hebrew">$1</span>')
+                .replace(/([^<]+)/g, function(part) {
+                    return part.includes('title-hebrew') ? part : '<span class="title-english">' + part + '</span>';
+                })
+                .replace(/<span class="title-english"><\/span>/g, '');
         }
 
         function applyTitleText(rawTitle) {
             const titleEl = document.getElementById('doc-title');
             if (!titleEl) return;
-
-            titleEl.textContent = '';
-
-            splitTitleTextIntoRuns(rawTitle).forEach(part => {
-                const span = document.createElement('span');
-                span.className = titleTextHasHebrew(part) ? 'title-hebrew' : 'title-english';
-                span.textContent = part;
-                titleEl.appendChild(span);
-            });
+            titleEl.innerHTML = stylizeTitleText(rawTitle);
         }
 
         function contextQuotesEnabled() {
@@ -1309,10 +1304,15 @@ function updateTalmudModeVisibility() {
 
             try {
                 let lines = rawInput.split('\n').filter(line => line.trim() !== '');
-                let vocabList = lines.map(line => {
+                const invalidVocabLines = [];
+                let vocabList = lines.map((line, lineIndex) => {
                     let parts = line.split(/[,\t]+/).map(p => p.trim()).filter(p => p.length > 0);
                     let hebrew = parts.shift() || "";
                     let english = parts.join(', ');
+
+                    if (!containsHebrew(hebrew)) {
+                        invalidVocabLines.push(lineIndex + 1);
+                    }
                     
                     return {
                         hebrew: hebrew,
@@ -1320,6 +1320,12 @@ function updateTalmudModeVisibility() {
                         expandedHebrew: ""
                     };
                 });
+
+                if (invalidVocabLines.length > 0) {
+                    alert(`Each vocabulary word must start with Hebrew. Please fix line${invalidVocabLines.length === 1 ? '' : 's'} ${invalidVocabLines.join(', ')}. Use either "עברית" or "עברית, English definition".`);
+                    pageContainer.style.display = 'none';
+                    return;
+                }
 
                 let htmlOutput = "";
 
@@ -1384,56 +1390,6 @@ function updateTalmudModeVisibility() {
                         return "[Auto-translation unavailable]";
                     }
                     return "";
-                }
-
-                function englishToHebrewPrompt(englishText, sourceTypeValue) {
-                    const value = String(englishText || '').trim();
-                    if (sourceTypeValue === 'Talmud') {
-                        return `Translate this English vocabulary item into the most likely Talmudic Hebrew or Aramaic word or short expression: "${value}". Return ONLY the Hebrew/Aramaic word or short expression, with no English, punctuation, labels, or explanation.`;
-                    }
-                    if (sourceTypeValue === 'Tanakh') {
-                        return `Translate this English vocabulary item into the most likely Biblical Hebrew word or short expression: "${value}". Return ONLY the Hebrew word or short expression, with no English, punctuation, labels, or explanation.`;
-                    }
-                    return `Translate this English vocabulary item into natural Hebrew as a vocabulary word or short expression: "${value}". Return ONLY the Hebrew word or short expression, with no English, punctuation, labels, or explanation.`;
-                }
-
-                const englishInputPrompts = [];
-                const englishInputIndexes = [];
-
-                vocabList.forEach((item, index) => {
-                    const enteredWord = String(item.hebrew || '').trim();
-                    if (isEnglishOnly(enteredWord)) {
-                        item.originalEnglishInput = enteredWord;
-                        item.inputLanguage = 'english';
-                        item.english = item.english || enteredWord;
-                        englishInputIndexes.push(index);
-                        englishInputPrompts.push(englishToHebrewPrompt(enteredWord, sourceType));
-                    } else {
-                        item.inputLanguage = containsHebrew(enteredWord) ? 'hebrew' : 'unknown';
-                    }
-                });
-
-                if (englishInputPrompts.length > 0) {
-                    try {
-                        const englishInputResults = await callTranslateBatch(englishInputPrompts);
-                        englishInputIndexes.forEach((itemIndex, batchIndex) => {
-                            const result = englishInputResults[batchIndex];
-                            const generatedHebrew = result && result.ok ? cleanGeneratedHebrew(result.text) : '';
-
-                            if (containsHebrewOnlyCandidate(generatedHebrew)) {
-                                vocabList[itemIndex].hebrew = generatedHebrew;
-                                vocabList[itemIndex].translatedFromEnglish = true;
-                            } else {
-                                vocabList[itemIndex].hebrew = vocabList[itemIndex].originalEnglishInput;
-                                vocabList[itemIndex].translationError = true;
-                            }
-                        });
-                    } catch (e) {
-                        englishInputIndexes.forEach((itemIndex) => {
-                            vocabList[itemIndex].hebrew = vocabList[itemIndex].originalEnglishInput;
-                            vocabList[itemIndex].translationError = true;
-                        });
-                    }
                 }
 
                 if (document.getElementById('alphabetize-list').checked) {
@@ -1557,9 +1513,9 @@ function updateTalmudModeVisibility() {
                         } else {
                             row.hebrewContext = "Word not found in context.";
                         }
-                        row.citation = "Modern Hebrew Context";
+                        row.citation = "Modern Hebrew Context - AI";
                         row.hebrewCitation = "";
-                        row.englishCitation = `<span>(AI translation)</span><br><span>Modern Hebrew Context</span>`;
+                        row.englishCitation = "Modern Hebrew Context - AI";
                     }
                 }
 
@@ -1605,6 +1561,9 @@ function updateTalmudModeVisibility() {
 
                             if (text) {
                                 row.englishContext = text;
+                                if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
+                                    row.englishCitation = `${row.englishCitation || row.citation || ''} - AI translation`;
+                                }
                             } else {
                                 row.englishContext = fallbackEnglishContext(
                                     sourceType,

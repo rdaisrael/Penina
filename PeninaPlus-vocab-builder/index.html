@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Penina Vocab Builder build: regenerate-connected-2026-05-19-1905 -->
+    <!-- Penina Vocab Builder build: regenerate-connected-2026-05-19-semantic-context -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
@@ -693,7 +693,7 @@
     </div>
 
     <script>
-        const PENINA_BUILD_ID = 'regenerate-connected-2026-05-19-1905';
+        const PENINA_BUILD_ID = 'regenerate-connected-2026-05-19-semantic-context';
         function stylizeTitleText(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -1616,6 +1616,7 @@ function updateTalmudModeVisibility() {
 
 
         let generatedRows = [];
+        const semanticContextValidationCache = new Map();
 
         function getSelectedContextQuoteIndexes() {
             return Array.from(document.querySelectorAll('.context-quote-checkbox:checked'))
@@ -1751,7 +1752,8 @@ function updateTalmudModeVisibility() {
                 row.searchHebrew || row.semanticHebrew || row.cleanHebrew || row.item.hebrew,
                 row.sourceType,
                 row.selectedTargets || [],
-                row.rejectedRefs || []
+                row.rejectedRefs || [],
+                row.item && row.item.english
             );
             if (!searchResult) throw new Error('No alternate Sefaria context quote was found.');
             row.hebrewContext = searchResult.he || '';
@@ -2068,6 +2070,40 @@ function updateTalmudModeVisibility() {
                     });
                 }
 
+                async function translateSingleVocabularyDefinition(row) {
+                    const sourceHint = sourceType === 'No Context Quotes' ? 'general Hebrew/Aramaic' : sourceType;
+                    const promptsToTry = [
+                        `Translate this Hebrew or Aramaic vocabulary word into a concise English classroom definition: "${row.semanticHebrew}". Source/context category hint: ${sourceHint}. Return ONLY the English definition. Do not return labels, Markdown, brackets, or explanations.`,
+                        `What is the English meaning of the standalone Hebrew/Aramaic vocabulary word "${row.cleanHebrew}"? Return ONLY a short English definition.`
+                    ];
+
+                    for (const promptText of promptsToTry) {
+                        try {
+                            const res = await fetch('/api/translate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ promptText })
+                            });
+
+                            if (!res.ok) continue;
+                            const data = await res.json();
+                            const cleaned = String(data.text || '')
+                                .replace(/^[,.:;\s\-–—]+|[,.:;\s\-–—]+$/g, '')
+                                .replace(/^translation unavailable$/i, '')
+                                .replace(/^unavailable$/i, '')
+                                .trim();
+
+                            if (cleaned && /[A-Za-z]/.test(cleaned)) {
+                                return cleaned;
+                            }
+                        } catch (_) {
+                            // Try the next prompt.
+                        }
+                    }
+
+                    return '';
+                }
+
                 const definitionPrompts = [];
                 const definitionIndexesNeedingTranslation = [];
 
@@ -2076,27 +2112,41 @@ function updateTalmudModeVisibility() {
 
                     if (!row.item.english) {
                         definitionIndexesNeedingTranslation.push(i);
-                        definitionPrompts.push(`Translate this Hebrew vocabulary item into concise English according to the ${sourceType} category: "${row.semanticHebrew}". Return ONLY the English translation.`);
+                        definitionPrompts.push(`Translate this Hebrew or Aramaic vocabulary word into a concise English classroom definition: "${row.semanticHebrew}". Source/context category hint: ${sourceType}. Return ONLY the English definition. Do not return labels, Markdown, brackets, or explanations.`);
                     }
                 }
 
                 if (definitionPrompts.length > 0) {
+                    const indexesStillNeedingDefinition = [];
+
                     try {
-                        const definitionResults = await callTranslateBatch(definitionPrompts);
+                        const definitionResults = await callTranslateBatch(definitionPrompts, { chunkSize: 6 });
                         definitionIndexesNeedingTranslation.forEach((rowIndex, batchIndex) => {
                             const result = definitionResults[batchIndex];
-                            if (result && result.ok && result.text) {
-                                preparedItems[rowIndex].item.english = String(result.text).replace(/^[,.\s]+|[,.\s]+$/g, "");
+                            const cleaned = result && result.ok && result.text
+                                ? String(result.text)
+                                      .replace(/^[,.:;\s\-–—]+|[,.:;\s\-–—]+$/g, "")
+                                      .replace(/^translation unavailable$/i, "")
+                                      .replace(/^unavailable$/i, "")
+                                      .trim()
+                                : "";
+
+                            if (cleaned && /[A-Za-z]/.test(cleaned)) {
+                                preparedItems[rowIndex].item.english = cleaned;
                             } else {
-                                preparedItems[rowIndex].item.english = "[Translation unavailable]";
+                                indexesStillNeedingDefinition.push(rowIndex);
                             }
                         });
                     } catch (e) {
-                        definitionIndexesNeedingTranslation.forEach((rowIndex) => {
-                            preparedItems[rowIndex].item.english = "[Translation unavailable]";
-                        });
+                        indexesStillNeedingDefinition.push(...definitionIndexesNeedingTranslation);
+                    }
+
+                    for (const rowIndex of indexesStillNeedingDefinition) {
+                        const fallbackDefinition = await translateSingleVocabularyDefinition(preparedItems[rowIndex]);
+                        preparedItems[rowIndex].item.english = fallbackDefinition || "[Definition unavailable]";
                     }
                 }
+
 
                 for (const row of preparedItems) {
                     const { item, semanticHebrew, searchHebrew, isAbbreviationEntry } = row;
@@ -2113,7 +2163,7 @@ function updateTalmudModeVisibility() {
                         row.englishCitation = "Expanded abbreviation / acronym";
                         row.matchedHebrewCandidate = semanticHebrew;
                     } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                        let searchResult = await performSefariaSearch(searchHebrew, sourceType, getSelectedSourceTargets());
+                        let searchResult = await performSefariaSearch(searchHebrew, sourceType, getSelectedSourceTargets(), [], item.english);
                         if (searchResult) {
                             row.hebrewContext = searchResult.he || "";
                             row.englishContext = searchResult.en || "";
@@ -2247,7 +2297,7 @@ function updateTalmudModeVisibility() {
         });
 
         // --- SEARCH LOGIC: SELECTED CHAPTER/DAF -> SELECTED BOOK/MASSECHET -> WHOLE CORPUS ---
-        async function performSefariaSearch(word, corpus, selectedTargets = [], excludeRefs = []) {
+        async function performSefariaSearch(word, corpus, selectedTargets = [], excludeRefs = [], intendedEnglish = '') {
             const cleanWord = word.replace(/[\u0591-\u05C7]/g, '').trim();
 
             const normalizeRefForExclusion = (ref) => String(ref || '')
@@ -2317,6 +2367,86 @@ function updateTalmudModeVisibility() {
             }
 
             const searchCandidates = splitSearchCandidates(cleanWord);
+            const intendedEnglishMeaning = String(intendedEnglish || '')
+                .replace(/^\s*\[?definition unavailable\]?\s*$/i, '')
+                .replace(/^\s*\[?translation unavailable\]?\s*$/i, '')
+                .trim();
+
+            function normalizeEnglishMeaning(text) {
+                return String(text || '')
+                    .toLowerCase()
+                    .replace(/<[^>]*>/g, ' ')
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/[^a-z0-9\s'-]/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            function getMeaningKeywords(text) {
+                const stopwords = new Set([
+                    'a','an','and','are','as','at','be','by','for','from','in','into','is','it','of','on','or','the','to','with',
+                    'this','that','these','those','one','someone','something','thing','person','people','used','means','meaning'
+                ]);
+                return normalizeEnglishMeaning(text)
+                    .split(/\s+/)
+                    .map(token => token.replace(/^[-']+|[-']+$/g, ''))
+                    .filter(token => token.length >= 3 && !stopwords.has(token))
+                    .filter((token, index, all) => all.indexOf(token) === index);
+            }
+
+            function englishTextHasIntendedMeaning(englishText) {
+                if (!intendedEnglishMeaning) return true;
+                const normalizedEnglish = normalizeEnglishMeaning(englishText);
+                if (!normalizedEnglish) return false;
+                const keywords = getMeaningKeywords(intendedEnglishMeaning);
+                if (!keywords.length) return true;
+                return keywords.some(keyword => {
+                    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const plural = keyword.endsWith('y')
+                        ? `${keyword.slice(0, -1)}(?:y|ies)`
+                        : `${keyword}(?:s|es)?`;
+                    return new RegExp(`(^|\\s)${escaped}(?:s|es)?($|\\s)`, 'i').test(normalizedEnglish) ||
+                        new RegExp(`(^|\\s)${plural}($|\\s)`, 'i').test(normalizedEnglish);
+                });
+            }
+
+            async function semanticMatchIsAcceptable(found) {
+                if (!found || !intendedEnglishMeaning) return true;
+
+                const existingEnglish = String(found.sourceEnglish || found.rawEn || found.en || '').trim();
+                if (englishTextHasIntendedMeaning(existingEnglish)) return true;
+
+                const cacheKey = [
+                    normalizeHebrewForMatch(cleanWord),
+                    normalizeEnglishMeaning(intendedEnglishMeaning),
+                    normalizeRefForExclusion(found.ref || found.heRef || ''),
+                    normalizeHebrewForMatch(found.he || '')
+                ].join('||');
+
+                if (semanticContextValidationCache.has(cacheKey)) {
+                    return semanticContextValidationCache.get(cacheKey);
+                }
+
+                const validationPrompt = `A Hebrew vocabulary worksheet is looking for a source quote where the vocabulary word has the intended meaning.\n\nVocabulary Hebrew: ${cleanWord}\nIntended English meaning: ${intendedEnglishMeaning}\nMatched Hebrew candidate in quote: ${found.matchedCandidate || cleanWord}\nHebrew quote: ${found.he || ''}\nExisting English translation, if available: ${existingEnglish || '(none)'}\n\nDoes the matched Hebrew word in this quote mean the intended English meaning? Answer only YES or NO.`;
+
+                try {
+                    const answer = await callTranslateOneGlobal(validationPrompt);
+                    const accepted = /^yes\b/i.test(answer);
+                    semanticContextValidationCache.set(cacheKey, accepted);
+                    return accepted;
+                } catch (_) {
+                    // If there is no Sefaria English to check, allow the match rather than breaking Talmud searches when AI is unavailable.
+                    // If there is Sefaria English and it does not match the intended meaning, reject on AI failure.
+                    const accepted = !existingEnglish;
+                    semanticContextValidationCache.set(cacheKey, accepted);
+                    return accepted;
+                }
+            }
+
+            async function acceptIfSemanticallyValid(found) {
+                if (!found || isExcludedMatch(found)) return null;
+                return await semanticMatchIsAcceptable(found) ? found : null;
+            }
 
             function refStartsWithBook(ref, bookName) {
                 if (!ref || !bookName) return false;
@@ -2636,7 +2766,7 @@ function updateTalmudModeVisibility() {
                 const data = await fetchRefData(ref, dafLabel);
                 if (!data) return null;
                 const found = findMatchInArrays(data.heArray, data.enArray, data.ref, data.heRef, dafLabel || ref);
-                return isExcludedMatch(found) ? null : found;
+                return await acceptIfSemanticallyValid(found);
             }
 
             function scoreMatch(found, preferredRef = null) {
@@ -2847,7 +2977,7 @@ function updateTalmudModeVisibility() {
                         const perekIndex = parseInt(target.value, 10);
                         const perekData = await buildTalmudPerekData(englishBook, target.book);
                         if (perekData && Number.isFinite(perekIndex) && perekData.perakim[perekIndex]) {
-                            { const perekMatch = findMatchInSegments(perekData.perakim[perekIndex]); if (!isExcludedMatch(perekMatch)) directMatches.push(perekMatch); }
+                            { const perekMatch = await acceptIfSemanticallyValid(findMatchInSegments(perekData.perakim[perekIndex])); if (perekMatch) directMatches.push(perekMatch); }
                         }
                         continue;
                     }

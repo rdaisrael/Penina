@@ -350,10 +350,30 @@
             color: #ffffff;
             font-size: 13px;
             font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+            border: 1px solid rgba(0,0,0,0.18);
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.20), 0 6px 10px rgba(0,0,0,0.12);
+            transition: transform 0.06s ease, box-shadow 0.06s ease, filter 0.15s ease;
         }
-        #regenerate-selected-context-quotes-btn { background-color: #f8d7da; color: #721c24; }
-        #edit-context-quote-btn { background-color: #0056b3; }
+        .draft-tools-buttons button:hover { filter: brightness(0.97); }
+        .draft-tools-buttons button:active,
+        .draft-tools-buttons button.button-pressed {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.24), 0 2px 4px rgba(0,0,0,0.16) inset;
+        }
+        #regenerate-selected-context-quotes-btn {
+            background-color: #f5b8be !important;
+            color: #5f1118 !important;
+        }
+        #edit-context-quote-btn {
+            background-color: #0056b3 !important;
+            color: #ffffff !important;
+        }
+        .context-editing {
+            outline: 2px solid #0056b3;
+            outline-offset: 2px;
+            background-color: #f7fbff;
+        }
         .english-citation-row {
             display: flex;
             align-items: center;
@@ -731,6 +751,63 @@
         if (contextQuotesCheckbox) {
             contextQuotesCheckbox.addEventListener('change', updateViewModeLock);
         }
+
+        function getSelectedContextQuoteRows() {
+            return Array.from(document.querySelectorAll('.context-quote-checkbox:checked'))
+                .map(checkbox => checkbox.closest('tr'))
+                .filter(Boolean);
+        }
+
+        function animateDraftToolButton(button) {
+            if (!button) return;
+            button.classList.add('button-pressed');
+            window.setTimeout(() => button.classList.remove('button-pressed'), 120);
+        }
+
+        function setupDraftContextButtons() {
+            const regenerateButton = document.getElementById('regenerate-selected-context-quotes-btn');
+            const editButton = document.getElementById('edit-context-quote-btn');
+
+            if (regenerateButton && !regenerateButton.dataset.bound) {
+                regenerateButton.dataset.bound = 'true';
+                regenerateButton.addEventListener('click', function() {
+                    animateDraftToolButton(regenerateButton);
+                    const selectedRows = getSelectedContextQuoteRows();
+                    if (selectedRows.length === 0) {
+                        alert('Please check at least one context quote first.');
+                        return;
+                    }
+                    alert('Regenerate is selected for ' + selectedRows.length + ' context quote(s). The row-level regeneration workflow still needs to be connected to Sefaria, Dicta, and AI.');
+                });
+            }
+
+            if (editButton && !editButton.dataset.bound) {
+                editButton.dataset.bound = 'true';
+                editButton.addEventListener('click', function() {
+                    animateDraftToolButton(editButton);
+                    const selectedRows = getSelectedContextQuoteRows();
+                    if (selectedRows.length === 0) {
+                        alert('Please check at least one context quote first.');
+                        return;
+                    }
+
+                    let firstEditable = null;
+                    selectedRows.forEach(row => {
+                        row.querySelectorAll('.hebrew-text, .english-text').forEach(el => {
+                            el.setAttribute('contenteditable', 'true');
+                            el.classList.add('context-editing');
+                            if (!firstEditable && el.classList.contains('english-text')) {
+                                firstEditable = el;
+                            }
+                        });
+                    });
+
+                    if (firstEditable) firstEditable.focus();
+                });
+            }
+        }
+
+        setupDraftContextButtons();
 
 const bookSelect = document.getElementById('book-select');
 const numPicker = document.getElementById('num-picker');

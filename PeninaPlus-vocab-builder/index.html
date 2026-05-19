@@ -275,6 +275,35 @@
 
         /* --- VIRTUAL PAPER PARADIGM --- */
         .paper-viewport { width: 100%; overflow-x: auto; padding-bottom: 40px; }
+        .draft-tools {
+            display: none;
+            width: 8.5in;
+            max-width: calc(100% - 40px);
+            margin: 0 auto 12px auto;
+            box-sizing: border-box;
+            text-align: left;
+        }
+        .draft-tools-message {
+            background: #fdfbf7;
+            border: 1px solid #dcd3c6;
+            border-radius: 8px;
+            color: #4a4238;
+            font-size: 14px;
+            line-height: 1.4;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 3px 8px rgba(139, 115, 85, 0.08);
+        }
+        #regenerate-selected-context-quotes-btn {
+            background-color: #28a745;
+            color: #fff;
+            width: auto;
+            padding: 10px 18px;
+            font-size: 14px;
+            border-radius: 5px;
+            box-shadow: 0 3px 8px rgba(40, 167, 69, 0.18);
+        }
+        #regenerate-selected-context-quotes-btn:hover { opacity: 0.92; }
         .page-container { 
             background: #fffefb; 
             margin: 0 auto; 
@@ -338,6 +367,7 @@
             .bg-pattern { display: none; }
             .home-btn, .beta-feedback-btn { display: none; }
             .control-panel-wrapper { display: none !important; }
+            .draft-tools { display: none !important; }
             .page-container {
                 margin: 0 !important;
                 width: 100% !important;
@@ -550,6 +580,10 @@
     </div>
 
     <div class="paper-viewport">
+        <div id="draft-tools" class="draft-tools" aria-live="polite">
+            <div class="draft-tools-message">The English in this document is editable. If you would like to regenerate any of the context quotations, please choose which by checking the desired boxes and clicking 'Regenerate'</div>
+            <button type="button" id="regenerate-selected-context-quotes-btn">Regenerate Selected Context Quotes</button>
+        </div>
         <div id="page" class="page-container" style="display: none;">
             <h1 id="doc-title" class="doc-title"></h1>
             <table id="vocab-table">
@@ -645,6 +679,8 @@
         const specificSourceContainer = document.getElementById('specific-source-container');
         const specificSourceLabel = document.getElementById('specific-source-label');
         const pageContainer = document.getElementById('page');
+        const draftTools = document.getElementById('draft-tools');
+        const regenerateSelectedContextQuotesBtn = document.getElementById('regenerate-selected-context-quotes-btn');
         const docTitle = document.getElementById('doc-title');
         const searchStatusNotice = document.getElementById('search-status-notice');
         const contextQuotesCheckbox = document.getElementById('context-quotes');
@@ -1428,6 +1464,7 @@ function updateTalmudModeVisibility() {
             generateBtn.disabled = true;
             vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
             pageContainer.style.display = 'block';
+            if (draftTools) draftTools.style.display = 'block';
             applyTitleText(title);
 
             try {

@@ -461,7 +461,7 @@
 
             <div class="form-group">
                 <label for="word-list">Vocabulary List (Hebrew, English):</label>
-                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא, there is&#10;(Hebrew is required. English definitions are optional and can be generated if omitted.)"></textarea>
+                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא&#9;there is&#10;(Hebrew is required. English definitions are optional and can be generated if omitted.)"></textarea>
             </div>
 
             <div class="form-group checkbox-group" style="margin-bottom: 15px;">
@@ -1196,25 +1196,29 @@ function updateTalmudModeVisibility() {
             return /[\u05D0-\u05EA]/.test(String(text || ''));
         }
 
-        function isEnglishOnly(text) {
-            const value = String(text || '').trim();
-            if (!value || containsHebrew(value)) return false;
-            return /[A-Za-z]/.test(value) && /^[A-Za-z0-9\s'’\-().,;:!?]+$/.test(value);
-        }
-
-        function cleanGeneratedHebrew(text) {
-            return String(text || '')
-                .replace(/^[\s,.;:!?\-–—\(\)\[\]\"'״׳]+|[\s,.;:!?\-–—\(\)\[\]\"'״׳]+$/g, '')
-                .trim();
-        }
-
         function containsLatin(text) {
             return /[A-Za-z]/.test(String(text || ''));
         }
 
-        function containsHebrewOnlyCandidate(text) {
+        function isValidHebrewVocabWord(text) {
             const value = String(text || '').trim();
-            return containsHebrew(value) && !containsLatin(value);
+            if (!value) return false;
+            if (!containsHebrew(value)) return false;
+            if (containsLatin(value)) return false;
+            return /^[\u0590-\u05FF\s״׳"'`().\-–—]+$/.test(value);
+        }
+
+        function isValidOptionalEnglishDefinition(text) {
+            const value = String(text || '').trim();
+            if (!value) return true;
+            if (containsHebrew(value)) return false;
+            return containsLatin(value);
+        }
+
+        function cleanGeneratedHebrew(text) {
+            return String(text || '')
+                .replace(/^[\s,.;:?\-–—\(\)\[\]\"'״׳]+|[\s,.;:?\-–—\(\)\[\]\"'״׳]+$/g, '')
+                .trim();
         }
 
         function containsNekudotOrTaamim(text) {
@@ -1305,13 +1309,30 @@ function updateTalmudModeVisibility() {
             try {
                 let lines = rawInput.split('\n').filter(line => line.trim() !== '');
                 const invalidVocabLines = [];
+                const invalidDefinitionLines = [];
                 let vocabList = lines.map((line, lineIndex) => {
-                    let parts = line.split(/[,\t]+/).map(p => p.trim()).filter(p => p.length > 0);
-                    let hebrew = parts.shift() || "";
-                    let english = parts.join(', ');
+                    const trimmedLine = String(line || '').trim();
+                    const tabMatch = trimmedLine.match(/^(.*?)\t+(.+)$/);
+                    const commaIndex = trimmedLine.indexOf(',');
+                    let hebrew = "";
+                    let english = "";
 
-                    if (!containsHebrew(hebrew)) {
+                    if (tabMatch) {
+                        hebrew = tabMatch[1].trim();
+                        english = tabMatch[2].trim();
+                    } else if (commaIndex !== -1) {
+                        hebrew = trimmedLine.slice(0, commaIndex).trim();
+                        english = trimmedLine.slice(commaIndex + 1).trim();
+                    } else {
+                        hebrew = trimmedLine;
+                    }
+
+                    if (!isValidHebrewVocabWord(hebrew)) {
                         invalidVocabLines.push(lineIndex + 1);
+                    }
+
+                    if (!isValidOptionalEnglishDefinition(english)) {
+                        invalidDefinitionLines.push(lineIndex + 1);
                     }
                     
                     return {
@@ -1321,8 +1342,15 @@ function updateTalmudModeVisibility() {
                     };
                 });
 
-                if (invalidVocabLines.length > 0) {
-                    alert(`Each vocabulary word must start with Hebrew. Please fix line${invalidVocabLines.length === 1 ? '' : 's'} ${invalidVocabLines.join(', ')}. Use either "עברית" or "עברית, English definition".`);
+                if (invalidVocabLines.length > 0 || invalidDefinitionLines.length > 0) {
+                    const messages = [];
+                    if (invalidVocabLines.length > 0) {
+                        messages.push(`Hebrew vocabulary word missing or invalid on line${invalidVocabLines.length === 1 ? '' : 's'} ${invalidVocabLines.join(', ')}.`);
+                    }
+                    if (invalidDefinitionLines.length > 0) {
+                        messages.push(`English definition invalid on line${invalidDefinitionLines.length === 1 ? '' : 's'} ${invalidDefinitionLines.join(', ')}.`);
+                    }
+                    alert(`${messages.join(' ')} Use "עברית", "עברית, English definition", or "עברית<Tab>English definition".`);
                     pageContainer.style.display = 'none';
                     return;
                 }
@@ -1401,11 +1429,7 @@ function updateTalmudModeVisibility() {
 
                 for (let item of vocabList) {
                     let cleanHebrew = String(item.hebrew || '').replace(/[֑-ׇ]/g, '').trim();
-                    if (item.translationError) {
-                        item.english = item.english || item.originalEnglishInput || '[Translation unavailable]';
-                    } else {
-                        item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
-                    }
+                    item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
                     item.expandedHebrew = noContextMode ? "" : await expandHebrewAbbreviation(cleanHebrew, sourceType);
                     const isAbbreviationEntry = !noContextMode && isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
                     const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
@@ -1459,13 +1483,7 @@ function updateTalmudModeVisibility() {
                 for (const row of preparedItems) {
                     const { item, semanticHebrew, searchHebrew, isAbbreviationEntry } = row;
 
-                    if (item.translationError) {
-                        row.hebrewContext = "Hebrew translation unavailable.";
-                        row.englishContext = "";
-                        row.citation = "English-to-Hebrew translation unavailable";
-                        row.hebrewCitation = "";
-                        row.englishCitation = "English-to-Hebrew translation unavailable";
-                    } else if (noContextMode) {
+                    if (noContextMode) {
                         row.hebrewContext = "";
                         row.englishContext = "";
                         row.citation = "";

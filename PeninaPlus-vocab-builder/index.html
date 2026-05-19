@@ -1,5 +1,6 @@
 <!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
+<!-- build: edit-save-context-2026-05-19 -->
 <html lang="en">
 <head>
     <!-- Penina Vocab Builder build: semantic-context-inp-fix-2026-05-19 -->
@@ -330,6 +331,8 @@
             direction: ltr;
             font-family: var(--english-font, Arial, sans-serif);
             color: #4a4238;
+            padding-top: 20pt;
+            padding-left: 10pt;
         }
         .draft-context-tools.visible { display: block; }
         .draft-tools-message {
@@ -795,6 +798,50 @@
             return new Promise(resolve => window.setTimeout(resolve, 0));
         }
 
+        function contextEditingIsActive() {
+            return !!document.querySelector('.context-editing');
+        }
+
+        function finishContextEditing(editButton) {
+            const editedRows = new Set();
+            document.querySelectorAll('.context-editing').forEach(el => {
+                const row = el.closest('tr');
+                if (row && row.dataset.rowIndex) editedRows.add(Number(row.dataset.rowIndex));
+                el.removeAttribute('contenteditable');
+                el.classList.remove('context-editing');
+            });
+
+            editedRows.forEach(rowIndex => {
+                if (Number.isInteger(rowIndex)) syncGeneratedRowFromDom(rowIndex);
+            });
+
+            if (editButton) {
+                editButton.textContent = 'Edit Context Quote';
+                editButton.dataset.mode = 'edit';
+            }
+        }
+
+        function beginContextEditing(selectedRows, editButton) {
+            let firstEditable = null;
+            selectedRows.forEach(row => {
+                const rowIndex = Number(row.dataset.rowIndex);
+                if (Number.isInteger(rowIndex)) syncGeneratedRowFromDom(rowIndex);
+                row.querySelectorAll('.hebrew-text, .english-text, .hebrew-citation, .english-citation').forEach(el => {
+                    el.setAttribute('contenteditable', 'true');
+                    el.classList.add('context-editing');
+                    if (!firstEditable && el.classList.contains('english-text')) {
+                        firstEditable = el;
+                    }
+                });
+            });
+
+            if (editButton) {
+                editButton.textContent = 'Save Context Edits';
+                editButton.dataset.mode = 'save';
+            }
+            if (firstEditable) firstEditable.focus();
+        }
+
         function setupDraftContextButtons() {
             const regenerateButton = document.getElementById('regenerate-selected-context-quotes-btn');
             const editButton = document.getElementById('edit-context-quote-btn');
@@ -803,6 +850,7 @@
                 regenerateButton.dataset.bound = 'true';
                 regenerateButton.addEventListener('click', function() {
                     animateDraftToolButton(regenerateButton);
+                    if (contextEditingIsActive()) finishContextEditing(editButton);
                     const indexes = getSelectedContextQuoteIndexes();
                     if (indexes.length === 0) {
                         alert('Please check at least one context quote first.');
@@ -820,28 +868,22 @@
 
             if (editButton && !editButton.dataset.bound) {
                 editButton.dataset.bound = 'true';
+                editButton.dataset.mode = editButton.dataset.mode || 'edit';
                 editButton.addEventListener('click', function() {
                     animateDraftToolButton(editButton);
+
+                    if (editButton.dataset.mode === 'save' || contextEditingIsActive()) {
+                        finishContextEditing(editButton);
+                        return;
+                    }
+
                     const selectedRows = getSelectedContextQuoteRows();
                     if (selectedRows.length === 0) {
                         alert('Please check at least one context quote first.');
                         return;
                     }
 
-                    let firstEditable = null;
-                    selectedRows.forEach(row => {
-                        const rowIndex = Number(row.dataset.rowIndex);
-                        if (Number.isInteger(rowIndex)) syncGeneratedRowFromDom(rowIndex);
-                        row.querySelectorAll('.hebrew-text, .english-text, .hebrew-citation, .english-citation').forEach(el => {
-                            el.setAttribute('contenteditable', 'true');
-                            el.classList.add('context-editing');
-                            if (!firstEditable && el.classList.contains('english-text')) {
-                                firstEditable = el;
-                            }
-                        });
-                    });
-
-                    if (firstEditable) firstEditable.focus();
+                    beginContextEditing(selectedRows, editButton);
                 });
             }
         }

@@ -877,6 +877,12 @@
                 .filter(Boolean);
         }
 
+        function clearContextQuoteSelections() {
+            document.querySelectorAll('.context-quote-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+
         function animateDraftToolButton(button) {
             if (!button) return;
             button.classList.add('button-pressed');
@@ -895,7 +901,8 @@
             return !!document.querySelector('.context-editing');
         }
 
-        function finishContextEditing(editButton) {
+        function finishContextEditing(editButton, options = {}) {
+            const shouldClearSelections = options.clearSelections !== false;
             const editedRows = new Set();
             document.querySelectorAll('.context-editing').forEach(el => {
                 const row = el.closest('tr');
@@ -911,6 +918,10 @@
             if (editButton) {
                 editButton.textContent = 'Edit Context Quote';
                 editButton.dataset.mode = 'edit';
+            }
+
+            if (shouldClearSelections && editedRows.size > 0) {
+                clearContextQuoteSelections();
             }
         }
 
@@ -944,7 +955,11 @@
                 regenerateButton.dataset.bound = 'true';
                 regenerateButton.addEventListener('click', function() {
                     animateDraftToolButton(regenerateButton);
-                    if (contextEditingIsActive()) finishContextEditing(editButton);
+                    if (contextEditingIsActive()) {
+                        finishContextEditing(editButton);
+                        alert("Saving current edits. If you wish to regenerate context quotes, please indicate which and press 'regenerate'");
+                        return;
+                    }
                     const indexes = getSelectedContextQuoteIndexes();
                     if (indexes.length === 0) {
                         alert('Please check at least one context quote first.');
@@ -2293,6 +2308,7 @@ function updateTalmudModeVisibility() {
                 alert('Please check at least one context quote first.');
                 return;
             }
+            let completedSuccessfully = false;
             if (button) button.disabled = true;
             try {
                 for (let i = 0; i < indexes.length; i++) {
@@ -2300,10 +2316,14 @@ function updateTalmudModeVisibility() {
                     await regenerateContextForRow(indexes[i]);
                     await new Promise(resolve => window.setTimeout(resolve, 0));
                 }
+                completedSuccessfully = true;
             } finally {
                 if (button) {
                     button.disabled = false;
                     button.textContent = 'Regenerate Selected Context Quotes ↺';
+                }
+                if (completedSuccessfully) {
+                    clearContextQuoteSelections();
                 }
             }
         }

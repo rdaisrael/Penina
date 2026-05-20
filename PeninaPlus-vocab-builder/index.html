@@ -2037,6 +2037,66 @@ function updateTalmudModeVisibility() {
             if (englishCitationEl) row.englishCitation = englishCitationEl.textContent.trim();
         }
 
+
+        function extractBracketedDefinitionExpansionGlobal(definition) {
+            const match = String(definition || '').match(/\[([^\]]*[א-ת][^\]]*)\]/);
+            const expansion = match ? match[1].trim() : '';
+            return containsHebrew(expansion) ? expansion : '';
+        }
+
+        function definitionHasExpansionPrefixGlobal(definition, expandedHebrew) {
+            const expanded = String(expandedHebrew || '').trim();
+            if (!expanded) return false;
+            const escaped = expanded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const exactBracketPattern = new RegExp('\[' + escaped + '\]');
+            return exactBracketPattern.test(String(definition || ''));
+        }
+
+        function refreshAcronymSearchFieldsGlobal(row) {
+            if (!row || !row.item) return;
+            row.cleanHebrew = String(row.cleanHebrew || row.item.hebrew || '')
+                .replace(/[֑-ׇ]/g, '')
+                .trim();
+
+            const existingExpansion = String(row.item.expandedHebrew || '').trim();
+            const definitionExpansion = extractBracketedDefinitionExpansionGlobal(row.item.english);
+            if (definitionExpansion) row.item.expandedHebrew = definitionExpansion;
+
+            const expanded = String(row.item.expandedHebrew || existingExpansion || '').trim();
+            if (expanded) row.item.expandedHebrew = expanded;
+
+            row.isAbbreviationEntry = isLikelyHebrewAbbreviation(row.cleanHebrew) && !!expanded;
+            row.semanticHebrew = row.isAbbreviationEntry ? expanded : row.cleanHebrew;
+            row.searchHebrew = row.isAbbreviationEntry ? `${row.cleanHebrew}/${expanded}` : row.semanticHebrew;
+            row.matchedHebrewCandidate = row.searchHebrew;
+        }
+
+        function applyExpansionPrefixToDefinitionGlobal(row) {
+            if (!row || !row.item) return;
+            if (!row.item.expandedHebrew && isLikelyHebrewAbbreviation(row.cleanHebrew)) {
+                const generatedExpansion = extractBracketedDefinitionExpansionGlobal(row.item.english);
+                if (generatedExpansion) row.item.expandedHebrew = generatedExpansion;
+            }
+
+            const expanded = String(row.item.expandedHebrew || '').trim();
+            const current = String(row.item.english || '').trim();
+            if (expanded && !definitionHasExpansionPrefixGlobal(current, expanded)) {
+                row.item.english = `[${expanded}] ${current || '[Definition unavailable]'}`;
+            }
+            refreshAcronymSearchFieldsGlobal(row);
+        }
+
+        async function refreshRowSearchSetupForRegeneration(row) {
+            if (!row || !row.item) return;
+            const definitionExpansion = extractBracketedDefinitionExpansionGlobal(row.item.english);
+            if (definitionExpansion) {
+                row.item.expandedHebrew = definitionExpansion;
+            } else if (isLikelyHebrewAbbreviation(row.cleanHebrew) && !row.item.expandedHebrew && !row.item.english) {
+                row.item.expandedHebrew = await expandHebrewAbbreviation(row.cleanHebrew, row.sourceType);
+            }
+            applyExpansionPrefixToDefinitionGlobal(row);
+        }
+
         function cleanAiTextGlobal(text) {
             return String(text || '')
                 .replace(/\*\*(.*?)\*\*/g, '$1')
@@ -2193,6 +2253,7 @@ function updateTalmudModeVisibility() {
             const tr = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
             if (!row || !tr) return;
             syncGeneratedRowFromDom(rowIndex);
+            await refreshRowSearchSetupForRegeneration(row);
             const contextCell = tr.querySelector('.col-context');
             if (contextCell) contextCell.classList.add('context-regenerating');
             try {

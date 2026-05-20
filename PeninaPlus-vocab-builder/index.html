@@ -1,9 +1,9 @@
 <!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
-<!-- build: bidi-acronym-input-fix-2026-05-19 -->
+<!-- build: ellipsis-context-fix-2026-05-20 -->
 <html lang="en">
 <head>
-    <!-- Penina Vocab Builder build: bidi-acronym-input-fix-2026-05-19 -->
+    <!-- Penina Vocab Builder build: ellipsis-context-fix-2026-05-20 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
@@ -772,7 +772,7 @@
     </div>
 
     <script>
-        const PENINA_BUILD_ID = 'bidi-acronym-input-fix-2026-05-19';
+        const PENINA_BUILD_ID = 'ellipsis-context-fix-2026-05-20';
         function stylizeTitleText(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -2861,12 +2861,21 @@ function updateTalmudModeVisibility() {
                     .filter((v, i, a) => a.indexOf(v) === i);
             }
 
+            function hasFlexibleGapMarker(value) {
+                return /(?:\.{2,}|…|⋯|··+)/.test(String(value || ''));
+            }
+
             function getSefariaSearchVariants(candidate) {
                 const value = String(candidate || '').trim();
                 const variants = new Set();
-                if (value) variants.add(value);
-
                 const normalized = normalizeHebrewForMatch(value);
+
+                if (hasFlexibleGapMarker(value)) {
+                    if (normalized) variants.add(normalized);
+                } else if (value) {
+                    variants.add(value);
+                }
+
                 if (normalized) variants.add(normalized);
 
                 if (isLikelyHebrewAbbreviation(value)) {
@@ -2913,6 +2922,10 @@ function updateTalmudModeVisibility() {
                 })
                 .filter(Boolean)
                 .filter((v, i, a) => a.indexOf(v) === i));
+            const flexibleGapSearchCandidates = new Set(rawSearchCandidates
+                .filter(hasFlexibleGapMarker)
+                .map(candidate => normalizeHebrewForMatch(candidate))
+                .filter(candidate => candidate.split(' ').filter(Boolean).length > 1));
             const sefariaSearchCandidates = prioritizeExpandedPhraseCandidates(rawSearchCandidates
                 .flatMap(getSefariaSearchVariants)
                 .filter((v, i, a) => a.indexOf(v) === i));
@@ -3097,6 +3110,53 @@ function updateTalmudModeVisibility() {
                             tokenLength: candidateTokens.length,
                             strength: totalStrength
                         };
+                    }
+
+                    if (isPhrase && flexibleGapSearchCandidates.has(candidate)) {
+                        let searchFromIndex = 0;
+                        let totalStrength = 0;
+                        let firstMatchIndex = -1;
+                        let lastMatchIndex = -1;
+                        let orderedMatch = true;
+
+                        for (let j = 0; j < candidateTokens.length; j++) {
+                            const candidateToken = candidateTokens[j];
+                            let foundAt = -1;
+                            let foundStrength = 0;
+
+                            for (let k = searchFromIndex; k < lineTokens.length; k++) {
+                                const lineToken = lineTokens[k];
+                                const tokenMatch = j === 0
+                                    ? matchSingleToken(lineToken, candidateToken)
+                                    : (lineToken === candidateToken ? { strength: 3 } : null);
+
+                                if (tokenMatch) {
+                                    foundAt = k;
+                                    foundStrength = tokenMatch.strength;
+                                    break;
+                                }
+                            }
+
+                            if (foundAt === -1) {
+                                orderedMatch = false;
+                                break;
+                            }
+
+                            if (firstMatchIndex === -1) firstMatchIndex = foundAt;
+                            lastMatchIndex = foundAt;
+                            totalStrength += foundStrength;
+                            searchFromIndex = foundAt + 1;
+                        }
+
+                        if (orderedMatch && firstMatchIndex !== -1) {
+                            const gapPenalty = Math.max(0, lastMatchIndex - firstMatchIndex - (candidateTokens.length - 1));
+                            return {
+                                candidate,
+                                tokenIndex: firstMatchIndex,
+                                tokenLength: candidateTokens.length,
+                                strength: totalStrength + 2 - Math.min(gapPenalty, 4)
+                            };
+                        }
                     }
                 }
 

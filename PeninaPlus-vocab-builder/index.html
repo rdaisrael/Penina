@@ -1636,6 +1636,13 @@ function updateTalmudModeVisibility() {
             return /[״׳"'`]/.test(value);
         }
 
+        function normalizeHebrewAbbreviationKey(text) {
+            return String(text || '')
+                .replace(/[\u0591-\u05C7]/g, '')
+                .replace(/[״׳"'`\s.\-–—]/g, '')
+                .trim();
+        }
+
         async function expandHebrewAbbreviation(rawHebrew, sourceType) {
             const value = String(rawHebrew || '').trim();
             if (!isLikelyHebrewAbbreviation(value)) return "";
@@ -2350,7 +2357,8 @@ function updateTalmudModeVisibility() {
 
                 function extractBracketedDefinitionExpansion(definition) {
                     const match = String(definition || '').trim().match(/^\s*\[([^\]]+)\]/);
-                    return match ? match[1].trim() : '';
+                    const expansion = match ? match[1].trim() : '';
+                    return containsHebrew(expansion) ? expansion : '';
                 }
 
                 function definitionHasExpansionPrefix(definition, expandedHebrew) {
@@ -2360,19 +2368,47 @@ function updateTalmudModeVisibility() {
                     return pattern.test(String(definition || ''));
                 }
 
+                function refreshAcronymSearchFields(row) {
+                    if (!row || !row.item) return;
+                    const expanded = String(row.item.expandedHebrew || '').trim();
+                    row.isAbbreviationEntry = isLikelyHebrewAbbreviation(row.cleanHebrew) && !!expanded;
+                    row.semanticHebrew = row.isAbbreviationEntry ? expanded : row.cleanHebrew;
+                    row.searchHebrew = row.isAbbreviationEntry ? `${row.cleanHebrew}/${expanded}` : row.semanticHebrew;
+                    row.matchedHebrewCandidate = row.searchHebrew;
+                }
+
                 function applyExpansionPrefixToDefinition(row) {
-                    if (!row || !row.item || !row.item.expandedHebrew) return;
+                    if (!row || !row.item) return;
+                    if (!row.item.expandedHebrew && isLikelyHebrewAbbreviation(row.cleanHebrew)) {
+                        const generatedExpansion = extractBracketedDefinitionExpansion(row.item.english);
+                        if (generatedExpansion) row.item.expandedHebrew = generatedExpansion;
+                    }
+
                     const expanded = String(row.item.expandedHebrew || '').trim();
                     const current = String(row.item.english || '').trim();
-                    if (!expanded || definitionHasExpansionPrefix(current, expanded)) return;
-                    row.item.english = `[${expanded}] ${current || '[Definition unavailable]'}`;
+                    if (expanded && !definitionHasExpansionPrefix(current, expanded)) {
+                        row.item.english = `[${expanded}] ${current || '[Definition unavailable]'}`;
+                    }
+                    refreshAcronymSearchFields(row);
+                }
+
+                function buildVocabularyDefinitionPrompt(row, sourceHint) {
+                    if (row.isAbbreviationEntry) {
+                        return `The Hebrew vocabulary item "${row.cleanHebrew}" is an abbreviation/acronym expanded as "${row.item.expandedHebrew}". Return ONLY a concise English classroom definition in this exact format: [${row.item.expandedHebrew}] English definition. Do not use Markdown or labels.`;
+                    }
+                    if (row.needsAcronymExpansion) {
+                        return `The Hebrew vocabulary item "${row.cleanHebrew}" is an abbreviation/acronym in ${sourceHint}. First expand it into its most likely full Hebrew wording for this source/context, then translate or define it. Return ONLY this exact format: [actual Hebrew expansion] English definition. Replace "actual Hebrew expansion" with the Hebrew expansion; do not write placeholder words. Do not use Markdown or labels.`;
+                    }
+                    return `Translate this Hebrew or Aramaic vocabulary word into a concise English classroom definition: "${row.semanticHebrew}". Source/context category hint: ${sourceHint}. Return ONLY the English definition. Do not return labels, Markdown, brackets, or explanations.`;
                 }
 
                 for (let item of vocabList) {
                     let cleanHebrew = String(item.hebrew || '').replace(/[֑-ׇ]/g, '').trim();
                     item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
                     const providedExpansion = extractBracketedDefinitionExpansion(item.english);
-                    if (isLikelyHebrewAbbreviation(cleanHebrew)) {
+                    const isAbbreviation = isLikelyHebrewAbbreviation(cleanHebrew);
+                    const needsAcronymExpansion = isAbbreviation && !providedExpansion && !item.english;
+                    if (isAbbreviation) {
                         if (providedExpansion) {
                             item.expandedHebrew = providedExpansion;
                         } else if (!item.english) {
@@ -2383,7 +2419,7 @@ function updateTalmudModeVisibility() {
                     } else {
                         item.expandedHebrew = "";
                     }
-                    const isAbbreviationEntry = isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
+                    const isAbbreviationEntry = isAbbreviation && !!item.expandedHebrew;
                     const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
                     const searchHebrew = isAbbreviationEntry ? `${cleanHebrew}/${item.expandedHebrew}` : semanticHebrew;
 
@@ -2398,7 +2434,8 @@ function updateTalmudModeVisibility() {
                         englishCitation: "",
                         citation: "",
                         matchedHebrewCandidate: searchHebrew,
-                        isAbbreviationEntry
+                        isAbbreviationEntry,
+                        needsAcronymExpansion
                     });
                     await yieldToBrowser();
                 }
@@ -2406,11 +2443,9 @@ function updateTalmudModeVisibility() {
                 async function translateSingleVocabularyDefinition(row) {
                     const sourceHint = sourceType === 'No Context Quotes' ? 'general Hebrew/Aramaic' : sourceType;
                     const promptsToTry = [
-                        row.isAbbreviationEntry
-                            ? `The Hebrew vocabulary item "${row.cleanHebrew}" is an abbreviation/acronym expanded as "${row.item.expandedHebrew}". Return ONLY a concise English classroom definition in this exact format: [${row.item.expandedHebrew}] English definition. Do not use Markdown or labels.`
-                            : `Translate this Hebrew or Aramaic vocabulary word into a concise English classroom definition: "${row.semanticHebrew}". Source/context category hint: ${sourceHint}. Return ONLY the English definition. Do not return labels, Markdown, brackets, or explanations.`,
-                        row.isAbbreviationEntry
-                            ? `Write the English meaning of "${row.item.expandedHebrew}". Return ONLY this format: [${row.item.expandedHebrew}] English definition.`
+                        buildVocabularyDefinitionPrompt(row, sourceHint),
+                        (row.isAbbreviationEntry || row.needsAcronymExpansion)
+                            ? `Write the English meaning of the Hebrew abbreviation/acronym "${row.cleanHebrew}"${row.item.expandedHebrew ? ` expanded as "${row.item.expandedHebrew}"` : ''}. Return ONLY this format: [actual Hebrew expansion] English definition. Replace "actual Hebrew expansion" with the Hebrew expansion; do not write placeholder words.`
                             : `What is the English meaning of the standalone Hebrew/Aramaic vocabulary word "${row.cleanHebrew}"? Return ONLY a short English definition.`
                     ];
 
@@ -2449,9 +2484,7 @@ function updateTalmudModeVisibility() {
 
                     if (!row.item.english) {
                         definitionIndexesNeedingTranslation.push(i);
-                        definitionPrompts.push(row.isAbbreviationEntry
-                            ? `The Hebrew vocabulary item "${row.cleanHebrew}" is an abbreviation/acronym expanded as "${row.item.expandedHebrew}". Return ONLY a concise English classroom definition in this exact format: [${row.item.expandedHebrew}] English definition. Do not use Markdown or labels.`
-                            : `Translate this Hebrew or Aramaic vocabulary word into a concise English classroom definition: "${row.semanticHebrew}". Source/context category hint: ${sourceType}. Return ONLY the English definition. Do not return labels, Markdown, brackets, or explanations.`);
+                        definitionPrompts.push(buildVocabularyDefinitionPrompt(row, sourceType));
                     }
                 }
 
@@ -2696,15 +2729,48 @@ function updateTalmudModeVisibility() {
                     && !/^תלמוד ירושלמי(?:\s|$)/.test(value);
             }
 
-            function splitSearchCandidates(raw) {
+            function splitRawSearchCandidates(raw) {
                 return String(raw || '')
                     .split(/\s*(?:\/|-)\s*/)
-                    .map(s => normalizeHebrewForMatch(s))
+                    .map(s => String(s || '').replace(/[\u0591-\u05C7]/g, '').trim())
                     .filter(Boolean)
                     .filter((v, i, a) => a.indexOf(v) === i);
             }
 
-            const searchCandidates = splitSearchCandidates(cleanWord);
+            function getSefariaSearchVariants(candidate) {
+                const value = String(candidate || '').trim();
+                const variants = new Set();
+                if (value) variants.add(value);
+
+                const normalized = normalizeHebrewForMatch(value);
+                if (normalized) variants.add(normalized);
+
+                if (isLikelyHebrewAbbreviation(value)) {
+                    const doubleGeresh = value
+                        .replace(/[׳']{2}/g, '״')
+                        .replace(/["]{2}/g, '״')
+                        .replace(/''/g, '״')
+                        .replace(/״״/g, '״');
+                    if (doubleGeresh) variants.add(doubleGeresh);
+
+                    const asciiQuote = value.replace(/[״׳]/g, '"');
+                    if (asciiQuote) variants.add(asciiQuote);
+
+                    const compact = normalizeHebrewAbbreviationKey(value);
+                    if (compact) variants.add(compact);
+                }
+
+                return Array.from(variants).filter(Boolean);
+            }
+
+            const rawSearchCandidates = splitRawSearchCandidates(cleanWord);
+            const searchCandidates = rawSearchCandidates
+                .map(s => normalizeHebrewForMatch(s))
+                .filter(Boolean)
+                .filter((v, i, a) => a.indexOf(v) === i);
+            const sefariaSearchCandidates = rawSearchCandidates
+                .flatMap(getSefariaSearchVariants)
+                .filter((v, i, a) => a.indexOf(v) === i);
             const intendedEnglishMeaning = String(intendedEnglish || '')
                 .replace(/^\s*\[?definition unavailable\]?\s*$/i, '')
                 .replace(/^\s*\[?translation unavailable\]?\s*$/i, '')
@@ -3148,7 +3214,7 @@ function updateTalmudModeVisibility() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            query: searchCandidates.join(' OR '),
+                            query: (sefariaSearchCandidates.length ? sefariaSearchCandidates : searchCandidates).join(' OR '),
                             type: 'text',
                             field: 'naive_lemmatizer',
                             filters: filters

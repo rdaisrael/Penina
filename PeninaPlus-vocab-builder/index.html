@@ -373,6 +373,9 @@
         .english-citation { direction: ltr; text-align: left; font-family: var(--english-font, Arial, sans-serif) !important; }
         .draft-context-tools {
             display: none;
+            position: sticky;
+            top: 8px;
+            z-index: 900;
             width: 8.5in;
             margin: 0 auto 10px auto;
             box-sizing: border-box;
@@ -380,8 +383,12 @@
             direction: ltr;
             font-family: var(--english-font, Arial, sans-serif);
             color: #4a4238;
-            padding-top: 20pt;
-            padding-left: 10pt;
+            padding: 20pt 10pt 10pt 10pt;
+            background: rgba(255, 254, 251, 0.96);
+            border-radius: 8px;
+            box-shadow: 0 6px 14px rgba(139, 115, 85, 0.12);
+            -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
         }
         .draft-context-tools.visible { display: block; }
         .draft-tools-message {
@@ -2380,7 +2387,7 @@ function updateTalmudModeVisibility() {
                         <td class="col-context">
                             <div class="hebrew-text">${highlightedHebrew}</div>
                             ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl">${row.hebrewCitation}</div>` : ''}
-                            <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
+                            <div class="english-text">${highlightedEnglish}</div>
                             <div class="english-citation-row">
                                 ${row.englishCitation ? `<div class="citation english-citation" dir="ltr">${row.englishCitation}</div>` : '<div class="citation english-citation" dir="ltr"></div>'}
                                 <label class="context-row-checkbox-slot" aria-label="Select this context quote"><input type="checkbox" class="context-quote-checkbox" data-row-index="${rowIndex}"></label>

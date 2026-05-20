@@ -2348,6 +2348,11 @@ function updateTalmudModeVisibility() {
                 const preparedItems = [];
                 const noContextMode = sourceType === 'No Context Quotes' || !contextQuotesEnabled();
 
+                function extractBracketedDefinitionExpansion(definition) {
+                    const match = String(definition || '').trim().match(/^\s*\[([^\]]+)\]/);
+                    return match ? match[1].trim() : '';
+                }
+
                 function definitionHasExpansionPrefix(definition, expandedHebrew) {
                     const expanded = String(expandedHebrew || '').trim();
                     if (!expanded) return false;
@@ -2366,7 +2371,18 @@ function updateTalmudModeVisibility() {
                 for (let item of vocabList) {
                     let cleanHebrew = String(item.hebrew || '').replace(/[֑-ׇ]/g, '').trim();
                     item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
-                    item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew, sourceType);
+                    const providedExpansion = extractBracketedDefinitionExpansion(item.english);
+                    if (isLikelyHebrewAbbreviation(cleanHebrew)) {
+                        if (providedExpansion) {
+                            item.expandedHebrew = providedExpansion;
+                        } else if (!item.english) {
+                            item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew, sourceType);
+                        } else {
+                            item.expandedHebrew = "";
+                        }
+                    } else {
+                        item.expandedHebrew = "";
+                    }
                     const isAbbreviationEntry = isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
                     const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
                     const searchHebrew = isAbbreviationEntry ? `${cleanHebrew}/${item.expandedHebrew}` : semanticHebrew;

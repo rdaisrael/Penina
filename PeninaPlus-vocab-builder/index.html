@@ -1,7 +1,9 @@
 <!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
+<!-- build: bidi-acronym-input-fix-2026-05-19 -->
 <html lang="en">
 <head>
+    <!-- Penina Vocab Builder build: bidi-acronym-input-fix-2026-05-19 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
@@ -197,6 +199,9 @@
         textarea, .hebrew-input, .strict-hebrew-input {
             font-size: 18px; 
         }
+        #word-list {
+            unicode-bidi: plaintext;
+        }
         select:focus, textarea:focus, input[type="text"]:focus { 
             outline: none; border-color: #b5a898; background-color: #ffffff; 
         }
@@ -214,6 +219,44 @@
         button { padding: 12px 25px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; color: white; background-color: #0056b3; transition: opacity 0.2s; width: 100%; }
         button:hover { opacity: 0.9; }
         button:disabled { background-color: #6c757d !important; cursor: not-allowed; }
+
+        .title-draft-row {
+            display: flex;
+            gap: 14px;
+            align-items: flex-end;
+        }
+        .title-draft-title {
+            flex: 1 1 50%;
+            min-width: 0;
+        }
+        .title-draft-buttons {
+            flex: 1 1 50%;
+            display: flex;
+            gap: 10px;
+        }
+        .draft-yellow-btn {
+            background-color: #fff8cc !important;
+            color: #5f4f00 !important;
+            border: 1px solid #eadb88 !important;
+            box-shadow: 0 2px 4px rgba(95,79,0,0.10);
+            padding: 7px 10px;
+            font-size: 13px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .title-draft-buttons button {
+            flex: 1 1 0;
+            min-width: 0;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .title-draft-row { flex-direction: column; align-items: stretch; }
+            .title-draft-buttons { flex-direction: column; }
+        }
 
         .formatting-section { 
             background: rgba(253, 251, 247, 0.8); 
@@ -273,6 +316,18 @@
             font-weight: bold;
         }
 
+
+        .vocab-input-warning {
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            background-color: #f8d7da;
+            border: 1px solid #f1aeb5;
+            color: #721c24;
+            font-size: 14px;
+            line-height: 1.35;
+        }
+
         /* --- VIRTUAL PAPER PARADIGM --- */
         .paper-viewport { width: 100%; overflow-x: auto; padding-bottom: 40px; }
         .page-container { 
@@ -293,21 +348,138 @@
         #vocab-table col.col-word { width: 25%; }
         #vocab-table col.col-definition { width: 25%; }
         #vocab-table col.col-context-layout { width: 50%; }
-        th, td { border: 1px solid #dcd3c6; padding: 7pt 10pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); letter-spacing: var(--global-letter-spacing, 0px); }
+        th, td { border: 1px solid #dcd3c6; padding: 4pt 6pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); line-height: 1.12; letter-spacing: var(--global-letter-spacing, 0px); }
         th { background-color: #f4efe6; font-weight: bold; text-align: center; color: #4a4238; }
         
-        .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; min-width: 0; padding: 7pt 10pt; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
-        .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); min-width: 0; padding: 7pt 10pt; overflow-wrap: anywhere; word-break: break-word; }
-        .col-context { min-width: 0; font-size: calc(var(--base-font-size, 14pt) - 2pt); line-height: 1.2; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+        .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; min-width: 0; padding: 4pt 6pt; line-height: 1.12; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
+        .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); min-width: 0; padding: 4pt 6pt; line-height: 1.12; overflow-wrap: anywhere; word-break: break-word; }
+        .col-context { min-width: 0; padding: 3pt 5pt; font-size: var(--context-font-size, 12pt); line-height: 1.08; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
         .hebrew-word, .hebrew-text, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
-        .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.2; }
-        .col-context .hebrew-text { font-size: calc(var(--base-font-size, 14pt) - 2pt); }
-        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 2px; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.2; letter-spacing: var(--global-letter-spacing, 0px); }
-        .col-context .english-text { font-size: calc(var(--base-font-size, 14pt) - 2pt); }
-        .citation { font-size: calc(var(--base-font-size, 14pt) - 2pt); line-height: 1.1; margin-top: 2px; color: #666; white-space: normal; font-weight: normal; }
-        .hebrew-citation { direction: rtl; text-align: right; }
+        .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.08; }
+        .col-context .hebrew-text { font-size: var(--context-font-size, 12pt); margin: 0; }
+        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 0.5pt; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.08; letter-spacing: var(--global-letter-spacing, 0px); }
+        .col-context .english-text { font-size: var(--context-font-size, 12pt); margin-top: 1pt; }
+        .citation { font-size: var(--citation-font-size, 8pt); line-height: 1.0; margin-top: 0.25pt; color: #666; white-space: normal; font-weight: normal; }
+        .hebrew-citation { direction: rtl; text-align: right; margin-bottom: 0.25pt; }
         .english-citation { direction: ltr; text-align: left; font-family: var(--english-font, Arial, sans-serif) !important; }
+        .draft-context-tools {
+            display: none;
+            width: 8.5in;
+            margin: 0 auto 10px auto;
+            box-sizing: border-box;
+            text-align: left;
+            direction: ltr;
+            font-family: var(--english-font, Arial, sans-serif);
+            color: #4a4238;
+            padding-top: 20pt;
+            padding-left: 10pt;
+        }
+        .draft-context-tools.visible { display: block; }
+        .draft-tools-message {
+            font-size: 12pt;
+            line-height: 1.35;
+            margin-bottom: 8px;
+            max-width: 7.5in;
+        }
+        .draft-tools-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+            flex-wrap: nowrap;
+            max-width: 7.5in;
+        }
+        .draft-tools-buttons button {
+            flex: 1 1 0;
+            width: 0;
+            min-width: 0;
+            min-height: 42px;
+            padding: 9px 12px;
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: bold;
+            border: 1px solid rgba(0,0,0,0.18);
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.20), 0 6px 10px rgba(0,0,0,0.12);
+            transition: transform 0.06s ease, box-shadow 0.06s ease, filter 0.15s ease;
+            white-space: normal;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .draft-tools-buttons button:hover { filter: brightness(0.97); }
+        .draft-tools-buttons button:active,
+        .draft-tools-buttons button.button-pressed {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.24), 0 2px 4px rgba(0,0,0,0.16) inset;
+        }
+        #regenerate-selected-context-quotes-btn {
+            background-color: #f5b8be !important;
+            color: #5f1118 !important;
+        }
+        #edit-context-quote-btn {
+            background-color: #b8ddff !important;
+            color: #123a5a !important;
+        }
+        #save-draft-context-btn {
+            background-color: #fff8cc !important;
+            color: #5f4f00 !important;
+            border-color: #eadb88 !important;
+            box-shadow: 0 2px 4px rgba(95,79,0,0.10);
+        }
+        .context-editing {
+            outline: 2px solid #0056b3;
+            outline-offset: 2px;
+            background-color: #f7fbff;
+        }
+
+        .context-regenerating {
+            opacity: 0.72;
+            position: relative;
+        }
+        .context-regenerating::after {
+            content: "Regenerating...";
+            display: block;
+            margin-top: 4px;
+            font-size: 10pt;
+            color: #5f1118;
+            direction: ltr;
+            text-align: left;
+        }
+        .context-row-error {
+            margin-top: 4px;
+            font-size: 10pt;
+            color: #721c24;
+            direction: ltr;
+            text-align: left;
+        }
+        .english-citation-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            direction: ltr;
+            margin-top: 0.25pt;
+        }
+        .english-citation-row .english-citation {
+            flex: 1 1 auto;
+            min-width: 0;
+            margin-top: 0;
+        }
+        .context-row-checkbox-slot {
+            flex: 0 0 16px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+        .context-quote-checkbox {
+            width: 12px;
+            height: 12px;
+            margin: 0;
+            accent-color: #000000;
+            cursor: pointer;
+        }
         #search-status-notice { text-align: center; }
         .penina-footer { margin-top: 20px; text-align: center; font-size: 10pt; color: #6a6258; line-height: 1.3; }
         #page, #page * { letter-spacing: var(--global-letter-spacing, 0px); }
@@ -318,7 +490,7 @@
         .mode-basic #vocab-table col.col-definition { width: 50%; }
         .mode-basic #vocab-table col.col-context-layout { width: 0; }
         .mode-basic .col-context, .mode-basic th:nth-child(3) { display: none; }
-        .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 25pt; padding-bottom: 25pt; }
+        .mode-basic .col-hebrew, .mode-basic .col-english { padding-top: 14pt; padding-bottom: 14pt; }
 
         /* --- CHIP UI STYLES --- */
         .page-chip {
@@ -337,6 +509,7 @@
             body { background: white; padding: 0; }
             .bg-pattern { display: none; }
             .home-btn, .beta-feedback-btn { display: none; }
+            .draft-context-tools, .context-row-checkbox-slot { display: none !important; }
             .control-panel-wrapper { display: none !important; }
             .page-container {
                 margin: 0 !important;
@@ -364,6 +537,8 @@
             --hebrew-font: Arial, sans-serif;
             --global-letter-spacing: 0px;
             --base-font-size: 14pt;
+            --context-font-size: 12pt;
+            --citation-font-size: 8pt;
             --title-font-size: 21pt;
         }
         
@@ -371,6 +546,7 @@
             font-family: var(--english-font) !important;
         }
     </style>
+    <!-- build: snug-context-rows-2026-05-19 -->
 </head>
 <body class="mode-full">
 
@@ -405,9 +581,16 @@
         </details>
 
         <div class="control-panel">
-            <div class="form-group">
-                <label for="list-title">Title for this list:</label>
-                <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
+            <div class="form-group title-draft-row">
+                <div class="title-draft-title">
+                    <label for="list-title">Title for this list:</label>
+                    <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
+                </div>
+                <div class="title-draft-buttons" aria-label="Draft controls">
+                    <button type="button" id="save-draft-btn" class="draft-yellow-btn">Save Draft</button>
+                    <button type="button" id="upload-draft-btn" class="draft-yellow-btn">Upload Previous Draft</button>
+                    <input type="file" id="upload-draft-input" accept="application/json,.json" style="display: none;">
+                </div>
             </div>
 
             <div class="form-group" style="display: flex; gap: 20px;">
@@ -461,7 +644,8 @@
 
             <div class="form-group">
                 <label for="word-list">Vocabulary List (Hebrew, English):</label>
-                <textarea id="word-list" rows="5" dir="auto" placeholder="אגרא, reward&#10;איכא, there is&#10;(Hebrew is required. English definitions are optional and can be generated if omitted.)"></textarea>
+                <textarea id="word-list" rows="5" dir="auto" placeholder="Hebrew required. Optional definition may follow a comma or tab; the definition may be English, Hebrew, or mixed.&#10;אגרא, reward&#10;איכא	there is&#10;חתול, cat / חיה קטנה&#10;אגרא"></textarea>
+                <div id="vocab-input-warning" class="vocab-input-warning" style="display: none;">Vocabulary words must be in Hebrew. The vocabulary word may then be followed by tab or comma and a definition in English, Hebrew, or both.</div>
             </div>
 
             <div class="form-group checkbox-group" style="margin-bottom: 15px;">
@@ -549,6 +733,14 @@
     </div>
 
     <div class="paper-viewport">
+        <div id="draft-context-tools" class="draft-context-tools">
+            <div class="draft-tools-message">If you would like to regenerate any of the context quotations, or enter your own, check the desired quotes and click 'Regenerate' or 'Edit'</div>
+            <div class="draft-tools-buttons">
+                <button type="button" id="regenerate-selected-context-quotes-btn">Regenerate Selected Context Quotes &#8634;</button>
+                <button type="button" id="edit-context-quote-btn">Edit Context Quote</button>
+                <button type="button" id="save-draft-context-btn">Save Draft</button>
+            </div>
+        </div>
         <div id="page" class="page-container" style="display: none;">
             <h1 id="doc-title" class="doc-title"></h1>
             <table id="vocab-table">
@@ -571,6 +763,7 @@
     </div>
 
     <script>
+        const PENINA_BUILD_ID = 'bidi-acronym-input-fix-2026-05-19';
         function stylizeTitleText(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -610,6 +803,16 @@
             }
         }
 
+        function updateFontSizeVariables(baseSize) {
+            const numericBaseSize = Number.isFinite(baseSize) ? baseSize : 14;
+            const contextSize = Math.max(1, numericBaseSize - 2);
+            const citationSize = Math.max(1, contextSize * 2 / 3);
+            document.documentElement.style.setProperty('--base-font-size', numericBaseSize + 'pt');
+            document.documentElement.style.setProperty('--context-font-size', contextSize.toFixed(3).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1') + 'pt');
+            document.documentElement.style.setProperty('--citation-font-size', citationSize.toFixed(3).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1') + 'pt');
+            document.documentElement.style.setProperty('--title-font-size', (numericBaseSize + 7) + 'pt');
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
             const engFontDropdown = document.getElementById('english-font-choice');
             const hebFontDropdown = document.getElementById('font-choice');
@@ -626,8 +829,7 @@
 
             if (fontSizeSlider) {
                 const baseSize = parseInt(fontSizeSlider.value, 10);
-                document.documentElement.style.setProperty('--base-font-size', baseSize + 'pt');
-                document.documentElement.style.setProperty('--title-font-size', (baseSize + 7) + 'pt');
+                updateFontSizeVariables(baseSize);
             }
 
             if (kerningSlider) {
@@ -636,6 +838,7 @@
 
             applyTitleText(document.getElementById('list-title').value);
             updateViewModeLock();
+            installVocabularyInputGuard();
         });
 
         const generateBtn = document.getElementById('generate-btn');
@@ -650,6 +853,289 @@
         if (contextQuotesCheckbox) {
             contextQuotesCheckbox.addEventListener('change', updateViewModeLock);
         }
+
+        function getSelectedContextQuoteRows() {
+            return Array.from(document.querySelectorAll('.context-quote-checkbox:checked'))
+                .map(checkbox => checkbox.closest('tr'))
+                .filter(Boolean);
+        }
+
+        function animateDraftToolButton(button) {
+            if (!button) return;
+            button.classList.add('button-pressed');
+            window.setTimeout(() => button.classList.remove('button-pressed'), 120);
+        }
+
+        function runAfterNextPaint(callback) {
+            window.requestAnimationFrame(() => window.requestAnimationFrame(callback));
+        }
+
+        function yieldToBrowser() {
+            return new Promise(resolve => window.setTimeout(resolve, 0));
+        }
+
+        function contextEditingIsActive() {
+            return !!document.querySelector('.context-editing');
+        }
+
+        function finishContextEditing(editButton) {
+            const editedRows = new Set();
+            document.querySelectorAll('.context-editing').forEach(el => {
+                const row = el.closest('tr');
+                if (row && row.dataset.rowIndex) editedRows.add(Number(row.dataset.rowIndex));
+                el.removeAttribute('contenteditable');
+                el.classList.remove('context-editing');
+            });
+
+            editedRows.forEach(rowIndex => {
+                if (Number.isInteger(rowIndex)) syncGeneratedRowFromDom(rowIndex);
+            });
+
+            if (editButton) {
+                editButton.textContent = 'Edit Context Quote';
+                editButton.dataset.mode = 'edit';
+            }
+        }
+
+        function beginContextEditing(selectedRows, editButton) {
+            let firstEditable = null;
+            selectedRows.forEach(row => {
+                const rowIndex = Number(row.dataset.rowIndex);
+                if (Number.isInteger(rowIndex)) syncGeneratedRowFromDom(rowIndex);
+                row.querySelectorAll('.hebrew-text, .english-text, .hebrew-citation, .english-citation').forEach(el => {
+                    el.setAttribute('contenteditable', 'true');
+                    el.classList.add('context-editing');
+                    if (!firstEditable && el.classList.contains('english-text')) {
+                        firstEditable = el;
+                    }
+                });
+            });
+
+            if (editButton) {
+                editButton.textContent = 'Save Context Edits';
+                editButton.dataset.mode = 'save';
+            }
+            if (firstEditable) firstEditable.focus();
+        }
+
+        function setupDraftContextButtons() {
+            const regenerateButton = document.getElementById('regenerate-selected-context-quotes-btn');
+            const editButton = document.getElementById('edit-context-quote-btn');
+            const saveContextButton = document.getElementById('save-draft-context-btn');
+
+            if (regenerateButton && !regenerateButton.dataset.bound) {
+                regenerateButton.dataset.bound = 'true';
+                regenerateButton.addEventListener('click', function() {
+                    animateDraftToolButton(regenerateButton);
+                    if (contextEditingIsActive()) finishContextEditing(editButton);
+                    const indexes = getSelectedContextQuoteIndexes();
+                    if (indexes.length === 0) {
+                        alert('Please check at least one context quote first.');
+                        return;
+                    }
+                    regenerateButton.disabled = true;
+                    regenerateButton.textContent = 'Regenerating...';
+                    regenerateButton.style.flexBasis = '0';
+                    runAfterNextPaint(() => {
+                        regenerateSelectedContextQuotes(regenerateButton, indexes).catch((error) => {
+                            alert(error && error.message ? error.message : 'Regeneration failed.');
+                        });
+                    });
+                });
+            }
+
+            if (saveContextButton && !saveContextButton.dataset.bound) {
+                saveContextButton.dataset.bound = 'true';
+                saveContextButton.addEventListener('click', function() {
+                    animateDraftToolButton(saveContextButton);
+                    saveDraftToFile();
+                });
+            }
+
+            if (editButton && !editButton.dataset.bound) {
+                editButton.dataset.bound = 'true';
+                editButton.dataset.mode = editButton.dataset.mode || 'edit';
+                editButton.addEventListener('click', function() {
+                    animateDraftToolButton(editButton);
+
+                    if (editButton.dataset.mode === 'save' || contextEditingIsActive()) {
+                        finishContextEditing(editButton);
+                        return;
+                    }
+
+                    const selectedRows = getSelectedContextQuoteRows();
+                    if (selectedRows.length === 0) {
+                        alert('Please check at least one context quote first.');
+                        return;
+                    }
+
+                    beginContextEditing(selectedRows, editButton);
+                });
+            }
+        }
+
+        setupDraftContextButtons();
+
+
+        function getControlValue(id) {
+            const el = document.getElementById(id);
+            if (!el) return null;
+            if (el.type === 'checkbox') return !!el.checked;
+            return el.value;
+        }
+
+        function setControlValue(id, value) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (el.type === 'checkbox') {
+                el.checked = !!value;
+            } else if (value !== null && value !== undefined) {
+                el.value = value;
+            }
+        }
+
+        function buildDraftPayload() {
+            for (let i = 0; i < generatedRows.length; i++) syncGeneratedRowFromDom(i);
+            return {
+                draftType: 'PeninaPlusVocabularyBuilderDraft',
+                draftVersion: 1,
+                savedAt: new Date().toISOString(),
+                inputs: {
+                    listTitle: getControlValue('list-title'),
+                    sourceType: getControlValue('source-type'),
+                    wordList: getControlValue('word-list'),
+                    alphabetizeList: getControlValue('alphabetize-list'),
+                    contextQuotes: getControlValue('context-quotes'),
+                    substituteNames: getControlValue('substitute-names'),
+                    fontSize: getControlValue('font-size'),
+                    kerning: getControlValue('kerning'),
+                    viewMode: getControlValue('view-mode'),
+                    nekudotToggle: getControlValue('nekudot-toggle'),
+                    hebrewFontChoice: getControlValue('font-choice'),
+                    englishFontChoice: getControlValue('english-font-choice'),
+                    marginMode: getControlValue('margin-mode'),
+                    selectedSourceTargets: getSelectedSourceTargets(),
+                    hiddenChapterInput: getControlValue('hidden-chapter-input'),
+                    hiddenPerekInput: getControlValue('hidden-perek-input')
+                },
+                generatedRows,
+                generatedDocument: {
+                    pageVisible: pageContainer && pageContainer.style.display !== 'none',
+                    titleHtml: docTitle ? docTitle.innerHTML : '',
+                    tableBodyHtml: vocabTbody ? vocabTbody.innerHTML : '',
+                    pageHtml: pageContainer ? pageContainer.innerHTML : ''
+                }
+            };
+        }
+
+        function safeDraftFileName(title) {
+            const cleaned = String(title || 'PeninaPlus Vocabulary Draft')
+                .replace(/[\\/:*?"<>|]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 80);
+            return (cleaned || 'PeninaPlus Vocabulary Draft') + '.json';
+        }
+
+        function saveDraftToFile() {
+            const payload = buildDraftPayload();
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = safeDraftFileName(payload.inputs && payload.inputs.listTitle);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function applyDraftPayload(payload) {
+            if (!payload || payload.draftType !== 'PeninaPlusVocabularyBuilderDraft') {
+                throw new Error('This does not look like a PeninaPlus Vocabulary Builder draft.');
+            }
+            const inputs = payload.inputs || {};
+            setControlValue('list-title', inputs.listTitle || '');
+            setControlValue('source-type', inputs.sourceType || 'Tanakh');
+            sourceTypeSelect.dispatchEvent(new Event('change'));
+            setControlValue('word-list', inputs.wordList || '');
+            setControlValue('alphabetize-list', inputs.alphabetizeList);
+            setControlValue('context-quotes', inputs.contextQuotes);
+            setControlValue('substitute-names', inputs.substituteNames);
+            setControlValue('font-size', inputs.fontSize || '14');
+            setControlValue('kerning', inputs.kerning || '0');
+            setControlValue('nekudot-toggle', inputs.nekudotToggle || 'show');
+            setControlValue('font-choice', inputs.hebrewFontChoice || 'Arial, sans-serif');
+            setControlValue('english-font-choice', inputs.englishFontChoice || 'Arial, sans-serif');
+            setControlValue('margin-mode', inputs.marginMode || 'none');
+
+            selectedSourceTargets = Array.isArray(inputs.selectedSourceTargets) ? inputs.selectedSourceTargets.slice() : [];
+            renderChips();
+            setControlValue('hidden-chapter-input', inputs.hiddenChapterInput || JSON.stringify(selectedSourceTargets));
+            setControlValue('hidden-perek-input', inputs.hiddenPerekInput || '');
+
+            document.getElementById('font-size-val').innerText = (parseInt(getControlValue('font-size'), 10) || 14) + 'pt';
+            document.getElementById('kerning-val').innerText = (getControlValue('kerning') || '0') + 'px';
+            updateFontSizeVariables(parseInt(getControlValue('font-size'), 10) || 14);
+            document.documentElement.style.setProperty('--global-letter-spacing', (getControlValue('kerning') || '0') + 'px');
+            document.documentElement.style.setProperty('--hebrew-font', getControlValue('font-choice'));
+            document.documentElement.style.setProperty('--english-font', getControlValue('english-font-choice'));
+            updateMargin(getControlValue('margin-mode') || 'none');
+            updateViewModeLock();
+            const requestedViewMode = inputs.viewMode;
+            if (requestedViewMode && !document.getElementById('view-mode').disabled) {
+                setControlValue('view-mode', requestedViewMode);
+                document.body.className = requestedViewMode;
+            }
+            applyTitleText(getControlValue('list-title') || '');
+
+            generatedRows = Array.isArray(payload.generatedRows) ? payload.generatedRows : [];
+            if (generatedRows.length) {
+                vocabTbody.innerHTML = generatedRows.map((row, index) => renderVocabularyRow(row, index)).join('');
+                pageContainer.style.display = 'block';
+                const draftContextTools = document.getElementById('draft-context-tools');
+                if (draftContextTools) draftContextTools.classList.add('visible');
+            } else if (payload.generatedDocument && payload.generatedDocument.tableBodyHtml) {
+                vocabTbody.innerHTML = payload.generatedDocument.tableBodyHtml;
+                pageContainer.style.display = payload.generatedDocument.pageVisible ? 'block' : 'none';
+            }
+            refreshOriginalHebrewDatasets();
+            updateTextDisplay();
+            updateVocabInputWarning();
+        }
+
+        function setupDraftFileButtons() {
+            const saveButton = document.getElementById('save-draft-btn');
+            const uploadButton = document.getElementById('upload-draft-btn');
+            const uploadInput = document.getElementById('upload-draft-input');
+            if (saveButton && !saveButton.dataset.bound) {
+                saveButton.dataset.bound = 'true';
+                saveButton.addEventListener('click', function() {
+                    animateDraftToolButton(saveButton);
+                    saveDraftToFile();
+                });
+            }
+            if (uploadButton && uploadInput && !uploadButton.dataset.bound) {
+                uploadButton.dataset.bound = 'true';
+                uploadButton.addEventListener('click', function() {
+                    animateDraftToolButton(uploadButton);
+                    uploadInput.value = '';
+                    uploadInput.click();
+                });
+                uploadInput.addEventListener('change', async function() {
+                    const file = uploadInput.files && uploadInput.files[0];
+                    if (!file) return;
+                    try {
+                        const payload = JSON.parse(await file.text());
+                        applyDraftPayload(payload);
+                    } catch (error) {
+                        alert(error && error.message ? error.message : 'Could not upload this draft.');
+                    }
+                });
+            }
+        }
+
+        setupDraftFileButtons();
 
 const bookSelect = document.getElementById('book-select');
 const numPicker = document.getElementById('num-picker');
@@ -1124,8 +1610,7 @@ function updateTalmudModeVisibility() {
         document.getElementById('font-size').addEventListener('input', (e) => {
             const baseSize = parseInt(e.target.value, 10);
             document.getElementById('font-size-val').innerText = baseSize + 'pt';
-            document.documentElement.style.setProperty('--base-font-size', baseSize + 'pt');
-            document.documentElement.style.setProperty('--title-font-size', (baseSize + 7) + 'pt');
+            updateFontSizeVariables(baseSize);
         });
 
         document.getElementById('kerning').addEventListener('input', (e) => {
@@ -1152,6 +1637,13 @@ function updateTalmudModeVisibility() {
             const value = String(text || '').trim();
             if (!value) return false;
             return /[״׳"'`]/.test(value);
+        }
+
+        function normalizeHebrewAbbreviationKey(text) {
+            return String(text || '')
+                .replace(/[\u0591-\u05C7]/g, '')
+                .replace(/[״׳"'`\s.\-–—]/g, '')
+                .trim();
         }
 
         async function expandHebrewAbbreviation(rawHebrew, sourceType) {
@@ -1217,6 +1709,178 @@ function updateTalmudModeVisibility() {
             return containsHebrew(value) && !containsLatin(value);
         }
 
+        const VOCAB_INPUT_WARNING_TEXT = "Vocabulary words must be in Hebrew. The vocabulary word may then be followed by tab or comma and a definition in English, Hebrew, or both.";
+
+        function normalizeVocabularyInputLine(line) {
+            return String(line || '')
+                .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '')
+                .replace(/[–—]/g, '-')
+                .trim();
+        }
+
+        function getFirstVocabularyDelimiterIndex(line) {
+            const commaIndex = line.indexOf(',');
+            const tabIndex = line.indexOf('\t');
+            if (commaIndex === -1) return tabIndex;
+            if (tabIndex === -1) return commaIndex;
+            return Math.min(commaIndex, tabIndex);
+        }
+
+        function extractLeadingHebrewVocabularyChunk(text) {
+            const value = normalizeVocabularyInputLine(text);
+            const match = value.match(/^\s*([\u0590-\u05FF\uFB1D-\uFB4F][\u0590-\u05FF\uFB1D-\uFB4F\s"'׳״`.-]*?)(?=\s*[,\t]|\s+-\s+|\s*$)/);
+            return match ? match[1].trim() : '';
+        }
+
+        function parseVocabularyLine(line) {
+            const raw = normalizeVocabularyInputLine(line);
+            const delimiterIndex = getFirstVocabularyDelimiterIndex(raw);
+            if (delimiterIndex === -1) {
+                return { hebrew: raw.trim(), english: null };
+            }
+
+            let hebrew = raw.slice(0, delimiterIndex).trim();
+            let english = raw.slice(delimiterIndex + 1).trim();
+
+            const leadingHebrew = extractLeadingHebrewVocabularyChunk(raw);
+            if (leadingHebrew && (!isValidHebrewVocabularyWord(hebrew) || leadingHebrew.length < hebrew.length)) {
+                hebrew = leadingHebrew;
+                const afterHebrew = raw.slice(raw.indexOf(leadingHebrew) + leadingHebrew.length);
+                english = afterHebrew.replace(/^\s*[,\t-]+\s*/, '').trim();
+            }
+
+            return { hebrew, english: english.length > 0 ? english : null };
+        }
+
+        function isValidHebrewVocabularyWord(value) {
+            const text = String(value || '').trim();
+            return !!text && containsHebrew(text) && !containsLatin(text);
+        }
+
+        function isValidDefinition(value) {
+            const text = String(value || '').trim();
+            if (!text) return true;
+            return /\S/.test(text);
+        }
+
+        function getVocabularyInputProblems(rawText) {
+            const lines = String(rawText || '').split('\n');
+            const problems = [];
+
+            lines.forEach((line, index) => {
+                if (!line.trim()) return;
+                const firstNonSpace = line.trimStart().charAt(0);
+                const parsed = parseVocabularyLine(line);
+
+                if (/[A-Za-z]/.test(firstNonSpace)) {
+                    problems.push({ line: index + 1, reason: 'english-first' });
+                    return;
+                }
+
+                if (!isValidHebrewVocabularyWord(parsed.hebrew)) {
+                    problems.push({ line: index + 1, reason: 'invalid-hebrew-word' });
+                    return;
+                }
+
+                if (!isValidDefinition(parsed.english)) {
+                    problems.push({ line: index + 1, reason: 'invalid-definition' });
+                }
+            });
+
+            return problems;
+        }
+
+        function updateVocabInputWarning() {
+            const textarea = document.getElementById('word-list');
+            const warning = document.getElementById('vocab-input-warning');
+            if (!textarea || !warning) return [];
+            const problems = getVocabularyInputProblems(textarea.value);
+            warning.textContent = VOCAB_INPUT_WARNING_TEXT;
+            warning.style.display = problems.length ? 'block' : 'none';
+            return problems;
+        }
+
+        function lineStartsWithEnglishProblem(line) {
+            const trimmed = String(line || '').trimStart();
+            return /^[A-Za-z]/.test(trimmed);
+        }
+
+        function sanitizeSecondEnglishLetterAtLineStart(value) {
+            return String(value || '').split('\n').map(line => {
+                if (!lineStartsWithEnglishProblem(line)) return line;
+                const leadingSpaceMatch = line.match(/^\s*/);
+                const leading = leadingSpaceMatch ? leadingSpaceMatch[0] : '';
+                const rest = line.slice(leading.length);
+                const delimiterIndex = getFirstVocabularyDelimiterIndex(rest);
+                const beforeDelimiter = delimiterIndex === -1 ? rest : rest.slice(0, delimiterIndex);
+                const afterDelimiter = delimiterIndex === -1 ? '' : rest.slice(delimiterIndex);
+                let seenFirstEnglish = false;
+                let cleanedBefore = '';
+
+                for (const ch of beforeDelimiter) {
+                    if (/[A-Za-z]/.test(ch)) {
+                        if (!seenFirstEnglish) {
+                            cleanedBefore += ch;
+                            seenFirstEnglish = true;
+                        }
+                    } else {
+                        cleanedBefore += ch;
+                    }
+                }
+
+                return leading + cleanedBefore + afterDelimiter;
+            }).join('\n');
+        }
+
+        function getTextareaLineBounds(textarea) {
+            const value = textarea.value;
+            const pos = textarea.selectionStart || 0;
+            const lineStart = value.lastIndexOf('\n', Math.max(0, pos - 1)) + 1;
+            const nextNewline = value.indexOf('\n', pos);
+            const lineEnd = nextNewline === -1 ? value.length : nextNewline;
+            return { lineStart, lineEnd, pos };
+        }
+
+        function wouldCreateSecondEnglishLetterAtLineStart(textarea, insertedText) {
+            if (!/^[A-Za-z]$/.test(insertedText || '')) return false;
+            const { lineStart, lineEnd, pos } = getTextareaLineBounds(textarea);
+            const line = textarea.value.slice(lineStart, lineEnd);
+            const relativePos = pos - lineStart;
+            const candidateLine = line.slice(0, relativePos) + insertedText + line.slice(relativePos);
+            if (!lineStartsWithEnglishProblem(candidateLine)) return false;
+            const delimiterIndex = getFirstVocabularyDelimiterIndex(candidateLine);
+            const beforeDelimiter = delimiterIndex === -1 ? candidateLine : candidateLine.slice(0, delimiterIndex);
+            const englishLetters = (beforeDelimiter.match(/[A-Za-z]/g) || []).length;
+            return englishLetters > 1;
+        }
+
+        function installVocabularyInputGuard() {
+            const textarea = document.getElementById('word-list');
+            if (!textarea || textarea.dataset.vocabGuardInstalled === 'true') return;
+            textarea.dataset.vocabGuardInstalled = 'true';
+
+            textarea.addEventListener('beforeinput', (event) => {
+                if (event.inputType !== 'insertText') return;
+                if (wouldCreateSecondEnglishLetterAtLineStart(textarea, event.data)) {
+                    event.preventDefault();
+                    updateVocabInputWarning();
+                }
+            });
+
+            textarea.addEventListener('input', () => {
+                const sanitized = sanitizeSecondEnglishLetterAtLineStart(textarea.value);
+                if (sanitized !== textarea.value) {
+                    const oldPos = textarea.selectionStart || 0;
+                    textarea.value = sanitized;
+                    const newPos = Math.min(oldPos, textarea.value.length);
+                    textarea.setSelectionRange(newPos, newPos);
+                }
+                updateVocabInputWarning();
+            });
+
+            updateVocabInputWarning();
+        }
+
         function containsNekudotOrTaamim(text) {
             return /[\u0591-\u05C7]/.test(String(text || ''));
         }
@@ -1270,7 +1934,323 @@ function updateTalmudModeVisibility() {
             }
         }
 
-        generateBtn.addEventListener('click', async () => {
+
+
+        let generatedRows = [];
+        const semanticContextValidationCache = new Map();
+
+        function getSelectedContextQuoteIndexes() {
+            return Array.from(document.querySelectorAll('.context-quote-checkbox:checked'))
+                .map(checkbox => Number(checkbox.dataset.rowIndex))
+                .filter(index => Number.isInteger(index) && index >= 0)
+                .filter((index, position, all) => all.indexOf(index) === position);
+        }
+
+        function refreshOriginalHebrewDatasets(scope = document) {
+            scope.querySelectorAll('.hebrew-word, .hebrew-text, .hebrew-citation').forEach(el => {
+                el.dataset.original = el.innerHTML;
+            });
+        }
+
+        function stripHtmlToText(html) {
+            const temp = document.createElement('div');
+            temp.innerHTML = String(html || '');
+            return temp.textContent || temp.innerText || '';
+        }
+
+        function syncGeneratedRowFromDom(rowIndex) {
+            const row = generatedRows[rowIndex];
+            const tr = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
+            if (!row || !tr) return;
+            const definitionEl = tr.querySelector('.col-english');
+            const hebrewTextEl = tr.querySelector('.hebrew-text');
+            const englishTextEl = tr.querySelector('.english-text');
+            const hebrewCitationEl = tr.querySelector('.hebrew-citation');
+            const englishCitationEl = tr.querySelector('.english-citation');
+            if (definitionEl) row.item.english = definitionEl.textContent.trim();
+            if (hebrewTextEl) row.hebrewContext = hebrewTextEl.textContent.trim();
+            if (englishTextEl) row.englishContext = englishTextEl.textContent.trim();
+            if (hebrewCitationEl) row.hebrewCitation = hebrewCitationEl.textContent.trim();
+            if (englishCitationEl) row.englishCitation = englishCitationEl.textContent.trim();
+        }
+
+        function cleanAiTextGlobal(text) {
+            return String(text || '')
+                .replace(/\*\*(.*?)\*\*/g, '$1')
+                .replace(/__(.*?)__/g, '$1')
+                .replace(/\*(.*?)\*/g, '$1')
+                .replace(/_(.*?)_/g, '$1')
+                .replace(/^["'“”‘’\s]+|["'“”‘’\s]+$/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        async function callTranslateBatchGlobal(prompts, options = {}) {
+            const chunkSize = Number.isInteger(options.chunkSize) ? options.chunkSize : 12;
+            const cleanedPrompts = prompts.map(p => String(p || '').trim()).filter(Boolean);
+            const allResults = [];
+            for (let i = 0; i < cleanedPrompts.length; i += chunkSize) {
+                const chunk = cleanedPrompts.slice(i, i + chunkSize);
+                try {
+                    const res = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompts: chunk })
+                    });
+                    if (!res.ok) throw new Error(`Batch translate failed with status ${res.status}`);
+                    const data = await res.json();
+                    const results = Array.isArray(data.results) ? data.results : [];
+                    for (let j = 0; j < chunk.length; j++) {
+                        allResults.push(results[j] && typeof results[j] === 'object' ? results[j] : { ok: false, error: data.firstError || 'Missing translation result.', text: '' });
+                    }
+                } catch (error) {
+                    for (let j = 0; j < chunk.length; j++) {
+                        allResults.push({ ok: false, error: error && error.message ? error.message : 'Translation request failed.', text: '' });
+                    }
+                }
+            }
+            return allResults;
+        }
+
+        async function callTranslateOneGlobal(promptText) {
+            const results = await callTranslateBatchGlobal([promptText], { chunkSize: 1 });
+            const result = results[0];
+            return result && result.ok && result.text ? cleanAiTextGlobal(result.text) : '';
+        }
+
+        function markEnglishCitationAsAiTranslationForRow(row) {
+            if (!row || !(row.sourceType === 'Tanakh' || row.sourceType === 'Talmud')) return;
+            if (!row.englishCitation) return;
+            if (/AI translation/i.test(row.englishCitation)) return;
+            row.englishCitation = `${row.englishCitation} - AI translation`;
+        }
+
+        function buildContextTranslationPromptForRow(row) {
+            if (row.sourceType === 'Modern Hebrew') {
+                return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${String(row.item.english || '').toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
+            }
+            return `Translate ONLY this Hebrew/Aramaic excerpt to concise, clear English: "${row.hebrewContext}". Make the result read naturally as an English sentence or phrase, but do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context, so the vocabulary word can be bolded later. Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
+        }
+
+        async function translateContextForRow(row) {
+            if (!row || !row.hebrewContext || row.hebrewContext === 'Word not found in context.') return '';
+            const translated = await callTranslateOneGlobal(buildContextTranslationPromptForRow(row));
+            if (translated) {
+                row.englishContext = translated;
+                markEnglishCitationAsAiTranslationForRow(row);
+            }
+            return translated;
+        }
+
+        function getCitationWithoutAiLabel(value) {
+            return String(value || '').replace(/\s*-\s*AI translation\s*$/i, '').trim();
+        }
+
+        function registerRejectedCurrentRefs(row) {
+            if (!row) return;
+            if (!Array.isArray(row.rejectedRefs)) row.rejectedRefs = [];
+            [row.lastSearchRef, row.lastHeRef, row.hebrewCitation, getCitationWithoutAiLabel(row.englishCitation)].forEach(ref => {
+                const value = String(ref || '').trim();
+                if (value && !row.rejectedRefs.includes(value)) row.rejectedRefs.push(value);
+            });
+        }
+
+        async function regenerateModernHebrewRow(row) {
+            const previous = row.hebrewContext && !/^\[/.test(row.hebrewContext) ? ` Do not reuse this sentence: "${row.hebrewContext}".` : '';
+            const generatedContext = await callTranslateOneGlobal(`Write exactly one different short, natural Modern Hebrew sentence using the expression "${row.semanticHebrew || row.cleanHebrew}" (meaning "${row.item.english}").${previous} Return ONLY the Hebrew sentence.`);
+            const cleaned = cleanGeneratedHebrew(generatedContext);
+            if (!cleaned || !containsHebrew(cleaned)) throw new Error('Modern Hebrew context generation failed.');
+            row.hebrewContext = await addNikkudWithDicta(cleaned, row.sourceType);
+            row.hebrewCitation = '';
+            row.englishCitation = 'Modern Hebrew Context - AI';
+            row.englishContext = '';
+            await translateContextForRow(row);
+        }
+
+        async function regenerateSefariaRow(row) {
+            registerRejectedCurrentRefs(row);
+            const searchResult = await performSefariaSearch(
+                row.searchHebrew || row.semanticHebrew || row.cleanHebrew || row.item.hebrew,
+                row.sourceType,
+                row.selectedTargets || [],
+                row.rejectedRefs || [],
+                row.item && row.item.english
+            );
+            if (!searchResult) throw new Error('No alternate Sefaria context quote was found.');
+            row.hebrewContext = searchResult.he || '';
+            row.englishContext = searchResult.en || '';
+            row.rawSefariaEnglishContext = searchResult.sourceEnglish || searchResult.rawEn || '';
+            row.matchedHebrewCandidate = searchResult.matchedCandidate || row.searchHebrew || row.cleanHebrew;
+            row.lastSearchRef = searchResult.ref || '';
+            row.lastHeRef = searchResult.heRef || '';
+            const citationParts = formatSefariaCitation(searchResult.heRef, searchResult.ref, row.sourceType);
+            row.hebrewCitation = citationParts.hebrew;
+            row.englishCitation = citationParts.english;
+            row.citation = citationParts.combined;
+            if (!row.englishContext) await translateContextForRow(row);
+        }
+
+        async function regenerateContextForRow(rowIndex) {
+            const row = generatedRows[rowIndex];
+            const tr = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
+            if (!row || !tr) return;
+            syncGeneratedRowFromDom(rowIndex);
+            const contextCell = tr.querySelector('.col-context');
+            if (contextCell) contextCell.classList.add('context-regenerating');
+            try {
+                if (row.sourceType === 'Tanakh' || row.sourceType === 'Talmud') {
+                    await regenerateSefariaRow(row);
+                } else if (row.sourceType === 'Modern Hebrew') {
+                    await regenerateModernHebrewRow(row);
+                } else {
+                    throw new Error('This row does not use context quotations.');
+                }
+                replaceRenderedRow(rowIndex);
+            } catch (error) {
+                if (contextCell) {
+                    contextCell.classList.remove('context-regenerating');
+                    let err = contextCell.querySelector('.context-row-error');
+                    if (!err) {
+                        err = document.createElement('div');
+                        err.className = 'context-row-error';
+                        contextCell.appendChild(err);
+                    }
+                    err.textContent = error && error.message ? error.message : 'Regeneration failed.';
+                }
+            }
+        }
+
+        async function regenerateSelectedContextQuotes(button, providedIndexes = null) {
+            const indexes = Array.isArray(providedIndexes) ? providedIndexes : getSelectedContextQuoteIndexes();
+            if (indexes.length === 0) {
+                alert('Please check at least one context quote first.');
+                return;
+            }
+            if (button) button.disabled = true;
+            try {
+                for (let i = 0; i < indexes.length; i++) {
+                    if (button) button.textContent = `Regenerating ${i + 1}/${indexes.length}...`;
+                    await regenerateContextForRow(indexes[i]);
+                    await new Promise(resolve => window.setTimeout(resolve, 0));
+                }
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Regenerate Selected Context Quotes ↺';
+                }
+            }
+        }
+
+        function normalizeHebrewForDisplayMatchGlobal(text) {
+            return String(text || '')
+                .replace(/[\u0591-\u05C7]/g, '')
+                .replace(/[^\u05D0-\u05EA\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function splitHebrewCandidatesGlobal(raw) {
+            return String(raw || '').split(/\s*(?:\/|-)\s*/).map(s => s.trim()).filter(Boolean);
+        }
+
+        function buildStrictHighlightRegexGlobal(candidate) {
+            const cleaned = String(candidate || '').trim();
+            if (!cleaned) return null;
+            const words = cleaned.split(/\s+/).filter(Boolean);
+            if (!words.length) return null;
+            const buildWordPattern = (word) => word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
+            const firstWordPattern = buildWordPattern(words[0]);
+            if (words.length === 1) {
+                if (words[0].replace(/[\u0591-\u05C7]/g, '').length <= 3) {
+                    return new RegExp(`(^|[^\\u05D0-\\u05EA])(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`, 'u');
+                }
+                return new RegExp(`(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`, 'u');
+            }
+            const remainingPatterns = words.slice(1).map(buildWordPattern).join('[\\s\\p{P}]+');
+            return new RegExp(`(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern}(?:[\\s\\p{P}]+${remainingPatterns}))(?=[^\\u05D0-\\u05EA]|$)`, 'u');
+        }
+
+        function highlightHebrewContext(row) {
+            const hebrewContext = String(row.hebrewContext || '');
+            let highlightedHebrew = hebrewContext;
+            const candidates = splitHebrewCandidatesGlobal(row.matchedHebrewCandidate).sort((a, b) => b.length - a.length);
+            for (const candidate of candidates) {
+                const regex = buildStrictHighlightRegexGlobal(candidate);
+                if (!regex) continue;
+                const match = hebrewContext.match(regex);
+                if (!match) continue;
+                if (match.length >= 4) highlightedHebrew = hebrewContext.replace(regex, `$1$2<span style="font-weight:bold;">$3</span>`);
+                else if (match.length >= 3) highlightedHebrew = hebrewContext.replace(regex, `$1<span style="font-weight:bold;">$2</span>`);
+                else highlightedHebrew = hebrewContext.replace(regex, `<span style="font-weight:bold;">$&</span>`);
+                break;
+            }
+            return highlightedHebrew;
+        }
+
+        function highlightEnglishContext(row) {
+            let highlightedEnglish = String(row.englishContext || '');
+            const englishCandidates = String(row.item && row.item.english || '')
+                .split(/[,;/]+/)
+                .map(s => s.trim())
+                .filter(Boolean)
+                .flatMap(s => {
+                    const withoutParens = s.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+                    return withoutParens && withoutParens !== s ? [s, withoutParens] : [s];
+                })
+                .filter((v, i, a) => v && a.indexOf(v) === i)
+                .sort((a, b) => b.length - a.length);
+            for (const candidate of englishCandidates) {
+                const safeCandidate = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const isSingleWord = !/\s/.test(candidate);
+                const regex = isSingleWord ? new RegExp(`\\b${safeCandidate}(?:s|es|ed|ing)?\\b`, 'i') : new RegExp(`\\b${safeCandidate}\\b`, 'i');
+                if (regex.test(highlightedEnglish)) {
+                    highlightedEnglish = highlightedEnglish.replace(regex, `<span style="font-weight:bold;">$&</span>`);
+                    break;
+                }
+            }
+            return highlightedEnglish;
+        }
+
+        function renderVocabularyRow(row, rowIndex) {
+            const highlightedHebrew = highlightHebrewContext(row);
+            const highlightedEnglish = highlightEnglishContext(row);
+            return `
+                    <tr data-row-index="${rowIndex}">
+                        <td class="col-hebrew"><span class="hebrew-word">${row.item.hebrew}</span></td>
+                        <td class="col-english" contenteditable="true">${row.item.english}</td>
+                        <td class="col-context">
+                            <div class="hebrew-text">${highlightedHebrew}</div>
+                            ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl">${row.hebrewCitation}</div>` : ''}
+                            <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
+                            <div class="english-citation-row">
+                                ${row.englishCitation ? `<div class="citation english-citation" dir="ltr">${row.englishCitation}</div>` : '<div class="citation english-citation" dir="ltr"></div>'}
+                                <label class="context-row-checkbox-slot" aria-label="Select this context quote"><input type="checkbox" class="context-quote-checkbox" data-row-index="${rowIndex}"></label>
+                            </div>
+                        </td>
+                    </tr>`;
+        }
+
+        function replaceRenderedRow(rowIndex) {
+            const oldRow = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
+            if (!oldRow || !generatedRows[rowIndex]) return;
+            oldRow.outerHTML = renderVocabularyRow(generatedRows[rowIndex], rowIndex);
+            const newRow = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
+            if (newRow) refreshOriginalHebrewDatasets(newRow);
+            updateTextDisplay();
+        }
+
+        generateBtn.addEventListener('click', () => {
+            animateDraftToolButton(generateBtn);
+            runAfterNextPaint(() => {
+                handleGenerateVocabularyClick().catch((error) => {
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = 'Generate Vocabulary Table';
+                    vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${error && error.message ? error.message : 'Generation failed.'}</td></tr>`;
+                });
+            });
+        });
+
+        async function handleGenerateVocabularyClick() {
             const title = document.getElementById('list-title').value.trim();
             const rawInput = document.getElementById('word-list').value.trim();
             const sourceType = document.getElementById('source-type').value;
@@ -1297,35 +2277,36 @@ function updateTalmudModeVisibility() {
                 return;
             }
 
+            const vocabProblems = getVocabularyInputProblems(rawInput);
+            if (vocabProblems.length > 0) {
+                updateVocabInputWarning();
+                const badLines = vocabProblems.map(problem => problem.line).join(', ');
+                alert(`${VOCAB_INPUT_WARNING_TEXT} Problem line(s): ${badLines}.`);
+                pageContainer.style.display = 'none';
+                const draftContextToolsForValidation = document.getElementById('draft-context-tools');
+                if (draftContextToolsForValidation) draftContextToolsForValidation.classList.remove('visible');
+                return;
+            }
+
             generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            await yieldToBrowser();
             vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
             pageContainer.style.display = 'block';
+            const draftContextTools = document.getElementById('draft-context-tools');
+            if (draftContextTools) draftContextTools.classList.add('visible');
             applyTitleText(title);
 
             try {
                 let lines = rawInput.split('\n').filter(line => line.trim() !== '');
-                const invalidVocabLines = [];
-                let vocabList = lines.map((line, lineIndex) => {
-                    let parts = line.split(/[,\t]+/).map(p => p.trim()).filter(p => p.length > 0);
-                    let hebrew = parts.shift() || "";
-                    let english = parts.join(', ');
-
-                    if (!containsHebrew(hebrew)) {
-                        invalidVocabLines.push(lineIndex + 1);
-                    }
-                    
+                let vocabList = lines.map(line => {
+                    const parsed = parseVocabularyLine(line);
                     return {
-                        hebrew: hebrew,
-                        english: english.length > 0 ? english : null,
+                        hebrew: parsed.hebrew,
+                        english: parsed.english,
                         expandedHebrew: ""
                     };
                 });
-
-                if (invalidVocabLines.length > 0) {
-                    alert(`Each vocabulary word must start with Hebrew. Please fix line${invalidVocabLines.length === 1 ? '' : 's'} ${invalidVocabLines.join(', ')}. Use either "עברית" or "עברית, English definition".`);
-                    pageContainer.style.display = 'none';
-                    return;
-                }
 
                 let htmlOutput = "";
 
@@ -1399,17 +2380,74 @@ function updateTalmudModeVisibility() {
                 const preparedItems = [];
                 const noContextMode = sourceType === 'No Context Quotes' || !contextQuotesEnabled();
 
+                function extractBracketedDefinitionExpansion(definition) {
+                    const match = String(definition || '').match(/\[([^\]]*[\u05D0-\u05EA][^\]]*)\]/);
+                    const expansion = match ? match[1].trim() : '';
+                    return containsHebrew(expansion) ? expansion : '';
+                }
+
+                function definitionHasExpansionPrefix(definition, expandedHebrew) {
+                    const expanded = String(expandedHebrew || '').trim();
+                    if (!expanded) return false;
+                    const escaped = expanded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const exactBracketPattern = new RegExp('\\[' + escaped + '\\]');
+                    return exactBracketPattern.test(String(definition || ''));
+                }
+
+                function refreshAcronymSearchFields(row) {
+                    if (!row || !row.item) return;
+                    const expanded = String(row.item.expandedHebrew || '').trim();
+                    row.isAbbreviationEntry = isLikelyHebrewAbbreviation(row.cleanHebrew) && !!expanded;
+                    row.semanticHebrew = row.isAbbreviationEntry ? expanded : row.cleanHebrew;
+                    row.searchHebrew = row.isAbbreviationEntry ? `${row.cleanHebrew}/${expanded}` : row.semanticHebrew;
+                    row.matchedHebrewCandidate = row.searchHebrew;
+                }
+
+                function applyExpansionPrefixToDefinition(row) {
+                    if (!row || !row.item) return;
+                    if (!row.item.expandedHebrew && isLikelyHebrewAbbreviation(row.cleanHebrew)) {
+                        const generatedExpansion = extractBracketedDefinitionExpansion(row.item.english);
+                        if (generatedExpansion) row.item.expandedHebrew = generatedExpansion;
+                    }
+
+                    const expanded = String(row.item.expandedHebrew || '').trim();
+                    const current = String(row.item.english || '').trim();
+                    if (expanded && !definitionHasExpansionPrefix(current, expanded)) {
+                        row.item.english = `[${expanded}] ${current || '[Definition unavailable]'}`;
+                    }
+                    refreshAcronymSearchFields(row);
+                }
+
+                function buildVocabularyDefinitionPrompt(row, sourceHint) {
+                    if (row.isAbbreviationEntry) {
+                        return `The Hebrew vocabulary item "${row.cleanHebrew}" is an abbreviation/acronym expanded as "${row.item.expandedHebrew}". Return ONLY a concise English classroom definition in this exact format: [${row.item.expandedHebrew}] English definition. Do not use Markdown or labels.`;
+                    }
+                    if (row.needsAcronymExpansion) {
+                        return `The Hebrew vocabulary item "${row.cleanHebrew}" is an abbreviation/acronym in ${sourceHint}. First expand it into its most likely full Hebrew wording for this source/context, then translate or define it. Return ONLY this exact format: [actual Hebrew expansion] English definition. Replace "actual Hebrew expansion" with the Hebrew expansion; do not write placeholder words. Do not use Markdown or labels.`;
+                    }
+                    return `Translate this Hebrew or Aramaic vocabulary word into a concise English classroom definition: "${row.semanticHebrew}". Source/context category hint: ${sourceHint}. Return ONLY the English definition. Do not return labels, Markdown, brackets, or explanations.`;
+                }
+
                 for (let item of vocabList) {
                     let cleanHebrew = String(item.hebrew || '').replace(/[֑-ׇ]/g, '').trim();
-                    if (item.translationError) {
-                        item.english = item.english || item.originalEnglishInput || '[Translation unavailable]';
+                    item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
+                    const providedExpansion = extractBracketedDefinitionExpansion(item.english);
+                    const isAbbreviation = isLikelyHebrewAbbreviation(cleanHebrew);
+                    const needsAcronymExpansion = isAbbreviation && !providedExpansion && !item.english;
+                    if (isAbbreviation) {
+                        if (providedExpansion) {
+                            item.expandedHebrew = providedExpansion;
+                        } else if (!item.english) {
+                            item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew, sourceType);
+                        } else {
+                            item.expandedHebrew = "";
+                        }
                     } else {
-                        item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
+                        item.expandedHebrew = "";
                     }
-                    item.expandedHebrew = noContextMode ? "" : await expandHebrewAbbreviation(cleanHebrew, sourceType);
-                    const isAbbreviationEntry = !noContextMode && isLikelyHebrewAbbreviation(cleanHebrew) && !!item.expandedHebrew;
+                    const isAbbreviationEntry = isAbbreviation && !!item.expandedHebrew;
                     const semanticHebrew = isAbbreviationEntry ? item.expandedHebrew : cleanHebrew;
-                    const searchHebrew = semanticHebrew;
+                    const searchHebrew = isAbbreviationEntry ? `${cleanHebrew}/${item.expandedHebrew}` : semanticHebrew;
 
                     preparedItems.push({
                         item,
@@ -1422,8 +2460,46 @@ function updateTalmudModeVisibility() {
                         englishCitation: "",
                         citation: "",
                         matchedHebrewCandidate: searchHebrew,
-                        isAbbreviationEntry
+                        isAbbreviationEntry,
+                        needsAcronymExpansion
                     });
+                    await yieldToBrowser();
+                }
+
+                async function translateSingleVocabularyDefinition(row) {
+                    const sourceHint = sourceType === 'No Context Quotes' ? 'general Hebrew/Aramaic' : sourceType;
+                    const promptsToTry = [
+                        buildVocabularyDefinitionPrompt(row, sourceHint),
+                        (row.isAbbreviationEntry || row.needsAcronymExpansion)
+                            ? `Write the English meaning of the Hebrew abbreviation/acronym "${row.cleanHebrew}"${row.item.expandedHebrew ? ` expanded as "${row.item.expandedHebrew}"` : ''}. Return ONLY this format: [actual Hebrew expansion] English definition. Replace "actual Hebrew expansion" with the Hebrew expansion; do not write placeholder words.`
+                            : `What is the English meaning of the standalone Hebrew/Aramaic vocabulary word "${row.cleanHebrew}"? Return ONLY a short English definition.`
+                    ];
+
+                    for (const promptText of promptsToTry) {
+                        try {
+                            const res = await fetch('/api/translate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ promptText })
+                            });
+
+                            if (!res.ok) continue;
+                            const data = await res.json();
+                            const cleaned = String(data.text || '')
+                                .replace(/^[,.:;\s\-–—]+|[,.:;\s\-–—]+$/g, '')
+                                .replace(/^translation unavailable$/i, '')
+                                .replace(/^unavailable$/i, '')
+                                .trim();
+
+                            if (cleaned && /[A-Za-z]/.test(cleaned)) {
+                                return cleaned;
+                            }
+                        } catch (_) {
+                            // Try the next prompt.
+                        }
+                    }
+
+                    return '';
                 }
 
                 const definitionPrompts = [];
@@ -1434,50 +2510,53 @@ function updateTalmudModeVisibility() {
 
                     if (!row.item.english) {
                         definitionIndexesNeedingTranslation.push(i);
-                        definitionPrompts.push(`Translate this Hebrew vocabulary item into concise English according to the ${sourceType} category: "${row.semanticHebrew}". Return ONLY the English translation.`);
+                        definitionPrompts.push(buildVocabularyDefinitionPrompt(row, sourceType));
                     }
                 }
 
                 if (definitionPrompts.length > 0) {
+                    const indexesStillNeedingDefinition = [];
+
                     try {
-                        const definitionResults = await callTranslateBatch(definitionPrompts);
+                        const definitionResults = await callTranslateBatch(definitionPrompts, { chunkSize: 6 });
                         definitionIndexesNeedingTranslation.forEach((rowIndex, batchIndex) => {
                             const result = definitionResults[batchIndex];
-                            if (result && result.ok && result.text) {
-                                preparedItems[rowIndex].item.english = String(result.text).replace(/^[,.\s]+|[,.\s]+$/g, "");
+                            const cleaned = result && result.ok && result.text
+                                ? String(result.text)
+                                      .replace(/^[,.:;\s\-–—]+|[,.:;\s\-–—]+$/g, "")
+                                      .replace(/^translation unavailable$/i, "")
+                                      .replace(/^unavailable$/i, "")
+                                      .trim()
+                                : "";
+
+                            if (cleaned && /[A-Za-z]/.test(cleaned)) {
+                                preparedItems[rowIndex].item.english = cleaned;
                             } else {
-                                preparedItems[rowIndex].item.english = "[Translation unavailable]";
+                                indexesStillNeedingDefinition.push(rowIndex);
                             }
                         });
                     } catch (e) {
-                        definitionIndexesNeedingTranslation.forEach((rowIndex) => {
-                            preparedItems[rowIndex].item.english = "[Translation unavailable]";
-                        });
+                        indexesStillNeedingDefinition.push(...definitionIndexesNeedingTranslation);
+                    }
+
+                    for (const rowIndex of indexesStillNeedingDefinition) {
+                        const fallbackDefinition = await translateSingleVocabularyDefinition(preparedItems[rowIndex]);
+                        preparedItems[rowIndex].item.english = fallbackDefinition || "[Definition unavailable]";
+                        await yieldToBrowser();
                     }
                 }
+
+                preparedItems.forEach(applyExpansionPrefixToDefinition);
 
                 for (const row of preparedItems) {
                     const { item, semanticHebrew, searchHebrew, isAbbreviationEntry } = row;
 
-                    if (item.translationError) {
-                        row.hebrewContext = "Hebrew translation unavailable.";
-                        row.englishContext = "";
-                        row.citation = "English-to-Hebrew translation unavailable";
-                        row.hebrewCitation = "";
-                        row.englishCitation = "English-to-Hebrew translation unavailable";
-                    } else if (noContextMode) {
+                    if (noContextMode) {
                         row.hebrewContext = "";
                         row.englishContext = "";
                         row.citation = "";
-                    } else if (isAbbreviationEntry) {
-                        row.hebrewContext = item.expandedHebrew;
-                        row.englishContext = "";
-                        row.citation = "Expanded abbreviation / acronym";
-                        row.hebrewCitation = "";
-                        row.englishCitation = "Expanded abbreviation / acronym";
-                        row.matchedHebrewCandidate = semanticHebrew;
                     } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                        let searchResult = await performSefariaSearch(searchHebrew, sourceType, getSelectedSourceTargets());
+                        let searchResult = await performSefariaSearch(searchHebrew, sourceType, getSelectedSourceTargets(), [], item.english);
                         if (searchResult) {
                             row.hebrewContext = searchResult.he || "";
                             row.englishContext = searchResult.en || "";
@@ -1487,6 +2566,8 @@ function updateTalmudModeVisibility() {
                             row.hebrewCitation = citationParts.hebrew;
                             row.englishCitation = citationParts.english;
                             row.citation = citationParts.combined;
+                            row.lastSearchRef = searchResult.ref || '';
+                            row.lastHeRef = searchResult.heRef || '';
                         } else {
                             row.hebrewContext = "Word not found in context.";
                         }
@@ -1517,6 +2598,7 @@ function updateTalmudModeVisibility() {
                         row.hebrewCitation = "";
                         row.englishCitation = "Modern Hebrew Context - AI";
                     }
+                    await yieldToBrowser();
                 }
 
                 const contextPromptIndexes = [];
@@ -1532,6 +2614,13 @@ function updateTalmudModeVisibility() {
                         .trim();
                 };
 
+                const markEnglishCitationAsAiTranslation = (row) => {
+                    if (!(sourceType === 'Tanakh' || sourceType === 'Talmud')) return;
+                    if (!row || !row.englishCitation) return;
+                    if (/AI translation/i.test(row.englishCitation)) return;
+                    row.englishCitation = `${row.englishCitation} - AI translation`;
+                };
+
                 const buildDirectTranslationPrompt = (row) => {
                     if (sourceType === 'Modern Hebrew') {
                         return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
@@ -1542,13 +2631,12 @@ function updateTalmudModeVisibility() {
 
                 for (let i = 0; i < preparedItems.length; i++) {
                     const row = preparedItems[i];
-                    if (row.isAbbreviationEntry) continue;
-
                     if (row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.englishContext) {
                         contextPromptIndexes.push(i);
                         contextPrompts.push(buildDirectTranslationPrompt(row));
                     }
                 }
+                await yieldToBrowser();
 
                 if (!noContextMode && contextPrompts.length > 0) {
                     try {
@@ -1561,9 +2649,7 @@ function updateTalmudModeVisibility() {
 
                             if (text) {
                                 row.englishContext = text;
-                                if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
-                                    row.englishCitation = `${row.englishCitation || row.citation || ''} - AI translation`;
-                                }
+                                markEnglishCitationAsAiTranslation(row);
                             } else {
                                 row.englishContext = fallbackEnglishContext(
                                     sourceType,
@@ -1583,134 +2669,51 @@ function updateTalmudModeVisibility() {
                     }
                 }
 
-                for (const row of preparedItems) {
-                    const { item, hebrewContext, englishContext, hebrewCitation, englishCitation, matchedHebrewCandidate } = row;
+                const generationSelectedTargets = getSelectedSourceTargets();
+                generatedRows = preparedItems.map((row, index) => {
+                    row.rowIndex = index;
+                    row.sourceType = sourceType;
+                    row.selectedTargets = generationSelectedTargets.slice();
+                    row.rejectedRefs = [];
+                    row.lastSearchRef = row.lastSearchRef || getCitationWithoutAiLabel(row.englishCitation);
+                    row.lastHeRef = row.lastHeRef || row.hebrewCitation || '';
+                    return row;
+                });
 
-                    function normalizeHebrewForDisplayMatch(text) {
-                        return String(text || '')
-                            .replace(/[\u0591-\u05C7]/g, '')
-                            .replace(/[^\u05D0-\u05EA\s]/g, ' ')
-                            .replace(/\s+/g, ' ')
-                            .trim();
-                    }
-
-                    function splitHebrewCandidates(raw) {
-                        return String(raw || '')
-                            .split(/\s*(?:\/|-)\s*/)
-                            .map(s => s.trim())
-                            .filter(Boolean);
-                    }
-
-                    function buildStrictHighlightRegex(candidate) {
-                        const cleaned = String(candidate || '').trim();
-                        if (!cleaned) return null;
-
-                        const words = cleaned.split(/\s+/).filter(Boolean);
-                        if (!words.length) return null;
-
-                        const buildWordPattern = (word) =>
-                            word.split('').join('[\\u0591-\\u05C7]*') + '[\\u0591-\\u05C7]*';
-
-                        const firstWordPattern = buildWordPattern(words[0]);
-
-                        if (words.length === 1) {
-                            if (words[0].replace(/[\u0591-\u05C7]/g, '').length <= 3) {
-                                return new RegExp(
-                                    `(^|[^\\u05D0-\\u05EA])(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`,
-                                    'u'
-                                );
-                            }
-
-                            return new RegExp(
-                                `(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern})(?=[^\\u05D0-\\u05EA]|$)`,
-                                'u'
-                            );
-                        }
-
-                        const remainingPatterns = words
-                            .slice(1)
-                            .map(buildWordPattern)
-                            .join('[\\s\\p{P}]+');
-
-                        return new RegExp(
-                            `(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern}(?:[\\s\\p{P}]+${remainingPatterns}))(?=[^\\u05D0-\\u05EA]|$)`,
-                            'u'
-                        );
-                    }
-
-                    let highlightedHebrew = hebrewContext;
-                    const hebrewCandidatesForHighlight = splitHebrewCandidates(matchedHebrewCandidate)
-                        .sort((a, b) => b.length - a.length);
-
-                    for (const candidate of hebrewCandidatesForHighlight) {
-                        const regex = buildStrictHighlightRegex(candidate);
-                        if (!regex) continue;
-
-                        const match = hebrewContext.match(regex);
-                        if (!match) continue;
-
-                        if (match.length >= 4) {
-                            highlightedHebrew = hebrewContext.replace(regex, `$1$2<span style="font-weight:bold;">$3</span>`);
-                        } else if (match.length >= 3) {
-                            highlightedHebrew = hebrewContext.replace(regex, `$1<span style="font-weight:bold;">$2</span>`);
-                        } else {
-                            highlightedHebrew = hebrewContext.replace(regex, `<span style="font-weight:bold;">$&</span>`);
-                        }
-                        break;
-                    }
-
-let displayEnglish = englishContext;
-
-let englishCandidates = String(item.english || "")
-    .split(/[,;/]+/)
-    .map(s => s.trim())
-    .filter(Boolean)
-    .flatMap(s => {
-        const withoutParens = s.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
-        return withoutParens && withoutParens !== s ? [s, withoutParens] : [s];
-    })
-    .filter((v, i, a) => v && a.indexOf(v) === i)
-    .sort((a, b) => b.length - a.length);
-
-let highlightedEnglish = displayEnglish;
-
-for (const candidate of englishCandidates) {
-    const safeCandidate = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const isSingleWord = !/\s/.test(candidate);
-
-    const regex = isSingleWord
-        ? new RegExp(`\\b${safeCandidate}(?:s|es|ed|ing)?\\b`, 'i')
-        : new RegExp(`\\b${safeCandidate}\\b`, 'i');
-
-    if (regex.test(highlightedEnglish)) {
-        highlightedEnglish = highlightedEnglish.replace(regex, `<span style="font-weight:bold;">$&</span>`);
-        break;
-    }
-}
-
-                    htmlOutput += `
-                    <tr>
-                        <td class="col-hebrew"><span class="hebrew-word">${item.hebrew}</span></td>
-                        <td class="col-english" contenteditable="true">${item.english}</td>
-                        <td class="col-context">
-                            <div class="hebrew-text">${highlightedHebrew}</div>
-                            ${hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl">${hebrewCitation}</div>` : ''}
-                            <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
-                            ${englishCitation ? `<div class="citation english-citation" dir="ltr">${englishCitation}</div>` : ''}
-                        </td>
-                    </tr>`;
-                }
+                htmlOutput = generatedRows.map((row, index) => renderVocabularyRow(row, index)).join('');
                 vocabTbody.innerHTML = htmlOutput;
-                document.querySelectorAll('.hebrew-word, .hebrew-text, .hebrew-citation').forEach(el => el.dataset.original = el.innerHTML);
+                refreshOriginalHebrewDatasets();
                 updateTextDisplay();
             } catch (e) {
                 vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
-            } finally { generateBtn.disabled = false; }
-        });
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Vocabulary Table';
+            }
+
+        }
 
         // --- SEARCH LOGIC: SELECTED CHAPTER/DAF -> SELECTED BOOK/MASSECHET -> WHOLE CORPUS ---
-        async function performSefariaSearch(word, corpus, selectedTargets = []) {
+        async function performSefariaSearch(word, corpus, selectedTargets = [], excludeRefs = [], intendedEnglish = '') {
             const cleanWord = word.replace(/[\u0591-\u05C7]/g, '').trim();
+
+            const normalizeRefForExclusion = (ref) => String(ref || '')
+                .replace(/\s*-\s*AI translation\s*$/i, '')
+                .replace(/:\d+(?:-\d+)?$/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            const excludedRefSet = new Set((Array.isArray(excludeRefs) ? excludeRefs : [])
+                .map(normalizeRefForExclusion)
+                .filter(Boolean));
+            const isExcludedRef = (ref) => {
+                const normalized = normalizeRefForExclusion(ref);
+                return !!normalized && excludedRefSet.has(normalized);
+            };
+            const isExcludedMatch = (found) => !!found && (
+                isExcludedRef(found.ref) ||
+                isExcludedRef(found.heRef) ||
+                isExcludedRef(found.sourceRef)
+            );
 
             const getEnglishName = async (b) => {
                 if (!b || b === 'ANY') return null;
@@ -1752,15 +2755,149 @@ for (const candidate of englishCandidates) {
                     && !/^תלמוד ירושלמי(?:\s|$)/.test(value);
             }
 
-            function splitSearchCandidates(raw) {
+            function splitRawSearchCandidates(raw) {
                 return String(raw || '')
                     .split(/\s*(?:\/|-)\s*/)
-                    .map(s => normalizeHebrewForMatch(s))
+                    .map(s => String(s || '').replace(/[\u0591-\u05C7]/g, '').trim())
                     .filter(Boolean)
                     .filter((v, i, a) => a.indexOf(v) === i);
             }
 
-            const searchCandidates = splitSearchCandidates(cleanWord);
+            function getSefariaSearchVariants(candidate) {
+                const value = String(candidate || '').trim();
+                const variants = new Set();
+                if (value) variants.add(value);
+
+                const normalized = normalizeHebrewForMatch(value);
+                if (normalized) variants.add(normalized);
+
+                if (isLikelyHebrewAbbreviation(value)) {
+                    const doubleGeresh = value
+                        .replace(/[׳']{2}/g, '״')
+                        .replace(/["]{2}/g, '״')
+                        .replace(/''/g, '״')
+                        .replace(/״״/g, '״');
+                    if (doubleGeresh) variants.add(doubleGeresh);
+
+                    const asciiQuote = value.replace(/[״׳]/g, '"');
+                    if (asciiQuote) variants.add(asciiQuote);
+
+                    const compact = normalizeHebrewAbbreviationKey(value);
+                    if (compact) variants.add(compact);
+                }
+
+                return Array.from(variants).filter(Boolean);
+            }
+
+            function prioritizeExpandedPhraseCandidates(candidates) {
+                return candidates.slice().sort((a, b) => {
+                    const aWords = normalizeHebrewForMatch(a).split(' ').filter(Boolean).length;
+                    const bWords = normalizeHebrewForMatch(b).split(' ').filter(Boolean).length;
+                    if (aWords !== bWords) return bWords - aWords;
+                    const aIsAbbrev = isLikelyHebrewAbbreviation(a);
+                    const bIsAbbrev = isLikelyHebrewAbbreviation(b);
+                    if (aIsAbbrev !== bIsAbbrev) return aIsAbbrev ? 1 : -1;
+                    return 0;
+                });
+            }
+
+            const rawSearchCandidates = splitRawSearchCandidates(cleanWord);
+            const searchCandidates = prioritizeExpandedPhraseCandidates(rawSearchCandidates
+                .flatMap(candidate => {
+                    const candidates = [];
+                    const normalized = normalizeHebrewForMatch(candidate);
+                    if (normalized) candidates.push(normalized);
+                    if (isLikelyHebrewAbbreviation(candidate)) {
+                        const compact = normalizeHebrewAbbreviationKey(candidate);
+                        if (compact) candidates.push(compact);
+                    }
+                    return candidates;
+                })
+                .filter(Boolean)
+                .filter((v, i, a) => a.indexOf(v) === i));
+            const sefariaSearchCandidates = prioritizeExpandedPhraseCandidates(rawSearchCandidates
+                .flatMap(getSefariaSearchVariants)
+                .filter((v, i, a) => a.indexOf(v) === i));
+            const intendedEnglishMeaning = String(intendedEnglish || '')
+                .replace(/^\s*\[?definition unavailable\]?\s*$/i, '')
+                .replace(/^\s*\[?translation unavailable\]?\s*$/i, '')
+                .trim();
+
+            function normalizeEnglishMeaning(text) {
+                return String(text || '')
+                    .toLowerCase()
+                    .replace(/<[^>]*>/g, ' ')
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/[^a-z0-9\s'-]/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            function getMeaningKeywords(text) {
+                const stopwords = new Set([
+                    'a','an','and','are','as','at','be','by','for','from','in','into','is','it','of','on','or','the','to','with',
+                    'this','that','these','those','one','someone','something','thing','person','people','used','means','meaning'
+                ]);
+                return normalizeEnglishMeaning(text)
+                    .split(/\s+/)
+                    .map(token => token.replace(/^[-']+|[-']+$/g, ''))
+                    .filter(token => token.length >= 3 && !stopwords.has(token))
+                    .filter((token, index, all) => all.indexOf(token) === index);
+            }
+
+            function englishTextHasIntendedMeaning(englishText) {
+                if (!intendedEnglishMeaning) return true;
+                const normalizedEnglish = normalizeEnglishMeaning(englishText);
+                if (!normalizedEnglish) return false;
+                const keywords = getMeaningKeywords(intendedEnglishMeaning);
+                if (!keywords.length) return true;
+                return keywords.some(keyword => {
+                    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const plural = keyword.endsWith('y')
+                        ? `${keyword.slice(0, -1)}(?:y|ies)`
+                        : `${keyword}(?:s|es)?`;
+                    return new RegExp(`(^|\\s)${escaped}(?:s|es)?($|\\s)`, 'i').test(normalizedEnglish) ||
+                        new RegExp(`(^|\\s)${plural}($|\\s)`, 'i').test(normalizedEnglish);
+                });
+            }
+
+            async function semanticMatchIsAcceptable(found) {
+                if (!found || !intendedEnglishMeaning) return true;
+
+                const existingEnglish = String(found.sourceEnglish || found.rawEn || found.en || '').trim();
+                if (englishTextHasIntendedMeaning(existingEnglish)) return true;
+
+                const cacheKey = [
+                    normalizeHebrewForMatch(cleanWord),
+                    normalizeEnglishMeaning(intendedEnglishMeaning),
+                    normalizeRefForExclusion(found.ref || found.heRef || ''),
+                    normalizeHebrewForMatch(found.he || '')
+                ].join('||');
+
+                if (semanticContextValidationCache.has(cacheKey)) {
+                    return semanticContextValidationCache.get(cacheKey);
+                }
+
+                const validationPrompt = `A Hebrew vocabulary worksheet is looking for a source quote where the vocabulary word has the intended meaning.\n\nVocabulary Hebrew: ${cleanWord}\nIntended English meaning: ${intendedEnglishMeaning}\nMatched Hebrew candidate in quote: ${found.matchedCandidate || cleanWord}\nHebrew quote: ${found.he || ''}\nExisting English translation, if available: ${existingEnglish || '(none)'}\n\nDoes the matched Hebrew word in this quote mean the intended English meaning? Answer only YES or NO.`;
+
+                try {
+                    const answer = await callTranslateOneGlobal(validationPrompt);
+                    const accepted = /^yes\b/i.test(answer);
+                    semanticContextValidationCache.set(cacheKey, accepted);
+                    return accepted;
+                } catch (_) {
+                    // If there is no Sefaria English to check, allow the match rather than breaking Talmud searches when AI is unavailable.
+                    // If there is Sefaria English and it does not match the intended meaning, reject on AI failure.
+                    const accepted = !existingEnglish;
+                    semanticContextValidationCache.set(cacheKey, accepted);
+                    return accepted;
+                }
+            }
+
+            async function acceptIfSemanticallyValid(found) {
+                if (!found || isExcludedMatch(found)) return null;
+                return await semanticMatchIsAcceptable(found) ? found : null;
+            }
 
             function refStartsWithBook(ref, bookName) {
                 if (!ref || !bookName) return false;
@@ -2076,9 +3213,11 @@ for (const candidate of englishCandidates) {
             }
 
             async function fetchRefAndFindMatch(ref, dafLabel = null) {
+                if (isExcludedRef(ref) || isExcludedRef(dafLabel)) return null;
                 const data = await fetchRefData(ref, dafLabel);
                 if (!data) return null;
-                return findMatchInArrays(data.heArray, data.enArray, data.ref, data.heRef, dafLabel || ref);
+                const found = findMatchInArrays(data.heArray, data.enArray, data.ref, data.heRef, dafLabel || ref);
+                return await acceptIfSemanticallyValid(found);
             }
 
             function scoreMatch(found, preferredRef = null) {
@@ -2098,7 +3237,7 @@ for (const candidate of englishCandidates) {
             }
 
             function pickBestMatch(matches, preferredRef = null) {
-                const validMatches = matches.filter(Boolean);
+                const validMatches = matches.filter(match => match && !isExcludedMatch(match));
                 if (!validMatches.length) return null;
 
                 let bestMatch = validMatches[0];
@@ -2117,42 +3256,46 @@ for (const candidate of englishCandidates) {
             }
 
             async function searchViaSefaria(filters, enforceBookName = null) {
-                try {
-                    const res = await fetch('/api/sefaria-search', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            query: searchCandidates.join(' OR '),
-                            type: 'text',
-                            field: 'naive_lemmatizer',
-                            filters: filters
-                        })
-                    });
+                const queriesToTry = (sefariaSearchCandidates.length ? sefariaSearchCandidates : searchCandidates).filter(Boolean);
 
-                    if (!res.ok) return null;
+                for (const query of queriesToTry) {
+                    try {
+                        const res = await fetch('/api/sefaria-search', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                query,
+                                type: 'text',
+                                field: 'naive_lemmatizer',
+                                filters: filters
+                            })
+                        });
 
-                    const data = await res.json();
-                    if (!data?.hits?.hits?.length) return null;
+                        if (!res.ok) continue;
 
-                    for (const hit of data.hits.hits) {
-                        const ref = hit._source?.ref || hit._id.split(' (')[0];
+                        const data = await res.json();
+                        if (!data?.hits?.hits?.length) continue;
 
-                        if (!isAllowedSefariaRef(ref)) {
-                            continue;
+                        for (const hit of data.hits.hits) {
+                            const ref = hit._source?.ref || hit._id.split(' (')[0];
+
+                            if (!isAllowedSefariaRef(ref) || isExcludedRef(ref)) {
+                                continue;
+                            }
+
+                            if (enforceBookName && !refStartsWithBook(ref, enforceBookName)) {
+                                continue;
+                            }
+
+                            const found = await fetchRefAndFindMatch(ref);
+                            if (found) return found;
                         }
-
-                        if (enforceBookName && !refStartsWithBook(ref, enforceBookName)) {
-                            continue;
-                        }
-
-                        const found = await fetchRefAndFindMatch(ref);
-                        if (found) return found;
+                    } catch (e) {
+                        // Try the next candidate rather than failing the whole context search.
                     }
-
-                    return null;
-                } catch (e) {
-                    return null;
                 }
+
+                return null;
             }
 
             async function buildTalmudPerekData(englishBook, hebrewBook) {
@@ -2289,7 +3432,7 @@ for (const candidate of englishCandidates) {
                         const perekIndex = parseInt(target.value, 10);
                         const perekData = await buildTalmudPerekData(englishBook, target.book);
                         if (perekData && Number.isFinite(perekIndex) && perekData.perakim[perekIndex]) {
-                            directMatches.push(findMatchInSegments(perekData.perakim[perekIndex]));
+                            { const perekMatch = await acceptIfSemanticallyValid(findMatchInSegments(perekData.perakim[perekIndex])); if (perekMatch) directMatches.push(perekMatch); }
                         }
                         continue;
                     }

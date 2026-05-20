@@ -1,9 +1,9 @@
 <!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
-<!-- build: bidi-acronym-input-fix-2026-05-19 -->
+<!-- build: ellipsis-context-fix-2026-05-20 -->
 <html lang="en">
 <head>
-    <!-- Penina Vocab Builder build: bidi-acronym-input-fix-2026-05-19 -->
+    <!-- Penina Vocab Builder build: ellipsis-context-fix-2026-05-20 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
@@ -232,7 +232,7 @@
         .title-draft-buttons {
             flex: 1 1 50%;
             display: flex;
-            gap: 10px;
+            gap: 6px;
         }
         .draft-yellow-btn {
             background-color: #fff8cc !important;
@@ -245,13 +245,21 @@
             text-align: center;
         }
         .title-draft-buttons button {
-            flex: 1 1 0;
             min-width: 0;
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             text-align: center;
+        }
+        #upload-draft-btn {
+            flex: 1 1 52%;
+            min-width: 170px;
+        }
+        #save-draft-btn,
+        #clear-form-btn {
+            flex: 0 1 24%;
+            min-width: 92px;
         }
         @media (max-width: 768px) {
             .title-draft-row { flex-direction: column; align-items: stretch; }
@@ -365,6 +373,9 @@
         .english-citation { direction: ltr; text-align: left; font-family: var(--english-font, Arial, sans-serif) !important; }
         .draft-context-tools {
             display: none;
+            position: sticky;
+            top: 8px;
+            z-index: 900;
             width: 8.5in;
             margin: 0 auto 10px auto;
             box-sizing: border-box;
@@ -372,8 +383,12 @@
             direction: ltr;
             font-family: var(--english-font, Arial, sans-serif);
             color: #4a4238;
-            padding-top: 20pt;
-            padding-left: 10pt;
+            padding: 20pt 10pt 10pt 10pt;
+            background: rgba(255, 254, 251, 0.96);
+            border-radius: 8px;
+            box-shadow: 0 6px 14px rgba(139, 115, 85, 0.12);
+            -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
         }
         .draft-context-tools.visible { display: block; }
         .draft-tools-message {
@@ -587,8 +602,9 @@
                     <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
                 </div>
                 <div class="title-draft-buttons" aria-label="Draft controls">
-                    <button type="button" id="save-draft-btn" class="draft-yellow-btn">Save Draft</button>
                     <button type="button" id="upload-draft-btn" class="draft-yellow-btn">Upload Previous Draft</button>
+                    <button type="button" id="save-draft-btn" class="draft-yellow-btn">Save Draft</button>
+                    <button type="button" id="clear-form-btn" class="draft-yellow-btn">Clear Form</button>
                     <input type="file" id="upload-draft-input" accept="application/json,.json" style="display: none;">
                 </div>
             </div>
@@ -732,7 +748,6 @@
         </div>
     </div>
 
-    <div class="paper-viewport">
         <div id="draft-context-tools" class="draft-context-tools">
             <div class="draft-tools-message">If you would like to regenerate any of the context quotations, or enter your own, check the desired quotes and click 'Regenerate' or 'Edit'</div>
             <div class="draft-tools-buttons">
@@ -741,6 +756,8 @@
                 <button type="button" id="save-draft-context-btn">Save Draft</button>
             </div>
         </div>
+
+    <div class="paper-viewport">
         <div id="page" class="page-container" style="display: none;">
             <h1 id="doc-title" class="doc-title"></h1>
             <table id="vocab-table">
@@ -763,7 +780,7 @@
     </div>
 
     <script>
-        const PENINA_BUILD_ID = 'bidi-acronym-input-fix-2026-05-19';
+        const PENINA_BUILD_ID = 'ellipsis-context-fix-2026-05-20';
         function stylizeTitleText(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -860,6 +877,12 @@
                 .filter(Boolean);
         }
 
+        function clearContextQuoteSelections() {
+            document.querySelectorAll('.context-quote-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+
         function animateDraftToolButton(button) {
             if (!button) return;
             button.classList.add('button-pressed');
@@ -878,7 +901,8 @@
             return !!document.querySelector('.context-editing');
         }
 
-        function finishContextEditing(editButton) {
+        function finishContextEditing(editButton, options = {}) {
+            const shouldClearSelections = options.clearSelections !== false;
             const editedRows = new Set();
             document.querySelectorAll('.context-editing').forEach(el => {
                 const row = el.closest('tr');
@@ -894,6 +918,10 @@
             if (editButton) {
                 editButton.textContent = 'Edit Context Quote';
                 editButton.dataset.mode = 'edit';
+            }
+
+            if (shouldClearSelections && editedRows.size > 0) {
+                clearContextQuoteSelections();
             }
         }
 
@@ -927,7 +955,11 @@
                 regenerateButton.dataset.bound = 'true';
                 regenerateButton.addEventListener('click', function() {
                     animateDraftToolButton(regenerateButton);
-                    if (contextEditingIsActive()) finishContextEditing(editButton);
+                    if (contextEditingIsActive()) {
+                        finishContextEditing(editButton);
+                        alert("Saving current edits. If you wish to regenerate context quotes, please indicate which and press 'regenerate'");
+                        return;
+                    }
                     const indexes = getSelectedContextQuoteIndexes();
                     if (indexes.length === 0) {
                         alert('Please check at least one context quote first.');
@@ -1104,9 +1136,56 @@
             updateVocabInputWarning();
         }
 
+        function clearVocabularyForm() {
+            setControlValue('list-title', '');
+            setControlValue('source-type', 'Tanakh');
+            sourceTypeSelect.dispatchEvent(new Event('change'));
+            setControlValue('word-list', '');
+            setControlValue('alphabetize-list', true);
+            setControlValue('context-quotes', true);
+            setControlValue('substitute-names', true);
+            setControlValue('font-size', '14');
+            setControlValue('kerning', '0');
+            setControlValue('nekudot-toggle', 'show');
+            setControlValue('font-choice', 'Arial, sans-serif');
+            setControlValue('english-font-choice', 'Arial, sans-serif');
+            setControlValue('margin-mode', 'none');
+            setControlValue('view-mode', 'mode-full');
+
+            selectedSourceTargets = [];
+            renderChips();
+            setControlValue('hidden-chapter-input', '[]');
+            setControlValue('hidden-perek-input', '');
+
+            generatedRows = [];
+            if (vocabTbody) vocabTbody.innerHTML = '';
+            if (pageContainer) pageContainer.style.display = 'none';
+            applyTitleText('');
+
+            const draftContextTools = document.getElementById('draft-context-tools');
+            if (draftContextTools) draftContextTools.classList.remove('visible');
+            if (searchStatusNotice) searchStatusNotice.style.display = 'none';
+            const vocabWarning = document.getElementById('vocab-input-warning');
+            if (vocabWarning) vocabWarning.style.display = 'none';
+            document.querySelectorAll('.context-quote-checkbox').forEach(checkbox => { checkbox.checked = false; });
+            finishContextEditing(document.getElementById('edit-context-quote-btn'));
+
+            document.getElementById('font-size-val').innerText = '14pt';
+            document.getElementById('kerning-val').innerText = '0px';
+            updateFontSizeVariables(14);
+            document.documentElement.style.setProperty('--global-letter-spacing', '0px');
+            document.documentElement.style.setProperty('--hebrew-font', getControlValue('font-choice'));
+            document.documentElement.style.setProperty('--english-font', getControlValue('english-font-choice'));
+            updateMargin('none');
+            updateViewModeLock();
+            updateTextDisplay();
+            updateVocabInputWarning();
+        }
+
         function setupDraftFileButtons() {
             const saveButton = document.getElementById('save-draft-btn');
             const uploadButton = document.getElementById('upload-draft-btn');
+            const clearButton = document.getElementById('clear-form-btn');
             const uploadInput = document.getElementById('upload-draft-input');
             if (saveButton && !saveButton.dataset.bound) {
                 saveButton.dataset.bound = 'true';
@@ -1131,6 +1210,13 @@
                     } catch (error) {
                         alert(error && error.message ? error.message : 'Could not upload this draft.');
                     }
+                });
+            }
+            if (clearButton && !clearButton.dataset.bound) {
+                clearButton.dataset.bound = 'true';
+                clearButton.addEventListener('click', function() {
+                    animateDraftToolButton(clearButton);
+                    clearVocabularyForm();
                 });
             }
         }
@@ -1974,6 +2060,66 @@ function updateTalmudModeVisibility() {
             if (englishCitationEl) row.englishCitation = englishCitationEl.textContent.trim();
         }
 
+
+        function extractBracketedDefinitionExpansionGlobal(definition) {
+            const match = String(definition || '').match(/\[([^\]]*[א-ת][^\]]*)\]/);
+            const expansion = match ? match[1].trim() : '';
+            return containsHebrew(expansion) ? expansion : '';
+        }
+
+        function definitionHasExpansionPrefixGlobal(definition, expandedHebrew) {
+            const expanded = String(expandedHebrew || '').trim();
+            if (!expanded) return false;
+            const escaped = expanded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const exactBracketPattern = new RegExp('\[' + escaped + '\]');
+            return exactBracketPattern.test(String(definition || ''));
+        }
+
+        function refreshAcronymSearchFieldsGlobal(row) {
+            if (!row || !row.item) return;
+            row.cleanHebrew = String(row.cleanHebrew || row.item.hebrew || '')
+                .replace(/[֑-ׇ]/g, '')
+                .trim();
+
+            const existingExpansion = String(row.item.expandedHebrew || '').trim();
+            const definitionExpansion = extractBracketedDefinitionExpansionGlobal(row.item.english);
+            if (definitionExpansion) row.item.expandedHebrew = definitionExpansion;
+
+            const expanded = String(row.item.expandedHebrew || existingExpansion || '').trim();
+            if (expanded) row.item.expandedHebrew = expanded;
+
+            row.isAbbreviationEntry = isLikelyHebrewAbbreviation(row.cleanHebrew) && !!expanded;
+            row.semanticHebrew = row.isAbbreviationEntry ? expanded : row.cleanHebrew;
+            row.searchHebrew = row.isAbbreviationEntry ? `${row.cleanHebrew}/${expanded}` : row.semanticHebrew;
+            row.matchedHebrewCandidate = row.searchHebrew;
+        }
+
+        function applyExpansionPrefixToDefinitionGlobal(row) {
+            if (!row || !row.item) return;
+            if (!row.item.expandedHebrew && isLikelyHebrewAbbreviation(row.cleanHebrew)) {
+                const generatedExpansion = extractBracketedDefinitionExpansionGlobal(row.item.english);
+                if (generatedExpansion) row.item.expandedHebrew = generatedExpansion;
+            }
+
+            const expanded = String(row.item.expandedHebrew || '').trim();
+            const current = String(row.item.english || '').trim();
+            if (expanded && !definitionHasExpansionPrefixGlobal(current, expanded)) {
+                row.item.english = `[${expanded}] ${current || '[Definition unavailable]'}`;
+            }
+            refreshAcronymSearchFieldsGlobal(row);
+        }
+
+        async function refreshRowSearchSetupForRegeneration(row) {
+            if (!row || !row.item) return;
+            const definitionExpansion = extractBracketedDefinitionExpansionGlobal(row.item.english);
+            if (definitionExpansion) {
+                row.item.expandedHebrew = definitionExpansion;
+            } else if (isLikelyHebrewAbbreviation(row.cleanHebrew) && !row.item.expandedHebrew && !row.item.english) {
+                row.item.expandedHebrew = await expandHebrewAbbreviation(row.cleanHebrew, row.sourceType);
+            }
+            applyExpansionPrefixToDefinitionGlobal(row);
+        }
+
         function cleanAiTextGlobal(text) {
             return String(text || '')
                 .replace(/\*\*(.*?)\*\*/g, '$1')
@@ -2013,9 +2159,24 @@ function updateTalmudModeVisibility() {
         }
 
         async function callTranslateOneGlobal(promptText) {
-            const results = await callTranslateBatchGlobal([promptText], { chunkSize: 1 });
+            const prompt = String(promptText || '').trim();
+            if (!prompt) return '';
+            const results = await callTranslateBatchGlobal([prompt], { chunkSize: 1 });
             const result = results[0];
-            return result && result.ok && result.text ? cleanAiTextGlobal(result.text) : '';
+            if (result && result.ok && result.text) return cleanAiTextGlobal(result.text);
+
+            try {
+                const res = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ promptText: prompt })
+                });
+                if (!res.ok) return '';
+                const data = await res.json();
+                return cleanAiTextGlobal(data && data.text ? data.text : '');
+            } catch (_) {
+                return '';
+            }
         }
 
         function markEnglishCitationAsAiTranslationForRow(row) {
@@ -2032,14 +2193,34 @@ function updateTalmudModeVisibility() {
             return `Translate ONLY this Hebrew/Aramaic excerpt to concise, clear English: "${row.hebrewContext}". Make the result read naturally as an English sentence or phrase, but do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context, so the vocabulary word can be bolded later. Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
         }
 
+        function fallbackEnglishContextGlobal(sourceTypeValue, existingEnglish, hebrewText) {
+            if (sourceTypeValue === 'Modern Hebrew') {
+                return existingEnglish || '[Translation unavailable]';
+            }
+            if (existingEnglish) {
+                return `[Auto-translation unavailable] ${existingEnglish}`;
+            }
+            if (hebrewText && hebrewText !== 'Word not found in context.') {
+                return '[Auto-translation unavailable]';
+            }
+            return '';
+        }
+
         async function translateContextForRow(row) {
             if (!row || !row.hebrewContext || row.hebrewContext === 'Word not found in context.') return '';
             const translated = await callTranslateOneGlobal(buildContextTranslationPromptForRow(row));
             if (translated) {
                 row.englishContext = translated;
                 markEnglishCitationAsAiTranslationForRow(row);
+                return translated;
             }
-            return translated;
+            const fallback = fallbackEnglishContextGlobal(
+                row.sourceType,
+                row.item && row.item.english,
+                row.hebrewContext
+            );
+            if (fallback) row.englishContext = fallback;
+            return row.englishContext || '';
         }
 
         function getCitationWithoutAiLabel(value) {
@@ -2095,6 +2276,7 @@ function updateTalmudModeVisibility() {
             const tr = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
             if (!row || !tr) return;
             syncGeneratedRowFromDom(rowIndex);
+            await refreshRowSearchSetupForRegeneration(row);
             const contextCell = tr.querySelector('.col-context');
             if (contextCell) contextCell.classList.add('context-regenerating');
             try {
@@ -2126,6 +2308,7 @@ function updateTalmudModeVisibility() {
                 alert('Please check at least one context quote first.');
                 return;
             }
+            let completedSuccessfully = false;
             if (button) button.disabled = true;
             try {
                 for (let i = 0; i < indexes.length; i++) {
@@ -2133,10 +2316,14 @@ function updateTalmudModeVisibility() {
                     await regenerateContextForRow(indexes[i]);
                     await new Promise(resolve => window.setTimeout(resolve, 0));
                 }
+                completedSuccessfully = true;
             } finally {
                 if (button) {
                     button.disabled = false;
                     button.textContent = 'Regenerate Selected Context Quotes ↺';
+                }
+                if (completedSuccessfully) {
+                    clearContextQuoteSelections();
                 }
             }
         }
@@ -2221,7 +2408,7 @@ function updateTalmudModeVisibility() {
                         <td class="col-context">
                             <div class="hebrew-text">${highlightedHebrew}</div>
                             ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl">${row.hebrewCitation}</div>` : ''}
-                            <div class="english-text" contenteditable="true">${highlightedEnglish}</div>
+                            <div class="english-text">${highlightedEnglish}</div>
                             <div class="english-citation-row">
                                 ${row.englishCitation ? `<div class="citation english-citation" dir="ltr">${row.englishCitation}</div>` : '<div class="citation english-citation" dir="ltr"></div>'}
                                 <label class="context-row-checkbox-slot" aria-label="Select this context quote"><input type="checkbox" class="context-quote-checkbox" data-row-index="${rowIndex}"></label>
@@ -2763,12 +2950,21 @@ function updateTalmudModeVisibility() {
                     .filter((v, i, a) => a.indexOf(v) === i);
             }
 
+            function hasFlexibleGapMarker(value) {
+                return /(?:\.{2,}|…|⋯|··+)/.test(String(value || ''));
+            }
+
             function getSefariaSearchVariants(candidate) {
                 const value = String(candidate || '').trim();
                 const variants = new Set();
-                if (value) variants.add(value);
-
                 const normalized = normalizeHebrewForMatch(value);
+
+                if (hasFlexibleGapMarker(value)) {
+                    if (normalized) variants.add(normalized);
+                } else if (value) {
+                    variants.add(value);
+                }
+
                 if (normalized) variants.add(normalized);
 
                 if (isLikelyHebrewAbbreviation(value)) {
@@ -2815,6 +3011,10 @@ function updateTalmudModeVisibility() {
                 })
                 .filter(Boolean)
                 .filter((v, i, a) => a.indexOf(v) === i));
+            const flexibleGapSearchCandidates = new Set(rawSearchCandidates
+                .filter(hasFlexibleGapMarker)
+                .map(candidate => normalizeHebrewForMatch(candidate))
+                .filter(candidate => candidate.split(' ').filter(Boolean).length > 1));
             const sefariaSearchCandidates = prioritizeExpandedPhraseCandidates(rawSearchCandidates
                 .flatMap(getSefariaSearchVariants)
                 .filter((v, i, a) => a.indexOf(v) === i));
@@ -2999,6 +3199,53 @@ function updateTalmudModeVisibility() {
                             tokenLength: candidateTokens.length,
                             strength: totalStrength
                         };
+                    }
+
+                    if (isPhrase && flexibleGapSearchCandidates.has(candidate)) {
+                        let searchFromIndex = 0;
+                        let totalStrength = 0;
+                        let firstMatchIndex = -1;
+                        let lastMatchIndex = -1;
+                        let orderedMatch = true;
+
+                        for (let j = 0; j < candidateTokens.length; j++) {
+                            const candidateToken = candidateTokens[j];
+                            let foundAt = -1;
+                            let foundStrength = 0;
+
+                            for (let k = searchFromIndex; k < lineTokens.length; k++) {
+                                const lineToken = lineTokens[k];
+                                const tokenMatch = j === 0
+                                    ? matchSingleToken(lineToken, candidateToken)
+                                    : (lineToken === candidateToken ? { strength: 3 } : null);
+
+                                if (tokenMatch) {
+                                    foundAt = k;
+                                    foundStrength = tokenMatch.strength;
+                                    break;
+                                }
+                            }
+
+                            if (foundAt === -1) {
+                                orderedMatch = false;
+                                break;
+                            }
+
+                            if (firstMatchIndex === -1) firstMatchIndex = foundAt;
+                            lastMatchIndex = foundAt;
+                            totalStrength += foundStrength;
+                            searchFromIndex = foundAt + 1;
+                        }
+
+                        if (orderedMatch && firstMatchIndex !== -1) {
+                            const gapPenalty = Math.max(0, lastMatchIndex - firstMatchIndex - (candidateTokens.length - 1));
+                            return {
+                                candidate,
+                                tokenIndex: firstMatchIndex,
+                                tokenLength: candidateTokens.length,
+                                strength: totalStrength + 2 - Math.min(gapPenalty, 4)
+                            };
+                        }
                     }
                 }
 

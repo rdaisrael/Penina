@@ -1,9 +1,9 @@
 <!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
-<!-- build: edit-save-context-2026-05-19 -->
+<!-- build: bidi-acronym-input-fix-2026-05-19 -->
 <html lang="en">
 <head>
-    <!-- Penina Vocab Builder build: draft-save-acronym-context-2026-05-19 -->
+    <!-- Penina Vocab Builder build: bidi-acronym-input-fix-2026-05-19 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
@@ -198,6 +198,9 @@
 
         textarea, .hebrew-input, .strict-hebrew-input {
             font-size: 18px; 
+        }
+        #word-list {
+            unicode-bidi: plaintext;
         }
         select:focus, textarea:focus, input[type="text"]:focus { 
             outline: none; border-color: #b5a898; background-color: #ffffff; 
@@ -760,7 +763,7 @@
     </div>
 
     <script>
-        const PENINA_BUILD_ID = 'draft-save-acronym-context-2026-05-19';
+        const PENINA_BUILD_ID = 'bidi-acronym-input-fix-2026-05-19';
         function stylizeTitleText(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -1708,6 +1711,13 @@ function updateTalmudModeVisibility() {
 
         const VOCAB_INPUT_WARNING_TEXT = "Vocabulary words must be in Hebrew. The vocabulary word may then be followed by tab or comma and a definition in English, Hebrew, or both.";
 
+        function normalizeVocabularyInputLine(line) {
+            return String(line || '')
+                .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '')
+                .replace(/[–—]/g, '-')
+                .trim();
+        }
+
         function getFirstVocabularyDelimiterIndex(line) {
             const commaIndex = line.indexOf(',');
             const tabIndex = line.indexOf('\t');
@@ -1716,14 +1726,29 @@ function updateTalmudModeVisibility() {
             return Math.min(commaIndex, tabIndex);
         }
 
+        function extractLeadingHebrewVocabularyChunk(text) {
+            const value = normalizeVocabularyInputLine(text);
+            const match = value.match(/^\s*([\u0590-\u05FF\uFB1D-\uFB4F][\u0590-\u05FF\uFB1D-\uFB4F\s"'׳״`.-]*?)(?=\s*[,\t]|\s+-\s+|\s*$)/);
+            return match ? match[1].trim() : '';
+        }
+
         function parseVocabularyLine(line) {
-            const raw = String(line || '');
+            const raw = normalizeVocabularyInputLine(line);
             const delimiterIndex = getFirstVocabularyDelimiterIndex(raw);
             if (delimiterIndex === -1) {
                 return { hebrew: raw.trim(), english: null };
             }
-            const hebrew = raw.slice(0, delimiterIndex).trim();
-            const english = raw.slice(delimiterIndex + 1).trim();
+
+            let hebrew = raw.slice(0, delimiterIndex).trim();
+            let english = raw.slice(delimiterIndex + 1).trim();
+
+            const leadingHebrew = extractLeadingHebrewVocabularyChunk(raw);
+            if (leadingHebrew && (!isValidHebrewVocabularyWord(hebrew) || leadingHebrew.length < hebrew.length)) {
+                hebrew = leadingHebrew;
+                const afterHebrew = raw.slice(raw.indexOf(leadingHebrew) + leadingHebrew.length);
+                english = afterHebrew.replace(/^\s*[,\t-]+\s*/, '').trim();
+            }
+
             return { hebrew, english: english.length > 0 ? english : null };
         }
 
@@ -2356,7 +2381,7 @@ function updateTalmudModeVisibility() {
                 const noContextMode = sourceType === 'No Context Quotes' || !contextQuotesEnabled();
 
                 function extractBracketedDefinitionExpansion(definition) {
-                    const match = String(definition || '').trim().match(/^\s*\[([^\]]+)\]/);
+                    const match = String(definition || '').match(/\[([^\]]*[\u05D0-\u05EA][^\]]*)\]/);
                     const expansion = match ? match[1].trim() : '';
                     return containsHebrew(expansion) ? expansion : '';
                 }
@@ -2364,8 +2389,9 @@ function updateTalmudModeVisibility() {
                 function definitionHasExpansionPrefix(definition, expandedHebrew) {
                     const expanded = String(expandedHebrew || '').trim();
                     if (!expanded) return false;
-                    const pattern = new RegExp('^\\s*\\[' + expanded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\]');
-                    return pattern.test(String(definition || ''));
+                    const escaped = expanded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const exactBracketPattern = new RegExp('\\[' + escaped + '\\]');
+                    return exactBracketPattern.test(String(definition || ''));
                 }
 
                 function refreshAcronymSearchFields(row) {
@@ -2763,14 +2789,35 @@ function updateTalmudModeVisibility() {
                 return Array.from(variants).filter(Boolean);
             }
 
+            function prioritizeExpandedPhraseCandidates(candidates) {
+                return candidates.slice().sort((a, b) => {
+                    const aWords = normalizeHebrewForMatch(a).split(' ').filter(Boolean).length;
+                    const bWords = normalizeHebrewForMatch(b).split(' ').filter(Boolean).length;
+                    if (aWords !== bWords) return bWords - aWords;
+                    const aIsAbbrev = isLikelyHebrewAbbreviation(a);
+                    const bIsAbbrev = isLikelyHebrewAbbreviation(b);
+                    if (aIsAbbrev !== bIsAbbrev) return aIsAbbrev ? 1 : -1;
+                    return 0;
+                });
+            }
+
             const rawSearchCandidates = splitRawSearchCandidates(cleanWord);
-            const searchCandidates = rawSearchCandidates
-                .map(s => normalizeHebrewForMatch(s))
+            const searchCandidates = prioritizeExpandedPhraseCandidates(rawSearchCandidates
+                .flatMap(candidate => {
+                    const candidates = [];
+                    const normalized = normalizeHebrewForMatch(candidate);
+                    if (normalized) candidates.push(normalized);
+                    if (isLikelyHebrewAbbreviation(candidate)) {
+                        const compact = normalizeHebrewAbbreviationKey(candidate);
+                        if (compact) candidates.push(compact);
+                    }
+                    return candidates;
+                })
                 .filter(Boolean)
-                .filter((v, i, a) => a.indexOf(v) === i);
-            const sefariaSearchCandidates = rawSearchCandidates
+                .filter((v, i, a) => a.indexOf(v) === i));
+            const sefariaSearchCandidates = prioritizeExpandedPhraseCandidates(rawSearchCandidates
                 .flatMap(getSefariaSearchVariants)
-                .filter((v, i, a) => a.indexOf(v) === i);
+                .filter((v, i, a) => a.indexOf(v) === i));
             const intendedEnglishMeaning = String(intendedEnglish || '')
                 .replace(/^\s*\[?definition unavailable\]?\s*$/i, '')
                 .replace(/^\s*\[?translation unavailable\]?\s*$/i, '')
@@ -3209,42 +3256,46 @@ function updateTalmudModeVisibility() {
             }
 
             async function searchViaSefaria(filters, enforceBookName = null) {
-                try {
-                    const res = await fetch('/api/sefaria-search', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            query: (sefariaSearchCandidates.length ? sefariaSearchCandidates : searchCandidates).join(' OR '),
-                            type: 'text',
-                            field: 'naive_lemmatizer',
-                            filters: filters
-                        })
-                    });
+                const queriesToTry = (sefariaSearchCandidates.length ? sefariaSearchCandidates : searchCandidates).filter(Boolean);
 
-                    if (!res.ok) return null;
+                for (const query of queriesToTry) {
+                    try {
+                        const res = await fetch('/api/sefaria-search', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                query,
+                                type: 'text',
+                                field: 'naive_lemmatizer',
+                                filters: filters
+                            })
+                        });
 
-                    const data = await res.json();
-                    if (!data?.hits?.hits?.length) return null;
+                        if (!res.ok) continue;
 
-                    for (const hit of data.hits.hits) {
-                        const ref = hit._source?.ref || hit._id.split(' (')[0];
+                        const data = await res.json();
+                        if (!data?.hits?.hits?.length) continue;
 
-                        if (!isAllowedSefariaRef(ref) || isExcludedRef(ref)) {
-                            continue;
+                        for (const hit of data.hits.hits) {
+                            const ref = hit._source?.ref || hit._id.split(' (')[0];
+
+                            if (!isAllowedSefariaRef(ref) || isExcludedRef(ref)) {
+                                continue;
+                            }
+
+                            if (enforceBookName && !refStartsWithBook(ref, enforceBookName)) {
+                                continue;
+                            }
+
+                            const found = await fetchRefAndFindMatch(ref);
+                            if (found) return found;
                         }
-
-                        if (enforceBookName && !refStartsWithBook(ref, enforceBookName)) {
-                            continue;
-                        }
-
-                        const found = await fetchRefAndFindMatch(ref);
-                        if (found) return found;
+                    } catch (e) {
+                        // Try the next candidate rather than failing the whole context search.
                     }
-
-                    return null;
-                } catch (e) {
-                    return null;
                 }
+
+                return null;
             }
 
             async function buildTalmudPerekData(englishBook, hebrewBook) {

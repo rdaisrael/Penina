@@ -232,7 +232,7 @@
         .title-draft-buttons {
             flex: 1 1 50%;
             display: flex;
-            gap: 10px;
+            gap: 6px;
         }
         .draft-yellow-btn {
             background-color: #fff8cc !important;
@@ -245,13 +245,21 @@
             text-align: center;
         }
         .title-draft-buttons button {
-            flex: 1 1 0;
             min-width: 0;
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             text-align: center;
+        }
+        #upload-draft-btn {
+            flex: 1 1 52%;
+            min-width: 170px;
+        }
+        #save-draft-btn,
+        #clear-form-btn {
+            flex: 0 1 24%;
+            min-width: 92px;
         }
         @media (max-width: 768px) {
             .title-draft-row { flex-direction: column; align-items: stretch; }
@@ -587,8 +595,9 @@
                     <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
                 </div>
                 <div class="title-draft-buttons" aria-label="Draft controls">
-                    <button type="button" id="save-draft-btn" class="draft-yellow-btn">Save Draft</button>
                     <button type="button" id="upload-draft-btn" class="draft-yellow-btn">Upload Previous Draft</button>
+                    <button type="button" id="save-draft-btn" class="draft-yellow-btn">Save Draft</button>
+                    <button type="button" id="clear-form-btn" class="draft-yellow-btn">Clear Form</button>
                     <input type="file" id="upload-draft-input" accept="application/json,.json" style="display: none;">
                 </div>
             </div>
@@ -1104,9 +1113,56 @@
             updateVocabInputWarning();
         }
 
+        function clearVocabularyForm() {
+            setControlValue('list-title', '');
+            setControlValue('source-type', 'Tanakh');
+            sourceTypeSelect.dispatchEvent(new Event('change'));
+            setControlValue('word-list', '');
+            setControlValue('alphabetize-list', true);
+            setControlValue('context-quotes', true);
+            setControlValue('substitute-names', true);
+            setControlValue('font-size', '14');
+            setControlValue('kerning', '0');
+            setControlValue('nekudot-toggle', 'show');
+            setControlValue('font-choice', 'Arial, sans-serif');
+            setControlValue('english-font-choice', 'Arial, sans-serif');
+            setControlValue('margin-mode', 'none');
+            setControlValue('view-mode', 'mode-full');
+
+            selectedSourceTargets = [];
+            renderChips();
+            setControlValue('hidden-chapter-input', '[]');
+            setControlValue('hidden-perek-input', '');
+
+            generatedRows = [];
+            if (vocabTbody) vocabTbody.innerHTML = '';
+            if (pageContainer) pageContainer.style.display = 'none';
+            applyTitleText('');
+
+            const draftContextTools = document.getElementById('draft-context-tools');
+            if (draftContextTools) draftContextTools.classList.remove('visible');
+            if (searchStatusNotice) searchStatusNotice.style.display = 'none';
+            const vocabWarning = document.getElementById('vocab-input-warning');
+            if (vocabWarning) vocabWarning.style.display = 'none';
+            document.querySelectorAll('.context-quote-checkbox').forEach(checkbox => { checkbox.checked = false; });
+            finishContextEditing(document.getElementById('edit-context-quote-btn'));
+
+            document.getElementById('font-size-val').innerText = '14pt';
+            document.getElementById('kerning-val').innerText = '0px';
+            updateFontSizeVariables(14);
+            document.documentElement.style.setProperty('--global-letter-spacing', '0px');
+            document.documentElement.style.setProperty('--hebrew-font', getControlValue('font-choice'));
+            document.documentElement.style.setProperty('--english-font', getControlValue('english-font-choice'));
+            updateMargin('none');
+            updateViewModeLock();
+            updateTextDisplay();
+            updateVocabInputWarning();
+        }
+
         function setupDraftFileButtons() {
             const saveButton = document.getElementById('save-draft-btn');
             const uploadButton = document.getElementById('upload-draft-btn');
+            const clearButton = document.getElementById('clear-form-btn');
             const uploadInput = document.getElementById('upload-draft-input');
             if (saveButton && !saveButton.dataset.bound) {
                 saveButton.dataset.bound = 'true';
@@ -1131,6 +1187,13 @@
                     } catch (error) {
                         alert(error && error.message ? error.message : 'Could not upload this draft.');
                     }
+                });
+            }
+            if (clearButton && !clearButton.dataset.bound) {
+                clearButton.dataset.bound = 'true';
+                clearButton.addEventListener('click', function() {
+                    animateDraftToolButton(clearButton);
+                    clearVocabularyForm();
                 });
             }
         }
@@ -2013,9 +2076,24 @@ function updateTalmudModeVisibility() {
         }
 
         async function callTranslateOneGlobal(promptText) {
-            const results = await callTranslateBatchGlobal([promptText], { chunkSize: 1 });
+            const prompt = String(promptText || '').trim();
+            if (!prompt) return '';
+            const results = await callTranslateBatchGlobal([prompt], { chunkSize: 1 });
             const result = results[0];
-            return result && result.ok && result.text ? cleanAiTextGlobal(result.text) : '';
+            if (result && result.ok && result.text) return cleanAiTextGlobal(result.text);
+
+            try {
+                const res = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ promptText: prompt })
+                });
+                if (!res.ok) return '';
+                const data = await res.json();
+                return cleanAiTextGlobal(data && data.text ? data.text : '');
+            } catch (_) {
+                return '';
+            }
         }
 
         function markEnglishCitationAsAiTranslationForRow(row) {
@@ -2032,14 +2110,34 @@ function updateTalmudModeVisibility() {
             return `Translate ONLY this Hebrew/Aramaic excerpt to concise, clear English: "${row.hebrewContext}". Make the result read naturally as an English sentence or phrase, but do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context, so the vocabulary word can be bolded later. Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
         }
 
+        function fallbackEnglishContextGlobal(sourceTypeValue, existingEnglish, hebrewText) {
+            if (sourceTypeValue === 'Modern Hebrew') {
+                return existingEnglish || '[Translation unavailable]';
+            }
+            if (existingEnglish) {
+                return `[Auto-translation unavailable] ${existingEnglish}`;
+            }
+            if (hebrewText && hebrewText !== 'Word not found in context.') {
+                return '[Auto-translation unavailable]';
+            }
+            return '';
+        }
+
         async function translateContextForRow(row) {
             if (!row || !row.hebrewContext || row.hebrewContext === 'Word not found in context.') return '';
             const translated = await callTranslateOneGlobal(buildContextTranslationPromptForRow(row));
             if (translated) {
                 row.englishContext = translated;
                 markEnglishCitationAsAiTranslationForRow(row);
+                return translated;
             }
-            return translated;
+            const fallback = fallbackEnglishContextGlobal(
+                row.sourceType,
+                row.item && row.item.english,
+                row.hebrewContext
+            );
+            if (fallback) row.englishContext = fallback;
+            return row.englishContext || '';
         }
 
         function getCitationWithoutAiLabel(value) {

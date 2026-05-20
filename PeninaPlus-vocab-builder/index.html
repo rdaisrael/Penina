@@ -581,8 +581,8 @@
 
             <div class="form-group">
                 <label for="word-list">Vocabulary List (Hebrew, English):</label>
-                <textarea id="word-list" rows="5" dir="auto" placeholder="Hebrew required. Optional English definition may follow a comma or tab.&#10;אגרא, reward&#10;איכא	there is&#10;אגרא"></textarea>
-                <div id="vocab-input-warning" class="vocab-input-warning" style="display: none;">Vocabulary words must be in Hebrew. The vocabulary word may then be following by tab or comma and an English definition.</div>
+                <textarea id="word-list" rows="5" dir="auto" placeholder="Hebrew required. Optional definition may follow a comma or tab; the definition may be English, Hebrew, or mixed.&#10;אגרא, reward&#10;איכא	there is&#10;חתול, cat / חיה קטנה&#10;אגרא"></textarea>
+                <div id="vocab-input-warning" class="vocab-input-warning" style="display: none;">Vocabulary words must be in Hebrew. The vocabulary word may then be followed by tab or comma and a definition in English, Hebrew, or both.</div>
             </div>
 
             <div class="form-group checkbox-group" style="margin-bottom: 15px;">
@@ -1467,7 +1467,7 @@ function updateTalmudModeVisibility() {
             return containsHebrew(value) && !containsLatin(value);
         }
 
-        const VOCAB_INPUT_WARNING_TEXT = "Vocabulary words must be in Hebrew. The vocabulary word may then be following by tab or comma and an English definition.";
+        const VOCAB_INPUT_WARNING_TEXT = "Vocabulary words must be in Hebrew. The vocabulary word may then be followed by tab or comma and a definition in English, Hebrew, or both.";
 
         function getFirstVocabularyDelimiterIndex(line) {
             const commaIndex = line.indexOf(',');
@@ -1493,10 +1493,10 @@ function updateTalmudModeVisibility() {
             return !!text && containsHebrew(text) && !containsLatin(text);
         }
 
-        function isValidEnglishDefinition(value) {
+        function isValidDefinition(value) {
             const text = String(value || '').trim();
             if (!text) return true;
-            return !containsHebrew(text) && /[A-Za-z]/.test(text);
+            return /\S/.test(text);
         }
 
         function getVocabularyInputProblems(rawText) {
@@ -1518,8 +1518,8 @@ function updateTalmudModeVisibility() {
                     return;
                 }
 
-                if (!isValidEnglishDefinition(parsed.english)) {
-                    problems.push({ line: index + 1, reason: 'invalid-english-definition' });
+                if (!isValidDefinition(parsed.english)) {
+                    problems.push({ line: index + 1, reason: 'invalid-definition' });
                 }
             });
 

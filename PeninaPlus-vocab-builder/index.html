@@ -774,7 +774,7 @@
             
             <div style="text-align: center; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background-color: #28a745; width: auto; padding: 10px 40px;">Print Vocabulary Sheet</button>
-                <button type="button" id="export-vocabulary-workbook-btn" style="display: none; background-color: #6b5b4b; width: auto; padding: 10px 40px;">Export Filled Spreadsheet</button>
+                <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Export Filled Spreadsheet</button>
             </div>
         </div>
     </div>
@@ -933,7 +933,7 @@
 
         function updateWorkbookExportAvailability() {
             if (!exportVocabularyWorkbookButton) return;
-            exportVocabularyWorkbookButton.style.display = generatedRows.length ? 'inline-block' : 'none';
+            exportVocabularyWorkbookButton.disabled = !generatedRows.length;
         }
 
         function readFileAsBase64(file) {
@@ -1024,8 +1024,8 @@
             } catch (error) {
                 alert(error && error.message ? error.message : 'The spreadsheet could not be exported.');
             } finally {
-                exportVocabularyWorkbookButton.disabled = false;
                 exportVocabularyWorkbookButton.textContent = 'Export Filled Spreadsheet';
+                updateWorkbookExportAvailability();
             }
         }
 

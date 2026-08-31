@@ -1,9 +1,9 @@
 <!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
-<!-- build: ellipsis-context-fix-2026-05-20 -->
+<!-- build: offline-study-cards-2026-08-31 -->
 <html lang="en">
 <head>
-    <!-- Penina Vocab Builder build: ellipsis-context-fix-2026-05-20 -->
+    <!-- Penina Vocab Builder build: offline-study-cards-2026-08-31 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
@@ -775,6 +775,7 @@
             <div style="text-align: center; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background-color: #28a745; width: auto; padding: 10px 40px;">Print Vocabulary Sheet</button>
                 <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Export Filled Spreadsheet</button>
+                <button type="button" id="download-offline-study-cards-btn" style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
             </div>
         </div>
     </div>
@@ -810,8 +811,9 @@
         </div>
     </div>
 
+    <script src="offline-study-cards.js"></script>
     <script>
-        const PENINA_BUILD_ID = 'ellipsis-context-fix-2026-05-20';
+        const PENINA_BUILD_ID = 'offline-study-cards-2026-08-31';
         function stylizeTitleText(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -919,6 +921,7 @@
         const vocabularyWorkbookInput = document.getElementById('vocabulary-workbook-input');
         const vocabularyWorkbookStatus = document.getElementById('vocabulary-workbook-status');
         const exportVocabularyWorkbookButton = document.getElementById('export-vocabulary-workbook-btn');
+        const downloadOfflineStudyCardsButton = document.getElementById('download-offline-study-cards-btn');
         let importedVocabularyRows = [];
         if (contextQuotesCheckbox) {
             contextQuotesCheckbox.addEventListener('change', updateViewModeLock);
@@ -932,8 +935,9 @@
         }
 
         function updateWorkbookExportAvailability() {
-            if (!exportVocabularyWorkbookButton) return;
-            exportVocabularyWorkbookButton.disabled = !generatedRows.length;
+            const exportDisabled = !generatedRows.length;
+            if (exportVocabularyWorkbookButton) exportVocabularyWorkbookButton.disabled = exportDisabled;
+            if (downloadOfflineStudyCardsButton) downloadOfflineStudyCardsButton.disabled = exportDisabled;
         }
 
         function readFileAsBase64(file) {
@@ -1029,6 +1033,26 @@
             }
         }
 
+        function downloadOfflineStudyCards() {
+            if (!generatedRows.length) {
+                alert('Generate a vocabulary sheet before downloading offline study cards.');
+                return;
+            }
+            downloadOfflineStudyCardsButton.disabled = true;
+            downloadOfflineStudyCardsButton.textContent = 'Preparing Study Cards...';
+            try {
+                PeninaOfflineStudyCards.download({
+                    title: document.getElementById('list-title').value.trim(),
+                    rows: getWorkbookExportRows()
+                });
+            } catch (error) {
+                alert(error && error.message ? error.message : 'The offline study cards could not be downloaded.');
+            } finally {
+                downloadOfflineStudyCardsButton.textContent = 'Download Offline Study Cards';
+                updateWorkbookExportAvailability();
+            }
+        }
+
         if (vocabularyWorkbookInput) {
             vocabularyWorkbookInput.addEventListener('change', event => {
                 importVocabularyWorkbookFile(event.target.files && event.target.files[0]);
@@ -1036,6 +1060,9 @@
         }
         if (exportVocabularyWorkbookButton) {
             exportVocabularyWorkbookButton.addEventListener('click', exportVocabularyWorkbook);
+        }
+        if (downloadOfflineStudyCardsButton) {
+            downloadOfflineStudyCardsButton.addEventListener('click', downloadOfflineStudyCards);
         }
         document.getElementById('word-list').addEventListener('input', () => {
             if (!importedVocabularyRows.length) return;

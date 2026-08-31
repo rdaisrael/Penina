@@ -229,6 +229,10 @@
         .template-status { display: none; margin-top: 10px; padding: 8px 10px; border-radius: 5px; background: #edf6ed; border: 1px solid #b8d8b8; color: #285b2a; font-size: 13px; }
         .template-status.error { background: #fff0f0; border-color: #dfb2b2; color: #8a2525; }
         .manual-entry-label { margin-top: 14px; }
+        /* Retain temporarily hidden features in the DOM so they can be restored later. */
+        .temporarily-hidden-feature { display: none !important; }
+        .context-source-controls { display: flex; gap: 20px; }
+        .context-source-controls[hidden] { display: none; }
 
         .title-draft-row {
             display: flex;
@@ -590,7 +594,7 @@
         </svg>
         Home
     </a>
-    <a href="https://forms.gle/jx83quNMrWcgQA7h7" target="_blank" class="beta-feedback-btn">2 MINUTE BETA FEEDBACK</a>
+    <a href="https://forms.gle/jx83quNMrWcgQA7h7" target="_blank" class="beta-feedback-btn temporarily-hidden-feature">2 MINUTE BETA FEEDBACK</a>
     <div class="control-panel-wrapper">
         
         <div class="header-container">
@@ -619,7 +623,7 @@
                     <label for="list-title">Title for this list:</label>
                     <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
                 </div>
-                <div class="title-draft-buttons" aria-label="Draft controls">
+                <div class="title-draft-buttons temporarily-hidden-feature" aria-label="Draft controls">
                     <button type="button" id="upload-draft-btn" class="draft-yellow-btn">Upload Previous Draft</button>
                     <button type="button" id="save-draft-btn" class="draft-yellow-btn">Save Draft</button>
                     <button type="button" id="clear-form-btn" class="draft-yellow-btn">Clear Form</button>
@@ -627,7 +631,32 @@
                 </div>
             </div>
 
-            <div class="form-group" style="display: flex; gap: 20px;">
+            <div class="form-group">
+                <label>Vocabulary Spreadsheet:</label>
+                <div class="template-workflow">
+                    <p class="template-instructions"><strong>Only the Term column is required.</strong> Download the template, enter one term per row, and optionally complete any translation, context quote, or citation fields. Any optional field you provide will override the corresponding AI-generated or Sefaria-provided content. Blank optional fields will be completed by Penina when applicable.</p>
+                    <div class="template-actions">
+                        <a class="template-button" href="Penina-Vocabulary-Template.xlsx" download="Penina-Vocabulary-Template.xlsx">Download Spreadsheet Template</a>
+                        <label class="template-button secondary" for="vocabulary-workbook-input" style="margin: 0; color: #fff;">Upload Completed Template</label>
+                        <input type="file" id="vocabulary-workbook-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+                    </div>
+                    <div id="vocabulary-workbook-status" class="template-status" role="status"></div>
+                </div>
+                <div class="temporarily-hidden-feature">
+                    <label class="manual-entry-label" for="word-list">Or Enter a Vocabulary List Manually:</label>
+                    <textarea id="word-list" rows="5" dir="auto" placeholder="Hebrew term required. An optional English translation may follow a comma or tab.&#10;אגרא, reward&#10;איכא	there is&#10;חתול, cat&#10;אגרא"></textarea>
+                    <div id="vocab-input-warning" class="vocab-input-warning" style="display: none;">Vocabulary words must be in Hebrew. The vocabulary word may then be followed by tab or comma and a definition in English, Hebrew, or both.</div>
+                </div>
+            </div>
+
+            <div class="form-group checkbox-group" style="margin-bottom: 15px;">
+                <label><input type="checkbox" id="alphabetize-list" checked> Alphabetize List</label>
+                <label><input type="checkbox" id="english-translation" checked> English Translation</label>
+                <label><input type="checkbox" id="hebrew-translation" checked> Hebrew Translation</label>
+                <label><input type="checkbox" id="context-quotes" checked> Context Quote</label>
+            </div>
+
+            <div id="context-source-controls" class="form-group context-source-controls">
                 <div style="flex: 0 0 230px;">
                     <label for="source-type">Context Source:</label>
                     <select id="source-type" style="width: 100%;">
@@ -674,29 +703,6 @@
                         <input type="hidden" id="hidden-perek-input" value="">
                     </div>
                 </div>
-            </div>
-
-            <div class="form-group">
-                <label>Vocabulary Spreadsheet:</label>
-                <div class="template-workflow">
-                    <p class="template-instructions"><strong>Only the Term column is required.</strong> Download the template, enter one term per row, and optionally complete any translation, context quote, or citation fields. Any optional field you provide will override the corresponding AI-generated or Sefaria-provided content. Blank optional fields will be completed by Penina when applicable.</p>
-                    <div class="template-actions">
-                        <a class="template-button" href="Penina-Vocabulary-Template.xlsx" download="Penina-Vocabulary-Template.xlsx">Download Spreadsheet Template</a>
-                        <label class="template-button secondary" for="vocabulary-workbook-input" style="margin: 0; color: #fff;">Upload Completed Template</label>
-                        <input type="file" id="vocabulary-workbook-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
-                    </div>
-                    <div id="vocabulary-workbook-status" class="template-status" role="status"></div>
-                </div>
-                <label class="manual-entry-label" for="word-list">Or Enter a Vocabulary List Manually:</label>
-                <textarea id="word-list" rows="5" dir="auto" placeholder="Hebrew term required. An optional English translation may follow a comma or tab.&#10;אגרא, reward&#10;איכא	there is&#10;חתול, cat&#10;אגרא"></textarea>
-                <div id="vocab-input-warning" class="vocab-input-warning" style="display: none;">Vocabulary words must be in Hebrew. The vocabulary word may then be followed by tab or comma and a definition in English, Hebrew, or both.</div>
-            </div>
-
-            <div class="form-group checkbox-group" style="margin-bottom: 15px;">
-                <label><input type="checkbox" id="alphabetize-list" checked> Alphabetize List</label>
-                <label><input type="checkbox" id="english-translation" checked> English Translation</label>
-                <label><input type="checkbox" id="hebrew-translation" checked> Hebrew Translation</label>
-                <label><input type="checkbox" id="context-quotes" checked> Context Quote</label>
             </div>
 
             <button id="generate-btn">Generate Vocabulary Table</button>
@@ -857,6 +863,8 @@
         function updateViewModeLock() {
             const sourceType = document.getElementById('source-type').value;
             const viewMode = document.getElementById('view-mode');
+            const contextSourceControls = document.getElementById('context-source-controls');
+            if (contextSourceControls) contextSourceControls.hidden = !contextQuotesEnabled();
             if (!viewMode) return;
 
             if (sourceType === 'No Context Quotes' || !contextQuotesEnabled()) {

@@ -625,7 +625,6 @@
                 </div>
                 <div class="title-draft-buttons temporarily-hidden-feature" aria-label="Draft controls">
                     <button type="button" id="upload-draft-btn" class="draft-yellow-btn">Upload Previous Draft</button>
-                    <button type="button" id="save-draft-btn" class="draft-yellow-btn">Save Draft</button>
                     <button type="button" id="clear-form-btn" class="draft-yellow-btn">Clear Form</button>
                     <input type="file" id="upload-draft-input" accept="application/json,.json" style="display: none;">
                 </div>
@@ -637,8 +636,8 @@
                     <p class="template-instructions"><strong>Only the Term column is required.</strong> Download the template, enter one term per row, and optionally complete any translation, context quote, or citation fields. Any optional field you provide will override the corresponding AI-generated or Sefaria-provided content. Blank optional fields will be completed by Penina when applicable.</p>
                     <div class="template-actions">
                         <a class="template-button" href="Penina-Vocabulary-Template.xlsx" download="Penina-Vocabulary-Template.xlsx">Download Spreadsheet Template</a>
-                        <label class="template-button secondary" for="vocabulary-workbook-input" style="margin: 0; color: #fff;">Upload Completed Template</label>
-                        <input type="file" id="vocabulary-workbook-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+                        <label class="template-button secondary" for="vocabulary-workbook-input" style="margin: 0; color: #fff;">Upload Completed Template or JSON Draft</label>
+                        <input type="file" id="vocabulary-workbook-input" accept=".xlsx,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" hidden>
                     </div>
                     <div id="vocabulary-workbook-status" class="template-status" role="status"></div>
                 </div>
@@ -781,6 +780,7 @@
             <div style="text-align: center; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background-color: #28a745; width: auto; padding: 10px 40px;">Print Vocabulary Sheet</button>
                 <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Export Filled Spreadsheet</button>
+                <button type="button" id="save-draft-btn" style="background-color: #b58900; width: auto; padding: 10px 40px;">Save JSON Draft</button>
                 <button type="button" id="download-offline-study-cards-btn" style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
             </div>
         </div>
@@ -999,6 +999,35 @@
             }
         }
 
+        async function importVocabularyUploadFile(file) {
+            if (!file) return;
+            const lowerName = String(file.name || '').toLowerCase();
+            const isJson = lowerName.endsWith('.json') || file.type === 'application/json';
+            const isWorkbook = lowerName.endsWith('.xlsx') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+            if (isJson) {
+                setVocabularyWorkbookStatus('Reading JSON draft...');
+                try {
+                    const payload = JSON.parse(await file.text());
+                    applyDraftPayload(payload);
+                    setVocabularyWorkbookStatus(`${file.name} loaded as a JSON draft.`);
+                } catch (error) {
+                    setVocabularyWorkbookStatus(error && error.message ? error.message : 'The JSON draft could not be imported.', true);
+                } finally {
+                    if (vocabularyWorkbookInput) vocabularyWorkbookInput.value = '';
+                }
+                return;
+            }
+
+            if (isWorkbook) {
+                await importVocabularyWorkbookFile(file);
+                return;
+            }
+
+            setVocabularyWorkbookStatus('Please select a completed .xlsx template or a Penina JSON draft.', true);
+            if (vocabularyWorkbookInput) vocabularyWorkbookInput.value = '';
+        }
+
         function getWorkbookExportRows() {
             for (let i = 0; i < generatedRows.length; i++) syncGeneratedRowFromDom(i);
             return generatedRows.map(row => ({
@@ -1066,7 +1095,7 @@
 
         if (vocabularyWorkbookInput) {
             vocabularyWorkbookInput.addEventListener('change', event => {
-                importVocabularyWorkbookFile(event.target.files && event.target.files[0]);
+                importVocabularyUploadFile(event.target.files && event.target.files[0]);
             });
         }
         if (exportVocabularyWorkbookButton) {
@@ -1078,7 +1107,7 @@
         document.getElementById('word-list').addEventListener('input', () => {
             if (!importedVocabularyRows.length) return;
             importedVocabularyRows = [];
-            setVocabularyWorkbookStatus('Manual vocabulary entry is now active. Upload the completed template again to restore its optional-field overrides.');
+            setVocabularyWorkbookStatus('Manual vocabulary entry is now active. Upload the completed template or JSON draft again to restore its optional-field overrides.');
         });
 
         function getSelectedContextQuoteRows() {

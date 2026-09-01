@@ -377,15 +377,15 @@
         .col-translation { min-width: 0; padding: 4pt 6pt; vertical-align: top; }
         .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); min-width: 0; padding: 4pt 6pt; line-height: 1.12; overflow-wrap: anywhere; word-break: break-word; }
         .term-english-translation { padding: 0; }
-        .modern-hebrew-term-translation { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); margin-bottom: 2pt; line-height: 1.12; }
+        .modern-hebrew-term-translation { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); margin-bottom: var(--translation-block-gap, 6pt); line-height: 1.12; }
         .col-context { min-width: 0; padding: 3pt 5pt; font-size: var(--context-font-size, 12pt); line-height: 1.08; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
         .hebrew-word, .hebrew-text, .modern-hebrew-term-translation, .modern-hebrew-context, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
         .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.08; }
         .col-context .hebrew-text { font-size: var(--context-font-size, 12pt); margin: 0; }
-        .modern-hebrew-context { direction: rtl; text-align: right; font-size: var(--context-font-size, 12pt); margin-top: 1pt; font-style: italic; line-height: 1.08; }
+        .modern-hebrew-context { direction: rtl; text-align: right; font-size: var(--context-font-size, 12pt); margin-top: var(--translation-block-gap, 6pt); font-style: italic; line-height: 1.08; }
         .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 0.5pt; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.08; letter-spacing: var(--global-letter-spacing, 0px); }
-        .col-context .english-text { font-size: var(--context-font-size, 12pt); margin-top: 1pt; }
+        .col-context .english-text { font-size: var(--context-font-size, 12pt); margin-top: var(--translation-block-gap, 6pt); }
         .citation { font-size: var(--citation-font-size, 8pt); line-height: 1.0; margin-top: 0.25pt; color: #666; white-space: normal; font-weight: normal; }
         .hebrew-citation { direction: rtl; text-align: right; margin-bottom: 0.25pt; }
         .english-citation { direction: ltr; text-align: left; font-family: var(--english-font, Arial, sans-serif) !important; }
@@ -577,13 +577,14 @@
             --context-font-size: 12pt;
             --citation-font-size: 8pt;
             --title-font-size: 21pt;
+            --translation-block-gap: 6pt;
         }
         
         [dir="ltr"], .english-text, .col-english, #vocab-table th {
             font-family: var(--english-font) !important;
         }
     </style>
-    <!-- build: snug-context-rows-2026-05-19 -->
+    <!-- build: separated-translation-blocks-2026-09-01 -->
 </head>
 <body class="mode-full">
 

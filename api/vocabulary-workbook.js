@@ -30,6 +30,35 @@ const FIELD_KEYS = [
     'englishCitation'
 ];
 
+const RICH_TEXT_RUN_KEYS = {
+    contextQuote: 'contextQuoteRuns',
+    hebrewContextTranslation: 'hebrewContextTranslationRuns',
+    englishContextTranslation: 'englishContextTranslationRuns'
+};
+
+function richTextCellValue(textValue, runs) {
+    const text = String(textValue || '');
+    if (!Array.isArray(runs)) return text;
+
+    const normalizedRuns = runs
+        .map(run => ({ text: String(run && run.text || ''), bold: !!(run && run.bold) }))
+        .filter(run => run.text);
+    if (!normalizedRuns.some(run => run.bold)) return text;
+    if (normalizedRuns.map(run => run.text).join('') !== text) return text;
+
+    return {
+        richText: normalizedRuns.map(run => ({
+            font: {
+                name: 'Arial',
+                size: 12,
+                bold: run.bold,
+                color: { argb: 'FF1D232A' }
+            },
+            text: run.text
+        }))
+    };
+}
+
 function cellText(cell) {
     if (!cell) return '';
     if (typeof cell.text === 'string') return cell.text.trim();
@@ -142,7 +171,11 @@ async function exportVocabularyWorkbook(rows, title) {
     safeRows.forEach((sourceRow, rowIndex) => {
         const row = worksheet.getRow(rowIndex + 2);
         FIELD_KEYS.forEach((key, columnIndex) => {
-            row.getCell(columnIndex + 1).value = String(sourceRow && sourceRow[key] || '').trim();
+            const textValue = String(sourceRow && sourceRow[key] || '').trim();
+            const runKey = RICH_TEXT_RUN_KEYS[key];
+            row.getCell(columnIndex + 1).value = runKey
+                ? richTextCellValue(textValue, sourceRow && sourceRow[runKey])
+                : textValue;
         });
         row.height = 34;
         row.eachCell({ includeEmpty: true }, cell => {

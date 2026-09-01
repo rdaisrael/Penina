@@ -1006,8 +1006,11 @@
                 hebrewTermTranslation: row.modernHebrewTranslation || '',
                 englishTermTranslation: row.item && row.item.english || '',
                 contextQuote: row.hebrewContext || '',
+                contextQuoteRuns: highlightHebrewContextRuns(row),
                 hebrewContextTranslation: row.modernHebrewContext || '',
+                hebrewContextTranslationRuns: highlightModernHebrewContextRuns(row),
                 englishContextTranslation: row.englishContext || '',
+                englishContextTranslationRuns: highlightEnglishContextRuns(row),
                 hebrewCitation: row.hebrewCitation || '',
                 englishCitation: row.englishCitation || ''
             }));
@@ -2608,25 +2611,54 @@ function updateTalmudModeVisibility() {
             return new RegExp(`(^|[^\\u05D0-\\u05EA])((?:[ובכלמשה][\\u0591-\\u05C7]*){0,2})(${firstWordPattern}(?:[\\s\\p{P}]+${remainingPatterns}))(?=[^\\u05D0-\\u05EA]|$)`, 'u');
         }
 
-        function highlightHebrewContext(row) {
-            const hebrewContext = String(row.hebrewContext || '');
-            let highlightedHebrew = hebrewContext;
-            const candidates = splitHebrewCandidatesGlobal(row.matchedHebrewCandidate).sort((a, b) => b.length - a.length);
+        function plainTextRuns(value) {
+            const text = String(value || '');
+            return text ? [{ text, bold: false }] : [];
+        }
+
+        function compactTextRuns(runs) {
+            return runs.reduce((result, run) => {
+                const text = String(run && run.text || '');
+                if (!text) return result;
+                const bold = !!(run && run.bold);
+                const previous = result[result.length - 1];
+                if (previous && previous.bold === bold) previous.text += text;
+                else result.push({ text, bold });
+                return result;
+            }, []);
+        }
+
+        function highlightHebrewTextRuns(textValue, rawCandidates) {
+            const text = String(textValue || '');
+            const candidates = splitHebrewCandidatesGlobal(rawCandidates).sort((a, b) => b.length - a.length);
             for (const candidate of candidates) {
                 const regex = buildStrictHighlightRegexGlobal(candidate);
                 if (!regex) continue;
-                const match = hebrewContext.match(regex);
+                const match = regex.exec(text);
                 if (!match) continue;
-                if (match.length >= 4) highlightedHebrew = hebrewContext.replace(regex, `$1$2<span style="font-weight:bold;">$3</span>`);
-                else if (match.length >= 3) highlightedHebrew = hebrewContext.replace(regex, `$1<span style="font-weight:bold;">$2</span>`);
-                else highlightedHebrew = hebrewContext.replace(regex, `<span style="font-weight:bold;">$&</span>`);
-                break;
+                const boldText = match.length >= 4 ? match[3] : match.length >= 3 ? match[2] : match[0];
+                const boldOffset = match[0].lastIndexOf(boldText);
+                const boldStart = match.index + Math.max(0, boldOffset);
+                const boldEnd = boldStart + boldText.length;
+                return compactTextRuns([
+                    { text: text.slice(0, boldStart), bold: false },
+                    { text: text.slice(boldStart, boldEnd), bold: true },
+                    { text: text.slice(boldEnd), bold: false }
+                ]);
             }
-            return highlightedHebrew;
+            return plainTextRuns(text);
         }
 
-        function highlightEnglishContext(row) {
-            let highlightedEnglish = String(row.englishContext || '');
+        function highlightHebrewContextRuns(row) {
+            return highlightHebrewTextRuns(row && row.hebrewContext, row && row.matchedHebrewCandidate);
+        }
+
+        function highlightModernHebrewContextRuns(row) {
+            return highlightHebrewTextRuns(row && row.modernHebrewContext, row && row.modernHebrewTranslation);
+        }
+
+        function highlightEnglishContextRuns(row) {
+            const englishContext = String(row && row.englishContext || '');
             const englishCandidates = String(row.item && row.item.english || '')
                 .split(/[,;/]+/)
                 .map(s => s.trim())
@@ -2641,16 +2673,45 @@ function updateTalmudModeVisibility() {
                 const safeCandidate = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const isSingleWord = !/\s/.test(candidate);
                 const regex = isSingleWord ? new RegExp(`\\b${safeCandidate}(?:s|es|ed|ing)?\\b`, 'i') : new RegExp(`\\b${safeCandidate}\\b`, 'i');
-                if (regex.test(highlightedEnglish)) {
-                    highlightedEnglish = highlightedEnglish.replace(regex, `<span style="font-weight:bold;">$&</span>`);
-                    break;
-                }
+                const match = regex.exec(englishContext);
+                if (!match) continue;
+                const start = match.index;
+                const end = start + match[0].length;
+                return compactTextRuns([
+                    { text: englishContext.slice(0, start), bold: false },
+                    { text: englishContext.slice(start, end), bold: true },
+                    { text: englishContext.slice(end), bold: false }
+                ]);
             }
-            return highlightedEnglish;
+            return plainTextRuns(englishContext);
+        }
+
+        function textRunsToHtml(runs) {
+            const wrapper = document.createElement('div');
+            (Array.isArray(runs) ? runs : []).forEach(run => {
+                const span = document.createElement('span');
+                span.textContent = String(run && run.text || '');
+                if (run && run.bold) span.style.fontWeight = 'bold';
+                wrapper.appendChild(span);
+            });
+            return wrapper.innerHTML;
+        }
+
+        function highlightHebrewContext(row) {
+            return textRunsToHtml(highlightHebrewContextRuns(row));
+        }
+
+        function highlightModernHebrewContext(row) {
+            return textRunsToHtml(highlightModernHebrewContextRuns(row));
+        }
+
+        function highlightEnglishContext(row) {
+            return textRunsToHtml(highlightEnglishContextRuns(row));
         }
 
         function renderVocabularyRow(row, rowIndex) {
             const highlightedHebrew = highlightHebrewContext(row);
+            const highlightedModernHebrew = highlightModernHebrewContext(row);
             const highlightedEnglish = highlightEnglishContext(row);
             const showEnglishTranslation = englishTranslationEnabled();
             const showHebrewTranslation = hebrewTranslationEnabled() && row.sourceType !== 'Modern Hebrew';
@@ -2664,7 +2725,7 @@ function updateTalmudModeVisibility() {
                         <td class="col-context">
                             <div class="hebrew-text">${highlightedHebrew}</div>
                             ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl">${row.hebrewCitation}</div>` : ''}
-                            ${showHebrewTranslation && row.modernHebrewContext ? `<div class="modern-hebrew-context">${row.modernHebrewContext}</div>` : ''}
+                            ${showHebrewTranslation && row.modernHebrewContext ? `<div class="modern-hebrew-context">${highlightedModernHebrew}</div>` : ''}
                             ${showEnglishTranslation ? `<div class="english-text">${highlightedEnglish}</div>` : ''}
                             <div class="english-citation-row">
                                 ${showEnglishTranslation && row.englishCitation ? `<div class="citation english-citation" dir="ltr">${row.englishCitation}</div>` : '<div class="citation english-citation" dir="ltr"></div>'}

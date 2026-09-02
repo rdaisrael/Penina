@@ -589,7 +589,7 @@
 <body class="mode-full">
 
     <div class="bg-pattern"></div>
-<a href="/" class="home-btn" aria-label="Return to Home">
+<a href="/" class="home-btn temporarily-hidden-feature" aria-label="Return to Home">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
         </svg>
@@ -784,6 +784,24 @@
                 <button type="button" id="save-draft-btn" style="background-color: #b58900; width: auto; padding: 10px 40px;">Save JSON Draft</button>
                 <button type="button" id="download-offline-study-cards-btn" style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
             </div>
+            <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
+                <div style="display: flex; align-items: end; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1 1 260px; margin: 0; text-align: left;">
+                        <label for="publish-card-grade">Publish notecards to:</label>
+                        <select id="publish-card-grade">
+                            <option value="sixth">Sixth Grade Gemara Vocabulary</option>
+                            <option value="seventh">Seventh Grade Gemara Vocabulary</option>
+                            <option value="eighth">Eighth Grade Gemara Vocabulary</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1 1 180px; margin: 0; text-align: left;">
+                        <label for="publish-card-password">Publishing password:</label>
+                        <input id="publish-card-password" type="password" autocomplete="current-password">
+                    </div>
+                    <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish Notecards</button>
+                </div>
+                <div id="publish-study-cards-status" role="status" style="display: none; margin-top: 12px; padding: 9px 11px; border-radius: 6px; background: #edf6ed; color: #285b2a; line-height: 1.4;"></div>
+            </div>
         </div>
     </div>
 
@@ -931,6 +949,10 @@
         const vocabularyWorkbookStatus = document.getElementById('vocabulary-workbook-status');
         const exportVocabularyWorkbookButton = document.getElementById('export-vocabulary-workbook-btn');
         const downloadOfflineStudyCardsButton = document.getElementById('download-offline-study-cards-btn');
+        const publishStudyCardsButton = document.getElementById('publish-study-cards-btn');
+        const publishCardGrade = document.getElementById('publish-card-grade');
+        const publishCardPassword = document.getElementById('publish-card-password');
+        const publishStudyCardsStatus = document.getElementById('publish-study-cards-status');
         let importedVocabularyRows = [];
         if (contextQuotesCheckbox) {
             contextQuotesCheckbox.addEventListener('change', updateViewModeLock);
@@ -947,6 +969,22 @@
             const exportDisabled = !generatedRows.length;
             if (exportVocabularyWorkbookButton) exportVocabularyWorkbookButton.disabled = exportDisabled;
             if (downloadOfflineStudyCardsButton) downloadOfflineStudyCardsButton.disabled = exportDisabled;
+            if (publishStudyCardsButton) publishStudyCardsButton.disabled = exportDisabled;
+        }
+
+        function setPublishStudyCardsStatus(message, isError = false, link = null) {
+            if (!publishStudyCardsStatus) return;
+            publishStudyCardsStatus.textContent = String(message || '');
+            publishStudyCardsStatus.style.display = message ? 'block' : 'none';
+            publishStudyCardsStatus.style.background = isError ? '#f8d7da' : '#edf6ed';
+            publishStudyCardsStatus.style.color = isError ? '#721c24' : '#285b2a';
+            if (link && message) {
+                const anchor = document.createElement('a');
+                anchor.href = link;
+                anchor.textContent = ' Open the grade page →';
+                anchor.style.fontWeight = 'bold';
+                publishStudyCardsStatus.appendChild(anchor);
+            }
         }
 
         function readFileAsBase64(file) {
@@ -1094,6 +1132,61 @@
             }
         }
 
+        async function publishStudyCards() {
+            if (!generatedRows.length) {
+                alert('Generate a vocabulary sheet before publishing notecards.');
+                return;
+            }
+            const title = document.getElementById('list-title').value.trim();
+            if (!title) {
+                alert('Enter a title for this vocabulary set before publishing.');
+                document.getElementById('list-title').focus();
+                return;
+            }
+            const grade = publishCardGrade.value;
+            const key = publishCardPassword.value.trim();
+            if (!key) {
+                setPublishStudyCardsStatus('Enter the publishing password for the selected grade.', true);
+                publishCardPassword.focus();
+                return;
+            }
+
+            publishStudyCardsButton.disabled = true;
+            publishStudyCardsButton.textContent = 'Publishing...';
+            setPublishStudyCardsStatus('Preparing and publishing the notecard set...');
+            try {
+                const rows = getWorkbookExportRows();
+                const html = PeninaOfflineStudyCards.makeApp(title, PeninaOfflineStudyCards.toCards(rows));
+                const response = await fetch('/api/notecard-sets', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Penina-Publish-Key': key
+                    },
+                    body: JSON.stringify({ grade, title, html })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        publishCardPassword.value = '';
+                        publishCardPassword.focus();
+                    }
+                    throw new Error(data.error || 'The notecard set could not be published.');
+                }
+                const gradePages = {
+                    sixth: '/PeninaPlus-vocab-builder/flash-cards/sixth-grade/',
+                    seventh: '/PeninaPlus-vocab-builder/flash-cards/seventh-grade/',
+                    eighth: '/PeninaPlus-vocab-builder/flash-cards/eighth-grade/'
+                };
+                setPublishStudyCardsStatus(`“${title}” was published successfully.`, false, gradePages[grade]);
+            } catch (error) {
+                setPublishStudyCardsStatus(error && error.message ? error.message : 'The notecard set could not be published.', true);
+            } finally {
+                publishStudyCardsButton.textContent = 'Publish Notecards';
+                updateWorkbookExportAvailability();
+            }
+        }
+
         if (vocabularyWorkbookInput) {
             vocabularyWorkbookInput.addEventListener('change', event => {
                 importVocabularyUploadFile(event.target.files && event.target.files[0]);
@@ -1104,6 +1197,9 @@
         }
         if (downloadOfflineStudyCardsButton) {
             downloadOfflineStudyCardsButton.addEventListener('click', downloadOfflineStudyCards);
+        }
+        if (publishStudyCardsButton) {
+            publishStudyCardsButton.addEventListener('click', publishStudyCards);
         }
         document.getElementById('word-list').addEventListener('input', () => {
             if (!importedVocabularyRows.length) return;

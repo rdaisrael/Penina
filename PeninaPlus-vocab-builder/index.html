@@ -1,9 +1,9 @@
 <!-- PP VOCAB BUILDER -->
 <!DOCTYPE html>
-<!-- build: offline-study-cards-2026-08-31 -->
+<!-- build: offline-study-cards-2026-09-07 -->
 <html lang="en">
 <head>
-    <!-- Penina Vocab Builder build: offline-study-cards-2026-08-31 -->
+    <!-- Penina Vocab Builder build: offline-study-cards-2026-09-07 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>PeninaPlus Vocabulary Builder</title>
@@ -189,11 +189,25 @@
         .form-group { margin-bottom: 20px; }
         label { font-weight: bold; display: block; margin-bottom: 8px; color: #5a5248; }
         
-        input[type="text"], textarea, select { 
+        input[type="text"], textarea, select, #publish-card-password {
             width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
             border-radius: 5px; box-sizing: border-box; font-size: 16px; 
             background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
             font-family: inherit; 
+        }
+
+        .publish-card-controls {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            align-items: start;
+        }
+        .publish-card-controls .form-group { min-width: 0; margin: 0; text-align: left; }
+        .publish-card-controls label { font-size: 16px; line-height: 1.25; }
+        .publish-card-controls select, .publish-card-controls input { height: 42px; }
+        .publish-card-controls button { grid-column: 1 / -1; justify-self: center; }
+        @media (max-width: 600px) {
+            .publish-card-controls { grid-template-columns: minmax(0, 1fr); }
         }
 
         textarea, .hebrew-input, .strict-hebrew-input {
@@ -202,7 +216,7 @@
         #word-list {
             unicode-bidi: plaintext;
         }
-        select:focus, textarea:focus, input[type="text"]:focus { 
+        select:focus, textarea:focus, input[type="text"]:focus, #publish-card-password:focus {
             outline: none; border-color: #b5a898; background-color: #ffffff; 
         }
         
@@ -663,7 +677,6 @@
                         <option value="Tanakh">תנ''ך</option>
                         <option value="Talmud">תלמוד בבלי</option>
                         <option value="Modern Hebrew">עברית מודרנית</option>
-                        <option value="No Context Quotes">No Context Quotes</option>
                     </select>
                 </div>
                 <div style="flex: 1; display: none;" id="specific-source-container">
@@ -785,8 +798,8 @@
                 <button type="button" id="download-offline-study-cards-btn" style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
             </div>
             <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
-                <div style="display: flex; align-items: end; justify-content: center; gap: 10px; flex-wrap: wrap;">
-                    <div class="form-group" style="flex: 1 1 260px; margin: 0; text-align: left;">
+                <div class="publish-card-controls">
+                    <div class="form-group">
                         <label for="publish-card-grade">Publish notecards to:</label>
                         <select id="publish-card-grade">
                             <option value="sixth">Sixth Grade Gemara Vocabulary</option>
@@ -794,7 +807,7 @@
                             <option value="eighth">Eighth Grade Gemara Vocabulary</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex: 1 1 180px; margin: 0; text-align: left;">
+                    <div class="form-group">
                         <label for="publish-card-password">Publishing password:</label>
                         <input id="publish-card-password" type="password" autocomplete="current-password">
                     </div>
@@ -838,7 +851,7 @@
 
     <script src="offline-study-cards.js"></script>
     <script>
-        const PENINA_BUILD_ID = 'offline-study-cards-2026-08-31';
+        const PENINA_BUILD_ID = 'offline-study-cards-2026-09-07';
         function stylizeTitleText(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -1427,13 +1440,14 @@
             }
             const inputs = payload.inputs || {};
             setControlValue('list-title', inputs.listTitle || '');
-            setControlValue('source-type', inputs.sourceType || 'Tanakh');
+            const legacyNoContext = inputs.sourceType === 'No Context Quotes';
+            setControlValue('source-type', legacyNoContext ? 'Tanakh' : (inputs.sourceType || 'Tanakh'));
             sourceTypeSelect.dispatchEvent(new Event('change'));
             setControlValue('word-list', inputs.wordList || '');
             setControlValue('alphabetize-list', inputs.alphabetizeList);
             setControlValue('english-translation', inputs.englishTranslation !== false);
             setControlValue('hebrew-translation', inputs.hebrewTranslation !== false);
-            setControlValue('context-quotes', inputs.contextQuotes);
+            setControlValue('context-quotes', legacyNoContext ? false : inputs.contextQuotes);
             setControlValue('substitute-names', inputs.substituteNames);
             setControlValue('font-size', inputs.fontSize || '14');
             setControlValue('kerning', inputs.kerning || '0');
@@ -1593,6 +1607,7 @@ let selectedSourceTargets = [];
 const englishBookCache = new Map();
 const refDataCache = new Map();
 const talmudPerekDataCache = new Map();
+const sefariaIndexCache = new Map();
 
 const talmudDafRanges = {
     "ברכות": { start: "2a", end: "64a" },
@@ -3401,7 +3416,7 @@ function updateTalmudModeVisibility() {
 
         // --- SEARCH LOGIC: SELECTED CHAPTER/DAF -> SELECTED BOOK/MASSECHET -> WHOLE CORPUS ---
         async function performSefariaSearch(word, corpus, selectedTargets = [], excludeRefs = [], intendedEnglish = '') {
-            const cleanWord = word.replace(/[\u0591-\u05C7]/g, '').trim();
+            const cleanWord = word.replace(/\u05BE/g, ' ').replace(/[\u0591-\u05C7]/g, '').trim();
 
             const normalizeRefForExclusion = (ref) => String(ref || '')
                 .replace(/\s*-\s*AI translation\s*$/i, '')
@@ -3425,13 +3440,11 @@ function updateTalmudModeVisibility() {
                 if (!b || b === 'ANY') return null;
                 if (englishBookCache.has(b)) return englishBookCache.get(b);
                 try {
-                    const res = await fetch(`https://www.sefaria.org/api/name/${encodeURIComponent(b)}`);
-                    const data = await res.json();
+                    const data = await getSefariaJson(`https://www.sefaria.org/api/name/${encodeURIComponent(b)}`);
                     const resolved = data.index || data.ref || b;
                     englishBookCache.set(b, resolved);
                     return resolved;
                 } catch (e) {
-                    englishBookCache.set(b, b);
                     return b;
                 }
             };
@@ -3442,6 +3455,7 @@ function updateTalmudModeVisibility() {
             const normalizeHebrewForMatch = (s) => {
                 return String(s || '')
                     .replace(/<\/?[^>]+(>|$)/g, '')
+                    .replace(/\u05BE/g, ' ')
                     .replace(/[\u0591-\u05C7]/g, '')
                     .replace(/[^\u05D0-\u05EA\s]/g, ' ')
                     .replace(/\s+/g, ' ')
@@ -3449,10 +3463,30 @@ function updateTalmudModeVisibility() {
             };
 
             const isTalmud = (corpus === 'Talmud' || corpus === 'Talmud Bavli');
-            const corpusFilter = isTalmud ? ['Talmud'] : ['Tanakh'];
-            const davidsonTitle = 'William Davidson Edition - English';
+            const corpusFilter = isTalmud ? ['Talmud/Bavli'] : ['Tanakh'];
             const relevantTargets = (Array.isArray(selectedTargets) ? selectedTargets : []).filter(target => target && target.corpus === (isTalmud ? 'Talmud' : 'Tanakh'));
-            const hasExplicitSourceTargets = relevantTargets.length > 0;
+            let requestFailed = false;
+            const attemptedSearchRefs = new Set();
+
+            async function getSefariaJson(url, options = {}) {
+                try {
+                    const response = await fetch(url, { ...options, signal: AbortSignal.timeout(30000) });
+                    if (!response.ok) throw new Error('Sefaria request failed');
+                    const data = await response.json();
+                    if (data.error || data.timed_out) throw new Error('Sefaria returned an incomplete response');
+                    return data;
+                } catch (error) {
+                    requestFailed = true;
+                    throw error;
+                }
+            }
+
+            async function getBookIndex(englishBook) {
+                if (sefariaIndexCache.has(englishBook)) return sefariaIndexCache.get(englishBook);
+                const index = await getSefariaJson(`https://www.sefaria.org/api/v2/raw/index/${encodeURIComponent(englishBook)}`);
+                sefariaIndexCache.set(englishBook, index);
+                return index;
+            }
 
             function isAllowedSefariaRef(ref) {
                 const value = String(ref || '').trim();
@@ -3808,7 +3842,8 @@ function updateTalmudModeVisibility() {
                     const textWords = normalizedText.split(' ').filter(Boolean).length;
                     const candidateWords = normalizedCandidate.split(' ').filter(Boolean).length;
 
-                    return normalizedText !== normalizedCandidate && textWords >= candidateWords + 2;
+                    return normalizedText !== normalizedCandidate && textWords >= candidateWords + 2
+                        && !!findCandidateMatchInNormalizedLine(text);
                 };
 
                 const cleanEnglishForDisplay = (englishText) => {
@@ -3909,81 +3944,34 @@ function updateTalmudModeVisibility() {
             }
 
             async function fetchRefData(ref, dafLabel = null) {
+                const cacheKey = `${corpus}||${ref}`;
+                if (refDataCache.has(cacheKey)) return refDataCache.get(cacheKey);
                 try {
-                    const textUrl = isTalmud
-                        ? `https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`
-                        : `https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0&ven=${encodeURIComponent(davidsonTitle)}`;
-
-                    const sRes = await fetch(textUrl);
-                    if (!sRes.ok) return null;
-
-                    const data = await sRes.json();
-                    if (!data?.he) return null;
-
-                    return {
+                    const data = await getSefariaJson(`https://www.sefaria.org/api/texts/${encodeURIComponent(ref)}?context=0`);
+                    if (!data?.he) throw new Error('Sefaria response has no Hebrew text');
+                    const result = {
                         ref: data.ref,
                         heRef: data.heRef,
                         heArray: Array.isArray(data.he) ? data.he.flat(Infinity) : [data.he],
-                        enArray: isTalmud ? [] : (Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text || '']),
+                        enArray: Array.isArray(data.text) ? data.text.flat(Infinity) : [data.text || ''],
                         dafLabel: dafLabel || ref
                     };
+                    refDataCache.set(cacheKey, result);
+                    return result;
                 } catch (e) {
+                    requestFailed = true;
                     return null;
                 }
-            }
-
-            function findMatchInArrays(heArray, enArray, ref, heRef, sourceRef = ref) {
-                let bestMatch = null;
-
-                for (let i = 0; i < heArray.length; i++) {
-                    const line = typeof heArray[i] === 'string' ? heArray[i] : '';
-                    if (!line) continue;
-
-                    const match = findCandidateMatchInNormalizedLine(line);
-                    if (!match) continue;
-
-                    if (
-                        !bestMatch ||
-                        match.strength > bestMatch.matchStrength
-                    ) {
-                        bestMatch = {
-                            matchIndex: i,
-                            matchStrength: match.strength,
-                            matchedCandidate: match.candidate
-                        };
-                    }
-                }
-
-                if (!bestMatch) return null;
-
-                const excerpt = buildExcerptFromMatch(
-                    heArray,
-                    enArray,
-                    bestMatch.matchIndex,
-                    bestMatch.matchedCandidate
-                );
-
-                if (!excerpt.he) return null;
-
-                return {
-                    he: excerpt.he,
-                    en: excerpt.en || '', 
-                    sourceEnglish: excerpt.sourceEnglish || '',
-                    rawEn: excerpt.sourceEnglish || '',
-                    ref,
-                    heRef,
-                    matchStrength: bestMatch.matchStrength,
-                    sourceRef,
-                    matchedCandidate: excerpt.matchedCandidate || bestMatch.matchedCandidate
-                };
             }
 
             async function fetchRefAndFindMatch(ref, dafLabel = null) {
                 if (isExcludedRef(ref) || isExcludedRef(dafLabel)) return null;
                 const data = await fetchRefData(ref, dafLabel);
                 if (!data) return null;
-                const found = findMatchInArrays(data.heArray, data.enArray, data.ref, data.heRef, dafLabel || ref);
-                return await acceptIfSemanticallyValid(found);
+                return await findMatchInSegments(data.heArray.map((he, index) => ({
+                    he, en: data.enArray[index] || '', ref: data.ref,
+                    heRef: data.heRef, dafLabel: dafLabel || ref
+                })));
             }
 
             function scoreMatch(found, preferredRef = null) {
@@ -4023,150 +4011,105 @@ function updateTalmudModeVisibility() {
 
             async function searchViaSefaria(filters, enforceBookName = null) {
                 const queriesToTry = (sefariaSearchCandidates.length ? sefariaSearchCandidates : searchCandidates).filter(Boolean);
+                const pageSize = 50;
 
                 for (const query of queriesToTry) {
-                    try {
-                        const res = await fetch('/api/sefaria-search', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                query,
-                                type: 'text',
-                                field: 'naive_lemmatizer',
-                                filters: filters
-                            })
-                        });
+                    for (let start = 0; ; start += pageSize) {
+                        try {
+                            const data = await getSefariaJson('/api/sefaria-search', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    query, type: 'text', field: 'naive_lemmatizer', filters,
+                                    start, size: pageSize, source_proj: ['ref', 'path']
+                                })
+                            });
+                            const hits = data?.hits?.hits || [];
+                            if (!hits.length) break;
 
-                        if (!res.ok) continue;
-
-                        const data = await res.json();
-                        if (!data?.hits?.hits?.length) continue;
-
-                        for (const hit of data.hits.hits) {
-                            const ref = hit._source?.ref || hit._id.split(' (')[0];
-
-                            if (!isAllowedSefariaRef(ref) || isExcludedRef(ref)) {
-                                continue;
+                            for (const hit of hits) {
+                                const ref = hit._source?.ref || String(hit._id || '').split(' (')[0];
+                                if (!ref || !isAllowedSefariaRef(ref) || isExcludedRef(ref)) continue;
+                                if (enforceBookName && !refStartsWithBook(ref, enforceBookName)) continue;
+                                if (attemptedSearchRefs.has(ref)) continue;
+                                attemptedSearchRefs.add(ref);
+                                const found = await fetchRefAndFindMatch(ref);
+                                if (found) return found;
                             }
-
-                            if (enforceBookName && !refStartsWithBook(ref, enforceBookName)) {
-                                continue;
-                            }
-
-                            const found = await fetchRefAndFindMatch(ref);
-                            if (found) return found;
+                            const total = data.hits.total;
+                            const exactTotal = typeof total === 'number' ? total : (total?.relation === 'eq' ? total.value : null);
+                            if (hits.length < pageSize || (exactTotal !== null && start + hits.length >= exactTotal)) break;
+                        } catch (e) {
+                            break; // Other variants and scopes may still provide a usable quote.
                         }
-                    } catch (e) {
-                        // Try the next candidate rather than failing the whole context search.
                     }
                 }
-
                 return null;
             }
 
-            async function buildTalmudPerekData(englishBook, hebrewBook) {
-                const cacheKey = `${englishBook}||${hebrewBook}`;
+            async function buildTalmudPerekData(englishBook, perekIndex) {
+                const cacheKey = `${englishBook}||${perekIndex}`;
                 if (talmudPerekDataCache.has(cacheKey)) return talmudPerekDataCache.get(cacheKey);
-
-                const range = talmudDafRanges[hebrewBook];
-                const perekNames = sourceData.Talmud[hebrewBook] || [];
-                if (!range || !perekNames.length) {
-                    talmudPerekDataCache.set(cacheKey, null);
-                    return null;
-                }
-
-                const dafOptions = generateDafOptions(range.start, range.end);
-                const refs = dafOptions.map(daf => `${englishBook} ${daf}`);
-                const dataList = await Promise.all(refs.map((ref, index) => fetchRefData(ref, dafOptions[index])));
-
-                const perakim = perekNames.map(() => []);
-                const dafToPerakim = {};
-                let currentPerek = 0;
-
-                dataList.forEach((data, dataIndex) => {
-                    if (!data) return;
-                    const dafLabel = dafOptions[dataIndex];
-                    const segmentCount = data.heArray.length;
-
-                    for (let i = 0; i < segmentCount; i++) {
-                        const he = typeof data.heArray[i] === 'string' ? data.heArray[i] : '';
-                        const en = Array.isArray(data.enArray) && typeof data.enArray[i] === 'string' ? data.enArray[i] : '';
-
-                        if (!perakim[currentPerek]) {
-                            perakim[currentPerek] = [];
-                        }
-
-                        perakim[currentPerek].push({
-                            he,
-                            en,
-                            ref: data.ref,
-                            heRef: data.heRef,
-                            dafLabel
-                        });
-
-                        if (!dafToPerakim[dafLabel]) {
-                            dafToPerakim[dafLabel] = new Set();
-                        }
-                        dafToPerakim[dafLabel].add(currentPerek);
-
-                        const normalizedLine = normalizeHebrewForMatch(he);
-                        if (
-                            normalizedLine.includes('הדרן עלך') &&
-                            currentPerek < perekNames.length - 1
-                        ) {
-                            currentPerek += 1;
-                        }
+                const index = await getBookIndex(englishBook);
+                const chapter = index.alt_structs?.Chapters?.nodes?.[perekIndex];
+                const rangeRef = chapter?.wholeRef || '';
+                const [first, last] = rangeRef.split('-');
+                const start = first.match(/^(.+) (\d+[ab])(?::(\d+))?$/);
+                const end = last ? last.match(/^(?:(\d+[ab])(?::(\d+))?|(\d+))$/) : null;
+                if (!start || (last && !end)) throw new Error('Sefaria perek range is unavailable');
+                const endDaf = end?.[1] || start[2];
+                const startSegment = start[3] ? Number(start[3]) : 1;
+                const endSegment = end ? Number(end[2] || end[3] || Infinity) : Number(start[3] || Infinity);
+                const dafs = generateDafOptions(start[2], endDaf);
+                const pages = new Array(dafs.length);
+                let nextPage = 0;
+                // Limit simultaneous requests; fetch only the selected perek, not the whole masechta.
+                await Promise.all(Array.from({ length: Math.min(4, dafs.length) }, async () => {
+                    while (nextPage < dafs.length) {
+                        const pageIndex = nextPage++;
+                        const dafLabel = dafs[pageIndex];
+                        const data = await fetchRefData(`${englishBook} ${dafLabel}`, dafLabel);
+                        if (!data) throw new Error('Could not load the complete perek from Sefaria');
+                        const from = pageIndex === 0 ? startSegment - 1 : 0;
+                        const to = pageIndex === dafs.length - 1 ? endSegment : data.heArray.length;
+                        pages[pageIndex] = data.heArray.slice(from, to).map((he, offset) => ({
+                            he, en: data.enArray[from + offset] || '',
+                            ref: data.ref, heRef: data.heRef, dafLabel
+                        }));
                     }
-                });
-
-                const result = { perakim, dafToPerakim };
-                talmudPerekDataCache.set(cacheKey, result);
-                return result;
+                }));
+                const segments = pages.flat();
+                if (!segments.length) throw new Error('Sefaria perek contains no text');
+                talmudPerekDataCache.set(cacheKey, segments);
+                return segments;
             }
 
-            function findMatchInSegments(segments) {
+            async function findMatchInSegments(segments) {
                 if (!segments || !segments.length) return null;
-
-                let bestMatch = null;
-
+                const matches = [];
                 for (let i = 0; i < segments.length; i++) {
-                    const line = typeof segments[i].he === 'string' ? segments[i].he : '';
-                    if (!line) continue;
-
-                    const match = findCandidateMatchInNormalizedLine(line);
-                    if (!match) continue;
-
-                    if (!bestMatch || match.strength > bestMatch.matchStrength) {
-                        bestMatch = {
-                            matchIndex: i,
-                            matchStrength: match.strength,
-                            matchedCandidate: match.candidate
-                        };
-                    }
+                    if (isExcludedRef(segments[i].ref)) continue;
+                    const match = findCandidateMatchInNormalizedLine(segments[i].he);
+                    if (match) matches.push({ index: i, ...match });
                 }
-
-                if (!bestMatch) return null;
-
-                const excerpt = buildExcerptFromMatch(
-                    segments.map(segment => segment.he),
-                    segments.map(segment => segment.en || ''),
-                    bestMatch.matchIndex,
-                    bestMatch.matchedCandidate
-                );
-
-                if (!excerpt.he) return null;
-
-                return {
-                    he: excerpt.he,
-                    en: excerpt.en || '',
-                    sourceEnglish: excerpt.sourceEnglish || '',
-                    rawEn: excerpt.sourceEnglish || '',
-                    ref: segments[bestMatch.matchIndex].ref,
-                    heRef: segments[bestMatch.matchIndex].heRef,
-                    matchStrength: bestMatch.matchStrength,
-                    sourceRef: segments[bestMatch.matchIndex].dafLabel,
-                    matchedCandidate: excerpt.matchedCandidate || bestMatch.matchedCandidate
-                };
+                matches.sort((a, b) => b.strength - a.strength);
+                for (const match of matches) {
+                    const excerpt = buildExcerptFromMatch(
+                        segments.map(segment => segment.he),
+                        segments.map(segment => segment.en || ''),
+                        match.index, match.candidate
+                    );
+                    if (!excerpt.he) continue;
+                    const found = await acceptIfSemanticallyValid({
+                        he: excerpt.he, en: excerpt.en || '',
+                        sourceEnglish: excerpt.sourceEnglish || '', rawEn: excerpt.sourceEnglish || '',
+                        ref: segments[match.index].ref, heRef: segments[match.index].heRef,
+                        matchStrength: match.strength, sourceRef: segments[match.index].dafLabel,
+                        matchedCandidate: excerpt.matchedCandidate || match.candidate
+                    });
+                    if (found) return found;
+                }
+                return null;
             }
 
             if (relevantTargets.length) {
@@ -4196,9 +4139,12 @@ function updateTalmudModeVisibility() {
 
                     if (isTalmud && target.scope === 'perek') {
                         const perekIndex = parseInt(target.value, 10);
-                        const perekData = await buildTalmudPerekData(englishBook, target.book);
-                        if (perekData && Number.isFinite(perekIndex) && perekData.perakim[perekIndex]) {
-                            { const perekMatch = await acceptIfSemanticallyValid(findMatchInSegments(perekData.perakim[perekIndex])); if (perekMatch) directMatches.push(perekMatch); }
+                        try {
+                            const segments = await buildTalmudPerekData(englishBook, perekIndex);
+                            const perekMatch = await findMatchInSegments(segments);
+                            if (perekMatch) directMatches.push(perekMatch);
+                        } catch (error) {
+                            requestFailed = true;
                         }
                         continue;
                     }
@@ -4218,7 +4164,14 @@ function updateTalmudModeVisibility() {
                 }
 
                 for (const target of parentBookTargets) {
-                    const foundInBook = await searchViaSefaria(corpusFilter, target.englishBook);
+                    let foundInBook = null;
+                    try {
+                        const index = await getBookIndex(target.englishBook);
+                        const bookFilter = [...index.categories, index.title].join('/');
+                        foundInBook = await searchViaSefaria([bookFilter], target.englishBook);
+                    } catch (error) {
+                        requestFailed = true;
+                    }
                     if (foundInBook) {
                         return {
                             he: foundInBook.he,
@@ -4246,6 +4199,9 @@ function updateTalmudModeVisibility() {
                 };
             }
 
+            if (requestFailed) {
+                throw new Error('Sefaria could not complete the context search. Please try again.');
+            }
             return null;
         }
 

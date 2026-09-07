@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { del, list, put } = require('@vercel/blob');
+const { makeApp } = require('../PeninaPlus-vocab-builder/offline-study-cards');
 
 const GRADES = new Set(['sixth', 'seventh', 'eighth']);
 const MAX_HTML_LENGTH = 4_000_000;
@@ -32,7 +33,7 @@ function formatSet(blob, grade) {
     return {
         title: decodeTitle(blob.pathname),
         url: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}`,
-        downloadUrl: blob.downloadUrl || blob.url,
+        downloadUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&download=1`,
         publishedAt: blob.uploadedAt,
         pathname: blob.pathname
     };
@@ -62,9 +63,17 @@ module.exports = async function (req, res) {
                 if (!blob) return send(res, 404, { error: 'That notecard set could not be found.' });
                 const blobResponse = await fetch(blob.url);
                 if (!blobResponse.ok) throw new Error(`Blob returned ${blobResponse.status}`);
-                const html = await blobResponse.text();
+                const storedHtml = await blobResponse.text();
+                // Rebuild the display from saved card data so existing sets receive layout updates.
+                const dataMatch = storedHtml.match(/<script id="peninaCardData" type="application\/json">([\s\S]*?)<\/script>/)
+                    || storedHtml.match(/const originalCards=(\[[\s\S]*?\]);let cards=/);
+                if (!dataMatch) throw new Error('Saved notecard data is unavailable.');
+                const cards = JSON.parse(dataMatch[1]);
+                if (!Array.isArray(cards)) throw new Error('Saved notecard data is invalid.');
+                const html = makeApp(decodeTitle(blob.pathname), cards);
+                const disposition = req.query.download === '1' ? 'attachment' : 'inline';
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
-                res.setHeader('Content-Disposition', `inline; filename="${encodeTitle(decodeTitle(blob.pathname))}.html"`);
+                res.setHeader('Content-Disposition', `${disposition}; filename="${encodeTitle(decodeTitle(blob.pathname))}.html"`);
                 res.setHeader('Cache-Control', 'no-store');
                 return res.status(200).send(html);
             }
@@ -107,7 +116,7 @@ module.exports = async function (req, res) {
         const html = String(req.body && req.body.html || '');
         if (!title) return send(res, 400, { error: 'Enter a title for this vocabulary set before publishing.' });
         if (!html || html.length > MAX_HTML_LENGTH) return send(res, 413, { error: 'The notecard set is empty or too large to publish.' });
-        if (!html.includes('Offline bilingual vocabulary practice with adaptive flip cards.')) {
+        if (!html.includes('<script id="peninaCardData" type="application/json">')) {
             return send(res, 400, { error: 'Only notecard sets created by Penina can be published here.' });
         }
 

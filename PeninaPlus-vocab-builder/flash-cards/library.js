@@ -93,7 +93,21 @@
             const combineChecked = selectedForCombination.has(set.pathname) ? ' checked' : '';
             const combineCheckbox = managementMode ? '' : `<input class="combine-select" type="checkbox" value="${escapeHtml(set.pathname)}"${combineChecked} aria-label="Include ${escapeHtml(set.title)} in a combined set">`;
             const removeCheckbox = managementMode ? `<input class="remove-select" type="checkbox" value="${escapeHtml(set.pathname)}" aria-label="Select ${escapeHtml(set.title)} for removal">` : '';
-            return `<article class="set"><div class="set-heading">${combineCheckbox}${removeCheckbox}<h2>${escapeHtml(set.title)}</h2></div><time>${escapeHtml(readableDate)}</time><div class="set-actions"><a class="set-action primary" href="${escapeHtml(set.url)}">View Notecards</a><a class="set-action" href="${escapeHtml(set.downloadUrl || set.url)}" download>Download Notecards</a><a class="set-action" href="${escapeHtml(set.printUrl || set.url + '#print')}">Print Notecards</a>${set.sheetUrl ? `<a class="set-action" href="${escapeHtml(set.sheetUrl)}">View Sheets</a><a class="set-action" href="${escapeHtml(set.sheetDownloadUrl)}">Download Sheets (PDF)</a><a class="set-action" href="${escapeHtml(set.sheetPrintUrl)}">Print Sheets</a>` : ''}</div></article>`;
+            return `<article class="set"><div class="set-heading">${combineCheckbox}${removeCheckbox}<h2>${escapeHtml(set.title)}</h2></div><time>${escapeHtml(readableDate)}</time>
+                <div class="set-actions">
+                    <section class="set-action-group" aria-label="Notecards">
+                        <h3>Notecards</h3>
+                        <a class="set-action" href="${escapeHtml(set.url)}" aria-label="View Notecards">View</a>
+                        <a class="set-action" href="${escapeHtml(set.downloadUrl || set.url)}" download aria-label="Download Notecards">Download</a>
+                        <a class="set-action" href="${escapeHtml(set.printUrl || set.url + '#print')}" aria-label="Print Notecards">Print</a>
+                    </section>
+                    ${set.sheetUrl ? `<section class="set-action-group" aria-label="Sheets">
+                        <h3>Sheets</h3>
+                        <a class="set-action" href="${escapeHtml(set.sheetUrl)}" aria-label="View Sheets">View</a>
+                        <a class="set-action" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (PDF)">Download PDF</a>
+                        <a class="set-action" href="${escapeHtml(set.sheetPrintUrl)}" aria-label="Print Sheets">Print</a>
+                    </section>` : ''}
+                </div></article>`;
         }).join('');
         if (!visible.length) {
             status.textContent = query ? 'No vocabulary sets match that search.' : 'No vocabulary sets have been published yet.';

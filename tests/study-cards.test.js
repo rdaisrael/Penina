@@ -66,6 +66,7 @@ function publishingApi(storedHtml) {
     const context={module:{exports:{}},Buffer,console,process:{env:{CARD_PUBLISH_KEY_SIXTH:'test-only-key'}},fetch:async url=>{assert.equal(url,blob.url);return{ok:true,text:async()=>storedHtml}},require:name=>{
         if(name==='crypto')return require('node:crypto');
         if(name.includes('offline-study-cards'))return app;
+        if(name.includes('vocabulary-sheets'))return require('../PeninaPlus-vocab-builder/vocabulary-sheets');
         assert.equal(name,'@vercel/blob');
         return {list:async()=>({blobs:[blob],hasMore:false}),put:async(p,html)=>{operations.push({p,html});return{...blob,pathname:p}},del:async()=>{throw new Error('No deletion expected')}};
     }};
@@ -107,4 +108,60 @@ test('Legacy published data can be displayed, but malformed saved data is not ex
         await handler({method:'GET',query:{grade:'sixth',view:pathname}},result);
         assert.equal(result.code,code);
     }
+});
+
+test('Every published set exposes sheets and preserves publication settings',async()=>{
+    const options={english:false,hebrew:true,context:true,fontSize:16};
+    const html=app.makeApp(title,cards)+'<script id="peninaSheetOptions" type="application/json">'+JSON.stringify(options)+'</script>';
+    const {handler,pathname,res}=publishingApi(html);
+    const listing=res();await handler({method:'GET',query:{grade:'sixth'}},listing);
+    assert(listing.body.sets[0].sheetDownloadUrl.includes('action=download'));
+    assert(listing.body.sets[0].sheetPrintUrl.includes('action=print'));
+    assert(listing.body.sets[0].printUrl.endsWith('#print'));
+    const sheet=res();await handler({method:'GET',query:{grade:'sixth',view:pathname,sheet:'1'}},sheet);
+    assert.equal(sheet.code,200);
+    const saved=JSON.parse(sheet.body.match(/<script id="peninaSheetData" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+    assert.deepEqual(saved,{title,cards,options});
+    const wrongGrade=res();await handler({method:'GET',query:{grade:'sixth',view:pathname.replace('/sixth/','/seventh/'),sheet:'1'}},wrongGrade);
+    assert.equal(wrongGrade.code,404);
+});
+
+test('Existing sets gain sheet access without being republished',async()=>{
+    const {handler,pathname,operations,res}=publishingApi(app.makeApp(title,cards));
+    const sheet=res();await handler({method:'GET',query:{grade:'sixth',view:pathname,sheet:'1'}},sheet);
+    assert.equal(sheet.code,200);assert(sheet.body.includes('Download Sheets (PDF)'));
+    assert.equal(operations.length,0);
+});
+
+test('Sheet pagination retains all text, including a row taller than one page',()=>{
+    const {renderPages}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');
+    const drawings=[];
+    const document={createElement:()=>({setAttribute(){},getContext:()=>({scale(){},fillRect(){},strokeRect(){},measureText:text=>({width:text.length*7}),fillText:(text,x,y)=>{assert(y<780);drawings.push(text)}})})};
+    const long=Array.from({length:900},(_,i)=>'word'+i).join(' ');
+    const pages=renderPages(document,{title:'Review',cards:[{term:'Term',english:'Definition',englishTranslation:long}],options:{}});
+    assert(pages.length>1);
+    const rendered=drawings.join(' ');
+    for(let i=0;i<900;i++)assert(rendered.includes('word'+i));
+    drawings.length=0;
+    renderPages(document,{title:'Review',cards:[{term:'Term',english:'HiddenEnglish',hebrew:'VisibleHebrew',contextQuote:'HiddenContext'}],options:{english:false,context:false}});
+    assert(drawings.includes('VisibleHebrew'));assert(!drawings.includes('HiddenEnglish'));assert(!drawings.includes('HiddenContext'));
+});
+
+test('Manual context edits sync immediately, and regeneration still operates only on checked rows',async()=>{
+    const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/index.html'),'utf8');
+    const selected=[{dataset:{rowIndex:'1'}}];
+    const regenerated=[];const alerts=[];const synced=[];
+    const context={document:{querySelectorAll:()=>selected},window:{setTimeout:fn=>fn()},setTimeout:fn=>fn(),alert:message=>alerts.push(message),regenerateContextForRow:async i=>regenerated.push(i),clearContextQuoteSelections(){},syncGeneratedRowFromDom:i=>synced.push(i),vocabTbody:{addEventListener:(name,callback)=>{assert.equal(name,'input');context.onInput=callback;}}};
+    vm.createContext(context);
+    const selection=source.slice(source.indexOf('        function getSelectedContextQuoteIndexes()'),source.indexOf('        function refreshOriginalHebrewDatasets('));
+    const regenerate=source.slice(source.indexOf('        async function regenerateSelectedContextQuotes('),source.indexOf('        function normalizeHebrewForDisplayMatchGlobal('));
+    const input=source.slice(source.indexOf("        vocabTbody.addEventListener('input'"),source.indexOf('        function syncGeneratedRowFromDom('));
+    vm.runInContext(selection+regenerate+input,context);
+    const edited={dataset:{original:'old quote'},innerHTML:'new quote',closest:()=>({dataset:{rowIndex:'0'}})};
+    context.onInput({target:{closest:()=>edited}});
+    assert.equal(edited.dataset.original,'new quote');assert.deepEqual(synced,[0]);
+    await context.regenerateSelectedContextQuotes(null);
+    assert.deepEqual(regenerated,[1]);
+    selected.length=0;await context.regenerateSelectedContextQuotes(null);
+    assert.equal(alerts.length,1);assert.deepEqual(regenerated,[1]);
 });

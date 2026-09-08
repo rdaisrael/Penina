@@ -466,20 +466,11 @@
             background-color: #f5b8be !important;
             color: #5f1118 !important;
         }
-        #edit-context-quote-btn {
-            background-color: #b8ddff !important;
-            color: #123a5a !important;
-        }
         #save-draft-context-btn {
             background-color: #fff8cc !important;
             color: #5f4f00 !important;
             border-color: #eadb88 !important;
             box-shadow: 0 2px 4px rgba(95,79,0,0.10);
-        }
-        .context-editing {
-            outline: 2px solid #0056b3;
-            outline-offset: 2px;
-            background-color: #f7fbff;
         }
 
         .context-regenerating {
@@ -520,6 +511,9 @@
             justify-content: flex-end;
             align-items: center;
         }
+        .col-context [contenteditable="true"] { min-height: 1.25em; cursor: text; }
+        [contenteditable="true"]:focus { outline: 2px solid #7a3df0; outline-offset: 2px; }
+
         .context-quote-checkbox {
             width: 12px;
             height: 12px;
@@ -800,7 +794,7 @@
             <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
                 <div class="publish-card-controls">
                     <div class="form-group">
-                        <label for="publish-card-grade">Publish notecards to:</label>
+                        <label for="publish-card-grade">Publish Notecards and Sheets to:</label>
                         <select id="publish-card-grade">
                             <option value="sixth">Sixth Grade Gemara Vocabulary</option>
                             <option value="seventh">Seventh Grade Gemara Vocabulary</option>
@@ -811,7 +805,7 @@
                         <label for="publish-card-password">Publishing password:</label>
                         <input id="publish-card-password" type="password" autocomplete="current-password">
                     </div>
-                    <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish Notecards</button>
+                    <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish Notecards and Sheets</button>
                 </div>
                 <div id="publish-study-cards-status" role="status" style="display: none; margin-top: 12px; padding: 9px 11px; border-radius: 6px; background: #edf6ed; color: #285b2a; line-height: 1.4;"></div>
             </div>
@@ -819,10 +813,9 @@
     </div>
 
         <div id="draft-context-tools" class="draft-context-tools">
-            <div class="draft-tools-message">If you would like to regenerate any of the context quotations, or enter your own, check the desired quotes and click 'Regenerate' or 'Edit'</div>
+            <div class="draft-tools-message">Click any context quote or translation to edit it directly. To regenerate quotes, check the desired quotes and click 'Regenerate Selected Context Quotes'.</div>
             <div class="draft-tools-buttons">
                 <button type="button" id="regenerate-selected-context-quotes-btn">Regenerate Selected Context Quotes &#8634;</button>
-                <button type="button" id="edit-context-quote-btn">Edit Context Quote</button>
                 <button type="button" id="save-draft-context-btn">Save Draft</button>
             </div>
         </div>
@@ -1147,7 +1140,7 @@
 
         async function publishStudyCards() {
             if (!generatedRows.length) {
-                alert('Generate a vocabulary sheet before publishing notecards.');
+                alert('Generate a vocabulary sheet before publishing notecards and sheets.');
                 return;
             }
             const title = document.getElementById('list-title').value.trim();
@@ -1166,10 +1159,18 @@
 
             publishStudyCardsButton.disabled = true;
             publishStudyCardsButton.textContent = 'Publishing...';
-            setPublishStudyCardsStatus('Preparing and publishing the notecard set...');
+            setPublishStudyCardsStatus('Preparing and publishing the notecards and sheets...');
             try {
                 const rows = getWorkbookExportRows();
-                const html = PeninaOfflineStudyCards.makeApp(title, PeninaOfflineStudyCards.toCards(rows));
+                const sheetOptions = {
+                    english: englishTranslationEnabled(),
+                    hebrew: hebrewTranslationEnabled(),
+                    context: contextQuotesEnabled() && getControlValue('view-mode') !== 'mode-basic',
+                    fontSize: Number(getControlValue('font-size')) || 14
+                };
+                const html = PeninaOfflineStudyCards.makeApp(title, PeninaOfflineStudyCards.toCards(rows))
+                    + '<script id="peninaSheetOptions" type="application/json">'
+                    + JSON.stringify(sheetOptions).replace(/</g, '\\u003c') + '<\/script>';
                 const response = await fetch('/api/notecard-sets', {
                     method: 'POST',
                     headers: {
@@ -1184,7 +1185,7 @@
                         publishCardPassword.value = '';
                         publishCardPassword.focus();
                     }
-                    throw new Error(data.error || 'The notecard set could not be published.');
+                    throw new Error(data.error || 'The notecards and sheets could not be published.');
                 }
                 const gradePages = {
                     sixth: '/PeninaPlus-vocab-builder/flash-cards/sixth-grade/',
@@ -1193,9 +1194,9 @@
                 };
                 setPublishStudyCardsStatus(`“${title}” was published successfully.`, false, gradePages[grade]);
             } catch (error) {
-                setPublishStudyCardsStatus(error && error.message ? error.message : 'The notecard set could not be published.', true);
+                setPublishStudyCardsStatus(error && error.message ? error.message : 'The notecards and sheets could not be published.', true);
             } finally {
-                publishStudyCardsButton.textContent = 'Publish Notecards';
+                publishStudyCardsButton.textContent = 'Publish Notecards and Sheets';
                 updateWorkbookExportAvailability();
             }
         }
@@ -1220,12 +1221,6 @@
             setVocabularyWorkbookStatus('Manual vocabulary entry is now active. Upload the completed template or JSON draft again to restore its optional-field overrides.');
         });
 
-        function getSelectedContextQuoteRows() {
-            return Array.from(document.querySelectorAll('.context-quote-checkbox:checked'))
-                .map(checkbox => checkbox.closest('tr'))
-                .filter(Boolean);
-        }
-
         function clearContextQuoteSelections() {
             document.querySelectorAll('.context-quote-checkbox').forEach(checkbox => {
                 checkbox.checked = false;
@@ -1246,69 +1241,14 @@
             return new Promise(resolve => window.setTimeout(resolve, 0));
         }
 
-        function contextEditingIsActive() {
-            return !!document.querySelector('.context-editing');
-        }
-
-        function finishContextEditing(editButton, options = {}) {
-            const shouldClearSelections = options.clearSelections !== false;
-            const editedRows = new Set();
-            document.querySelectorAll('.context-editing').forEach(el => {
-                const row = el.closest('tr');
-                if (row && row.dataset.rowIndex) editedRows.add(Number(row.dataset.rowIndex));
-                el.removeAttribute('contenteditable');
-                el.classList.remove('context-editing');
-            });
-
-            editedRows.forEach(rowIndex => {
-                if (Number.isInteger(rowIndex)) syncGeneratedRowFromDom(rowIndex);
-            });
-
-            if (editButton) {
-                editButton.textContent = 'Edit Context Quote';
-                editButton.dataset.mode = 'edit';
-            }
-
-            if (shouldClearSelections && editedRows.size > 0) {
-                clearContextQuoteSelections();
-            }
-        }
-
-        function beginContextEditing(selectedRows, editButton) {
-            let firstEditable = null;
-            selectedRows.forEach(row => {
-                const rowIndex = Number(row.dataset.rowIndex);
-                if (Number.isInteger(rowIndex)) syncGeneratedRowFromDom(rowIndex);
-                row.querySelectorAll('.hebrew-text, .modern-hebrew-context, .english-text, .hebrew-citation, .english-citation').forEach(el => {
-                    el.setAttribute('contenteditable', 'true');
-                    el.classList.add('context-editing');
-                    if (!firstEditable && el.classList.contains('english-text')) {
-                        firstEditable = el;
-                    }
-                });
-            });
-
-            if (editButton) {
-                editButton.textContent = 'Save Context Edits';
-                editButton.dataset.mode = 'save';
-            }
-            if (firstEditable) firstEditable.focus();
-        }
-
         function setupDraftContextButtons() {
             const regenerateButton = document.getElementById('regenerate-selected-context-quotes-btn');
-            const editButton = document.getElementById('edit-context-quote-btn');
             const saveContextButton = document.getElementById('save-draft-context-btn');
 
             if (regenerateButton && !regenerateButton.dataset.bound) {
                 regenerateButton.dataset.bound = 'true';
                 regenerateButton.addEventListener('click', function() {
                     animateDraftToolButton(regenerateButton);
-                    if (contextEditingIsActive()) {
-                        finishContextEditing(editButton);
-                        alert("Saving current edits. If you wish to regenerate context quotes, please indicate which and press 'regenerate'");
-                        return;
-                    }
                     const indexes = getSelectedContextQuoteIndexes();
                     if (indexes.length === 0) {
                         alert('Please check at least one context quote first.');
@@ -1333,26 +1273,6 @@
                 });
             }
 
-            if (editButton && !editButton.dataset.bound) {
-                editButton.dataset.bound = 'true';
-                editButton.dataset.mode = editButton.dataset.mode || 'edit';
-                editButton.addEventListener('click', function() {
-                    animateDraftToolButton(editButton);
-
-                    if (editButton.dataset.mode === 'save' || contextEditingIsActive()) {
-                        finishContextEditing(editButton);
-                        return;
-                    }
-
-                    const selectedRows = getSelectedContextQuoteRows();
-                    if (selectedRows.length === 0) {
-                        alert('Please check at least one context quote first.');
-                        return;
-                    }
-
-                    beginContextEditing(selectedRows, editButton);
-                });
-            }
         }
 
         setupDraftContextButtons();
@@ -1536,7 +1456,6 @@
             const vocabWarning = document.getElementById('vocab-input-warning');
             if (vocabWarning) vocabWarning.style.display = 'none';
             document.querySelectorAll('.context-quote-checkbox').forEach(checkbox => { checkbox.checked = false; });
-            finishContextEditing(document.getElementById('edit-context-quote-btn'));
 
             document.getElementById('font-size-val').innerText = '14pt';
             document.getElementById('kerning-val').innerText = '0px';
@@ -2414,6 +2333,14 @@ function updateTalmudModeVisibility() {
             return temp.textContent || temp.innerText || '';
         }
 
+        vocabTbody.addEventListener('input', event => {
+            const editable = event.target.closest('[contenteditable="true"]');
+            const tr = editable && editable.closest('tr[data-row-index]');
+            if (!tr) return;
+            if (editable.dataset.original !== undefined) editable.dataset.original = editable.innerHTML;
+            syncGeneratedRowFromDom(Number(tr.dataset.rowIndex));
+        });
+
         function syncGeneratedRowFromDom(rowIndex) {
             const row = generatedRows[rowIndex];
             const tr = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
@@ -2864,13 +2791,13 @@ function updateTalmudModeVisibility() {
                             ${showEnglishTranslation ? `<div class="col-english term-english-translation" contenteditable="true">${row.item.english || ''}</div>` : ''}
                         </td>
                         <td class="col-context">
-                            <div class="hebrew-text">${highlightedHebrew}</div>
-                            ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl">${row.hebrewCitation}</div>` : ''}
-                            ${showHebrewTranslation && row.modernHebrewContext ? `<div class="modern-hebrew-context">${highlightedModernHebrew}</div>` : ''}
-                            ${showEnglishTranslation ? `<div class="english-text">${highlightedEnglish}</div>` : ''}
+                            <div class="hebrew-text" contenteditable="true">${highlightedHebrew}</div>
+                            ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl" contenteditable="true">${row.hebrewCitation}</div>` : ''}
+                            ${showHebrewTranslation && row.modernHebrewContext ? `<div class="modern-hebrew-context" contenteditable="true">${highlightedModernHebrew}</div>` : ''}
+                            ${showEnglishTranslation ? `<div class="english-text" contenteditable="true">${highlightedEnglish}</div>` : ''}
                             <div class="english-citation-row">
-                                ${showEnglishTranslation && row.englishCitation ? `<div class="citation english-citation" dir="ltr">${row.englishCitation}</div>` : '<div class="citation english-citation" dir="ltr"></div>'}
-                                <label class="context-row-checkbox-slot" aria-label="Select this context quote"><input type="checkbox" class="context-quote-checkbox" data-row-index="${rowIndex}"></label>
+                                ${showEnglishTranslation && row.englishCitation ? `<div class="citation english-citation" dir="ltr" contenteditable="true">${row.englishCitation}</div>` : '<div class="citation english-citation" dir="ltr" contenteditable="true"></div>'}
+                                <label class="context-row-checkbox-slot" aria-label="Select this context quote for regeneration"><input type="checkbox" class="context-quote-checkbox" data-row-index="${rowIndex}"></label>
                             </div>
                         </td>
                     </tr>`;

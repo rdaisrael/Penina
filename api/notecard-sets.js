@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const { del, list, put } = require('@vercel/blob');
 const { makeApp } = require('../PeninaPlus-vocab-builder/offline-study-cards');
 
+const { makeSheet } = require('../PeninaPlus-vocab-builder/vocabulary-sheets');
+
 const GRADES = new Set(['sixth', 'seventh', 'eighth']);
 const MAX_HTML_LENGTH = 4_000_000;
 
@@ -34,6 +36,10 @@ function formatSet(blob, grade) {
         title: decodeTitle(blob.pathname),
         url: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}`,
         downloadUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&download=1`,
+        printUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}#print`,
+        sheetUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&sheet=1`,
+        sheetDownloadUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&sheet=1&action=download`,
+        sheetPrintUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&sheet=1&action=print`,
         publishedAt: blob.uploadedAt,
         pathname: blob.pathname
     };
@@ -70,7 +76,11 @@ module.exports = async function (req, res) {
                 if (!dataMatch) throw new Error('Saved notecard data is unavailable.');
                 const cards = JSON.parse(dataMatch[1]);
                 if (!Array.isArray(cards)) throw new Error('Saved notecard data is invalid.');
-                const html = makeApp(decodeTitle(blob.pathname), cards);
+                const optionsMatch = storedHtml.match(/<script id="peninaSheetOptions" type="application\/json">([\s\S]*?)<\/script>/);
+                const sheetOptions = optionsMatch ? JSON.parse(optionsMatch[1]) : {};
+                const html = req.query.sheet === '1'
+                    ? makeSheet(decodeTitle(blob.pathname), cards, sheetOptions)
+                    : makeApp(decodeTitle(blob.pathname), cards);
                 const disposition = req.query.download === '1' ? 'attachment' : 'inline';
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Content-Disposition', `${disposition}; filename="${encodeTitle(decodeTitle(blob.pathname))}.html"`);

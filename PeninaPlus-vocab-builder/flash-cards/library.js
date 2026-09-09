@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const grade = document.body.dataset.grade;
+    const grade = document.body.dataset.grade || new URLSearchParams(window.location.search).get('page') || '';
     const status = document.getElementById('status');
     const setsElement = document.getElementById('sets');
     const search = document.getElementById('search');
@@ -121,6 +121,10 @@
             const response = await fetch(`/api/notecard-sets?grade=${encodeURIComponent(grade)}`);
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Unable to load vocabulary sets.');
+            if (data.page) {
+                document.title = data.page.name;
+                document.querySelector('h1').textContent = data.page.name;
+            }
             sets = Array.isArray(data.sets) ? data.sets : [];
             render();
         } catch (error) {
@@ -223,8 +227,8 @@
         try {
             const response = await fetch('/api/notecard-sets', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Penina-Publish-Key': password },
-                body: JSON.stringify({ grade, action: 'authenticate' })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ grade, action: 'authenticate', password })
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'The password could not be verified.');
@@ -260,8 +264,8 @@
         try {
             const response = await fetch('/api/notecard-sets', {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json', 'X-Penina-Publish-Key': managementPassword },
-                body: JSON.stringify({ grade, pathnames })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ grade, pathnames, password: managementPassword })
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'The selected sets could not be removed.');

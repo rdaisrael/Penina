@@ -67,6 +67,11 @@ function publishingApi(storedHtml) {
         if(name==='crypto')return require('node:crypto');
         if(name.includes('offline-study-cards'))return app;
         if(name.includes('vocabulary-sheets'))return require('../PeninaPlus-vocab-builder/vocabulary-sheets');
+        if(name.includes('lib/vocabulary-pages')) {
+            const helperContext={...context,module:{exports:{}}};
+            vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../lib/vocabulary-pages.js'),'utf8'),helperContext);
+            return helperContext.module.exports;
+        }
         assert.equal(name,'@vercel/blob');
         return {list:async()=>({blobs:[blob],hasMore:false}),put:async(p,html)=>{operations.push({p,html});return{...blob,pathname:p}},del:async()=>{throw new Error('No deletion expected')}};
     }};

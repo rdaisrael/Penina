@@ -189,7 +189,7 @@
         .form-group { margin-bottom: 20px; }
         label { font-weight: bold; display: block; margin-bottom: 8px; color: #5a5248; }
         
-        input[type="text"], textarea, select, #publish-card-password {
+        input[type="text"], textarea, select, #publish-card-password, #new-page-password, #page-creation-password {
             width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
             border-radius: 5px; box-sizing: border-box; font-size: 16px; 
             background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
@@ -206,6 +206,11 @@
         .publish-card-controls label { font-size: 16px; line-height: 1.25; }
         .publish-card-controls select, .publish-card-controls input { height: 42px; }
         .publish-card-controls button { grid-column: 1 / -1; justify-self: center; }
+        .add-webpage { margin-top: 16px; text-align: left; border-top: 1px solid #dcd3c6; padding-top: 12px; }
+        .add-webpage summary { cursor: pointer; color: #6936c9; font-weight: bold; }
+        .add-webpage form { margin-top: 14px; }
+        .add-webpage p { font-size: 15px; line-height: 1.4; }
+        #vocabulary-pages-status { margin-top: 12px; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
         @media (max-width: 600px) {
             .publish-card-controls { grid-template-columns: minmax(0, 1fr); }
         }
@@ -796,9 +801,9 @@
                     <div class="form-group">
                         <label for="publish-card-grade">Publish Notecards and Sheets to:</label>
                         <select id="publish-card-grade">
-                            <option value="sixth">Sixth Grade Gemara Vocabulary</option>
-                            <option value="seventh">Seventh Grade Gemara Vocabulary</option>
-                            <option value="eighth">Eighth Grade Gemara Vocabulary</option>
+                            <option value="sixth" data-url="/PeninaPlus-vocab-builder/flash-cards/sixth-grade/">Sixth Grade Gemara Vocabulary</option>
+                            <option value="seventh" data-url="/PeninaPlus-vocab-builder/flash-cards/seventh-grade/">Seventh Grade Gemara Vocabulary</option>
+                            <option value="eighth" data-url="/PeninaPlus-vocab-builder/flash-cards/eighth-grade/">Eighth Grade Gemara Vocabulary</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -808,6 +813,27 @@
                     <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish Notecards and Sheets</button>
                 </div>
                 <div id="publish-study-cards-status" role="status" style="display: none; margin-top: 12px; padding: 9px 11px; border-radius: 6px; background: #edf6ed; color: #285b2a; line-height: 1.4;"></div>
+                <details class="add-webpage" id="add-webpage">
+                    <summary>Add webpage</summary>
+                    <p>Create a page for your vocabulary. Anyone with its link can study; the publishing password is required to add or remove sets.</p>
+                    <form id="add-webpage-form" class="publish-card-controls">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="page-creation-password">Webpage creation password:</label>
+                            <input id="page-creation-password" type="password" autocomplete="off" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-page-name">Page name:</label>
+                            <input id="new-page-name" type="text" maxlength="120" required placeholder="e.g. Ninth Grade Vocabulary">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-page-password">Choose a publishing password:</label>
+                            <input id="new-page-password" type="password" maxlength="256" autocomplete="new-password" required>
+                        </div>
+                        <button type="submit" id="create-webpage-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;">Create webpage</button>
+                    </form>
+                </details>
+                <div id="vocabulary-pages-status" role="status" aria-live="polite"></div>
+                <button type="button" id="retry-vocabulary-pages" hidden>Retry loading webpages</button>
             </div>
         </div>
     </div>
@@ -843,6 +869,7 @@
     </div>
 
     <script src="offline-study-cards.js"></script>
+    <script src="vocabulary-pages.js"></script>
     <script>
         const PENINA_BUILD_ID = 'offline-study-cards-2026-09-07';
         function stylizeTitleText(text) {
@@ -987,7 +1014,7 @@
             if (link && message) {
                 const anchor = document.createElement('a');
                 anchor.href = link;
-                anchor.textContent = ' Open the grade page →';
+                anchor.textContent = ' Open the webpage →';
                 anchor.style.fontWeight = 'bold';
                 publishStudyCardsStatus.appendChild(anchor);
             }
@@ -1150,9 +1177,9 @@
                 return;
             }
             const grade = publishCardGrade.value;
-            const key = publishCardPassword.value.trim();
+            const key = publishCardPassword.value;
             if (!key) {
-                setPublishStudyCardsStatus('Enter the publishing password for the selected grade.', true);
+                setPublishStudyCardsStatus('Enter the publishing password for the selected webpage.', true);
                 publishCardPassword.focus();
                 return;
             }
@@ -1174,10 +1201,9 @@
                 const response = await fetch('/api/notecard-sets', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-Penina-Publish-Key': key
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ grade, title, html })
+                    body: JSON.stringify({ grade, title, html, password: key })
                 });
                 const data = await response.json();
                 if (!response.ok) {
@@ -1187,12 +1213,7 @@
                     }
                     throw new Error(data.error || 'The notecards and sheets could not be published.');
                 }
-                const gradePages = {
-                    sixth: '/PeninaPlus-vocab-builder/flash-cards/sixth-grade/',
-                    seventh: '/PeninaPlus-vocab-builder/flash-cards/seventh-grade/',
-                    eighth: '/PeninaPlus-vocab-builder/flash-cards/eighth-grade/'
-                };
-                setPublishStudyCardsStatus(`“${title}” was published successfully.`, false, gradePages[grade]);
+                setPublishStudyCardsStatus(`“${title}” was published successfully.`, false, data.page.url);
             } catch (error) {
                 setPublishStudyCardsStatus(error && error.message ? error.message : 'The notecards and sheets could not be published.', true);
             } finally {

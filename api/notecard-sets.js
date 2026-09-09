@@ -1,20 +1,13 @@
-const crypto = require('crypto');
 const { del, list, put } = require('@vercel/blob');
+const { getPage, publicPage, authenticatePage } = require('../lib/vocabulary-pages');
 const { makeApp } = require('../PeninaPlus-vocab-builder/offline-study-cards');
 
 const { makeSheet } = require('../PeninaPlus-vocab-builder/vocabulary-sheets');
 
-const GRADES = new Set(['sixth', 'seventh', 'eighth']);
 const MAX_HTML_LENGTH = 4_000_000;
 
 function send(res, status, payload) {
     res.status(status).json(payload);
-}
-
-function safeEqual(left, right) {
-    const a = Buffer.from(String(left || ''));
-    const b = Buffer.from(String(right || ''));
-    return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 function encodeTitle(title) {
@@ -58,9 +51,9 @@ async function listAll(prefix) {
 
 module.exports = async function (req, res) {
     const grade = String((req.query && req.query.grade) || (req.body && req.body.grade) || '').toLowerCase();
-    if (!GRADES.has(grade)) return send(res, 400, { error: 'Choose sixth, seventh, or eighth grade.' });
-
     try {
+        const page = await getPage(grade);
+        if (!page) return send(res, 400, { error: 'Choose an existing vocabulary webpage.' });
         if (req.method === 'GET') {
             const blobs = await listAll(`vocabulary-cards/${grade}/`);
             const requestedView = String((req.query && req.query.view) || '');
@@ -89,16 +82,14 @@ module.exports = async function (req, res) {
             }
             const sets = blobs.map(blob => formatSet(blob, grade)).sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
             res.setHeader('Cache-Control', 'no-store');
-            return send(res, 200, { grade, sets });
+            return send(res, 200, { grade, page: publicPage(page), sets });
         }
 
         if (!['POST', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method Not Allowed' });
 
-        const configuredKey = process.env[`CARD_PUBLISH_KEY_${grade.toUpperCase()}`];
-        if (!configuredKey) return send(res, 503, { error: `Publishing has not been configured for ${grade} grade yet.` });
-        if (!safeEqual(req.headers['x-penina-publish-key'], configuredKey)) {
-            return send(res, 401, { error: 'The publishing password is incorrect.' });
-        }
+        const authenticationError = authenticatePage(page, req.body && req.body.password !== undefined
+            ? req.body.password : req.headers['x-penina-publish-key']);
+        if (authenticationError) return send(res, authenticationError.status, { error: authenticationError.error });
 
         if (req.method === 'DELETE') {
             const prefix = `vocabulary-cards/${grade}/`;
@@ -138,7 +129,7 @@ module.exports = async function (req, res) {
             addRandomSuffix: false
         });
 
-        return send(res, 201, { grade, set: formatSet(blob, grade) });
+        return send(res, 201, { grade, page: publicPage(page), set: formatSet(blob, grade) });
     } catch (error) {
         console.error('Notecard publishing failed:', error);
         return send(res, 500, { error: 'The notecard library could not be reached. Please try again.' });

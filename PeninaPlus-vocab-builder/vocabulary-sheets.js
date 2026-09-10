@@ -1,6 +1,21 @@
 (function () {
     'use strict';
     const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const displayValue = value => String(value === undefined || value === null ? '' : value).trim().toLowerCase() === 'n' ? '' : String(value || '');
+
+    function sanitizeCards(cards) {
+        return (Array.isArray(cards) ? cards : []).map(card => ({
+            ...card,
+            term: displayValue(card.term),
+            hebrew: displayValue(card.hebrew),
+            english: displayValue(card.english),
+            contextQuote: displayValue(card.contextQuote),
+            sourceHebrew: displayValue(card.sourceHebrew),
+            hebrewTranslation: displayValue(card.hebrewTranslation),
+            englishTranslation: displayValue(card.englishTranslation),
+            sourceEnglish: displayValue(card.sourceEnglish)
+        }));
+    }
 
     function makeSheet(title, cards, options = {}) {
         const data = JSON.stringify({title, cards, options}).replace(/</g, '\\u003c');
@@ -14,6 +29,7 @@
     // and downloaded PDFs identical and lets the browser shape Hebrew text.
     function renderPages(document, data) {
         const options = data.options || {};
+        const cards = sanitizeCards(data.cards);
         const size = Math.max(10, Math.min(24, Number(options.fontSize) || 14));
         const scale = 3, margin = 44, width = 524, bottom = 742;
         const columns = options.context === false ? [140,384] : [100,144,280];
@@ -81,7 +97,7 @@
             return result;
         }
         newPage();
-        data.cards.forEach(card => {
+        cards.forEach(card => {
             const definitions=[];
             if(options.hebrew!==false)definitions.push({text:card.hebrew,size,bold:false});
             if(options.english!==false)definitions.push({text:card.english,size:size*.86,bold:false});
@@ -118,6 +134,7 @@
 
     async function start() {
         const data = JSON.parse(document.getElementById('peninaSheetData').textContent);
+        data.cards = sanitizeCards(data.cards);
         const status = document.getElementById('status');
         const download = document.getElementById('download');
         const print = document.getElementById('print');

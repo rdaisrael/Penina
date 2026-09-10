@@ -647,7 +647,7 @@
             <div class="form-group">
                 <label>Vocabulary Spreadsheet:</label>
                 <div class="template-workflow">
-                    <p class="template-instructions"><strong>Only the Term column is required.</strong> Download the template, enter one term per row, and optionally complete any translation, context quote, or citation fields. Any optional field you provide will override the corresponding AI-generated or Sefaria-provided content. Blank optional fields will be completed by Penina when applicable.</p>
+                    <p class="template-instructions"><strong>Only the Term column is required.</strong> Download the template, enter one term per row, and optionally complete any translation, context quote, or citation fields. Any optional field you provide will override the corresponding AI-generated or Sefaria-provided content. Blank optional fields will be completed by Penina when applicable. Enter <strong>N</strong> in an optional field to leave it blank without generating it; the N will not appear on sheets or flashcards.</p>
                     <div class="template-actions">
                         <a class="template-button" href="Penina-Vocabulary-Template.xlsx" download="Penina-Vocabulary-Template.xlsx">Download Spreadsheet Template</a>
                         <label class="template-button secondary" for="vocabulary-workbook-input" style="margin: 0; color: #fff;">Upload Completed Template or JSON Draft</label>
@@ -1115,6 +1115,26 @@
                 hebrewCitation: row.hebrewCitation || '',
                 englishCitation: row.englishCitation || ''
             }));
+        }
+
+        function isNoGenerationMarker(value) {
+            return String(value === undefined || value === null ? '' : value).trim().toLowerCase() === 'n';
+        }
+
+        function importedOptionalValue(row, field) {
+            const value = row && row[field];
+            return isNoGenerationMarker(value) ? '' : String(value || '').trim();
+        }
+
+        function importedOptionalSuppressed(row, field) {
+            return isNoGenerationMarker(row && row[field]);
+        }
+
+        function setOptionalGeneratedRowValue(row, field, value, suppressionFlag) {
+            const text = String(value || '').trim();
+            if (!text && row[suppressionFlag]) return;
+            row[field] = isNoGenerationMarker(text) ? '' : text;
+            row[suppressionFlag] = isNoGenerationMarker(text);
         }
 
         async function exportVocabularyWorkbook() {
@@ -2373,13 +2393,19 @@ function updateTalmudModeVisibility() {
             const englishTextEl = tr.querySelector('.english-text');
             const hebrewCitationEl = tr.querySelector('.hebrew-citation');
             const englishCitationEl = tr.querySelector('.english-citation');
-            if (definitionEl) row.item.english = definitionEl.textContent.trim();
-            if (modernHebrewTermEl) row.modernHebrewTranslation = modernHebrewTermEl.textContent.trim();
-            if (hebrewTextEl) row.hebrewContext = hebrewTextEl.textContent.trim();
-            if (modernHebrewContextEl) row.modernHebrewContext = modernHebrewContextEl.textContent.trim();
-            if (englishTextEl) row.englishContext = englishTextEl.textContent.trim();
-            if (hebrewCitationEl) row.hebrewCitation = hebrewCitationEl.textContent.trim();
-            if (englishCitationEl) row.englishCitation = englishCitationEl.textContent.trim();
+            if (definitionEl) {
+                const text = definitionEl.textContent.trim();
+                if (text || !row.suppressEnglishTermTranslation) {
+                    row.item.english = isNoGenerationMarker(text) ? '' : text;
+                    row.suppressEnglishTermTranslation = isNoGenerationMarker(text);
+                }
+            }
+            if (modernHebrewTermEl) setOptionalGeneratedRowValue(row, 'modernHebrewTranslation', modernHebrewTermEl.textContent, 'suppressHebrewTermTranslation');
+            if (hebrewTextEl) setOptionalGeneratedRowValue(row, 'hebrewContext', hebrewTextEl.textContent, 'suppressContextQuote');
+            if (modernHebrewContextEl) setOptionalGeneratedRowValue(row, 'modernHebrewContext', modernHebrewContextEl.textContent, 'suppressHebrewContextTranslation');
+            if (englishTextEl) setOptionalGeneratedRowValue(row, 'englishContext', englishTextEl.textContent, 'suppressEnglishContextTranslation');
+            if (hebrewCitationEl) setOptionalGeneratedRowValue(row, 'hebrewCitation', hebrewCitationEl.textContent, 'suppressHebrewCitation');
+            if (englishCitationEl) setOptionalGeneratedRowValue(row, 'englishCitation', englishCitationEl.textContent, 'suppressEnglishCitation');
         }
 
 
@@ -2503,6 +2529,7 @@ function updateTalmudModeVisibility() {
 
         function markEnglishCitationAsAiTranslationForRow(row) {
             if (!row || !(row.sourceType === 'Tanakh' || row.sourceType === 'Talmud')) return;
+            if (row.suppressEnglishCitation) return;
             if (!row.englishCitation) return;
             if (/AI translation/i.test(row.englishCitation)) return;
             row.englishCitation = `${row.englishCitation} - AI translation`;
@@ -2524,6 +2551,7 @@ function updateTalmudModeVisibility() {
 
         async function translateContextToModernHebrewForRow(row) {
             if (!hebrewTranslationEnabled() || !row || row.sourceType === 'Modern Hebrew') return '';
+            if (row.suppressContextQuote || row.suppressHebrewContextTranslation) return '';
             if (!row.hebrewContext || row.hebrewContext === 'Word not found in context.') return '';
             const translated = await callTranslateOneGlobal(buildModernHebrewContextPromptForRow(row));
             row.modernHebrewContext = translated && containsHebrew(translated)
@@ -2547,6 +2575,7 @@ function updateTalmudModeVisibility() {
 
         async function translateContextForRow(row) {
             if (!englishTranslationEnabled()) return '';
+            if (row.suppressContextQuote || row.suppressEnglishContextTranslation) return '';
             if (!row || !row.hebrewContext || row.hebrewContext === 'Word not found in context.') return '';
             const translated = await callTranslateOneGlobal(buildContextTranslationPromptForRow(row));
             if (translated) {
@@ -2582,10 +2611,10 @@ function updateTalmudModeVisibility() {
             const cleaned = cleanGeneratedHebrew(generatedContext);
             if (!cleaned || !containsHebrew(cleaned)) throw new Error('Modern Hebrew context generation failed.');
             row.hebrewContext = await addNikkudWithDicta(cleaned, row.sourceType);
-            row.hebrewCitation = '';
-            row.englishCitation = 'Modern Hebrew Context - AI';
-            row.modernHebrewContext = '';
-            row.englishContext = '';
+            if (!row.suppressHebrewCitation) row.hebrewCitation = '';
+            if (!row.suppressEnglishCitation) row.englishCitation = 'Modern Hebrew Context - AI';
+            if (!row.suppressHebrewContextTranslation) row.modernHebrewContext = '';
+            if (!row.suppressEnglishContextTranslation) row.englishContext = '';
             if (englishTranslationEnabled()) await translateContextForRow(row);
         }
 
@@ -2600,15 +2629,15 @@ function updateTalmudModeVisibility() {
             );
             if (!searchResult) throw new Error('No alternate Sefaria context quote was found.');
             row.hebrewContext = searchResult.he || '';
-            row.modernHebrewContext = '';
-            row.englishContext = englishTranslationEnabled() ? (searchResult.en || '') : '';
+            if (!row.suppressHebrewContextTranslation) row.modernHebrewContext = '';
+            if (!row.suppressEnglishContextTranslation) row.englishContext = englishTranslationEnabled() ? (searchResult.en || '') : '';
             row.rawSefariaEnglishContext = searchResult.sourceEnglish || searchResult.rawEn || '';
             row.matchedHebrewCandidate = searchResult.matchedCandidate || row.searchHebrew || row.cleanHebrew;
             row.lastSearchRef = searchResult.ref || '';
             row.lastHeRef = searchResult.heRef || '';
             const citationParts = formatSefariaCitation(searchResult.heRef, searchResult.ref, row.sourceType);
-            row.hebrewCitation = citationParts.hebrew;
-            row.englishCitation = citationParts.english;
+            if (!row.suppressHebrewCitation) row.hebrewCitation = citationParts.hebrew;
+            if (!row.suppressEnglishCitation) row.englishCitation = citationParts.english;
             row.citation = citationParts.combined;
             if (hebrewTranslationEnabled()) await translateContextToModernHebrewForRow(row);
             if (englishTranslationEnabled() && !row.englishContext) await translateContextForRow(row);
@@ -2619,6 +2648,10 @@ function updateTalmudModeVisibility() {
             const tr = vocabTbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
             if (!row || !tr) return;
             syncGeneratedRowFromDom(rowIndex);
+            if (row.suppressContextQuote) {
+                replaceRenderedRow(rowIndex);
+                return;
+            }
             await refreshRowSearchSetupForRegeneration(row);
             const contextCell = tr.querySelector('.col-context');
             if (contextCell) contextCell.classList.add('context-regenerating');
@@ -2900,13 +2933,20 @@ function updateTalmudModeVisibility() {
                 if (importedVocabularyRows.length) {
                     vocabList = importedVocabularyRows.map(row => ({
                         hebrew: row.term,
-                        english: row.englishTermTranslation || null,
-                        modernHebrewTranslation: row.hebrewTermTranslation || '',
-                        hebrewContext: row.contextQuote || '',
-                        modernHebrewContext: row.hebrewContextTranslation || '',
-                        englishContext: row.englishContextTranslation || '',
-                        hebrewCitation: row.hebrewCitation || '',
-                        englishCitation: row.englishCitation || '',
+                        english: importedOptionalValue(row, 'englishTermTranslation') || null,
+                        modernHebrewTranslation: importedOptionalValue(row, 'hebrewTermTranslation'),
+                        hebrewContext: importedOptionalValue(row, 'contextQuote'),
+                        modernHebrewContext: importedOptionalValue(row, 'hebrewContextTranslation'),
+                        englishContext: importedOptionalValue(row, 'englishContextTranslation'),
+                        hebrewCitation: importedOptionalValue(row, 'hebrewCitation'),
+                        englishCitation: importedOptionalValue(row, 'englishCitation'),
+                        suppressEnglishTermTranslation: importedOptionalSuppressed(row, 'englishTermTranslation'),
+                        suppressHebrewTermTranslation: importedOptionalSuppressed(row, 'hebrewTermTranslation'),
+                        suppressContextQuote: importedOptionalSuppressed(row, 'contextQuote'),
+                        suppressHebrewContextTranslation: importedOptionalSuppressed(row, 'hebrewContextTranslation'),
+                        suppressEnglishContextTranslation: importedOptionalSuppressed(row, 'englishContextTranslation'),
+                        suppressHebrewCitation: importedOptionalSuppressed(row, 'hebrewCitation'),
+                        suppressEnglishCitation: importedOptionalSuppressed(row, 'englishCitation'),
                         expandedHebrew: ""
                     }));
                 } else {
@@ -2922,6 +2962,13 @@ function updateTalmudModeVisibility() {
                             englishContext: '',
                             hebrewCitation: '',
                             englishCitation: '',
+                            suppressEnglishTermTranslation: false,
+                            suppressHebrewTermTranslation: false,
+                            suppressContextQuote: false,
+                            suppressHebrewContextTranslation: false,
+                            suppressEnglishContextTranslation: false,
+                            suppressHebrewCitation: false,
+                            suppressEnglishCitation: false,
                             expandedHebrew: ""
                         };
                     });
@@ -3024,6 +3071,10 @@ function updateTalmudModeVisibility() {
 
                 function applyExpansionPrefixToDefinition(row) {
                     if (!row || !row.item) return;
+                    if (row.suppressEnglishTermTranslation) {
+                        refreshAcronymSearchFields(row);
+                        return;
+                    }
                     if (!row.item.expandedHebrew && isLikelyHebrewAbbreviation(row.cleanHebrew)) {
                         const generatedExpansion = extractBracketedDefinitionExpansion(row.item.english);
                         if (generatedExpansion) row.item.expandedHebrew = generatedExpansion;
@@ -3052,11 +3103,11 @@ function updateTalmudModeVisibility() {
                     item.hebrew = await addNikkudWithDicta(item.hebrew, sourceType);
                     const providedExpansion = extractBracketedDefinitionExpansion(item.english);
                     const isAbbreviation = isLikelyHebrewAbbreviation(cleanHebrew);
-                    const needsAcronymExpansion = isAbbreviation && !providedExpansion && !item.english;
+                    const needsAcronymExpansion = !item.suppressEnglishTermTranslation && isAbbreviation && !providedExpansion && !item.english;
                     if (isAbbreviation) {
                         if (providedExpansion) {
                             item.expandedHebrew = providedExpansion;
-                        } else if (!item.english) {
+                        } else if (!item.suppressEnglishTermTranslation && !item.english) {
                             item.expandedHebrew = await expandHebrewAbbreviation(cleanHebrew, sourceType);
                         } else {
                             item.expandedHebrew = "";
@@ -3080,6 +3131,13 @@ function updateTalmudModeVisibility() {
                         rawSefariaEnglishContext: "",
                         hebrewCitation: item.hebrewCitation || "",
                         englishCitation: item.englishCitation || "",
+                        suppressEnglishTermTranslation: !!item.suppressEnglishTermTranslation,
+                        suppressHebrewTermTranslation: !!item.suppressHebrewTermTranslation,
+                        suppressContextQuote: !!item.suppressContextQuote,
+                        suppressHebrewContextTranslation: !!item.suppressHebrewContextTranslation,
+                        suppressEnglishContextTranslation: !!item.suppressEnglishContextTranslation,
+                        suppressHebrewCitation: !!item.suppressHebrewCitation,
+                        suppressEnglishCitation: !!item.suppressEnglishCitation,
                         citation: item.hebrewCitation || item.englishCitation
                             ? `${item.hebrewCitation || ''}${item.hebrewCitation && item.englishCitation ? '<br>' : ''}${item.englishCitation || ''}`
                             : "",
@@ -3132,7 +3190,7 @@ function updateTalmudModeVisibility() {
                 for (let i = 0; i < preparedItems.length; i++) {
                     const row = preparedItems[i];
 
-                    if (includeEnglishTranslation && !row.item.english) {
+                    if (includeEnglishTranslation && !row.suppressEnglishTermTranslation && !row.item.english) {
                         definitionIndexesNeedingTranslation.push(i);
                         definitionPrompts.push(buildVocabularyDefinitionPrompt(row, sourceType));
                     }
@@ -3176,7 +3234,7 @@ function updateTalmudModeVisibility() {
                     const modernHebrewTermIndexes = [];
                     const modernHebrewTermPrompts = [];
                     preparedItems.forEach((row, index) => {
-                        if (row.modernHebrewTranslation) return;
+                        if (row.suppressHebrewTermTranslation || row.modernHebrewTranslation) return;
                         const englishHint = row.item.english && !/^\[.*unavailable.*\]$/i.test(row.item.english)
                             ? ` Its intended English meaning is "${row.item.english}".`
                             : '';
@@ -3200,6 +3258,8 @@ function updateTalmudModeVisibility() {
                     if (noContextMode) {
                         // Preserve any spreadsheet-supplied context fields for a later export,
                         // even though the generated vocabulary sheet is currently hiding context.
+                    } else if (row.suppressContextQuote) {
+                        // An N in the Context Quote column intentionally leaves every context field blank.
                     } else if (sourceType === 'Tanakh' || sourceType === 'Talmud') {
                         if (!row.hebrewContext) {
                             let searchResult = await performSefariaSearch(searchHebrew, sourceType, getSelectedSourceTargets(), [], item.english);
@@ -3209,8 +3269,8 @@ function updateTalmudModeVisibility() {
                                 row.rawSefariaEnglishContext = searchResult.sourceEnglish || searchResult.rawEn || "";
                                 row.matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
                                 const citationParts = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
-                                if (!row.hebrewCitation) row.hebrewCitation = citationParts.hebrew;
-                                if (!row.englishCitation) row.englishCitation = citationParts.english;
+                                if (!row.suppressHebrewCitation && !row.hebrewCitation) row.hebrewCitation = citationParts.hebrew;
+                                if (!row.suppressEnglishCitation && !row.englishCitation) row.englishCitation = citationParts.english;
                                 row.citation = citationParts.combined;
                                 row.lastSearchRef = searchResult.ref || '';
                                 row.lastHeRef = searchResult.heRef || '';
@@ -3239,8 +3299,8 @@ function updateTalmudModeVisibility() {
                                 row.hebrewContext = "Word not found in context.";
                             }
                             row.citation = "Modern Hebrew Context - AI";
-                            row.hebrewCitation = "";
-                            row.englishCitation = "Modern Hebrew Context - AI";
+                            if (!row.suppressHebrewCitation) row.hebrewCitation = "";
+                            if (!row.suppressEnglishCitation) row.englishCitation = "Modern Hebrew Context - AI";
                         }
                     }
                     await yieldToBrowser();
@@ -3279,7 +3339,7 @@ function updateTalmudModeVisibility() {
                 if (!noContextMode && includeHebrewTranslation) {
                     for (let i = 0; i < preparedItems.length; i++) {
                         const row = preparedItems[i];
-                        if (row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.modernHebrewContext) {
+                        if (!row.suppressContextQuote && !row.suppressHebrewContextTranslation && row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.modernHebrewContext) {
                             modernHebrewContextPromptIndexes.push(i);
                             modernHebrewContextPrompts.push(buildModernHebrewContextPromptForRow(row));
                         }
@@ -3298,7 +3358,7 @@ function updateTalmudModeVisibility() {
                 if (includeEnglishTranslation) {
                     for (let i = 0; i < preparedItems.length; i++) {
                         const row = preparedItems[i];
-                        if (row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.englishContext) {
+                        if (!row.suppressContextQuote && !row.suppressEnglishContextTranslation && row.hebrewContext && row.hebrewContext !== "Word not found in context." && !row.englishContext) {
                             contextPromptIndexes.push(i);
                             contextPrompts.push(buildDirectTranslationPrompt(row));
                         }
@@ -3317,7 +3377,7 @@ function updateTalmudModeVisibility() {
 
                             if (text) {
                                 row.englishContext = text;
-                                markEnglishCitationAsAiTranslation(row);
+                                markEnglishCitationAsAiTranslationForRow(row);
                             } else {
                                 row.englishContext = fallbackEnglishContext(
                                     sourceType,

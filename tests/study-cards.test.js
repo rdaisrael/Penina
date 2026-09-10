@@ -59,6 +59,11 @@ test('Every print translation/context choice still controls the printed content'
     }
 });
 
+test('An N marker in an optional field is omitted from flashcards',()=>{
+    const marked=app.toCards([{term:'מילה',hebrewTermTranslation:'n',englishTermTranslation:'N',contextQuote:' n ',hebrewContextTranslation:'N',englishContextTranslation:'n',hebrewCitation:'N',englishCitation:'n'}])[0];
+    assert.deepEqual(marked,{n:1,term:'מילה',hebrew:'',english:'',contextQuote:'',contextQuoteRuns:[],hebrewTranslation:'',hebrewTranslationRuns:[],englishTranslation:'',englishTranslationRuns:[],sourceHebrew:'',sourceEnglish:''});
+});
+
 function publishingApi(storedHtml) {
     const pathname='vocabulary-cards/sixth/20260907--'+Buffer.from(title).toString('base64url')+'.html';
     const blob={pathname,url:'https://storage.example/cards.html',uploadedAt:'2026-09-07T00:00:00Z'};
@@ -150,6 +155,15 @@ test('Sheet pagination retains all text, including a row taller than one page',(
     drawings.length=0;
     renderPages(document,{title:'Review',cards:[{term:'Term',english:'HiddenEnglish',hebrew:'VisibleHebrew',contextQuote:'HiddenContext'}],options:{english:false,context:false}});
     assert(drawings.includes('VisibleHebrew'));assert(!drawings.includes('HiddenEnglish'));assert(!drawings.includes('HiddenContext'));
+});
+
+test('Sheets omit N markers from every optional field',()=>{
+    const {renderPages}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');
+    const drawings=[];
+    const document={createElement:()=>({setAttribute(){},getContext:()=>({scale(){},fillRect(){},strokeRect(){},measureText:text=>({width:text.length*7}),fillText:text=>drawings.push(text)})})};
+    const pages=renderPages(document,{title:'Review',cards:[{term:'Term',hebrew:'N',english:'n',contextQuote:'N',sourceHebrew:'n',hebrewTranslation:'N',englishTranslation:'n',sourceEnglish:'N'}],options:{}});
+    assert.equal(pages.length,1);
+    assert(!drawings.includes('N')&&!drawings.includes('n'));
 });
 
 test('Manual context edits sync immediately, and regeneration still operates only on checked rows',async()=>{

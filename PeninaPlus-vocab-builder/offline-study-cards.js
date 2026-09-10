@@ -25,19 +25,20 @@
     }
 
     function toCards(rows) {
+        const displayValue = value => String(value === undefined || value === null ? '' : value).trim().toLowerCase() === 'n' ? '' : String(value || '');
         return rows.map((row, index) => ({
             n: index + 1,
-            term: row.term || '',
-            hebrew: row.hebrewTermTranslation || '',
-            english: row.englishTermTranslation || '',
-            contextQuote: row.contextQuote || '',
-            contextQuoteRuns: normalizeRuns(row.contextQuote, row.contextQuoteRuns),
-            hebrewTranslation: row.hebrewContextTranslation || '',
-            hebrewTranslationRuns: normalizeRuns(row.hebrewContextTranslation, row.hebrewContextTranslationRuns),
-            englishTranslation: row.englishContextTranslation || '',
-            englishTranslationRuns: normalizeRuns(row.englishContextTranslation, row.englishContextTranslationRuns),
-            sourceHebrew: row.hebrewCitation || '',
-            sourceEnglish: row.englishCitation || ''
+            term: displayValue(row.term),
+            hebrew: displayValue(row.hebrewTermTranslation),
+            english: displayValue(row.englishTermTranslation),
+            contextQuote: displayValue(row.contextQuote),
+            contextQuoteRuns: normalizeRuns(displayValue(row.contextQuote), row.contextQuoteRuns),
+            hebrewTranslation: displayValue(row.hebrewContextTranslation),
+            hebrewTranslationRuns: normalizeRuns(displayValue(row.hebrewContextTranslation), row.hebrewContextTranslationRuns),
+            englishTranslation: displayValue(row.englishContextTranslation),
+            englishTranslationRuns: normalizeRuns(displayValue(row.englishContextTranslation), row.englishContextTranslationRuns),
+            sourceHebrew: displayValue(row.hebrewCitation),
+            sourceEnglish: displayValue(row.englishCitation)
         }));
     }
 

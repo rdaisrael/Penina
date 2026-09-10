@@ -95,11 +95,11 @@
             const removeCheckbox = managementMode ? `<input class="remove-select" type="checkbox" value="${escapeHtml(set.pathname)}" aria-label="Select ${escapeHtml(set.title)} for removal">` : '';
             return `<article class="set"><div class="set-heading">${combineCheckbox}${removeCheckbox}<h2>${escapeHtml(set.title)}</h2></div><time>${escapeHtml(readableDate)}</time>
                 <div class="set-actions">
-                    <section class="set-action-group" aria-label="Notecards">
-                        <h3>Notecards</h3>
-                        <a class="set-action" href="${escapeHtml(set.url)}" aria-label="View Notecards">View</a>
-                        <a class="set-action" href="${escapeHtml(set.downloadUrl || set.url)}" download aria-label="Download Notecards">Download</a>
-                        <a class="set-action" href="${escapeHtml(set.printUrl || set.url + '#print')}" aria-label="Print Notecards">Print</a>
+                    <section class="set-action-group" aria-label="Flashcards">
+                        <h3>Flashcards</h3>
+                        <a class="set-action" href="${escapeHtml(set.url)}" aria-label="View Flashcards">View</a>
+                        <a class="set-action" href="${escapeHtml(set.downloadUrl || set.url)}" download aria-label="Download Flashcards">Download</a>
+                        <a class="set-action" href="${escapeHtml(set.printUrl || set.url + '#print')}" aria-label="Print Flashcards">Print</a>
                     </section>
                     ${set.sheetUrl ? `<section class="set-action-group" aria-label="Sheets">
                         <h3>Sheets</h3>
@@ -118,7 +118,7 @@
 
     async function load() {
         try {
-            const response = await fetch(`/api/notecard-sets?grade=${encodeURIComponent(grade)}`);
+            const response = await fetch(`/api/flashcard-sets?grade=${encodeURIComponent(grade)}`);
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Unable to load vocabulary sets.');
             if (data.page) {
@@ -152,13 +152,13 @@
         const cardData = documentCopy.getElementById('peninaCardData');
         if (cardData) return JSON.parse(cardData.textContent || '[]');
         const legacyMatch = String(html || '').match(/const originalCards=(\[[\s\S]*?\]);let cards=/);
-        if (!legacyMatch) throw new Error('One selected set is not a compatible Penina notecard file.');
+        if (!legacyMatch) throw new Error('One selected set is not a compatible Penina flashcard file.');
         return JSON.parse(legacyMatch[1]);
     }
 
     async function buildCombinedSet() {
         const chosen = selectedSets();
-        if (!chosen.length) throw new Error('Select at least one notecard set to combine.');
+        if (!chosen.length) throw new Error('Select at least one flashcard set to combine.');
         const cardGroups = await Promise.all(chosen.map(async set => {
             const response = await fetch(set.url);
             if (!response.ok) throw new Error(`Unable to load “${set.title}.”`);
@@ -167,7 +167,7 @@
         const cards = cardGroups.flat().map((card, index) => ({ ...card, n: index + 1 }));
         const defaultTitle = chosen.map(set => set.title).join(' + ');
         const title = await openInputDialog({
-            title: 'Combine notecard sets',
+            title: 'Combine flashcard sets',
             message: 'This combined set is temporary and will not be added to this page.',
             label: 'Name the combined set',
             input: true,
@@ -206,7 +206,7 @@
             const url = URL.createObjectURL(new Blob([combined.html], { type: 'text/html;charset=utf-8' }));
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${combined.title.replace(/[\\/:*?"<>|]+/g, '').trim() || 'Combined Vocabulary'} - Notecards.html`;
+            link.download = `${combined.title.replace(/[\\/:*?"<>|]+/g, '').trim() || 'Combined Vocabulary'} - Flashcards.html`;
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -216,7 +216,7 @@
 
     async function enterManagementMode() {
         const password = await openInputDialog({
-            title: 'Manage notecard sets',
+            title: 'Manage flashcard sets',
             label: 'Publishing password',
             input: true,
             type: 'password',
@@ -225,7 +225,7 @@
         if (!password) return;
         manageTrigger.disabled = true;
         try {
-            const response = await fetch('/api/notecard-sets', {
+            const response = await fetch('/api/flashcard-sets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ grade, action: 'authenticate', password })
@@ -248,12 +248,12 @@
     async function removeSelectedSets() {
         const pathnames = selectedPathnames();
         if (!pathnames.length) {
-            await showMessage('Nothing selected', 'Select at least one notecard set to remove.');
+            await showMessage('Nothing selected', 'Select at least one flashcard set to remove.');
             return;
         }
         const confirmed = await openInputDialog({
             title: 'Remove selected sets?',
-            message: `Remove ${pathnames.length} selected notecard set${pathnames.length === 1 ? '' : 's'}? This cannot be undone.`,
+            message: `Remove ${pathnames.length} selected flashcard set${pathnames.length === 1 ? '' : 's'}? This cannot be undone.`,
             confirmText: 'Remove',
             destructive: true
         });
@@ -262,7 +262,7 @@
         removeButton.disabled = true;
         removeButton.textContent = 'Removing...';
         try {
-            const response = await fetch('/api/notecard-sets', {
+            const response = await fetch('/api/flashcard-sets', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ grade, pathnames, password: managementPassword })

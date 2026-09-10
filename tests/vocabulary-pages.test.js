@@ -82,8 +82,8 @@ test('Duplicate and concurrent creates cannot overwrite another page password', 
     const duplicate = await create({ name: 'MY CLASS', password: 'replacement' });
     assert.equal(duplicate.code, 409);
     const originalPassword = results[0].code === 201 ? 'first' : 'second';
-    assert.equal((await request('api/notecard-sets.js', 'POST', { grade: 'my-class', action: 'authenticate', password: originalPassword })).code, 200);
-    assert.equal((await request('api/notecard-sets.js', 'POST', { grade: 'my-class', action: 'authenticate', password: 'replacement' })).code, 401);
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'my-class', action: 'authenticate', password: originalPassword })).code, 200);
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'my-class', action: 'authenticate', password: 'replacement' })).code, 401);
 });
 
 test('A custom page supports empty view, publishing, viewing, authentication, and deletion with its own password', async () => {
@@ -92,27 +92,27 @@ test('A custom page supports empty view, publishing, viewing, authentication, an
     const grade = 'ninth';
     await create({ name: 'Ninth', password });
     await create({ name: 'Tenth', password: 'different' });
-    const empty = await request('api/notecard-sets.js', 'GET', {}, { grade });
+    const empty = await request('api/flashcard-sets.js', 'GET', {}, { grade });
     assert.equal(empty.code, 200);
     assert.equal(empty.body.sets.length, 0);
     assert.equal(empty.body.page.name, 'Ninth');
     assert(!JSON.stringify(empty.body).includes('passwordVerifier'));
     const html = require('../PeninaPlus-vocab-builder/offline-study-cards').makeApp('Review', [{ n: 1, term: 'מילה', english: 'Word' }]);
     const body = { grade, title: 'Review', html, password };
-    assert.equal((await request('api/notecard-sets.js', 'POST', { ...body, password: 'wrong' })).code, 401);
-    const published = await request('api/notecard-sets.js', 'POST', body);
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { ...body, password: 'wrong' })).code, 401);
+    const published = await request('api/flashcard-sets.js', 'POST', body);
     assert.equal(published.code, 201);
     const pathname = published.body.set.pathname;
-    const listing = await request('api/notecard-sets.js', 'GET', {}, { grade });
+    const listing = await request('api/flashcard-sets.js', 'GET', {}, { grade });
     assert.equal(listing.body.sets.length, 1);
-    const viewed = await request('api/notecard-sets.js', 'GET', {}, { grade, view: pathname });
+    const viewed = await request('api/flashcard-sets.js', 'GET', {}, { grade, view: pathname });
     assert.equal(viewed.code, 200);
     assert(viewed.body.includes('מילה'));
-    assert.equal((await request('api/notecard-sets.js', 'GET', {}, { grade: 'tenth', view: pathname })).code, 404);
-    assert.equal((await request('api/notecard-sets.js', 'DELETE', { grade, password: 'different', pathnames: [pathname] })).code, 401);
-    assert.equal((await request('api/notecard-sets.js', 'DELETE', { grade: 'tenth', password: 'different', pathnames: [pathname] })).code, 400);
-    assert.equal((await request('api/notecard-sets.js', 'DELETE', { grade, password, pathnames: [pathname] })).code, 200);
-    assert.equal((await request('api/notecard-sets.js', 'GET', {}, { grade })).body.sets.length, 0);
+    assert.equal((await request('api/flashcard-sets.js', 'GET', {}, { grade: 'tenth', view: pathname })).code, 404);
+    assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade, password: 'different', pathnames: [pathname] })).code, 401);
+    assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade: 'tenth', password: 'different', pathnames: [pathname] })).code, 400);
+    assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade, password, pathnames: [pathname] })).code, 200);
+    assert.equal((await request('api/flashcard-sets.js', 'GET', {}, { grade })).body.sets.length, 0);
 });
 
 test('Invalid names, missing passwords, unknown pages, and existing grade names are rejected', async () => {
@@ -124,9 +124,9 @@ test('Invalid names, missing passwords, unknown pages, and existing grade names 
         assert.equal((await create({ name, password: 'ok' })).code, 409);
     }
     for (const grade of ['unknown', '../sixth', '']) {
-        assert.equal((await request('api/notecard-sets.js', 'GET', {}, { grade })).code, 400);
+        assert.equal((await request('api/flashcard-sets.js', 'GET', {}, { grade })).code, 400);
     }
-    assert.equal((await request('api/notecard-sets.js', 'POST', { grade: 'sixth', action: 'authenticate' }, {}, { 'x-penina-publish-key': 'legacy-password' })).code, 200);
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'sixth', action: 'authenticate' }, {}, { 'x-penina-publish-key': 'legacy-password' })).code, 200);
     assert.equal((await request('api/vocabulary-pages.js', 'DELETE')).code, 405);
 });
 
@@ -160,10 +160,10 @@ test('Page creation requires the administrator password before any page is saved
     const listing = await request('api/vocabulary-pages.js', 'GET');
     assert.equal(listing.code, 200);
     assert.equal(listing.body.pages.length, 4);
-    assert.equal((await request('api/notecard-sets.js', 'POST', {
+    assert.equal((await request('api/flashcard-sets.js', 'POST', {
         grade: 'protected-page', action: 'authenticate', password: 'test-admin-password'
     })).code, 401);
-    assert.equal((await request('api/notecard-sets.js', 'POST', {
+    assert.equal((await request('api/flashcard-sets.js', 'POST', {
         grade: 'protected-page', action: 'authenticate', password: 'page-publishing-password'
     })).code, 200);
 });

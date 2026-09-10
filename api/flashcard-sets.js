@@ -27,12 +27,12 @@ function decodeTitle(pathname) {
 function formatSet(blob, grade) {
     return {
         title: decodeTitle(blob.pathname),
-        url: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}`,
-        downloadUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&download=1`,
-        printUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}#print`,
-        sheetUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&sheet=1`,
-        sheetDownloadUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&sheet=1&action=download`,
-        sheetPrintUrl: `/api/notecard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&sheet=1&action=print`,
+        url: `/api/flashcard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}`,
+        downloadUrl: `/api/flashcard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&download=1`,
+        printUrl: `/api/flashcard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}#print`,
+        sheetUrl: `/api/flashcard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&sheet=1`,
+        sheetDownloadUrl: `/api/flashcard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&sheet=1&action=download`,
+        sheetPrintUrl: `/api/flashcard-sets?grade=${grade}&view=${encodeURIComponent(blob.pathname)}&sheet=1&action=print`,
         publishedAt: blob.uploadedAt,
         pathname: blob.pathname
     };
@@ -59,16 +59,16 @@ module.exports = async function (req, res) {
             const requestedView = String((req.query && req.query.view) || '');
             if (requestedView) {
                 const blob = blobs.find(item => item.pathname === requestedView);
-                if (!blob) return send(res, 404, { error: 'That notecard set could not be found.' });
+                if (!blob) return send(res, 404, { error: 'That flashcard set could not be found.' });
                 const blobResponse = await fetch(blob.url);
                 if (!blobResponse.ok) throw new Error(`Blob returned ${blobResponse.status}`);
                 const storedHtml = await blobResponse.text();
                 // Rebuild the display from saved card data so existing sets receive layout updates.
                 const dataMatch = storedHtml.match(/<script id="peninaCardData" type="application\/json">([\s\S]*?)<\/script>/)
                     || storedHtml.match(/const originalCards=(\[[\s\S]*?\]);let cards=/);
-                if (!dataMatch) throw new Error('Saved notecard data is unavailable.');
+                if (!dataMatch) throw new Error('Saved flashcard data is unavailable.');
                 const cards = JSON.parse(dataMatch[1]);
-                if (!Array.isArray(cards)) throw new Error('Saved notecard data is invalid.');
+                if (!Array.isArray(cards)) throw new Error('Saved flashcard data is invalid.');
                 const optionsMatch = storedHtml.match(/<script id="peninaSheetOptions" type="application\/json">([\s\S]*?)<\/script>/);
                 const sheetOptions = optionsMatch ? JSON.parse(optionsMatch[1]) : {};
                 const html = req.query.sheet === '1'
@@ -97,7 +97,7 @@ module.exports = async function (req, res) {
             const pathnames = [...new Set(requestedPathnames.map(value => String(value || '')))]
                 .filter(pathname => pathname.startsWith(prefix) && /\.html$/i.test(pathname));
             if (!pathnames.length || pathnames.length !== requestedPathnames.length) {
-                return send(res, 400, { error: 'Select one or more valid notecard sets to remove.' });
+                return send(res, 400, { error: 'Select one or more valid flashcard sets to remove.' });
             }
             if (pathnames.length > 100) return send(res, 400, { error: 'No more than 100 sets can be removed at once.' });
 
@@ -116,9 +116,9 @@ module.exports = async function (req, res) {
         const title = String(req.body && req.body.title || '').replace(/\s+/g, ' ').trim().slice(0, 120);
         const html = String(req.body && req.body.html || '');
         if (!title) return send(res, 400, { error: 'Enter a title for this vocabulary set before publishing.' });
-        if (!html || html.length > MAX_HTML_LENGTH) return send(res, 413, { error: 'The notecard set is empty or too large to publish.' });
+        if (!html || html.length > MAX_HTML_LENGTH) return send(res, 413, { error: 'The flashcard set is empty or too large to publish.' });
         if (!html.includes('<script id="peninaCardData" type="application/json">')) {
-            return send(res, 400, { error: 'Only notecard sets created by Penina can be published here.' });
+            return send(res, 400, { error: 'Only flashcard sets created by Penina can be published here.' });
         }
 
         const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -131,7 +131,7 @@ module.exports = async function (req, res) {
 
         return send(res, 201, { grade, page: publicPage(page), set: formatSet(blob, grade) });
     } catch (error) {
-        console.error('Notecard publishing failed:', error);
-        return send(res, 500, { error: 'The notecard library could not be reached. Please try again.' });
+        console.error('Flashcard publishing failed:', error);
+        return send(res, 500, { error: 'The flashcard library could not be reached. Please try again.' });
     }
 };

@@ -75,7 +75,7 @@ function publishingApi(storedHtml) {
         assert.equal(name,'@vercel/blob');
         return {list:async()=>({blobs:[blob],hasMore:false}),put:async(p,html)=>{operations.push({p,html});return{...blob,pathname:p}},del:async()=>{throw new Error('No deletion expected')}};
     }};
-    vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../api/notecard-sets.js'),'utf8'),context);
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../api/flashcard-sets.js'),'utf8'),context);
     const res=()=>({headers:{},status(n){this.code=n;return this},json(data){this.body=data;return this},send(data){this.body=data;return this},setHeader(k,v){this.headers[k]=v}});
     return {handler:context.module.exports,pathname,operations,res};
 }
@@ -104,7 +104,7 @@ test('Existing published sets receive current layout when viewed or downloaded w
     }
     assert.equal(operations.length,0);
     const list=res();await handler({method:'GET',query:{grade:'sixth'}},list);
-    assert.match(list.body.sets[0].downloadUrl,/^\/api\/notecard-sets\?.*&download=1$/);
+    assert.match(list.body.sets[0].downloadUrl,/^\/api\/flashcard-sets\?.*&download=1$/);
 });
 
 test('Legacy published data can be displayed, but malformed saved data is not executed',async()=>{

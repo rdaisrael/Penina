@@ -28,12 +28,7 @@ module.exports = async function (req, res) {
                 return res.status(413).json({ error: "Prompt too large." });
             }
             if (readerVocabulary) {
-                const raw = await generateOpenAIText(reader.readerPrompt(prompt, readerVocabulary, sourceText), {
-                    textFormat: reader.readerFormat, maxOutputTokens: 32000, timeoutMs: 60000
-                });
-                let parsed;
-                try { parsed = JSON.parse(raw); } catch (_) { throw new Error("The reader analysis was incomplete. Please generate again."); }
-                analysis = reader.validateAnalysis(parsed, readerVocabulary, sourceText);
+                analysis = await reader.generateReaderAnalysis(prompt, readerVocabulary, sourceText, generateOpenAIText);
                 textToVowelize = analysis.text;
             } else {
                 textToVowelize = await generateOpenAIText(prompt);
@@ -47,6 +42,7 @@ module.exports = async function (req, res) {
             const dictaRes = await fetch("https://nakdan-5-3.loadbalancer.dicta.org.il/addnikud", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                signal: AbortSignal.timeout(25000),
                 body: JSON.stringify(createDictaRequest({
                     text: String(textToVowelize).trim(),
                     apiKey: dictaKey,
@@ -56,8 +52,7 @@ module.exports = async function (req, res) {
             });
 
             if (!dictaRes.ok) {
-                const errorDetail = await dictaRes.text();
-                return res.status(dictaRes.status).json({ error: `Dicta API Rejected (${dictaRes.status}): ${errorDetail}` });
+                return res.status(502).json({ error: "The Hebrew vowel service is temporarily unavailable. Please try again." });
             }
 
             const dictaData = await dictaRes.json();
@@ -74,6 +69,9 @@ module.exports = async function (req, res) {
 
         return res.status(400).json({ error: "No input provided." });
     } catch (error) {
-        return res.status(500).json({ error: error.message });
+        const message = error.name === 'TimeoutError' || error.name === 'AbortError'
+            ? 'The Hebrew vowel service took too long. Please try again.' : error.message;
+        console.error('Reader request failed:', {name:error.name, message});
+        return res.status(500).json({ error: message });
     }
 };

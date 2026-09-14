@@ -72,7 +72,7 @@ test('reader passes generated text to Dicta and stops on generation failure', as
     const dicta = require('../lib/dicta-nikkud');
     for (const fail of [false, true]) {
         let calls = 0;
-        const context = vm.createContext({
+        const context = vm.createContext({AbortSignal,
             module: { exports: {} }, process: { env: { DICTA_API_KEY: 'test-only' } },
             require(name) {
                 if (name === '../lib/reader-response') return require('../lib/reader-response');

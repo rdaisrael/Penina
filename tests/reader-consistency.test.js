@@ -46,7 +46,7 @@ test('fabricated vocabulary and ambiguous/unknown decisions never become mastere
 
 function renderer(settings={}) {
     const fields={};
-    const context=vm.createContext({ReaderCore:core,document:{getElementById(id){return fields[id] ||= {checked:false,value:id==='font-choice'?'Arial':'#123456',...settings[id]};}}});
+    const context=vm.createContext({AbortSignal,ReaderCore:core,document:{getElementById(id){return fields[id] ||= {checked:false,value:id==='font-choice'?'Arial':'#123456',...settings[id]};}}});
     vm.runInContext(html.slice(html.indexOf('        function processTextChunk'),html.indexOf('        function applyStyles')),context);
     return context;
 }
@@ -89,7 +89,7 @@ test('a new story invalidates old worksheets; a newer worksheet invalidates an o
 test('rerender uses saved analysis without reading current vocabulary controls', () => {
     const result=core.buildResult(sample.text,core.validateAnalysis(sample,profile));
     const output={innerHTML:''};
-    const context=vm.createContext({ReaderCore:core,currentRawStory:result.text,currentResult:result,currentFootnotes:'<img src=x>',
+    const context=vm.createContext({AbortSignal,ReaderCore:core,currentRawStory:result.text,currentResult:result,currentFootnotes:'<img src=x>',
         document:{getElementById(id){assert.equal(id,'story-output');return output;}},
         formatStory(text,words){assert.equal(words,result.words);return 'STORY';},applyStyles(){},applyFootnoteSettings(){}});
     vm.runInContext(html.slice(html.indexOf('        function renderStoryToScreen'),html.indexOf('        function processTextChunk')),context);
@@ -103,7 +103,7 @@ test('full inline reader script is syntactically valid', () => {
 test('structured reader endpoint validates analysis before Dicta and sends only source text', async () => {
     for (const invalid of [false,true]) {
         let dictaCalls=0, result, status;
-        const context=vm.createContext({module:{exports:{}},process:{env:{DICTA_API_KEY:'test-only'}},
+        const context=vm.createContext({AbortSignal,module:{exports:{}},process:{env:{DICTA_API_KEY:'test-only'}},
             require(name) {
                 if(name==='../lib/reader-response')return require('../lib/reader-response');
                 if(name==='../lib/dicta-nikkud')return require('../lib/dicta-nikkud');
@@ -142,7 +142,7 @@ test('late worksheet response cannot attach to a newly requested story', async (
     field('length').value='one paragraph';field('reading-level').value='beginner';
     let finishWorksheet;
     const tracker=core.createRequestTracker();
-    const context=vm.createContext({ReaderCore:core,requests:tracker,storyPending:false,worksheetAbort:null,currentRawStory:sample.text,
+    const context=vm.createContext({AbortSignal,ReaderCore:core,requests:tracker,storyPending:false,worksheetAbort:null,currentRawStory:sample.text,
         readerDictaOptions:{keepqq:true},AbortController,console:{error(){}},alert(){},
         document:{getElementById:field,querySelector(){return {style:{}};}},
         toggleLayoutLock(){},clearLineNumbers(){},showWorksheetPrintControls(){throw new Error('Stale worksheet became printable');},

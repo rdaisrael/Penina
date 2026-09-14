@@ -551,20 +551,21 @@
                     
                     <div id="vocab-upload-a" style=" background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
                         <p style="margin-top: 0; font-size: 14px; color: #4a4238;">
-                            <strong>Instructions:</strong> Download the template below. For each binyan (e.g., פעל שלם, פיעל ע"ו), mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save and upload your completed file.
+                            <strong>Instructions:</strong> Download the template below. For each binyan (e.g., פעל שלם, פיעל ע"ו), mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save as an Excel Workbook (.xlsx) and upload your completed file. Roots go in column A; mark X beside the verb categories in column B. Each word belongs in its own cell.
                         </p>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                            <a href="./Name_of_Student_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Template
+                            <a href="./Name_of_Student_Mastered_Vocabulary.xlsx" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                                📥 Download Excel Template
                             </a>
-                            <a href="./David_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Sample Completed Template
+                            <a href="./David_Mastered_Vocabulary.xlsx" download style="display: inline-block; background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                                📥 Download Sample Excel Template
                             </a>
                         </div>
                         
                         <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Completed Template:</label>
-                        <input type="file" id="vocab-file-a" accept=".csv" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <input type="file" id="vocab-file-a" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <p id="vocab-upload-status-a" role="status" aria-live="polite"></p>
                     </div>
                 </div>
 
@@ -657,20 +658,21 @@
                     
                     <div id="vocab-upload-b" style="display: none; background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
                         <p style="margin-top: 0; font-size: 14px; color: #4a4238;">
-                            <strong>Instructions:</strong> Download the template below. For each binyan, mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save and upload your completed file.
+                            <strong>Instructions:</strong> Download the template below. For each binyan, mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save as an Excel Workbook (.xlsx) and upload your completed file. Roots go in column A; mark X beside the verb categories in column B. Each word belongs in its own cell.
                         </p>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                            <a href="./Name_of_Student_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Template
+                            <a href="./Name_of_Student_Mastered_Vocabulary.xlsx" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                                📥 Download Excel Template
                             </a>
-                            <a href="./David_Mastered_Vocabulary.csv" download style="display: inline-block; background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Sample Completed Template
+                            <a href="./David_Mastered_Vocabulary.xlsx" download style="display: inline-block; background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                                📥 Download Sample Excel Template
                             </a>
                         </div>
                         
                         <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Completed Template:</label>
-                        <input type="file" id="vocab-file-b" accept=".csv" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <input type="file" id="vocab-file-b" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <p id="vocab-upload-status-b" role="status" aria-live="polite"></p>
                     </div>
                 </div>
             </div>
@@ -854,6 +856,8 @@
     </div>
 
     <script src="reader-core.js"></script>
+    <script src="vendor/exceljs-4.4.0.min.js"></script>
+    <script src="vocabulary-upload.js"></script>
     <script>
         // ==========================================
         //               PENINAPLUS
@@ -928,30 +932,44 @@
             }
         });
 
-        function validateCsvUpload(inputElement, targetPathway) {
+        const uploadVersions = {A:0, B:0};
+        async function validateExcelUpload(inputElement, targetPathway) {
+            const version = ++uploadVersions[targetPathway];
+            const status = document.getElementById(`vocab-upload-status-${targetPathway.toLowerCase()}`);
+            if (targetPathway === 'A') uploadedVocabA = null;
+            else uploadedVocabB = null;
             const file = inputElement.files[0];
+            status.textContent = '';
             if (!file) return;
-
-            const isCsv = file.name.toLowerCase().endsWith('.csv');
-            if (!isCsv) {
-                alert('Warning: The uploaded template must be a .csv file. Please save the template as CSV and upload it again.');
+            status.textContent = 'Reading Excel workbook…';
+            try {
+                if (!file.name.toLowerCase().endsWith('.xlsx')) throw new Error('Please upload an Excel Workbook (.xlsx). In Excel, use Save As → Excel Workbook.');
+                if (file.size > 5 * 1024 * 1024) throw new Error('Please upload a vocabulary workbook smaller than 5 MB.');
+                if (typeof ExcelJS === 'undefined') throw new Error('The Excel reader did not load. Refresh the page and try again.');
+                const result = await VocabularyUpload.readExcel(await file.arrayBuffer(), ExcelJS);
+                if (version !== uploadVersions[targetPathway]) return;
+                if (targetPathway === 'A') uploadedVocabA = result;
+                else uploadedVocabB = result;
+                status.textContent = `Loaded ${file.name}: ${result.verbs.length} roots, ${result.nouns.length} nouns, ${result.adjs.length} adjectives, and ${result.binyanim.length} selected verb forms.`;
+                if (result.verbs.length && !result.binyanim.length) status.textContent += ' No verb tenses are selected; derived verb forms will not count as mastered. Mark X in the template to select them.';
+            } catch (error) {
+                if (version !== uploadVersions[targetPathway]) return;
+                status.textContent = error.message;
                 inputElement.value = '';
-                if (targetPathway === 'A') uploadedVocabA = null;
-                if (targetPathway === 'B') uploadedVocabB = null;
-                return;
             }
-
-            parseVocabularyCsv(file, targetPathway);
         }
 
-        // Trigger CSV parsing when files are uploaded
-        document.getElementById('vocab-file-a').addEventListener('change', function(e) {
-            validateCsvUpload(e.target, 'A');
-        });
+        document.getElementById('vocab-file-a').addEventListener('change', e => validateExcelUpload(e.target, 'A'));
+        document.getElementById('vocab-file-b').addEventListener('change', e => validateExcelUpload(e.target, 'B'));
 
-        document.getElementById('vocab-file-b').addEventListener('change', function(e) {
-            validateCsvUpload(e.target, 'B');
-        });
+        async function readApiResponse(response) {
+            let data;
+            try { data = await response.json(); }
+            catch (_) { throw new Error(response.status === 504 ? 'The story request took too long. Please try a shorter story.' : 'The server returned an unexpected response. Please try again.'); }
+            if (data.error) throw new Error(data.error);
+            if (!response.ok) throw new Error(`The request failed (${response.status}). Please try again.`);
+            return data;
+        }
 
         document.querySelectorAll('input[name="vocab-mode-a"]').forEach(el => {
             el.addEventListener('change', function() {
@@ -1111,8 +1129,7 @@
                         })
                     });
                     
-                    const data = await response.json();
-                    if (data.error) throw new Error(data.error);
+                    const data = await readApiResponse(response);
 
                     if (!requests.isStory(requestId)) return;
                     parseAndRenderOutput(data);
@@ -1152,8 +1169,7 @@
                         })
                     });
 
-                    const data = await response.json();
-                    if (data.error) throw new Error(data.error);
+                    const data = await readApiResponse(response);
 
                     if (!requests.isStory(requestId)) return;
                     parseAndRenderOutput(data);

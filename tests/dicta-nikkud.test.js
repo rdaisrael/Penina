@@ -17,7 +17,7 @@ function renderer(settings = {}) {
         });
         return fields.get(id);
     } };
-    const context = vm.createContext({ document, ReaderCore: require('../PeninaPlus-Reader/reader-core') });
+    const context = vm.createContext({AbortSignal, document, ReaderCore: require('../PeninaPlus-Reader/reader-core') });
     vm.runInContext(reader.slice(reader.indexOf('        const readerDictaOptions'),
         reader.indexOf('        let currentRawStory')), context);
     vm.runInContext(reader.slice(reader.indexOf('        function processTextChunk'),
@@ -114,7 +114,7 @@ test('story formatter preserves supplied name vocalization', () => {
 
 test('API handler forwards the verified options and retains metadata in its response', async () => {
     const calls = [];
-    const context = vm.createContext({
+    const context = vm.createContext({AbortSignal,
         require(name) {
             if (name === '../lib/openai-text') return { generateOpenAIText() { throw new Error('Supplied text must bypass OpenAI'); } };
             if (name === '../lib/reader-response') return require('../lib/reader-response');

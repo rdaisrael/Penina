@@ -1,20 +1,9 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateOpenAIText } = require("../lib/openai-text");
 
-const PRIMARY_GEMINI_MODEL = process.env.GEMINI_PRIMARY_MODEL || "gemini-2.5-flash";
-const FALLBACK_GEMINI_MODEL = process.env.GEMINI_FALLBACK_MODEL || "";
-const USE_FALLBACK_MODEL = String(process.env.GEMINI_USE_FALLBACK || "false").toLowerCase() === "true";
-
-const RETRYABLE_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504, 529]);
-
-const DEFAULT_RETRIES = 1;
-const DEFAULT_INITIAL_DELAY_MS = 600;
-const DEFAULT_TIMEOUT_MS = 20000;
 const DEFAULT_BATCH_CONCURRENCY = 3;
 const DEFAULT_MAX_BATCH_CONCURRENCY = 8;
 const DEFAULT_MAX_PROMPTS = 150;
 const DEFAULT_MAX_PROMPT_CHARS = 6000;
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function clampInteger(value, fallback, min, max) {
     const parsed = Number(value);
@@ -22,151 +11,15 @@ function clampInteger(value, fallback, min, max) {
     return Math.max(min, Math.min(max, Math.trunc(parsed)));
 }
 
-function getErrorStatus(error) {
-    const status = Number(
-        error?.status ||
-        error?.code ||
-        error?.response?.status ||
-        error?.response?.statusCode ||
-        0
-    );
-
-    return Number.isFinite(status) ? status : 0;
-}
-
 function getErrorMessage(error) {
-    return String(
-        error?.message ||
-        error?.error?.message ||
-        error?.response?.data?.error?.message ||
-        error ||
-        "Unknown Gemini error"
-    );
-}
-
-function isRetryableGeminiError(error) {
-    const status = getErrorStatus(error);
-
-    if (RETRYABLE_STATUSES.has(status)) {
-        return true;
-    }
-
-    const message = getErrorMessage(error).toLowerCase();
-
-    return (
-        message.includes("429") ||
-        message.includes("500") ||
-        message.includes("502") ||
-        message.includes("503") ||
-        message.includes("504") ||
-        message.includes("529") ||
-        message.includes("quota") ||
-        message.includes("rate") ||
-        message.includes("resource exhausted") ||
-        message.includes("timeout") ||
-        message.includes("deadline") ||
-        message.includes("unavailable") ||
-        message.includes("internal") ||
-        message.includes("overloaded") ||
-        message.includes("temporarily") ||
-        message.includes("empty response") ||
-        message.includes("blank response")
-    );
-}
-
-function buildBackoffMs(initialDelayMs, attempt) {
-    const jitter = Math.floor(Math.random() * 250);
-    return initialDelayMs * Math.pow(2, attempt) + jitter;
+    return String(error?.message || "OpenAI request failed.");
 }
 
 function sanitizePrompt(prompt) {
     return String(prompt || "").trim().slice(0, DEFAULT_MAX_PROMPT_CHARS);
 }
 
-function extractText(result) {
-    if (!result || !result.response) {
-        return "";
-    }
-
-    try {
-        return String(result.response.text() || "").trim();
-    } catch (_) {
-        return "";
-    }
-}
-
-function withTimeout(promise, timeoutMs) {
-    let timeoutHandle;
-
-    const timeoutPromise = new Promise((_, reject) => {
-        timeoutHandle = setTimeout(() => {
-            reject(new Error(`Gemini request timed out after ${timeoutMs}ms.`));
-        }, timeoutMs);
-    });
-
-    return Promise.race([promise, timeoutPromise]).finally(() => {
-        clearTimeout(timeoutHandle);
-    });
-}
-
-async function generateTextOnce(model, promptText, timeoutMs) {
-    const result = await withTimeout(model.generateContent(promptText), timeoutMs);
-    const text = extractText(result);
-
-    if (!text) {
-        const finishReason = result?.response?.candidates?.[0]?.finishReason;
-        const reason = finishReason ? ` Finish reason: ${finishReason}.` : "";
-        throw new Error(`AI generated a blank response.${reason}`);
-    }
-
-    return text;
-}
-
-async function generateTextWithRetry(primaryModel, fallbackModel, promptText, options = {}) {
-    const retries = clampInteger(options.retries, DEFAULT_RETRIES, 0, 4);
-    const initialDelayMs = clampInteger(
-        options.initialDelayMs,
-        DEFAULT_INITIAL_DELAY_MS,
-        100,
-        10000
-    );
-    const timeoutMs = clampInteger(
-        options.timeoutMs,
-        DEFAULT_TIMEOUT_MS,
-        3000,
-        60000
-    );
-
-    let lastError = null;
-
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            return await generateTextOnce(primaryModel, promptText, timeoutMs);
-        } catch (error) {
-            lastError = error;
-
-            if (!isRetryableGeminiError(error)) {
-                throw error;
-            }
-
-            if (attempt < retries) {
-                await sleep(buildBackoffMs(initialDelayMs, attempt));
-            }
-        }
-    }
-
-    if (USE_FALLBACK_MODEL && fallbackModel) {
-        try {
-            return await generateTextOnce(fallbackModel, promptText, timeoutMs);
-        } catch (fallbackError) {
-            lastError = fallbackError;
-        }
-    }
-
-    throw lastError || new Error("Gemini request failed.");
-}
-
-async function translatePrompt(primaryModel, fallbackModel, promptText, options = {}) {
+async function translatePrompt(promptText, options = {}) {
     const cleanedPrompt = sanitizePrompt(promptText);
 
     if (!cleanedPrompt) {
@@ -178,12 +31,7 @@ async function translatePrompt(primaryModel, fallbackModel, promptText, options 
     }
 
     try {
-        const text = await generateTextWithRetry(
-            primaryModel,
-            fallbackModel,
-            cleanedPrompt,
-            options
-        );
+        const text = await generateOpenAIText(cleanedPrompt, options);
 
         return {
             ok: true,
@@ -198,7 +46,7 @@ async function translatePrompt(primaryModel, fallbackModel, promptText, options 
     }
 }
 
-async function translateBatch(primaryModel, fallbackModel, prompts, options = {}) {
+async function translateBatch(prompts, options = {}) {
     const concurrency = clampInteger(
         options.concurrency,
         DEFAULT_BATCH_CONCURRENCY,
@@ -219,8 +67,6 @@ async function translateBatch(primaryModel, fallbackModel, prompts, options = {}
             }
 
             results[index] = await translatePrompt(
-                primaryModel,
-                fallbackModel,
                 prompts[index],
                 options
             );
@@ -247,11 +93,11 @@ module.exports = async function (req, res) {
     }
 
     const body = req.body || {};
-    const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
 
-    if (!googleKey) {
+    if (!openaiKey) {
         return res.status(500).json({
-            error: "Missing GOOGLE_GENERATIVE_AI_API_KEY."
+            error: "Missing OPENAI_API_KEY."
         });
     }
 
@@ -278,52 +124,20 @@ module.exports = async function (req, res) {
     }
 
     try {
-        const genAI = new GoogleGenerativeAI(googleKey, {
-            apiVersion: "v1"
-        });
-
-        const primaryModel = genAI.getGenerativeModel({
-            model: PRIMARY_GEMINI_MODEL
-        });
-
-        const fallbackModel =
-            USE_FALLBACK_MODEL && FALLBACK_GEMINI_MODEL
-                ? genAI.getGenerativeModel({
-                      model: FALLBACK_GEMINI_MODEL
-                  })
-                : null;
-
         const options = {
-            retries: clampInteger(
-                process.env.GEMINI_RETRIES,
-                DEFAULT_RETRIES,
-                0,
-                4
-            ),
-            initialDelayMs: clampInteger(
-                process.env.GEMINI_INITIAL_DELAY_MS,
-                DEFAULT_INITIAL_DELAY_MS,
-                100,
-                10000
-            ),
-            timeoutMs: clampInteger(
-                process.env.GEMINI_TIMEOUT_MS,
-                DEFAULT_TIMEOUT_MS,
-                3000,
-                60000
-            ),
-            concurrency: clampInteger(
-                process.env.GEMINI_BATCH_CONCURRENCY,
-                DEFAULT_BATCH_CONCURRENCY,
-                1,
-                DEFAULT_MAX_BATCH_CONCURRENCY
-            )
+            env: {
+                ...process.env,
+                OPENAI_READER_MODEL: process.env.OPENAI_VOCAB_MODEL || 'gpt-5.6-terra',
+                // Vocabulary batches retain their previous no-fallback default.
+                OPENAI_READER_FALLBACK_MODEL: process.env.OPENAI_VOCAB_FALLBACK_MODEL || ''
+            },
+            timeoutMs: clampInteger(process.env.OPENAI_VOCAB_TIMEOUT_MS, 20000, 3000, 60000),
+            concurrency: clampInteger(process.env.OPENAI_BATCH_CONCURRENCY,
+                DEFAULT_BATCH_CONCURRENCY, 1, DEFAULT_MAX_BATCH_CONCURRENCY)
         };
 
         if (prompts.length > 0) {
             const results = await translateBatch(
-                primaryModel,
-                fallbackModel,
                 prompts,
                 options
             );
@@ -335,7 +149,7 @@ module.exports = async function (req, res) {
 
             if (failCount > 0) {
                 console.error(
-                    `Gemini batch translation: ${okCount}/${results.length} succeeded. First error: ${firstError}`
+                    `OpenAI batch translation: ${okCount}/${results.length} succeeded. First error: ${firstError}`
                 );
             }
 
@@ -348,8 +162,6 @@ module.exports = async function (req, res) {
         }
 
         const singleResult = await translatePrompt(
-            primaryModel,
-            fallbackModel,
             promptText,
             options
         );
@@ -364,10 +176,10 @@ module.exports = async function (req, res) {
             text: singleResult.text
         });
     } catch (error) {
-        const status = getErrorStatus(error);
+        const status = 500;
         const message = getErrorMessage(error);
 
-        console.error("Gemini API Error:", message);
+        console.error("OpenAI API Error:", message);
 
         return res
             .status(status && status >= 400 && status < 600 ? status : 500)

@@ -1,116 +1,10 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const PRIMARY_GEMINI_MODEL = "gemini-2.5-flash";
-const FALLBACK_GEMINI_MODEL = "gemini-2.5-pro";
-const PRIMARY_GEMINI_ATTEMPTS = 3;
-const FALLBACK_GEMINI_ATTEMPTS = 2;
-const RETRYABLE_STATUSES = new Set([429, 500, 503, 529]);
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function isRetryableGeminiError(error) {
-    const status = Number(error && error.status);
-    if (RETRYABLE_STATUSES.has(status)) return true;
-
-    const message = String(error && error.message ? error.message : error || "").toLowerCase();
-    return (
-        message.includes("429") ||
-        message.includes("500") ||
-        message.includes("503") ||
-        message.includes("529") ||
-        message.includes("quota") ||
-        message.includes("rate") ||
-        message.includes("resource exhausted") ||
-        message.includes("timeout") ||
-        message.includes("unavailable") ||
-        message.includes("internal") ||
-        message.includes("overloaded") ||
-        message.includes("empty response") ||
-        message.includes("blank response") ||
-        message.includes("high demand") ||
-        message.includes("service unavailable")
-    );
-}
-
-function getGeminiErrorMessage(error) {
-    return String(error && error.message ? error.message : error || "Unknown Gemini error");
-}
-
-async function generateTextWithRetries(model, modelName, prompt, maxAttempts) {
-    let lastError = null;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-            const result = await model.generateContent(prompt);
-            const text = result && result.response ? String(result.response.text() || "").trim() : "";
-
-            if (!text) {
-                throw new Error(`${modelName} generated an empty response.`);
-            }
-
-            return text;
-        } catch (error) {
-            lastError = error;
-            const retryable = isRetryableGeminiError(error);
-
-            console.warn(
-                `Gemini attempt failed: model=${modelName}, attempt=${attempt}/${maxAttempts}, retryable=${retryable}, error=${getGeminiErrorMessage(error)}`
-            );
-
-            if (!retryable || attempt === maxAttempts) {
-                throw error;
-            }
-
-            await sleep(attempt * 2000);
-        }
-    }
-
-    throw lastError || new Error(`${modelName} failed without returning an error.`);
-}
-
-async function generateTextWithFallback(primaryModel, fallbackModel, prompt) {
-    const failures = [];
-
-    try {
-        return await generateTextWithRetries(
-            primaryModel,
-            PRIMARY_GEMINI_MODEL,
-            prompt,
-            PRIMARY_GEMINI_ATTEMPTS
-        );
-    } catch (primaryError) {
-        failures.push(`${PRIMARY_GEMINI_MODEL}: ${getGeminiErrorMessage(primaryError)}`);
-
-        if (!isRetryableGeminiError(primaryError)) {
-            throw primaryError;
-        }
-    }
-
-    try {
-        return await generateTextWithRetries(
-            fallbackModel,
-            FALLBACK_GEMINI_MODEL,
-            prompt,
-            FALLBACK_GEMINI_ATTEMPTS
-        );
-    } catch (fallbackError) {
-        failures.push(`${FALLBACK_GEMINI_MODEL}: ${getGeminiErrorMessage(fallbackError)}`);
-
-        if (!isRetryableGeminiError(fallbackError)) {
-            throw fallbackError;
-        }
-
-        console.error(`All Gemini models failed after retries. ${failures.join(" | ")}`);
-        throw new Error("The AI service is temporarily busy. Please try Generate again in a moment.");
-    }
-}
+const { generateOpenAIText } = require("../lib/openai-text");
+const { createDictaRequest, readDictaResponse } = require("../lib/dicta-nikkud");
 
 module.exports = async function (req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-    const { prompt, suppliedText, dictaGenre } = req.body || {};
+    const { prompt, suppliedText, dictaGenre, dictaOptions } = req.body || {};
 
     const targetGenre = dictaGenre === "biblical" ? "poetry" : dictaGenre;
     const validGenres = ["modern", "rabbinic", "poetry"];
@@ -124,14 +18,13 @@ module.exports = async function (req, res) {
         let textToVowelize = suppliedText;
 
         if (prompt) {
-            const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-            if (!googleKey) return res.status(500).json({ error: "Missing GOOGLE_GENERATIVE_AI_API_KEY." });
-
-            const genAI = new GoogleGenerativeAI(googleKey, { apiVersion: 'v1' });
-            const primaryModel = genAI.getGenerativeModel({ model: PRIMARY_GEMINI_MODEL });
-            const fallbackModel = genAI.getGenerativeModel({ model: FALLBACK_GEMINI_MODEL });
-
-            textToVowelize = await generateTextWithFallback(primaryModel, fallbackModel, prompt);
+            if (typeof prompt !== 'string') {
+                return res.status(400).json({ error: "Prompt must be text." });
+            }
+            if (prompt.length > 50000) {
+                return res.status(413).json({ error: "Prompt too large." });
+            }
+            textToVowelize = await generateOpenAIText(prompt);
         }
 
         if (textToVowelize) {
@@ -141,14 +34,12 @@ module.exports = async function (req, res) {
             const dictaRes = await fetch("https://nakdan-5-3.loadbalancer.dicta.org.il/addnikud", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    task: "nakdan",
+                body: JSON.stringify(createDictaRequest({
+                    text: String(textToVowelize).trim(),
                     apiKey: dictaKey,
                     genre: genreToUse,
-                    data: String(textToVowelize).trim(),
-                    useTokenization: true,
-                    matchpartial: true
-                })
+                    options: dictaOptions
+                }))
             });
 
             if (!dictaRes.ok) {
@@ -158,18 +49,9 @@ module.exports = async function (req, res) {
 
             const dictaData = await dictaRes.json();
 
-            let finalHebrew = "";
-            for (const token of dictaData.data) {
-                if (token.sep) {
-                    finalHebrew += (token.nakdan && token.nakdan.word) ? token.nakdan.word : token.str;
-                } else if (token.nakdan && token.nakdan.options && token.nakdan.options.length > 0) {
-                    finalHebrew += token.nakdan.options[0].w.replace(/\|/g, '');
-                } else {
-                    finalHebrew += token.str;
-                }
-            }
-
-            return res.status(200).json({ text: finalHebrew });
+            return res.status(200).json(readDictaResponse(dictaData, {
+                includeAnalysis: dictaOptions?.addmorph === true
+            }));
         }
 
         return res.status(400).json({ error: "No input provided." });

@@ -1,0 +1,30 @@
+#create-practice-exercises-btn { background: #7a3df0; width: auto; padding: 10px 40px; }
+#practice-exercises-dialog { box-sizing: border-box; width: min(1400px, 96vw); max-height: 90dvh; padding: 24px; border: 1px solid #dcd3c6; border-radius: 12px; background: #fffefb; color: #332c24; overflow: auto; }
+#practice-exercises-dialog::backdrop { background: rgb(30 20 40 / 55%); }
+#practice-exercises-dialog h2 { margin-top: 0; color: #6731bd; }
+#practice-exercises-dialog p { line-height: 1.5; }
+#practice-exercises-dialog [hidden] { display: none !important; }
+#practice-exercises-dialog .practice-choices, #practice-exercises-dialog .practice-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+#practice-exercises-dialog button { background: #6731bd; color: white; width: auto; padding: 12px 18px; margin: 0; }
+#practice-exercises-dialog button[aria-pressed="true"] { outline: 3px solid #332c24; outline-offset: 3px; }
+#practice-exercises-dialog button:disabled { opacity: .55; cursor: not-allowed; }
+#practice-exercises-dialog :focus-visible { outline: 3px solid #245cb5; outline-offset: 3px; }
+#practice-exercises-dialog #practice-cancel { background: #59534d; }
+#practice-exercises-dialog #practice-submit { background: #28723a; }
+#practice-exercises-dialog #practice-lock { font-weight: bold; }
+#practice-exercises-dialog #practice-error { color: #9b1b2b; font-weight: bold; }
+#practice-exercises-dialog .practice-table-scroll { overflow-x: auto; margin: 16px 0; }
+#practice-exercises-dialog table { width: 100%; min-width: 1080px; border-collapse: collapse; table-layout: fixed; font-size: 16px; }
+#practice-exercises-dialog caption { text-align: left; font-weight: bold; padding: 10px 0; }
+#practice-exercises-dialog th, #practice-exercises-dialog td { border: 1px solid #dcd3c6; padding: 12px; vertical-align: top; overflow-wrap: anywhere; }
+#practice-exercises-dialog thead th { background: #eee5fb; text-align: left; }
+#practice-exercises-dialog tbody th { font-family: var(--hebrew-font, Arial), sans-serif; font-size: 20px; }
+#practice-exercises-dialog label { display: flex; align-items: center; gap: 6px; font: 12px Arial, sans-serif; margin: 0 0 10px; cursor: pointer; }
+#practice-exercises-dialog input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; margin: 0; accent-color: #6731bd; }
+#practice-exercises-dialog textarea { box-sizing: border-box; width: 100%; min-height: 100px; padding: 8px; border: 1px solid #82776c; border-radius: 5px; resize: vertical; font: 16px Arial, sans-serif; color: #332c24; background: white; }
+#practice-exercises-dialog textarea[lang="he"] { font-family: var(--hebrew-font, Arial), sans-serif; font-size: 20px; }
+@media (max-width: 600px) {
+    #practice-exercises-dialog { padding: 16px; }
+    #practice-exercises-dialog .practice-choices button { width: 100%; }
+}
+@media print { #practice-exercises-dialog { display: none !important; } }

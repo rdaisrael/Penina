@@ -9,6 +9,7 @@
    <title>PeninaPlus Vocabulary Builder</title>
     <link rel="icon" type="image/png" href="./Penina-favicon.png?v=4">
     <link rel="shortcut icon" href="./Penina-favicon.png?v=4">
+    <link rel="stylesheet" href="practice-exercises.css">
     <style>
         /* --- EMBEDDED DYSLEXIC FONT --- */
         @font-face {
@@ -794,8 +795,10 @@
                 <button onclick="window.print()" style="background-color: #28a745; width: auto; padding: 10px 40px;">Print Vocabulary Sheet</button>
                 <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Export Filled Spreadsheet</button>
                 <button type="button" id="save-draft-btn" style="background-color: #b58900; width: auto; padding: 10px 40px;">Save JSON Draft</button>
+                <button type="button" id="create-practice-exercises-btn" disabled>Create Additional Practice Exercises</button>
                 <button type="button" id="download-offline-study-cards-btn" style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
             </div>
+            <p id="practice-saved-status" role="status" style="text-align: center;"></p>
             <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
                 <div class="publish-card-controls">
                     <div class="form-group">
@@ -868,6 +871,7 @@
         </div>
     </div>
 
+    <script src="practice-exercises.js"></script>
     <script src="offline-study-cards.js"></script>
     <script src="vocabulary-pages.js"></script>
     <script>
@@ -981,6 +985,7 @@
         const vocabularyWorkbookInput = document.getElementById('vocabulary-workbook-input');
         const vocabularyWorkbookStatus = document.getElementById('vocabulary-workbook-status');
         const exportVocabularyWorkbookButton = document.getElementById('export-vocabulary-workbook-btn');
+        const createPracticeExercisesButton = document.getElementById('create-practice-exercises-btn');
         const downloadOfflineStudyCardsButton = document.getElementById('download-offline-study-cards-btn');
         const publishStudyCardsButton = document.getElementById('publish-study-cards-btn');
         const publishCardGrade = document.getElementById('publish-card-grade');
@@ -1000,6 +1005,8 @@
 
         function updateWorkbookExportAvailability() {
             const exportDisabled = !generatedRows.length;
+            document.getElementById('practice-saved-status').textContent = '';
+            if (createPracticeExercisesButton) createPracticeExercisesButton.disabled = exportDisabled;
             if (exportVocabularyWorkbookButton) exportVocabularyWorkbookButton.disabled = exportDisabled;
             if (downloadOfflineStudyCardsButton) downloadOfflineStudyCardsButton.disabled = exportDisabled;
             if (publishStudyCardsButton) publishStudyCardsButton.disabled = exportDisabled;
@@ -2353,6 +2360,21 @@ function updateTalmudModeVisibility() {
 
 
         let generatedRows = [];
+        PeninaPracticeExercises.mount({
+            button: createPracticeExercisesButton,
+            getRows() {
+                for (let i = 0; i < generatedRows.length; i++) syncGeneratedRowFromDom(i);
+                return generatedRows;
+            },
+            onSubmit(language, answers) {
+                answers.forEach((data, index) => {
+                    const row = generatedRows[index];
+                    row.alternativeAnswers = { ...row.alternativeAnswers, [language]: data };
+                });
+                document.getElementById('practice-saved-status').textContent =
+                    `${language === 'hebrew' ? 'Hebrew' : 'English'} alternate answers saved to this vocabulary list. Use Save JSON Draft to keep them after leaving this page.`;
+            }
+        });
         const semanticContextValidationCache = new Map();
 
         function getSelectedContextQuoteIndexes() {

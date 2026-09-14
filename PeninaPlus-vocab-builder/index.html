@@ -1457,9 +1457,12 @@
                 pageContainer.style.display = 'block';
                 const draftContextTools = document.getElementById('draft-context-tools');
                 if (draftContextTools) draftContextTools.classList.add('visible');
-            } else if (payload.generatedDocument && payload.generatedDocument.tableBodyHtml) {
-                vocabTbody.innerHTML = payload.generatedDocument.tableBodyHtml;
-                pageContainer.style.display = payload.generatedDocument.pageVisible ? 'block' : 'none';
+            } else {
+                // Restore inputs from older drafts, but never insert saved HTML into the page.
+                vocabTbody.innerHTML = '';
+                pageContainer.style.display = 'none';
+                const draftContextTools = document.getElementById('draft-context-tools');
+                if (draftContextTools) draftContextTools.classList.remove('visible');
             }
             refreshOriginalHebrewDatasets();
             updateTextDisplay();
@@ -2853,6 +2856,11 @@ function updateTalmudModeVisibility() {
             return textRunsToHtml(highlightEnglishContextRuns(row));
         }
 
+        function escapeVocabularyHtml(value) {
+            return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
         function renderVocabularyRow(row, rowIndex) {
             const highlightedHebrew = highlightHebrewContext(row);
             const highlightedModernHebrew = highlightModernHebrewContext(row);
@@ -2861,18 +2869,18 @@ function updateTalmudModeVisibility() {
             const showHebrewTranslation = hebrewTranslationEnabled() && row.sourceType !== 'Modern Hebrew';
             return `
                     <tr data-row-index="${rowIndex}">
-                        <td class="col-hebrew"><span class="hebrew-word">${row.item.hebrew}</span></td>
+                        <td class="col-hebrew"><span class="hebrew-word">${escapeVocabularyHtml(row.item.hebrew)}</span></td>
                         <td class="col-translation">
-                            ${showHebrewTranslation ? `<div class="modern-hebrew-term-translation" contenteditable="true">${row.modernHebrewTranslation || ''}</div>` : ''}
-                            ${showEnglishTranslation ? `<div class="col-english term-english-translation" contenteditable="true">${row.item.english || ''}</div>` : ''}
+                            ${showHebrewTranslation ? `<div class="modern-hebrew-term-translation" contenteditable="true">${escapeVocabularyHtml(row.modernHebrewTranslation)}</div>` : ''}
+                            ${showEnglishTranslation ? `<div class="col-english term-english-translation" contenteditable="true">${escapeVocabularyHtml(row.item.english)}</div>` : ''}
                         </td>
                         <td class="col-context">
                             <div class="hebrew-text" contenteditable="true">${highlightedHebrew}</div>
-                            ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl" contenteditable="true">${row.hebrewCitation}</div>` : ''}
+                            ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl" contenteditable="true">${escapeVocabularyHtml(row.hebrewCitation)}</div>` : ''}
                             ${showHebrewTranslation && row.modernHebrewContext ? `<div class="modern-hebrew-context" contenteditable="true">${highlightedModernHebrew}</div>` : ''}
                             ${showEnglishTranslation ? `<div class="english-text" contenteditable="true">${highlightedEnglish}</div>` : ''}
                             <div class="english-citation-row">
-                                ${showEnglishTranslation && row.englishCitation ? `<div class="citation english-citation" dir="ltr" contenteditable="true">${row.englishCitation}</div>` : '<div class="citation english-citation" dir="ltr" contenteditable="true"></div>'}
+                                ${showEnglishTranslation && row.englishCitation ? `<div class="citation english-citation" dir="ltr" contenteditable="true">${escapeVocabularyHtml(row.englishCitation)}</div>` : '<div class="citation english-citation" dir="ltr" contenteditable="true"></div>'}
                                 <label class="context-row-checkbox-slot" aria-label="Select this context quote for regeneration"><input type="checkbox" class="context-quote-checkbox" data-row-index="${rowIndex}"></label>
                             </div>
                         </td>
@@ -2894,7 +2902,7 @@ function updateTalmudModeVisibility() {
                 handleGenerateVocabularyClick().catch((error) => {
                     generateBtn.disabled = false;
                     generateBtn.textContent = 'Generate Vocabulary Table';
-                    vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${error && error.message ? error.message : 'Generation failed.'}</td></tr>`;
+                    vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${escapeVocabularyHtml(error && error.message ? error.message : 'Generation failed.')}</td></tr>`;
                 });
             });
         });
@@ -3287,7 +3295,7 @@ function updateTalmudModeVisibility() {
                             let searchResult = await performSefariaSearch(searchHebrew, sourceType, getSelectedSourceTargets(), [], item.english);
                             if (searchResult) {
                                 row.hebrewContext = searchResult.he || "";
-                                if (includeEnglishTranslation && !row.englishContext) row.englishContext = searchResult.en || "";
+                                if (includeEnglishTranslation && !row.suppressEnglishContextTranslation && !row.englishContext) row.englishContext = searchResult.en || "";
                                 row.rawSefariaEnglishContext = searchResult.sourceEnglish || searchResult.rawEn || "";
                                 row.matchedHebrewCandidate = searchResult.matchedCandidate || searchHebrew;
                                 const citationParts = formatSefariaCitation(searchResult.heRef, searchResult.ref, sourceType);
@@ -3352,7 +3360,11 @@ function updateTalmudModeVisibility() {
 
                 const buildDirectTranslationPrompt = (row) => {
                     if (sourceType === 'Modern Hebrew') {
-                        return `Translate this Hebrew sentence to English: "${row.hebrewContext}". You MUST use the specific word "${row.item.english.toLowerCase()}" as the translation for "${row.cleanHebrew}". Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
+                        const definition = String(row.item.english || '').trim();
+                        const meaningHint = definition
+                            ? ` Use "${definition}" as the translation for "${row.cleanHebrew}" if accurate in context.`
+                            : '';
+                        return `Translate this Hebrew sentence to English: "${row.hebrewContext}".${meaningHint} Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
                     }
 
                     return `Translate ONLY this Hebrew/Aramaic excerpt to concise, clear English: "${row.hebrewContext}". Make the result read naturally as an English sentence or phrase, but do not add surrounding context, explanation, or unstated material. Use the vocabulary translation "${row.item.english}" for "${row.cleanHebrew}" if it is accurate in context, so the vocabulary word can be bolded later. Return ONLY the English translation. Do not use Markdown, asterisks, bullet points, labels, or quotation marks.`;
@@ -3436,7 +3448,7 @@ function updateTalmudModeVisibility() {
                 refreshOriginalHebrewDatasets();
                 updateTextDisplay();
             } catch (e) {
-                vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
+                vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${escapeVocabularyHtml(e.message)}</td></tr>`;
             } finally {
                 generateBtn.disabled = false;
                 generateBtn.textContent = 'Generate Vocabulary Table';

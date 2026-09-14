@@ -75,7 +75,8 @@ test('reader passes generated text to Dicta and stops on generation failure', as
         const context = vm.createContext({
             module: { exports: {} }, process: { env: { DICTA_API_KEY: 'test-only' } },
             require(name) {
-                if (name === '../lib/dicta-nikkud') return dicta;
+                if (name === '../lib/reader-response') return require('../lib/reader-response');
+            if (name === '../lib/dicta-nikkud') return dicta;
                 if (name === '../lib/openai-text') return { generateOpenAIText: async prompt => {
                     assert.equal(prompt, 'write story');
                     if (fail) throw new Error('generation failed');
@@ -98,4 +99,14 @@ test('reader passes generated text to Dicta and stops on generation failure', as
         assert.equal(calls, fail ? 0 : 1);
         assert.equal(status, fail ? 500 : 200);
     }
+});
+
+test('structured reader schema is sent through Responses text.format', async () => {
+    const {readerFormat}=require('../lib/reader-response');
+    await generateOpenAIText('Analyze words', {env,wait,textFormat:readerFormat,maxOutputTokens:32000,fetchImpl:async (_,options)=>{
+        const body=JSON.parse(options.body);
+        assert.deepEqual(body.text.format,readerFormat);
+        assert.equal(body.max_output_tokens,32000);
+        return ok('{"text":"test","words":[]}');
+    }});
 });

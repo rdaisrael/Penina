@@ -1,10 +1,11 @@
 const { generateOpenAIText } = require("../lib/openai-text");
+const reader = require("../lib/reader-response");
 const { createDictaRequest, readDictaResponse } = require("../lib/dicta-nikkud");
 
 module.exports = async function (req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-    const { prompt, suppliedText, dictaGenre, dictaOptions } = req.body || {};
+    const { prompt, suppliedText, dictaGenre, dictaOptions, readerVocabulary, sourceText } = req.body || {};
 
     const targetGenre = dictaGenre === "biblical" ? "poetry" : dictaGenre;
     const validGenres = ["modern", "rabbinic", "poetry"];
@@ -16,6 +17,8 @@ module.exports = async function (req, res) {
 
     try {
         let textToVowelize = suppliedText;
+        let analysis;
+        if (sourceText !== undefined && (typeof sourceText !== "string" || sourceText.length > 10000)) return res.status(400).json({error:"Invalid supplied text."});
 
         if (prompt) {
             if (typeof prompt !== 'string') {
@@ -24,7 +27,17 @@ module.exports = async function (req, res) {
             if (prompt.length > 50000) {
                 return res.status(413).json({ error: "Prompt too large." });
             }
-            textToVowelize = await generateOpenAIText(prompt);
+            if (readerVocabulary) {
+                const raw = await generateOpenAIText(reader.readerPrompt(prompt, readerVocabulary, sourceText), {
+                    textFormat: reader.readerFormat, maxOutputTokens: 32000, timeoutMs: 60000
+                });
+                let parsed;
+                try { parsed = JSON.parse(raw); } catch (_) { throw new Error("The reader analysis was incomplete. Please generate again."); }
+                analysis = reader.validateAnalysis(parsed, readerVocabulary, sourceText);
+                textToVowelize = analysis.text;
+            } else {
+                textToVowelize = await generateOpenAIText(prompt);
+            }
         }
 
         if (textToVowelize) {
@@ -49,9 +62,11 @@ module.exports = async function (req, res) {
 
             const dictaData = await dictaRes.json();
 
-            return res.status(200).json(readDictaResponse(dictaData, {
+            const result = readDictaResponse(dictaData, {
                 includeAnalysis: dictaOptions?.addmorph === true
-            }));
+            });
+            if (analysis) result.readerResult = reader.buildResult(result.text, analysis);
+            return res.status(200).json(result);
         }
 
         return res.status(400).json({ error: "No input provided." });

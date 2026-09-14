@@ -599,7 +599,7 @@
                         <option value="modern" selected>Modern</option>
                         <option value="rabbinic">Rabbinic</option>
                         <option value="poetry">Poetic</option>
-                        <option value="biblical">Biblical</option>
+                        <option value="biblical">Biblical (Dicta poetry mode)</option>
                     </select>
                 </div>
 
@@ -673,7 +673,7 @@
             </div>
 
             <div class="form-group panel-secondary" style="margin-top: 25px;">
-                <label for="footnote-display" class="panel-secondary-label">Footnote Display:</label>
+                <label for="footnote-display" class="panel-secondary-label">Footnote Display (first occurrence = same unpointed word):</label>
                 <select id="footnote-display" class="layout-control">
                     <option value="all">Show All Footnotes</option>
                     <option value="first" selected>First Occurrence Only</option>
@@ -682,6 +682,7 @@
             </div>
 
             <div class="button-group" style="margin-bottom: 35px; margin-top: 20px;">
+                <p id="reader-status" role="status" aria-live="polite"></p>
                 <button id="generate-btn" style="background-color: #0056b3; font-size: 18px; padding: 15px 40px; width: 100%; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">Generate</button>
             </div>
 
@@ -797,11 +798,11 @@
                             <input type="color" id="col-kubutz" value="#0000ff">
                         </div>
                         <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-shva-nach"> <span class="vowel-text" id="text-shva-nach">Silent (Shva Nach)</span></label>
+                            <label class="vowel-label"><input type="checkbox" id="en-shva-nach"> <span class="vowel-text" id="text-shva-nach">Shva Nach (estimated)</span></label>
                             <input type="color" id="col-shva-nach" value="#9e9e9e">
                         </div>
                         <div class="vowel-item">
-                            <label class="vowel-label"><input type="checkbox" id="en-shva-na"> <span class="vowel-text" id="text-shva-na">Indigo (Shva Na)</span></label>
+                            <label class="vowel-label"><input type="checkbox" id="en-shva-na"> <span class="vowel-text" id="text-shva-na" title="Shva colors use a positional estimate; they are not a validated pronunciation analysis.">Shva Na (estimated)</span></label>
                             <input type="color" id="col-shva-na" value="#8b1ddb">
                         </div>
                     </div>
@@ -846,6 +847,7 @@
         <div id="questions-output" class="worksheet-paper"></div>
     </div>
 
+    <script src="reader-core.js"></script>
     <script>
         // ==========================================
         //               PENINAPLUS
@@ -861,6 +863,10 @@
 
         let currentRawStory = ""; 
         let currentFootnotes = "";
+        let currentResult = null;
+        let storyPending = false;
+        const requests = ReaderCore.createRequestTracker();
+        let worksheetAbort = null;
         let uploadedVocabA = null;
         let uploadedVocabB = null;
 
@@ -999,10 +1005,12 @@
             const mode = document.querySelector(`input[name="vocab-mode-${suffix}"]:checked`).value;
             let vocabPrompt = "";
             let masterWordsList = [];
+            let profile = {mode, words:[], verbs:[], nouns:[], adjs:[], forms:[]};
 
             if (mode === 'complete') {
                 const raw = document.getElementById(`target-input-${suffix}`).value;
                 masterWordsList = raw.split(/[\n\t,]+/).map(w => w.trim()).filter(w => w);
+                profile.words = masterWordsList;
                 vocabPrompt = `Mastered Vocabulary List: ${masterWordsList.join(', ')}.`;
             } else if (mode === 'pos') {
                 const verbs = document.getElementById(`pos-verbs-${suffix}`).value.split(/[\n\t,]+/).map(w => w.trim()).filter(w => w);
@@ -1016,6 +1024,7 @@
                 vocabPrompt += `Mastered Nouns (singular): ${nouns.join(', ')}.\n`;
                 vocabPrompt += `Mastered Adjectives (male singular): ${adjs.join(', ')}.\n`;
                 masterWordsList = [...verbs, ...nouns, ...adjs];
+                Object.assign(profile, {verbs, nouns, adjs, forms:binyanim});
             } else if (mode === 'upload') {
                 let uData = isPathwayA ? uploadedVocabA : uploadedVocabB;
                 if (!uData) throw new Error("Please upload a completed vocabulary spreadsheet first.");
@@ -1024,17 +1033,15 @@
                 vocabPrompt += `Mastered Nouns (singular): ${uData.nouns.join(', ')}.\n`;
                 vocabPrompt += `Mastered Adjectives (male singular): ${uData.adjs.join(', ')}.\n`;
                 masterWordsList = [...uData.verbs, ...uData.nouns, ...uData.adjs];
+                Object.assign(profile, {verbs:uData.verbs, nouns:uData.nouns, adjs:uData.adjs, forms:uData.binyanim});
             }
 
-            const rulePrompt = `
-                CRITICAL INSTRUCTIONS FOR VOCABULARY AND FOOTNOTES:
-                1. Emphasize and prioritize the defined Mastered Vocabulary.
-                2. Assume the student has mastered: pronouns, possessives (שלי, שלו, etc.), standard gender/plural modifications, and ALL standard prefixes (e.g., ו, ה, ב, ל, מ, ש) and suffixes attached to ANY of the mastered words (whether they are verbs, nouns, or adjectives).
-                3. For ANY word used in the generated text that is NOT derived from the Mastered Vocabulary (taking into account the allowed verb binyanim, modifications, and prefixes), you MUST add a numbered footnote reference (e.g., [1]) immediately after the word in the text.
-                4. At the very end of your response, you MUST output exactly "---FOOTNOTES---" on a new line, followed by the numbered list of English translations for the unmastered words you flagged.
-            `;
+            profile = ReaderCore.normalizeVocabulary(profile);
+            const rulePrompt = 'Prioritize the mastered vocabulary. Return the structured per-word analysis requested by the server.';
+            // Pointed and unpointed entries use the same normalization in every mode.
+            vocabPrompt = `Mastered vocabulary profile: ${JSON.stringify(profile)}`;
+            return { vocabPrompt, rulePrompt, masterWordsList, profile };
 
-            return { vocabPrompt, rulePrompt, masterWordsList };
         }
 
         // --- MAIN GENERATE LOOP ---
@@ -1055,8 +1062,14 @@
             toggleLayoutLock(false);
             clearLineNumbers();
 
+            const requestId = requests.beginStory();
+            storyPending = true;
+            if (worksheetAbort) worksheetAbort.abort();
             btn.disabled = true;
-            hideWorksheetPrintControls();
+            document.getElementById('generate-questions-btn').disabled = true;
+            document.getElementById('generate-questions-btn').innerText = 'Generate Worksheet';
+            const status = document.getElementById('reader-status');
+            status.textContent = 'Generating and checking your reading…';
 
             try {
                 const vocabData = getVocabularyPromptInstructions(isPathwayA);
@@ -1064,11 +1077,10 @@
                 if (!isPathwayA) {
                     btn.innerText = "Analyzing Supplied Text... (Please Wait)";
                     document.querySelector('.paper-viewport').style.display = 'block';
-                    outputDiv.innerHTML = "מנתח את הטקסט... (Analyzing & Vowelizing...)";
-                    
+
                     const suppliedTextFull = suppliedTitle + "\n" + rawSuppliedText;
                     
-                    // Passing supplied text to LLM to inject footnotes based on rules, then Dicta.
+                    // Analyze source words, validate preservation, then let Dicta add nikkud.
                     const prompt = `
                         Here is a pre-written Hebrew text:
                         ${suppliedTextFull}
@@ -1076,16 +1088,18 @@
                         ${vocabData.vocabPrompt}
                         ${vocabData.rulePrompt}
                         
-                        Output the exact pre-written Hebrew text, inserting the bracketed footnotes [1] next to unmastered words. 
+                        Preserve the exact pre-written Hebrew text and analyze each Hebrew word.
                         Do not add Nikkud yourself.
-                        Then append "---FOOTNOTES---" and the English translations.
+                        Return the structured analysis requested by the server.
                     `;
 
                     const response = await fetch('/api/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
-                            prompt: prompt, // Using prompt mode to allow LLM to process footnotes
+                            prompt: prompt,
+                            readerVocabulary: vocabData.profile,
+                            sourceText: suppliedTextFull,
                             dictaOptions: readerDictaOptions,
                             dictaGenre: document.getElementById('dicta-genre').value 
                         })
@@ -1094,7 +1108,9 @@
                     const data = await response.json();
                     if (data.error) throw new Error(data.error);
 
-                    parseAndRenderOutput(data.text);
+                    if (!requests.isStory(requestId)) return;
+                    parseAndRenderOutput(data);
+                    status.textContent = 'Reading ready. Vocabulary edits apply when you Generate again.';
                 } else {
                     // Pathway A Original Story
                     let length = document.getElementById('length').value;
@@ -1103,7 +1119,6 @@
 
                     btn.innerText = "Writing Story... (Wait)";
                     document.querySelector('.paper-viewport').style.display = 'block';
-                    outputDiv.innerHTML = "מכין את הסיפור שלך... (Generating...)";
 
                     let levelInstruction = "";
                     if (readingLevel === 'beginner') levelInstruction = "CRITICAL: Write at a BEGINNER reading level. Use very simple, common Hebrew words, short straightforward sentences.";
@@ -1115,7 +1130,7 @@
                     ${levelInstruction}
                     The theme is: ${currentTheme}.
                     Provide a descriptive Title for the story on the very first line.
-                    Ensure perfect grammar. Return ONLY plain text with NO nikkud (vowels).
+                    Ensure correct grammar. The JSON text field contains the title and story with no footnote markers.
                     
                     ${vocabData.vocabPrompt}
                     ${vocabData.rulePrompt}`;
@@ -1125,29 +1140,41 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             prompt: prompt,
+                            readerVocabulary: vocabData.profile,
                             dictaOptions: readerDictaOptions,
-                            dictaGenre: document.getElementById('dicta-genre').value
+                            dictaGenre: 'modern'
                         })
                     });
 
                     const data = await response.json();
                     if (data.error) throw new Error(data.error);
 
-                    parseAndRenderOutput(data.text);
+                    if (!requests.isStory(requestId)) return;
+                    parseAndRenderOutput(data);
+                    status.textContent = 'Reading ready. Vocabulary edits apply when you Generate again.';
                 }
             } catch (error) {
                 console.error(error);
-                outputDiv.innerHTML = `<span style="color:red; font-weight:bold;">שגיאה (Error):</span> ${error.message}`;
+                if (requests.isStory(requestId)) status.textContent = 'Error: ' + error.message;
             } finally {
-                btn.innerText = "Generate";
-                btn.disabled = false;
+                if (requests.isStory(requestId)) {
+                    storyPending = false;
+                    btn.innerText = "Generate";
+                    btn.disabled = false;
+                    document.getElementById('generate-questions-btn').disabled = false;
+                }
             }
         });
 
-        function parseAndRenderOutput(rawOutput) {
-            let parts = rawOutput.split('---FOOTNOTES---');
-            currentRawStory = parts[0].replace(/\*/g, '').trim();
-            currentFootnotes = parts[1] ? parts[1].trim() : "";
+        function parseAndRenderOutput(data) {
+            const result = data.readerResult;
+            if (!result || result.text !== data.text || !Array.isArray(result.words) || !Array.isArray(result.notes)) throw new Error('The reader analysis is missing. Please generate again.');
+            currentResult = result;
+            currentRawStory = result.text;
+            currentFootnotes = result.notes.map(note => `${note.id}. ${note.word} — ${note.translation}`).join('\n');
+            hideWorksheetPrintControls();
+            document.getElementById('questions-output').textContent = '';
+            document.getElementById('questions-viewport').style.display = 'none';
             renderStoryToScreen();
             document.getElementById('comprehension-section').style.display = 'block';
         }
@@ -1295,20 +1322,10 @@
         function renderStoryToScreen() {
             if (!currentRawStory) return;
             const outputDiv = document.getElementById('story-output');
-            const isPathwayA = document.getElementById('pathway-a-radio').checked;
-            
-            // Check if vocab mode is set to upload without a file first
-            let vocabData;
-            try {
-                vocabData = getVocabularyPromptInstructions(isPathwayA);
-            } catch(e) {
-                vocabData = { masterWordsList: [] };
-            }
-            
-            outputDiv.innerHTML = formatStory(currentRawStory, vocabData.masterWordsList);
-            
+            outputDiv.innerHTML = formatStory(currentRawStory, currentResult.words);
+
             if (currentFootnotes) {
-                let formattedFootnotes = currentFootnotes.replace(/\n/g, '<br>');
+                let formattedFootnotes = ReaderCore.escapeHtml(currentFootnotes).replace(/\n/g, '<br>');
                 outputDiv.innerHTML += `<div class="generated-footnotes"><strong>Footnotes:</strong><div class="footnote-columns">${formattedFootnotes}</div></div>`;
             }
 
@@ -1325,8 +1342,6 @@
             let fontChoice = document.getElementById('font-choice').value;
             let isDyslexicFont = fontChoice.includes('Dyslexic-Kriah');
             const getCol = (id) => document.getElementById(`en-${id}`).checked ? document.getElementById(`col-${id}`).value : '#000000';
-            const stripNikkud = (text) => text.replace(/[\u0591-\u05C7]/g, '');
-            const stripPunctuation = (text) => text.replace(/[.,?!:;\"'()\[\]{}\-־]/g, '');
             // Custom split to preserve [1] bracket structures so they don't break nikkud spans
             const tokens = textSegment.split(/([\s\n]+|\[\d+\])/);
             let outputHtml = "";
@@ -1345,14 +1360,10 @@
                 let previousHadShva = false;
                 let lastHebrewIndex = -1; 
 
-                let tokenWithoutNikkud = stripNikkud(token);
-                let cleanToken = stripPunctuation(tokenWithoutNikkud);
                 
-                let isTarget = targetWords.some(target => {
-                    return cleanToken === target || cleanToken === 'ה' + target || cleanToken === 'ב' + target || cleanToken === 'ל' + target || cleanToken === 'ו' + target;
-                });
+                const isTarget = targetWords.some(target => ReaderCore.normalizeWord(token) === ReaderCore.normalizeWord(target));
 
-                let processedWord = token.replace(/([\u05D0-\u05EA])([\u0591-\u05C7]*)/g, (match, letter, marks, offset, fullText) => {
+                let processedWord = ReaderCore.escapeHtml(token).replace(/([\u05D0-\u05EA])([\u0591-\u05C7]*)/g, (match, letter, marks, offset, fullText) => {
                     let isFirstInWordSegment = false;
                     if (lastHebrewIndex === -1) { isFirstInWordSegment = true; } 
                     else {
@@ -1418,8 +1429,7 @@
                     let extraStyle = '';
                     
                     if (isTarget) {
-                        if (isDyslexicFont) { extraStyle = `font-size: calc(1em + 15px);`; letterWeight = 'normal'; } 
-                        else if (isBoldCheckbox) { letterWeight = 'bold'; }
+                        if (isBoldCheckbox) { letterWeight = 'bold'; }
                     }
 
                     let defaultTopColor = isTitle ? 'white' : 'black';
@@ -1459,17 +1469,30 @@
             if (document.getElementById('use-hashem').checked) { text = text.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, "ה׳"); }
             if (document.getElementById('use-elokim').checked) { text = text.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*?(?:ו|[\u05B9\u05BA])[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, "$1ק$2"); }
 
+            let analysisIndex = 0;
+            const renderPart = (part, isTitle) => {
+                let html = '', offset = 0;
+                for (const token of ReaderCore.words(part)) {
+                    html += ReaderCore.escapeHtml(part.slice(offset, token.index)).replace(/\n/g, '<br>');
+                    const item = targetWords[analysisIndex++];
+                    const mastered = item && typeof item === 'object' ? item.mastered : targetWords.some(w => typeof w === 'string' && ReaderCore.normalizeWord(w) === ReaderCore.normalizeWord(token[0]));
+                    html += processTextChunk(token[0], mastered ? [token[0]] : [], isTitle);
+                    if (item && typeof item === 'object' && item.noteId) html += `<span class="heb-word footnote-marker" data-fn="${Number(item.noteId)}" style="direction:ltr; font-family:Arial; font-size:0.6em; vertical-align:super; color:#666; margin-right:2px; display:inline-flex;">${Number(item.noteId)}</span>`;
+                    offset = token.index + token[0].length;
+                }
+                return html + ReaderCore.escapeHtml(part.slice(offset)).replace(/\n/g, '<br>');
+            };
             let lines = text.split('\n');
             let titleRaw = lines.length > 0 ? lines[0] : "סיפור";
             let bodyRaw = lines.length > 1 ? lines.slice(1).join('\n').trim() : "";
 
             let finalOutput = "";
             finalOutput += `<div class="story-title" style="background-color: black; padding: 15px; margin-bottom: 10px; border-radius: 8px; font-size: calc(1em + 15px); text-align: center; color: white;">`;
-            finalOutput += processTextChunk(titleRaw, targetWords, true);
+            finalOutput += renderPart(titleRaw, true);
             finalOutput += `</div>`;
 
             finalOutput += `<div class="story-body" dir="rtl">`;
-            finalOutput += processTextChunk(bodyRaw, targetWords, false);
+            finalOutput += renderPart(bodyRaw, false);
             finalOutput += `</div>`;
 
             return finalOutput;
@@ -1540,16 +1563,21 @@
             const qOutput = document.getElementById('questions-output');
             const qViewport = document.getElementById('questions-viewport');
             
+            if (storyPending) return;
             if (!currentRawStory) {
                 alert("Please generate a story first!");
                 return;
             }
 
-            showWorksheetPrintControls();
+            const requestId = requests.beginWorksheet();
+            worksheetAbort = new AbortController();
+            const storyText = currentRawStory;
+            const status = document.getElementById('reader-status');
+            status.textContent = 'Generating and checking your worksheet…';
             btn.disabled = true;
             btn.innerText = "Writing Questions... (Wait)";
             qViewport.style.display = 'block';
-            qOutput.innerHTML = "<h2 style='text-align: center; color: #666;'>מכין שאלות... (Preparing Worksheet...)</h2>";
+
             
             const prompt = `Based strictly on the following text, create a reading comprehension worksheet in ${lang} with exactly ${questionCount} questions.
             CRITICAL RULES:
@@ -1568,11 +1596,12 @@
             7. Format as plain text without markdown symbols (no ** or ##).
 
             Text:
-            ${currentRawStory}`;
+            ${storyText}`;
             
             try {
                 const response = await fetch('/api/generate', {
                     method: 'POST',
+                    signal: worksheetAbort.signal,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         prompt: prompt,
@@ -1584,41 +1613,10 @@
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 
-                let lines = data.text.trim().split('\n');
-                let title = lines.shift().replace(/\*/g, ''); 
-                const escapeHtml = (text) => text
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#039;');
-
-                let restOfTextParts = [];
-                let pendingWriteInLines = 0;
-
-                const flushWriteInLines = () => {
-                    if (pendingWriteInLines === 0) return;
-
-                    for (let i = 0; i < pendingWriteInLines; i++) {
-                        restOfTextParts.push('<div class="write-in-line"></div>');
-                    }
-
-                    restOfTextParts.push('<div class="worksheet-question-gap"></div>');
-                    pendingWriteInLines = 0;
-                };
-
-                lines.join('\n').split('\n').forEach(line => {
-                    if (line.trim() === '[LINE]') {
-                        pendingWriteInLines++;
-                        return;
-                    }
-
-                    flushWriteInLines();
-                    restOfTextParts.push(line.trim() ? `${escapeHtml(line)}<br>` : '<br>');
-                });
-                flushWriteInLines();
-
-                let restOfText = restOfTextParts.join('');
+                if (!requests.isWorksheet(requestId) || storyPending) return;
+                const worksheet = ReaderCore.validateWorksheet(data.text, questionCount);
+                const title = ReaderCore.escapeHtml(worksheet.title);
+                const restOfText = worksheet.questions.map(q => `${ReaderCore.escapeHtml(q.number + '. ' + q.text)}<br>` + '<div class="write-in-line"></div>'.repeat(q.lines) + '<div class="worksheet-question-gap"></div>').join('');
 
                 qOutput.dir = lang === 'English' ? 'ltr' : 'rtl';
                 qOutput.style.textAlign = lang === 'English' ? 'left' : 'right';
@@ -1629,14 +1627,18 @@
                     <div class="penina-footer" style="margin-top: 60px;">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>
                 `;
                 
+                showWorksheetPrintControls();
+                status.textContent = 'Worksheet ready.';
                 qViewport.scrollIntoView({ behavior: 'smooth' });
 
             } catch (error) {
                 console.error(error);
-                qOutput.innerHTML = `<span style="color:red; font-weight:bold;">Error:</span> ${error.message}`;
+                if (requests.isWorksheet(requestId) && error.name !== 'AbortError') status.textContent = 'Worksheet error: ' + error.message;
             } finally {
-                btn.disabled = false;
-                btn.innerText = "Generate Worksheet";
+                if (requests.isWorksheet(requestId)) {
+                    btn.disabled = storyPending;
+                    btn.innerText = "Generate Worksheet";
+                }
             }
         });
 

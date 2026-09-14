@@ -17,7 +17,7 @@ function renderer(settings = {}) {
         });
         return fields.get(id);
     } };
-    const context = vm.createContext({ document });
+    const context = vm.createContext({ document, ReaderCore: require('../PeninaPlus-Reader/reader-core') });
     vm.runInContext(reader.slice(reader.indexOf('        const readerDictaOptions'),
         reader.indexOf('        let currentRawStory')), context);
     vm.runInContext(reader.slice(reader.indexOf('        function processTextChunk'),
@@ -117,6 +117,7 @@ test('API handler forwards the verified options and retains metadata in its resp
     const context = vm.createContext({
         require(name) {
             if (name === '../lib/openai-text') return { generateOpenAIText() { throw new Error('Supplied text must bypass OpenAI'); } };
+            if (name === '../lib/reader-response') return require('../lib/reader-response');
             if (name === '../lib/dicta-nikkud') return { createDictaRequest, readDictaResponse };
             throw new Error('Unexpected module: ' + name);
         },

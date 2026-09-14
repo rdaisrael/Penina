@@ -37,10 +37,26 @@
         });
         return {text: sourceText === undefined ? text : sourceText.trim(), words: analysis, vocabulary: normalized};
     }
-    function buildResult(text, analysis) {
+    function buildResult(text, analysis, dictaTokens = []) {
         const vocalized = words(text);
         if (!analysis || vocalized.length !== analysis.words.length) throw new Error('Vocalization changed the source word count. Please try again.');
-        const mismatch = vocalized.findIndex((token, i) => normalizeWord(token[0]) !== normalizeWord(analysis.words[i].word));
+        const nativePairs = dictaTokens.flatMap(token => {
+            const original = words(token.str || '');
+            const selected = token.sep ? (token.nakdan?.word || token.str || '') : (token.nakdan?.options?.[0]?.w || token.str || '');
+            const pointed = words(selected.replace(/\|/g, ''));
+            return original.length === pointed.length ? original.map((word, i) => [normalizeWord(word[0]), pointed[i][0]]) : [];
+        });
+        const spellingChanges = [];
+        const mismatch = vocalized.findIndex((token, i) => {
+            const original = normalizeWord(analysis.words[i].word), pointed = normalizeWord(token[0]);
+            if (original === pointed) return false;
+            // Full spelling can contain extra vowel letters (סיפורים -> סִפּוּרִים).
+            // Accept this only from Dicta's selected option for the exact original token.
+            const native = nativePairs[i];
+            const permitted = nativePairs.length === vocalized.length && native?.[0] === original && native?.[1] === token[0] && original.replace(/[וי]/g, '') === pointed.replace(/[וי]/g, '');
+            if (permitted) spellingChanges.push({source:analysis.words[i].word, pointed:token[0]});
+            return !permitted;
+        });
         if (mismatch !== -1) throw new Error(`Vocalization changed the source word “${analysis.words[mismatch].word}” to “${vocalized[mismatch][0]}”. Please try again.`);
         // Dicta may normalize whitespace/punctuation. Retain the source layout verbatim
         // and accept only vocalization of the same Hebrew consonants in the same order.
@@ -49,7 +65,6 @@
         const tokens = words(text);
         const notes = [], ids = new Map();
         const tokenAnalysis = analysis.words.map((item, i) => {
-            if (normalizeWord(tokens[i][0]) !== normalizeWord(item.word)) throw new Error('Vocalized words do not match the analysis.');
             // First occurrence means the same unpointed surface. Collect different contextual glosses in its one note.
             const key = normalizeWord(item.word);
             let noteId = null;
@@ -61,7 +76,7 @@
             }
             return {...item, word: tokens[i][0], start: tokens[i].index, noteId};
         });
-        return {text, words: tokenAnalysis, notes, vocabulary: analysis.vocabulary};
+        return {text, sourceText:analysis.text, spellingChanges, words: tokenAnalysis, notes, vocabulary: analysis.vocabulary};
     }
     function validateWorksheet(text, count) {
         if (typeof text !== 'string') throw new Error('The worksheet response is missing.');

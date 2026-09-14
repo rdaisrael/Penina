@@ -1110,7 +1110,7 @@
 
                     if (!requests.isStory(requestId)) return;
                     parseAndRenderOutput(data);
-                    status.textContent = 'Reading ready. Vocabulary edits apply when you Generate again.';
+                    status.textContent = 'Reading ready. Vocabulary edits apply when you Generate again.' + (data.readerResult.spellingChanges.length ? ` Dicta used standard pointed spelling in ${data.readerResult.spellingChanges.length} word(s), adjusting vowel letters.` : '');
                 } else {
                     // Pathway A Original Story
                     let length = document.getElementById('length').value;
@@ -1151,7 +1151,7 @@
 
                     if (!requests.isStory(requestId)) return;
                     parseAndRenderOutput(data);
-                    status.textContent = 'Reading ready. Vocabulary edits apply when you Generate again.';
+                    status.textContent = 'Reading ready. Vocabulary edits apply when you Generate again.' + (data.readerResult.spellingChanges.length ? ` Dicta used standard pointed spelling in ${data.readerResult.spellingChanges.length} word(s), adjusting vowel letters.` : '');
                 }
             } catch (error) {
                 console.error(error);

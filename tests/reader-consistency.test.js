@@ -171,3 +171,15 @@ test('Dicta layout normalization cannot change the source paragraph breaks or pu
     assert.equal(result.text.split('\n').length,2);
     assert.equal((result.text.match(/\./g)||[]).length,2);
 });
+
+test('standard pointed spelling requires Dicta evidence for each exact source token', () => {
+    const data={text:'סיפורים\nסיפורים',words:[entry('סיפורים',false,'stories'),entry('סיפורים',false,'stories')]};
+    const analysis=core.validateAnalysis(data,profile);
+    const tokens=[{str:'סיפורים',nakdan:{options:[{w:'סִפּוּרִים'}]}},{str:'\n',sep:true},{str:'סיפורים',nakdan:{options:[{w:'סִפּוּרִים'}]}}];
+    assert.throws(()=>core.buildResult('סִפּוּרִים\nסִפּוּרִים',analysis),/changed the source word/);
+    const result=core.buildResult('סִפּוּרִים\nסִפּוּרִים',analysis,tokens);
+    assert.equal(result.sourceText,data.text);
+    assert.equal(result.spellingChanges.length,2);
+    assert.equal(result.notes.length,1);
+    assert.throws(()=>core.buildResult('דִפּוּרִים\nסִפּוּרִים',analysis,[{str:'סיפורים',nakdan:{options:[{w:'דִפּוּרִים'}]}},tokens[1],tokens[2]]),/changed the source word/);
+});

@@ -447,7 +447,8 @@
 </head>
 <body>
 
-    <a href="/" class="home-btn" aria-label="Return to Home">
+    <!-- Temporarily hidden; retain Home navigation for restoration. -->
+    <a href="/" class="home-btn" aria-label="Return to Home" style="display: none;">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
         </svg>
@@ -504,14 +505,15 @@
                 </div>
                 
                 <div class="form-group panel-secondary">
-                    <label class="panel-secondary-label">b. Select Mastered Vocabulary Mode:</label>
-                    <div style="margin-bottom: 15px;">
-                        <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-a" value="complete" checked> Complete Mastered Vocabulary List</label>
+                    <label class="panel-secondary-label">b. Upload Spreadsheet:</label>
+                    <!-- Retained vocabulary modes; spreadsheet upload is the visible default. -->
+                    <div style="display: none; margin-bottom: 15px;">
+                        <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-a" value="complete"> Complete Mastered Vocabulary List</label>
                         <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-a" value="pos"> Mastered Vocabulary by Parts of Speech</label>
-                        <label><input type="radio" name="vocab-mode-a" value="upload"> Upload Spreadsheet</label>
+                        <label><input type="radio" name="vocab-mode-a" value="upload" checked> Upload Spreadsheet</label>
                     </div>
 
-                    <div id="vocab-complete-a">
+                    <div id="vocab-complete-a" style="display: none;">
                         <textarea id="target-input-a" class="strict-hebrew-input" rows="2" placeholder="Enter all mastered Hebrew words and verb conjugations separated by commas or on a new line"></textarea>
                     </div>
 
@@ -547,7 +549,7 @@
                         </details>
                     </div>
                     
-                    <div id="vocab-upload-a" style="display: none; background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
+                    <div id="vocab-upload-a" style=" background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
                         <p style="margin-top: 0; font-size: 14px; color: #4a4238;">
                             <strong>Instructions:</strong> Download the template below. For each binyan (e.g., פעל שלם, פיעל ע"ו), mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save and upload your completed file.
                         </p>
@@ -688,7 +690,9 @@
             </div>
 
             <div class="formatting-section">
-                <h3 class="formatting-header">Word Styling and Formatting</h3>
+                <details id="word-formatting-details">
+                <summary class="color-key-summary">Word Styling and Formatting (Click to Open)</summary>
+                <h3 class="formatting-header" style="display: none;">Word Styling and Formatting</h3>
                 
                 <div class="form-group checkbox-group" style="margin-bottom: 25px;">
                     <label><input type="checkbox" id="bold-words"> Bold Mastered Words</label>
@@ -743,6 +747,7 @@
                         </select>
                     </div>
                 </div>
+                </details>
             </div>
 
             <div class="form-group">

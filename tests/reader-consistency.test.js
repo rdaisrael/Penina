@@ -164,3 +164,10 @@ test('late worksheet response cannot attach to a newly requested story', async (
     assert.equal(field('story-output').innerHTML,'ORIGINAL');
     assert.ok(field('reader-status').textContent.includes('Simulated new story failure'));
 });
+
+test('Dicta layout normalization cannot change the source paragraph breaks or punctuation', () => {
+    const result=core.buildResult('הַסֵּפֶר הַיְלָדִים קוֹרְאִים סְפָרִים קוֹרְאִים',core.validateAnalysis(sample,profile));
+    assert.equal(core.skeleton(result.text),sample.text);
+    assert.equal(result.text.split('\n').length,2);
+    assert.equal((result.text.match(/\./g)||[]).length,2);
+});

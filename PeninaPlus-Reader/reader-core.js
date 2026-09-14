@@ -38,8 +38,15 @@
         return {text: sourceText === undefined ? text : sourceText.trim(), words: analysis, vocabulary: normalized};
     }
     function buildResult(text, analysis) {
+        const vocalized = words(text);
+        if (!analysis || vocalized.length !== analysis.words.length) throw new Error('Vocalization changed the source word count. Please try again.');
+        const mismatch = vocalized.findIndex((token, i) => normalizeWord(token[0]) !== normalizeWord(analysis.words[i].word));
+        if (mismatch !== -1) throw new Error(`Vocalization changed the source word “${analysis.words[mismatch].word}” to “${vocalized[mismatch][0]}”. Please try again.`);
+        // Dicta may normalize whitespace/punctuation. Retain the source layout verbatim
+        // and accept only vocalization of the same Hebrew consonants in the same order.
+        let wordIndex = 0;
+        text = analysis.text.replace(new RegExp(wordPattern.source, 'g'), () => vocalized[wordIndex++][0]);
         const tokens = words(text);
-        if (!analysis || tokens.length !== analysis.words.length || skeleton(text) !== skeleton(analysis.text)) throw new Error('Vocalization changed the source text. Please try again.');
         const notes = [], ids = new Map();
         const tokenAnalysis = analysis.words.map((item, i) => {
             if (normalizeWord(tokens[i][0]) !== normalizeWord(item.word)) throw new Error('Vocalized words do not match the analysis.');

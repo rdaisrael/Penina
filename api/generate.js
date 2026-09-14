@@ -65,7 +65,10 @@ module.exports = async function (req, res) {
             const result = readDictaResponse(dictaData, {
                 includeAnalysis: dictaOptions?.addmorph === true
             });
-            if (analysis) result.readerResult = reader.buildResult(result.text, analysis);
+            if (analysis) {
+                result.readerResult = reader.buildResult(result.text, analysis);
+                result.text = result.readerResult.text;
+            }
             return res.status(200).json(result);
         }
 

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PeninaPlus Binyan Builder</title>
+  <meta name="description" content="Build Hebrew conjugation worksheets from your student's mastered vocabulary.">
+  <link rel="icon" href="/Penina-favicon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="/PeninaPlus-Reader/vendor/exceljs-4.4.0.min.js"></script>
+  <script defer src="/PeninaPlus-Reader/vocabulary-upload.js"></script>
+  <script defer src="core.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="bg-pattern" aria-hidden="true"></div>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="PeninaPlus home"><img src="/peninaplus-logo.png" alt="PeninaPlus"></a>
+    <div><p class="eyebrow">PENINAPLUS · TEACHER TOOLS</p><h1>PeninaPlus Binyan Builder</h1><p>New patterns. Familiar vocabulary.</p></div>
+    <nav aria-label="PeninaPlus apps"><a href="/PeninaPlus-Reader/">Hebrew Reader</a><a href="/PeninaPlus-vocab-builder/">Vocabulary Builder</a></nav>
+  </header>
+  <main>
+    <div class="builder">
+      <section class="panel upload-panel" aria-labelledby="upload-heading">
+        <h2 id="upload-heading"><span class="step">1</span> Start with mastered vocabulary</h2>
+        <p>Use the same Excel workbook you upload to PeninaPlus Reader.</p>
+        <label class="upload-box" for="vocabulary"><span class="upload-symbol" aria-hidden="true">↑</span><strong>Choose your vocabulary workbook</strong><span>Excel (.xlsx) · up to 5 MB</span><input id="vocabulary" type="file" accept=".xlsx"></label>
+        <div class="upload-links"><a href="/PeninaPlus-Reader/Name_of_Student_Mastered_Vocabulary.xlsx" download>Download blank template</a><button class="text-button" id="sample" type="button">Use Reader sample</button></div>
+        <p id="upload-status" role="status" class="muted">Roots go in column A. X marks identify learned binyan and tense combinations.</p>
+        <details id="vocabulary-details" hidden><summary>View uploaded roots</summary><p id="roots" class="hebrew" dir="rtl"></p><p class="muted">Nouns and adjectives are recognized from your workbook. These worksheets focus on its mastered verb roots.</p></details>
+      </section>
+      <section class="panel" aria-labelledby="mode-heading">
+        <h2 id="mode-heading"><span class="step">2</span> Choose a learning goal</h2>
+        <fieldset class="mode-options"><legend class="sr-only">Worksheet mode</legend>
+          <label class="mode-card"><input type="radio" name="mode" value="learn" checked><span><strong>Learn a new pattern</strong><span>A model table, an explanation, and guided conjugation practice.</span></span></label>
+          <label class="mode-card"><input type="radio" name="mode" value="practice"><span><strong>Practice learned patterns</strong><span>Recall and mix combinations marked X in your workbook.</span></span></label>
+        </fieldset>
+      </section>
+      <section class="panel" aria-labelledby="forms-heading">
+        <h2 id="forms-heading"><span class="step">3</span> Select binyanim and tenses</h2>
+        <p id="selection-help">Choose one combination to introduce a pattern, or add several for a mixed worksheet.</p>
+        <div class="pair-picker"><label>Binyan / root group<select id="group" dir="rtl"></select></label><label>Tense / form<select id="tense"></select></label><button id="add-pair" class="secondary" type="button">Add combination</button></div>
+        <div id="pairs" class="pairs" aria-label="Selected combinations"></div>
+        <p id="pair-status" class="muted" role="status">Upload a workbook to begin.</p>
+        <p class="muted small">Infinitives and verbal nouns are single-form exercises. Present-tense tables use gender and number.</p>
+      </section>
+      <section class="panel" aria-labelledby="finish-heading">
+        <h2 id="finish-heading"><span class="step">4</span> Build your worksheet</h2>
+        <div class="finish-fields"><label>Worksheet title<input id="title" type="text" maxlength="90" placeholder="Hebrew conjugation practice"></label><label>Questions<select id="count"><option>6</option><option selected>12</option><option>18</option><option>24</option><option>30</option></select></label></div>
+        <button id="generate" class="primary" disabled type="button">Build worksheet</button>
+        <p id="generation-status" role="status" class="muted">Upload vocabulary and select a combination first.</p>
+        <p class="small muted">When you build, your roots and selected patterns are sent to the worksheet service. The original workbook stays in your browser.</p>
+      </section>
+    </div>
+    <section class="workspace" aria-labelledby="preview-heading">
+      <div class="preview-top"><div><p class="eyebrow">READY FOR THE CLASSROOM</p><h2 id="preview-heading">Worksheet preview</h2></div><span id="preview-label" class="badge">Not yet built</span></div>
+      <div id="empty-preview" class="paper empty-preview">
+        <div class="pattern-example" aria-hidden="true"><span>שֹׁרֶשׁ</span><span class="example-divider">+</span><span>בִּנְיָן</span><span class="example-divider">+</span><span>זְמַן</span></div>
+        <h3>Build on what your student knows.</h3>
+        <p>Your worksheet will appear here, using roots from the uploaded vocabulary.</p>
+        <div class="preview-outline"><div><b>01</b><span>Learn with a model conjugation</span></div><div><b>02</b><span>Write the missing Hebrew forms</span></div><div><b>03</b><span>Check a separate answer key</span></div></div>
+        <p class="muted small">Select your vocabulary and patterns on the left to begin.</p>
+      </div>
+      <div id="output" hidden>
+        <div class="output-tools"><label><input id="show-key" type="checkbox"> Show answer key</label><label>Hebrew font<select id="font"><option value="David Libre">David Libre</option><option value="Arial">Arial</option><option value="Dyslexic-Kriah">Dyslexic-friendly</option></select></label><label>Print<select id="print-target"><option value="student">Student worksheet</option><option value="key">Answer key only</option><option value="both">Worksheet + answer key</option></select></label><button id="print" class="secondary" type="button">Print / Save PDF</button></div>
+        <p class="review-note">AI-generated Hebrew: review the model forms and answer key before giving the worksheet to a student.</p>
+        <div id="student-sheet" class="paper"></div>
+        <div id="answer-sheet" class="paper" hidden></div>
+      </div>
+    </section>
+  </main>
+  <footer>PeninaPlus · © 2026 David Israel</footer>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# PeninaPlus Binyan Builder
+
+Route: `/PeninaPlus-Binyan-Builder/`. Added to the suite home page.
+
+Reuses the Reader's local ExcelJS library, exact `VocabularyUpload.readExcel` parser, downloadable template and sample, PeninaPlus logo and Hebrew fonts. No workbook or student filename is sent to the API. Roots and learned form pairs are extracted locally; only these and worksheet settings are submitted. Nouns/adjectives are recognized but are not used for standalone conjugation exercises. Category rows and root rows are independent.
+
+Learn mode accepts up to eight exact binyan/root-group and tense/form pairs, with a model paradigm and English explanation per pair plus guided questions. Practice mode is restricted on both client and server to exact pairs marked X in the upload, with no model tables or hints. Both produce 6–30 questions and a separate answer key. Past/future use ten persons, present four gender/number forms, imperative four second-person forms, infinitive/verbal noun one form. The Reader's thirteen root groups are retained; regular Pual and Hufal are available for new learning, limited to past/present/future. The Reader template currently has no Pual/Hufal rows, so these cannot be marked learned for Practice without a future coordinated template/parser update.
+
+`/api/binyan-worksheet` uses the existing server-only OpenAI adapter and `OPENAI_API_KEY` / Reader model settings. No new dependency or key is required. It requests strict structured JSON with one 55-second provider attempt and a 60-second function duration. The browser aborts after 70 seconds. Provider failures, invalid structures, wrong pair/person assignments, missing coverage, unknown roots and missing Hebrew vowel marks fail without replacing the last successful worksheet. Settings changes cancel/invalidate in-flight generation. Uploads have their own version guard and clear the old vocabulary before replacement.
+
+The prompt requires attested Modern Hebrew forms and correct root classes, with an explicit failure when uploaded roots cannot support every selection. Structural validation is not an independent Hebrew morphology validator. Teacher review is required for AI-generated forms, explanations and meanings; no claim of general linguistic accuracy is made. A human-reviewed corpus and live generation checks remain necessary. The endpoint deliberately avoids a separate automatic niqqud pass that could change an isolated conjugated form.
+
+Student worksheet, answer key, or both can be printed / saved as PDF via the browser. Answer keys start on a new page. Output is frozen to the successful request; edited settings leave the previous worksheet visible and labeled. Model/question text is escaped before rendering.
+
+Checks: `node --test tests/binyan-builder.test.js tests/vocabulary-upload.test.js`; browser checks use `tests/binyan-builder.browser.cjs` with `PLAYWRIGHT_MODULE` and optional `CHROME_EXECUTABLE`. Browser generation responses are fixtures, explicitly not a live AI evaluation.

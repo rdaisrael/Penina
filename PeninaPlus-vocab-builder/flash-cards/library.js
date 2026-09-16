@@ -117,23 +117,6 @@
         updateCombineControls();
     }
 
-    let matchingBoard;
-    async function loadMatchingBoard(){
-        if(!matchingBoard){matchingBoard=document.createElement('section');matchingBoard.className='matching-class-board';setsElement.before(matchingBoard);}
-        matchingBoard.replaceChildren();
-        const heading=document.createElement('h2');heading.textContent='🏆 Match the Cards — Class Top 3';matchingBoard.append(heading);
-        try{
-            const response=await fetch('/api/game-scores?game=matching&grade='+encodeURIComponent(grade),{cache:'no-store'});
-            if(!response.ok)throw new Error();const data=await response.json();
-            const active=data.boards.filter(group=>sets.some(set=>set.pathname===group.pathname));
-            if(!active.length){const p=document.createElement('p');p.textContent='Race the clock! Complete Match the Cards and submit your initials to set the first record.';matchingBoard.append(p);}
-            for(const group of active){const set=sets.find(set=>set.pathname===group.pathname),section=document.createElement('section'),name=document.createElement('h3'),list=document.createElement('ol');
-                name.textContent=set.title+' · '+(group.language==='hebrew'?'Hebrew':'English');section.append(name,list);
-                group.scores.slice(0,3).forEach(score=>{const li=document.createElement('li');li.textContent=score.initials+' — '+(score.milliseconds/1000).toFixed(2)+' seconds';list.append(li);});matchingBoard.append(section);
-            }
-        }catch(_error){const p=document.createElement('p');p.textContent='Match leaderboard temporarily unavailable.';matchingBoard.append(p);}
-    }
-    window.addEventListener('pageshow',()=>{if(sets.length)loadMatchingBoard();});
     async function load() {
         try {
             const response = await fetch(`/api/flashcard-sets?grade=${encodeURIComponent(grade)}`);
@@ -145,7 +128,6 @@
             }
             sets = Array.isArray(data.sets) ? data.sets : [];
             render();
-            loadMatchingBoard();
         } catch (error) {
             status.textContent = error && error.message ? error.message : 'Unable to load vocabulary sets.';
         }

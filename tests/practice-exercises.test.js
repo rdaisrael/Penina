@@ -142,14 +142,13 @@ test('modal locks on generation, renders editable cells, submits, and reopens un
     const choices = ui.dialog.querySelectorAll('[data-language]');
     choices[0].fire('click');
     assert.equal(ui.dialog.querySelectorAll('textarea').length, 4);
-    ui.find('#practice-generate').fire('click');
     assert(choices.every(choice => choice.disabled));
     assert.equal(ui.find('form').attributes['aria-busy'], 'true');
     assert.equal(request.url, '/api/vocabulary-alternatives');
     assert.deepEqual(JSON.parse(request.options.body).rows[0].slots, [0, 1, 2, 3]);
     resolveFetch({ ok: true, json: async () => ({ rows: [answerResult()] }) }); await tick();
     assert.deepEqual(ui.dialog.querySelectorAll('textarea').map(input => input.value), alternatives);
-    assert(choices.every(choice => choice.disabled));
+    assert.equal(choices[0].disabled, false); assert.equal(choices[1].disabled, true);
     const inputs = ui.dialog.querySelectorAll('textarea');
     inputs[0].value = 'cow'; inputs[0].fire('input');
     ui.find('form').fire('submit');
@@ -165,9 +164,9 @@ test('Cancel aborts, discards changes, and stale responses/timeouts cannot alter
         setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout() {}
     });
     const chooseEnglish = () => ui.dialog.querySelectorAll('[data-language]')[0].fire('click');
-    chooseEnglish(); ui.find('#practice-generate').fire('click');
+    chooseEnglish();
     ui.dialog.fire('cancel'); assert.equal(pending[0].options.signal.aborted, true);
-    ui.button.fire('click'); chooseEnglish(); ui.find('#practice-generate').fire('click');
+    ui.button.fire('click'); chooseEnglish();
     timers[0](); assert.equal(pending[1].options.signal.aborted, false);
     pending[0].resolve({ ok: true, json: async () => ({ rows: [answerResult()] }) }); await tick();
     assert(ui.dialog.querySelectorAll('textarea').every(input => input.value === ''));
@@ -184,12 +183,16 @@ test('failed later batch leaves all answers unchanged and restores controls for 
         return { ok: true, json: async () => ({ rows: JSON.parse(options.body).rows.map(row => answerResult(row.id)) }) };
     }, Array.from({ length: 9 }, () => source()[0]));
     ui.dialog.querySelectorAll('[data-language]')[0].fire('click');
-    ui.find('#practice-generate').fire('click'); await tick();
+    await tick();
     assert.equal(calls, 2);
     assert(ui.dialog.querySelectorAll('textarea').every(input => input.value === ''));
     assert.equal(ui.find('#practice-error').textContent, 'Try again later.');
-    assert.equal(ui.find('#practice-generate').disabled, false);
-    assert(ui.dialog.querySelectorAll('[data-language]').every(choice => choice.disabled));
+    const choices = ui.dialog.querySelectorAll('[data-language]');
+    assert.equal(ui.find('#practice-generate'), undefined);
+    assert.equal(choices[0].disabled, false); assert.equal(choices[1].disabled, true);
+    await choices[0].fire('click');
+    assert.equal(calls, 4);
+    assert(ui.dialog.querySelectorAll('textarea').every(input => input.value));
 });
 
 test('HTML integrates the purple button immediately before offline cards and loads valid scripts', () => {
@@ -234,4 +237,25 @@ test('real HTML submit integration survives JSON draft export and import with bo
     context.applyDraftPayload(exported);
     assert.deepEqual(practice.sourceRows(mounted.getRows(), 'english')[0].answers, alternatives);
     assert.deepEqual(practice.sourceRows(mounted.getRows(), 'hebrew')[0].answers, ['חמור', 'גמל', 'עז', 'כבש']);
+});
+
+test('Hebrew language button generates immediately and preserves saved answers on reopen', async () => {
+    const answers = ['חמור', 'גמל', 'עז', 'כבש'];
+    let request, calls = 0;
+    const ui = modal(async (_url, options) => {
+        calls++; request = JSON.parse(options.body);
+        return { ok: true, json: async () => ({ rows: [{ id: 0, cells: answers.map((answer, slot) => ({slot, answer})) }] }) };
+    });
+    await ui.dialog.querySelectorAll('[data-language]')[1].fire('click');
+    assert.equal(request.language, 'hebrew'); assert.equal(calls, 1);
+    assert.deepEqual(ui.dialog.querySelectorAll('textarea').map(input => input.value), answers);
+    assert(ui.dialog.markup.includes('Generate Alternative Hebrew Answers'));
+    assert(ui.dialog.markup.includes('Generate Alternative English Answers'));
+    assert.equal(ui.find('#practice-generate'), undefined);
+    const rows = source(); rows[0].alternativeAnswers = { hebrew: {term:'סוס', definition:'סוס מבוית', answers} };
+    const saved = modal(() => assert.fail('Saved answers should not be replaced'), rows);
+    await saved.dialog.querySelectorAll('[data-language]')[1].fire('click');
+    assert.deepEqual(saved.dialog.querySelectorAll('textarea').map(input => input.value), answers);
+    assert(html.includes('Publish Flashcards, Sheets, and Practice Exercises'));
+    assert(!html.includes('Publish Flashcards and Sheets'));
 });

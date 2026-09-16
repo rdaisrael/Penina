@@ -120,14 +120,14 @@
         dialog.setAttribute('aria-describedby', 'practice-help');
         dialog.innerHTML = `
             <h2 id="practice-title">Create Additional Practice Exercises</h2>
-            <p id="practice-help">Choose a language. You can switch until you edit an answer, check a cell, or start generation. Then use Submit or Cancel before choosing another language.</p>
+            <p id="practice-help">Choose a language to generate alternative answers immediately. Review the answers, then Submit to save them. Use Submit or Cancel before choosing another language.</p>
             <div class="practice-choices" role="group" aria-label="Alternate answer language">
-                <button type="button" data-language="english" aria-pressed="false">Create Alternative English Answers</button>
-                <button type="button" data-language="hebrew" aria-pressed="false">Create Alternative Hebrew Answers</button>
+                <button type="button" data-language="english" aria-pressed="false">Generate Alternative English Answers</button>
+                <button type="button" data-language="hebrew" aria-pressed="false">Generate Alternative Hebrew Answers</button>
             </div>
             <p id="practice-lock" role="status"></p>
             <form id="practice-form" hidden>
-                <p>Review the correct definition, then generate or type four believable but incorrect answers. Check individual cells to replace them with Regenerate. Review AI suggestions before submitting.</p>
+                <p>Review the correct definition and the four generated incorrect answers. You can edit any answer. The language button above fills any empty cells, including when retrying failed generation. Check individual cells to replace them with Regenerate. Review AI suggestions before submitting.</p>
                 <div class="practice-table-scroll" role="region" aria-label="Alternate answers table; scroll horizontally for all four answers" tabindex="0">
                     <table dir="ltr"><caption id="practice-caption"></caption><thead><tr>
                         <th scope="col">Term</th><th scope="col">Definition</th>
@@ -136,7 +136,6 @@
                     </tr></thead><tbody></tbody></table>
                 </div>
                 <div class="practice-actions">
-                    <button type="button" id="practice-generate">Generate Alternate Answers</button>
                     <button type="button" id="practice-regenerate">Regenerate</button>
                     <button type="submit" id="practice-submit">Submit</button>
                 </div>
@@ -153,7 +152,7 @@
         const error = message => { find('#practice-error').textContent = message; };
         function refresh() {
             choices.forEach(choice => {
-                choice.disabled = session.locked || busy;
+                choice.disabled = busy || (session.locked && session.language !== choice.dataset.language);
                 choice.setAttribute('aria-pressed', String(session.language === choice.dataset.language));
             });
             find('#practice-lock').textContent = session.locked
@@ -162,7 +161,6 @@
             form.hidden = !session.language;
             form.setAttribute('aria-busy', String(busy));
             form.querySelectorAll('input, textarea, button').forEach(control => { control.disabled = busy; });
-            find('#practice-generate').disabled = busy || !session.rows.some(row => row.answers.some(answer => !answer.trim()));
         }
         function renderRows() {
             tbody.replaceChildren();
@@ -245,11 +243,13 @@
             busy = false; error(''); status(''); tbody.replaceChildren(); refresh(); dialog.showModal(); choices[0].focus();
         });
         choices.forEach(choice => choice.addEventListener('click', () => {
-            if (session.choose(choice.dataset.language)) { error(''); status(''); renderRows(); refresh(); }
+            if (busy) return;
+            if (session.language === choice.dataset.language || session.choose(choice.dataset.language)) {
+                error(''); status(''); renderRows(); refresh(); return generate(true);
+            }
         }));
         find('#practice-cancel').addEventListener('click', cancel);
         dialog.addEventListener('cancel', event => { event.preventDefault(); cancel(); });
-        find('#practice-generate').addEventListener('click', () => generate(true));
         find('#practice-regenerate').addEventListener('click', () => generate(false));
         form.addEventListener('submit', event => {
             event.preventDefault(); if (busy) return;

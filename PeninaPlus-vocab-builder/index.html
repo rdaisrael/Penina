@@ -802,7 +802,7 @@
             <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
                 <div class="publish-card-controls">
                     <div class="form-group">
-                        <label for="publish-card-grade">Publish Flashcards and Sheets to:</label>
+                        <label for="publish-card-grade">Publish Flashcards, Sheets, and Practice Exercises to:</label>
                         <select id="publish-card-grade">
                             <option value="sixth" data-url="/PeninaPlus-vocab-builder/flash-cards/sixth-grade/">Sixth Grade Gemara Vocabulary</option>
                             <option value="seventh" data-url="/PeninaPlus-vocab-builder/flash-cards/seventh-grade/">Seventh Grade Gemara Vocabulary</option>
@@ -817,7 +817,7 @@
                         <label for="publish-card-password">Publishing password:</label>
                         <input id="publish-card-password" type="password" autocomplete="current-password">
                     </div>
-                    <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish Flashcards and Sheets</button>
+                    <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish Flashcards, Sheets, and Practice Exercises</button>
                 </div>
                 <div id="publish-study-cards-status" role="status" style="display: none; margin-top: 12px; padding: 9px 11px; border-radius: 6px; background: #edf6ed; color: #285b2a; line-height: 1.4;"></div>
                 <details class="add-webpage" id="add-webpage">
@@ -1249,7 +1249,7 @@
             } catch (error) {
                 setPublishStudyCardsStatus(error && error.message ? error.message : 'The flashcards and sheets could not be published.', true);
             } finally {
-                publishStudyCardsButton.textContent = 'Publish Flashcards and Sheets';
+                publishStudyCardsButton.textContent = 'Publish Flashcards, Sheets, and Practice Exercises';
                 updateWorkbookExportAvailability();
             }
         }

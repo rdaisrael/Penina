@@ -2,7 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const core=require('../PeninaPlus-Binyan-Builder/core');
 const {generateWorksheet}=require('../lib/binyan-worksheet');
-const api=require('../api/binyan-worksheet');
+const api=require('../api/generate');
 const input={mode:'learn',vocabulary:{verbs:['כָּתַב','למד'],binyanim:['פעל שלם|עבר']},pairs:['פעל שלם|עבר'],count:6};
 function fixture(request){return {lessons:request.mode==='learn'?request.pairs.map(pair=>({pair,root:'כתב',meaning:'write',explanation:'Use the past-tense endings.',forms:core.persons(pair).map(person=>({person,answer:'כָּתַב'}))})):[],questions:core.plan(request).map(q=>({...q,root:'כתב',meaning:'write',hint:'Look at the ending.',answer:'כָּתַב'}))};}
 // Deliberately synthetic morphology in fixtures: these tests establish contract integrity, not linguistic accuracy.
@@ -51,6 +51,6 @@ test('unavailable forms and invalid provider output fail without a fabricated wo
 test('endpoint rejects invalid requests before calling a provider',async()=>{
     const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};
     await api({method:'GET'},res);assert.equal(res.code,405);
-    await api({method:'POST',body:{...input,mode:'practice',pairs:['נפעל שלם|הווה']}},res);
+    await api({method:'POST',body:{...input,action:'binyan-worksheet',mode:'practice',pairs:['נפעל שלם|הווה']}},res);
     assert.equal(res.code,400);assert.match(res.body.error,/marked X/);
 });

@@ -105,7 +105,7 @@
         status('generation-status','Building and checking your worksheet. This may take about a minute.');
         const timeout=setTimeout(()=>active.abort(),70000);
         try{
-            const response=await fetch('/api/binyan-worksheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal:active.signal});
+            const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...input,action:'binyan-worksheet'}),signal:active.signal});
             let data;try{data=await response.json();}catch{throw new Error('The worksheet service is unavailable or took too long. Please try again.');}
             if(!response.ok)throw new Error(data.error||'The worksheet could not be built. Please try again.');
             core.validateResult(data,input);

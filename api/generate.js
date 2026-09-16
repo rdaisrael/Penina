@@ -5,6 +5,8 @@ const { createDictaRequest, readDictaResponse } = require("../lib/dicta-nikkud")
 module.exports = async function (req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
+    if (req.body?.action === 'binyan-worksheet') return require('../lib/binyan-handler')(req, res);
+
     const { prompt, suppliedText, dictaGenre, dictaOptions, readerVocabulary, sourceText } = req.body || {};
 
     const targetGenre = dictaGenre === "biblical" ? "poetry" : dictaGenre;

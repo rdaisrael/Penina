@@ -18,7 +18,7 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  await page.route('**/*',async route=>{
   const url=new URL(route.request().url());
   if(url.hostname!=='binyan.test')return route.abort();
-  if(url.pathname==='/api/binyan-worksheet'){
+  if(url.pathname==='/api/generate'){
    const req=core.validateRequest(route.request().postDataJSON());
    if(delay)await new Promise(r=>setTimeout(r,delay));
    return route.fulfill({status:fail?502:200,contentType:'application/json',body:JSON.stringify(fail?{error:'Test service unavailable'}:fixture(req))}).catch(()=>{});

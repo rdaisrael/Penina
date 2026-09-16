@@ -234,6 +234,34 @@
             text-align: left;
         }
 
+
+        .footnote-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .footnote-placement { border: 0; border-left: 1px solid #dcd3c6; padding: 0 0 0 24px; margin: 0; min-width: 0; }
+        .footnote-placement label { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+        .footnote-placement input { width: auto; }
+        .reader-token { display: inline-block; white-space: nowrap; }
+        .reader-page { width: var(--reader-page-width, 7in); height: 9.5in; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; }
+        .reader-page-content, .reader-page > .generated-footnotes, .reader-page > .penina-footer { flex-shrink: 0; }
+        .reader-page > .generated-footnotes { margin-top: auto; padding-top: 10px; letter-spacing: normal; line-height: 1.4; }
+        .reader-page > .generated-footnotes[hidden] { display: none; }
+        .reader-page > .penina-footer { margin-top: auto; }
+        .reader-page > .generated-footnotes:not([hidden]) + .penina-footer { margin-top: 0; }
+        .reader-page .footnote-columns { column-width: auto; columns: 2; column-gap: 24px; }
+        .footnote-entry { break-inside: avoid; overflow-wrap: anywhere; }
+        .reader-page-overflow { height: auto; min-height: 9.5in; }
+        @media screen {
+            .reader-page + .reader-page { margin-top: 1.5in; position: relative; }
+            .reader-page + .reader-page::before { content: ''; position: absolute; top: -0.75in; width: 100%; border-top: 1px dashed #dcd3c6; }
+        }
+        @media (max-width: 600px) {
+            .footnote-settings { grid-template-columns: 1fr; }
+            .footnote-placement { border-left: 0; border-top: 1px solid #dcd3c6; padding: 16px 0 0; }
+        }
+        @media print {
+            #story-output.paginated { min-height: 0; }
+            .reader-page + .reader-page { break-before: page; }
+        }
+
         /* --- THE VIRTUAL PAPER PARADIGM --- */
         .paper-viewport {
             width: 100%;
@@ -613,14 +641,14 @@
                 </div>
 
                 <div class="form-group panel-secondary">
-                    <label class="panel-secondary-label">d. Select Mastered Vocabulary Mode:</label>
-                    <div style="margin-bottom: 15px;">
-                        <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-b" value="complete" checked> Complete Mastered Vocabulary List</label>
+                    <label class="panel-secondary-label">d. Upload Spreadsheet:</label>
+                    <div style="display: none; margin-bottom: 15px;">
+                        <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-b" value="complete"> Complete Mastered Vocabulary List</label>
                         <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-b" value="pos"> Mastered Vocabulary by Parts of Speech</label>
-                        <label><input type="radio" name="vocab-mode-b" value="upload"> Upload Spreadsheet</label>
+                        <label><input type="radio" name="vocab-mode-b" value="upload" checked> Upload Spreadsheet</label>
                     </div>
 
-                    <div id="vocab-complete-b">
+                    <div id="vocab-complete-b" style="display: none;">
                         <textarea id="target-input-b" class="strict-hebrew-input" rows="2" placeholder="Enter all mastered Hebrew words and verb conjugations separated by commas or on a new line"></textarea>
                     </div>
 
@@ -656,7 +684,7 @@
                         </details>
                     </div>
                     
-                    <div id="vocab-upload-b" style="display: none; background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
+                    <div id="vocab-upload-b" style=" background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
                         <p style="margin-top: 0; font-size: 14px; color: #4a4238;">
                             <strong>Instructions:</strong> Download the template below. For each binyan, mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save as an Excel Workbook (.xlsx) and upload your completed file. Roots go in column A; mark X beside the verb categories in column B. Each word belongs in its own cell.
                         </p>
@@ -677,13 +705,20 @@
                 </div>
             </div>
 
-            <div class="form-group panel-secondary" style="margin-top: 25px;">
-                <label for="footnote-display" class="panel-secondary-label">Footnote Display (first occurrence = same unpointed word):</label>
-                <select id="footnote-display" class="layout-control">
-                    <option value="all">Show All Footnotes</option>
-                    <option value="first" selected>First Occurrence Only</option>
-                    <option value="none">No Footnotes</option>
-                </select>
+            <div class="form-group panel-secondary footnote-settings" style="margin-top: 25px;">
+                <div>
+                    <label for="footnote-display" class="panel-secondary-label">Footnote Display:</label>
+                    <select id="footnote-display" class="layout-control">
+                        <option value="all">Each occurance</option>
+                        <option value="first" selected>First occurance only</option>
+                        <option value="none">No Footnotes</option>
+                    </select>
+                </div>
+                <fieldset class="footnote-placement">
+                    <legend class="panel-secondary-label">Footnote Placement:</legend>
+                    <label><input type="radio" class="layout-control" name="footnote-placement" value="page"> Footnotes per page</label>
+                    <label><input type="radio" class="layout-control" name="footnote-placement" value="end" checked> Footnotes at end of document</label>
+                </fieldset>
             </div>
 
             <div class="button-group" style="margin-bottom: 35px; margin-top: 20px;">
@@ -858,6 +893,7 @@
     <script src="reader-core.js"></script>
     <script src="vendor/exceljs-4.4.0.min.js"></script>
     <script src="vocabulary-upload.js"></script>
+    <script src="reader-pagination.js"></script>
     <script>
         // ==========================================
         //               PENINAPLUS
@@ -1213,8 +1249,7 @@
                     if(el.id === 'font-size') document.getElementById('font-size-val').innerText = el.value + 'px';
                     if(el.id === 'kerning') document.getElementById('kerning-val').innerText = el.value + 'px';
                     if(el.id === 'line-spacing') document.getElementById('line-spacing-val').innerText = el.value;
-                    if(el.id !== 'target-color' && el.id !== 'font-size' && el.id !== 'kerning' && el.id !== 'line-spacing') renderStoryToScreen(); 
-                    applyStyles(); 
+                    renderStoryToScreen();
                 });
             }
         });
@@ -1223,15 +1258,15 @@
 
         function applyLineNumbers() {
             clearLineNumbers();
-            const bodyDiv = document.querySelector('.story-body');
-            if (!bodyDiv) return;
+            const bodies = document.querySelectorAll('.story-body');
+            let lineCount = 1;
+            for (const bodyDiv of bodies) {
             void bodyDiv.offsetHeight;
             const words = Array.from(bodyDiv.querySelectorAll('.heb-word')).filter(w => w.style.display !== 'none');
-            if (words.length === 0) return;
+            if (words.length === 0) continue;
 
             let baseFontSize = parseInt(document.getElementById('font-size').value);
             let wrapThreshold = baseFontSize * 0.5; 
-            let lineCount = 1;
             let currentLineAnchor = words[0].offsetTop; 
 
             function addNumberToWord(wordElement, number) {
@@ -1258,6 +1293,7 @@
                     currentLineAnchor = top; 
                     addNumberToWord(words[i], lineCount++);
                 }
+            }
             }
         }
 
@@ -1312,9 +1348,7 @@
         function applyFootnoteSettings() {
             const setting = document.getElementById('footnote-display').value;
             const markers = document.querySelectorAll('.footnote-marker');
-            const footer = document.querySelector('.generated-footnotes');
-            
-            if (footer) footer.style.display = (setting === 'none') ? 'none' : 'block';
+            document.querySelectorAll('.generated-footnotes').forEach(footer => { footer.style.display = setting === 'none' ? 'none' : ''; });
 
             if (setting === 'none') {
                 markers.forEach(m => m.style.display = 'none');
@@ -1339,11 +1373,15 @@
             }
         }
 
-        document.getElementById('footnote-display').addEventListener('change', applyFootnoteSettings);
+        document.querySelectorAll('input[name="footnote-placement"]').forEach(control => control.addEventListener('change', renderStoryToScreen));
+        document.fonts.ready.then(() => renderStoryToScreen());
+        window.addEventListener('beforeprint', renderStoryToScreen);
+        window.addEventListener('afterprint', () => requestAnimationFrame(renderStoryToScreen));
 
         function renderStoryToScreen() {
             if (!currentRawStory) return;
             const outputDiv = document.getElementById('story-output');
+            outputDiv.classList.remove('paginated');
             outputDiv.innerHTML = formatStory(currentRawStory, currentResult.words);
 
             if (currentFootnotes) {
@@ -1354,7 +1392,12 @@
             outputDiv.innerHTML += `<div class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>`;
 
             applyStyles();
-            applyFootnoteSettings(); 
+            applyFootnoteSettings();
+            if (document.querySelector('input[name="footnote-placement"]:checked').value === 'page') {
+                clearLineNumbers();
+                ReaderPagination.paginate(outputDiv, currentResult.notes, document.getElementById('en-font-choice').value);
+                if (document.getElementById('toggle-line-numbers').checked) applyLineNumbers();
+            }
         }
 
         function processTextChunk(textSegment, targetWords, isTitle) {
@@ -1498,8 +1541,9 @@
                     html += ReaderCore.escapeHtml(part.slice(offset, token.index)).replace(/\n/g, '<br>');
                     const item = targetWords[analysisIndex++];
                     const mastered = item && typeof item === 'object' ? item.mastered : targetWords.some(w => typeof w === 'string' && ReaderCore.normalizeWord(w) === ReaderCore.normalizeWord(token[0]));
-                    html += processTextChunk(token[0], mastered ? [token[0]] : [], isTitle);
+                    html += '<span class="reader-token">' + processTextChunk(token[0], mastered ? [token[0]] : [], isTitle);
                     if (item && typeof item === 'object' && item.noteId) html += `<span class="heb-word footnote-marker" data-fn="${Number(item.noteId)}" style="direction:ltr; font-family:Arial; font-size:0.6em; vertical-align:super; color:#666; margin-right:2px; display:inline-flex;">${Number(item.noteId)}</span>`;
+                    html += '</span>';
                     offset = token.index + token[0].length;
                 }
                 return html + ReaderCore.escapeHtml(part.slice(offset)).replace(/\n/g, '<br>');
@@ -1530,6 +1574,7 @@
             const lineSpacing = document.getElementById('line-spacing').value;
 
             // Apply Hebrew Font
+            outputDiv.style.setProperty('--reader-page-width', margin === 'normal' || margin === 'none' ? '7in' : '6.5in');
             outputDiv.style.fontFamily = font;
             outputDiv.style.fontSize = fontSize + 'px';
             outputDiv.style.letterSpacing = kerning + 'px';

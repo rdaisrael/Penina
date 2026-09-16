@@ -10,7 +10,7 @@ The same saved per-word decision controls both emphasis and footnotes. Pointed v
 
 Each generated result keeps a normalized vocabulary snapshot. Editing a draft or switching workflows does not reinterpret a displayed story. Generate again to apply vocabulary edits. Formatting controls remain available during loading and operate on the last successful result.
 
-Footnotes are numbered locally. “First occurrence” means the same unpointed surface word, regardless of AI numbering or inflection inference. Different contextual glosses for that spelling are collected in the same note. Inflected spellings can have separate notes. Hiding notes never changes mastery decisions.
+Footnotes are numbered locally. “First occurrence” groups the same unpointed word form after removing contextually identified grammatical prefixes ל, ב, ש, ה. The per-word analysis supplies the prefix, and validation checks its letters and correspondence to the surface word. Letters belonging to the lexical word, root, or verb pattern are retained; uncertain prefixes remain unstripped. Different contextual glosses are collected in the same note. Other inflections can have separate notes. Older saved analyses without prefix metadata retain exact-word grouping. Hiding notes never changes mastery decisions.
 
 ## Source text, display, and async state
 
@@ -33,3 +33,10 @@ The strict-schema model call has mocked request/response coverage. Live Vercel p
 Per-word structured output increases generation size: the reader analysis requests up to 32,000 output tokens with a 60-second per-attempt deadline. Incomplete output fails explicitly. Ordinary vocabulary-builder and worksheet requests retain existing limits.
 
 Official structured-output reference: https://developers.openai.com/api/docs/guides/structured-outputs
+
+
+## Footnote placement controls
+
+Both content sources use the shared Footnote Display and Footnote Placement controls. Supplied text now defaults to spreadsheet vocabulary upload, with the manual modes retained but hidden. Per-page placement measures rendered words and their visible notes together within a Letter page (including the chosen margin width), preferring sentence/paragraph boundaries. Notes repeat on pages with visible references in each-occurrence mode; first-occurrence mode keeps one reference across the document. Typography and display changes rebuild the pagination. Markers stay attached to words, and line numbering continues across pages. End placement retains the continuous document and final note section.
+
+Run `node tests/reader-layout.browser.cjs` with Playwright available (or set PLAYWRIGHT_MODULE and CHROME_EXECUTABLE). The browser fixture checks both vocabulary modes, footnote controls, retained words, note/reference correspondence, page overflow, typography, margins, line numbering, and matching screen/print page counts; it also saves screenshots and a print PDF in a temporary directory. An exceptionally large single word/title/gloss is allowed to flow across printed pages rather than being clipped.

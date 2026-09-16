@@ -88,9 +88,9 @@ test('a new story invalidates old worksheets; a newer worksheet invalidates an o
 });
 test('rerender uses saved analysis without reading current vocabulary controls', () => {
     const result=core.buildResult(sample.text,core.validateAnalysis(sample,profile));
-    const output={innerHTML:''};
+    const output={innerHTML:'',classList:{remove(){}}};
     const context=vm.createContext({AbortSignal,ReaderCore:core,currentRawStory:result.text,currentResult:result,currentFootnotes:'<img src=x>',
-        document:{getElementById(id){assert.equal(id,'story-output');return output;}},
+        document:{getElementById(id){assert.equal(id,'story-output');return output;},querySelector(){return {value:'end'};}},
         formatStory(text,words){assert.equal(words,result.words);return 'STORY';},applyStyles(){},applyFootnoteSettings(){}});
     vm.runInContext(html.slice(html.indexOf('        function renderStoryToScreen'),html.indexOf('        function processTextChunk')),context);
     context.renderStoryToScreen();
@@ -182,4 +182,37 @@ test('standard pointed spelling requires Dicta evidence for each exact source to
     assert.equal(result.spellingChanges.length,2);
     assert.equal(result.notes.length,1);
     assert.throws(()=>core.buildResult('דִפּוּרִים\nסִפּוּרִים',analysis,[{str:'סיפורים',nakdan:{options:[{w:'דִפּוּרִים'}]}},tokens[1],tokens[2]]),/changed the source word/);
+});
+
+test('grammatical prefixes share one note in either order, including combined prefixes', () => {
+    for (const forms of [
+        [['ספר',''],['לספר','ל'],['בספר','ב'],['שספר','ש'],['הספר','ה'],['שבספר','שב']],
+        [['שבספר','שב'],['הספר','ה'],['בספר','ב'],['לספר','ל'],['ספר','']]
+    ]) {
+        const text=forms[0][0]+'\n'+forms.slice(1).map(([word])=>word).join(' ');
+        const data={text,words:forms.map(([word,prefix],i)=>({...entry(word,false,i===0?'book':'the book'),prefix}))};
+        const result=core.buildResult(text,core.validateAnalysis(data,profile));
+        assert.equal(result.notes.length,1);
+        assert.deepEqual(result.words.map(w=>w.noteId),forms.map(()=>1));
+        assert.equal(result.notes[0].translation,'book; the book');
+        assert.equal(result.notes[0].word,forms[0][0]);
+    }
+});
+
+test('lexical initial letters and other inflections remain distinct from prefix variants', () => {
+    const forms=[['הַר',''],['הָהָר','ה'],['בַּר',''],['שָׁמַר',''],['מַר',''],['בַּיִת',''],['לַבַּיִת','ל'],['סְפָרִים',''],['סֵפֶר',''],['לוֹמֵד','']];
+    const text=forms[0][0]+'\n'+forms.slice(1).map(([word])=>word).join(' ');
+    const data={text,words:forms.map(([word,prefix])=>({...entry(word,false,'gloss'),prefix}))};
+    const result=core.buildResult(text,core.validateAnalysis(data,profile));
+    assert.deepEqual(result.words.map(w=>w.noteId),[1,1,2,3,4,5,5,6,7,8]);
+});
+
+test('prefix validation rejects malformed or nonmatching prefixes', () => {
+    for (const prefix of ['ס','לב','ספר',null,7]) {
+        const data={text:'ספר\nספר',words:[{...entry('ספר',false,'book'),prefix},entry('ספר',false,'book')]};
+        assert.throws(()=>core.validateAnalysis(data,profile),/Invalid word prefix/);
+    }
+    const {readerFormat,readerPrompt}=require('../lib/reader-response');
+    assert.ok(readerFormat.schema.properties.words.items.required.includes('prefix'));
+    assert.ok(readerPrompt('Read',profile).includes('never letters belonging to the lexical word'));
 });

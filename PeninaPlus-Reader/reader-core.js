@@ -30,10 +30,14 @@
         const entries = normalized.mode === 'complete' ? normalized.words : [...normalized.verbs,...normalized.nouns,...normalized.adjs];
         const analysis = data.words.map((item, i) => {
             if (!item || normalizeWord(item.word) !== normalizeWord(tokens[i][0]) || typeof item.mastered !== 'boolean' || typeof item.translation !== 'string' || !item.translation.trim() || typeof item.match !== 'string' || typeof item.form !== 'string') throw new Error('Invalid word analysis. Please generate again.');
+            // Older saved analyses have no prefix metadata; retain their exact-word grouping.
+            const prefix = item.prefix === undefined ? '' : item.prefix;
+            const surface = normalizeWord(item.word);
+            if (typeof prefix !== 'string' || !/^[לבשה]*$/.test(prefix) || !surface.startsWith(prefix) || prefix.length >= surface.length) throw new Error('Invalid word prefix analysis. Please generate again.');
             const match = normalizeWord(item.match);
             const known = entries.includes(match) || (item.match === '__pronoun__' && pronouns.has(normalizeWord(item.word)));
             const verbAllowed = normalized.mode === 'complete' || !normalized.verbs.includes(match) || normalized.forms.includes(item.form);
-            return {...item, mastered: item.mastered && known && verbAllowed};
+            return {...item, prefix, mastered: item.mastered && known && verbAllowed};
         });
         return {text: sourceText === undefined ? text : sourceText.trim(), words: analysis, vocabulary: normalized};
     }
@@ -65,8 +69,8 @@
         const tokens = words(text);
         const notes = [], ids = new Map();
         const tokenAnalysis = analysis.words.map((item, i) => {
-            // First occurrence means the same unpointed surface. Collect different contextual glosses in its one note.
-            const key = normalizeWord(item.word);
+            // Group by the same word form after removing contextually identified prefixes.
+            const key = normalizeWord(item.word).slice((item.prefix || '').length);
             let noteId = null;
             if (!item.mastered) {
                 if (!ids.has(key)) { ids.set(key, notes.length + 1); notes.push({id: notes.length + 1, word: tokens[i][0], translation: item.translation.trim()}); }

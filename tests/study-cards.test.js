@@ -205,3 +205,11 @@ test('Reverse print order puts context with the answer term and keeps definition
     const back=vm.runInContext('printTerm(originalCards[0],settings)',context);
     assert(front.includes('Definition 1')&&front.includes('הגדרה 1'));assert(!front.includes('מקור 1'));assert(back.includes('מקור 1'));
 });
+test('Print button opens an eight-card preview directly with all content',()=>{
+ const {context,nodes,html}=runtime();
+ let preview=false;context.document.body={classList:{add:value=>{preview=value==='print-preview-open'}}};context.window.scrollTo=()=>{};
+ nodes.get('paperCards').onclick();assert(preview);assert(!html.includes('id="printOptionsDialog"'));
+ const pages=nodes.get('printPages').innerHTML;
+ assert.equal((pages.match(/paper-sheet eight-up/g)||[]).length,4);
+ for(const text of ['מילה 1','הגדרה 1','Definition 1','מקור 1','עברית 1','Context 1'])assert(pages.includes(text));
+});

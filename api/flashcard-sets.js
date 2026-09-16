@@ -1,6 +1,6 @@
 const { del, list, put } = require('@vercel/blob');
 const { getPage, publicPage, authenticatePage } = require('../lib/vocabulary-pages');
-const { makeApp } = require('../PeninaPlus-vocab-builder/offline-study-cards');
+const { makeApp, practiceRows } = require('../PeninaPlus-vocab-builder/offline-study-cards');
 
 const { makeSheet } = require('../PeninaPlus-vocab-builder/vocabulary-sheets');
 
@@ -38,6 +38,26 @@ function formatSet(blob, grade) {
     };
 }
 
+function savedCards(html) {
+    const match = html.match(/<script id="peninaCardData" type="application\/json">([\s\S]*?)<\/script>/)
+        || html.match(/const originalCards=(\[[\s\S]*?\]);let cards=/);
+    if (!match) return [];
+    const cards = JSON.parse(match[1]);
+    return Array.isArray(cards) ? cards : [];
+}
+
+async function gameAvailability(blob) {
+    try {
+        const response = await fetch(blob.url);
+        if (!response.ok) return false;
+        const cards = savedCards(await response.text());
+        return ['english', 'hebrew'].some(language => practiceRows(cards, language).length > 0);
+    } catch (_error) {
+        // A damaged or unavailable set must not prevent the rest of the library loading.
+        return false;
+    }
+}
+
 async function listAll(prefix) {
     const blobs = [];
     let cursor;
@@ -71,16 +91,25 @@ module.exports = async function (req, res) {
                 if (!Array.isArray(cards)) throw new Error('Saved flashcard data is invalid.');
                 const optionsMatch = storedHtml.match(/<script id="peninaSheetOptions" type="application\/json">([\s\S]*?)<\/script>/);
                 const sheetOptions = optionsMatch ? JSON.parse(optionsMatch[1]) : {};
+                const host = String(req.headers?.host || '');
+                const origin = /^[a-z0-9.-]+(?::[0-9]+)?$/i.test(host) ? `${host.startsWith('localhost:') || host.startsWith('127.0.0.1:') ? 'http' : 'https'}://${host}` : '';
                 const html = req.query.sheet === '1'
                     ? makeSheet(decodeTitle(blob.pathname), cards, sheetOptions)
-                    : makeApp(decodeTitle(blob.pathname), cards);
+                    : makeApp(decodeTitle(blob.pathname), cards, { matchingUrl: `/api/matching-scores?grade=${encodeURIComponent(grade)}&set=${encodeURIComponent(blob.pathname)}`, homeUrl: origin + (page.url || '/PeninaPlus-vocab-builder/flash-cards/'), leaderboardUrl: `/api/asteroids-scores?grade=${encodeURIComponent(grade)}` });
                 const disposition = req.query.download === '1' ? 'attachment' : 'inline';
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Content-Disposition', `${disposition}; filename="${encodeTitle(decodeTitle(blob.pathname))}.html"`);
                 res.setHeader('Cache-Control', 'no-store');
                 return res.status(200).send(html);
             }
-            const sets = blobs.map(blob => formatSet(blob, grade)).sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+            const sets = [];
+            // Bound storage reads when a class has many published sets.
+            for (let offset = 0; offset < blobs.length; offset += 8) {
+                sets.push(...await Promise.all(blobs.slice(offset, offset + 8).map(async blob => ({
+                    ...formatSet(blob, grade), hasGames: await gameAvailability(blob)
+                }))));
+            }
+            sets.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
             res.setHeader('Cache-Control', 'no-store');
             return send(res, 200, { grade, page: publicPage(page), sets });
         }
@@ -129,7 +158,7 @@ module.exports = async function (req, res) {
             addRandomSuffix: false
         });
 
-        return send(res, 201, { grade, page: publicPage(page), set: formatSet(blob, grade) });
+        return send(res, 201, { grade, page: publicPage(page), set: { ...formatSet(blob, grade), hasGames: ['english', 'hebrew'].some(language => practiceRows(savedCards(html), language).length > 0) } });
     } catch (error) {
         console.error('Flashcard publishing failed:', error);
         return send(res, 500, { error: 'The flashcard library could not be reached. Please try again.' });

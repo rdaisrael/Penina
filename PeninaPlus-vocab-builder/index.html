@@ -810,6 +810,10 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <a id="selected-page-link" target="_blank" rel="noopener"></a>
+                        <details style="margin-top:10px"><summary>Open a published class webpage</summary><nav id="published-page-links" aria-label="Published class webpages" style="display:grid;gap:10px;padding:12px 0"></nav></details>
+                    </div>
+                    <div class="form-group">
                         <label for="publish-card-password">Publishing password:</label>
                         <input id="publish-card-password" type="password" autocomplete="current-password">
                     </div>
@@ -1120,7 +1124,8 @@
                 englishContextTranslation: row.englishContext || '',
                 englishContextTranslationRuns: highlightEnglishContextRuns(row),
                 hebrewCitation: row.hebrewCitation || '',
-                englishCitation: row.englishCitation || ''
+                englishCitation: row.englishCitation || '',
+                alternativeAnswers: row.alternativeAnswers
             }));
         }
 

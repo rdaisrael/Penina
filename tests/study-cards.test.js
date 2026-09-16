@@ -184,3 +184,24 @@ test('Manual context edits sync immediately, and regeneration still operates onl
     selected.length=0;await context.regenerateSelectedContextQuotes(null);
     assert.equal(alerts.length,1);assert.deepEqual(regenerated,[1]);
 });
+
+test('Two sides always combine both definitions and context is visible only on the answer, in either order',()=>{
+    const {html,nodes,context}=runtime();
+    assert(!html.includes('name="cardLanguage"'));assert(!html.includes('name="printTranslation"'));
+    assert.equal(nodes.get('cardContext').hidden,true);
+    vm.runInContext('sideIndex=1;render()',context);
+    assert.equal(nodes.get('sideNumber').textContent,'2 / 2');
+    assert(nodes.get('mainText').innerHTML.includes('Definition 1'));assert(nodes.get('mainText').innerHTML.includes('הגדרה 1'));
+    assert.equal(nodes.get('cardContext').hidden,false);
+    nodes.get('translationFirst').onclick();assert.equal(nodes.get('cardContext').hidden,true);
+    vm.runInContext('sideIndex=1;render()',context);assert.equal(nodes.get('mainText').textContent,'מילה 1');assert.equal(nodes.get('cardContext').hidden,false);
+    nodes.get('next').onclick();assert.equal(nodes.get('cardContext').hidden,true);
+});
+
+test('Reverse print order puts context with the answer term and keeps definitions together',()=>{
+    const {context}=runtime();context.settings={translation:'both',originalQuote:true,hebrewContext:true,englishContext:true};
+    vm.runInContext('termFirst=false',context);
+    const front=vm.runInContext('printTranslations(originalCards[0],settings)',context);
+    const back=vm.runInContext('printTerm(originalCards[0],settings)',context);
+    assert(front.includes('Definition 1')&&front.includes('הגדרה 1'));assert(!front.includes('מקור 1'));assert(back.includes('מקור 1'));
+});

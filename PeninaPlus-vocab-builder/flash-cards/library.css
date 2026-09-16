@@ -52,3 +52,8 @@ h1{margin:0;font-size:clamp(34px,6vw,64px);line-height:1.02;letter-spacing:-.045
 [hidden]{display:none!important}
 @media(max-width:620px){.combine-bar{align-items:stretch;flex-direction:column}.combine-count{margin:0}.combine-action{width:100%}}
 @media(max-width:540px){.shell{padding-top:30px}.intro{font-size:16px}.sets{grid-template-columns:1fr}.management{align-items:flex-end;flex-direction:column}}
+
+.gamify-action{grid-column:1/-1;background:#7024b5;border-color:#7024b5;color:#ffec55;font-size:25px;font-weight:950;letter-spacing:1px;text-shadow:1px 2px #421570}
+.gamify-action:hover{background:#591a93;color:#ffec55}
+
+.matching-class-board{margin:24px 0;padding:22px;border:1px solid #d8c5f0;border-radius:18px;background:linear-gradient(135deg,#faf4ff,#eff9ff)}.matching-class-board h2{margin-top:0;color:#64219a}.matching-class-board li{padding:7px;font-size:18px;font-weight:700}.matching-class-board section{margin-top:18px}

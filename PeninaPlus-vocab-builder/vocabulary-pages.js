@@ -10,6 +10,24 @@
     const status = document.getElementById('vocabulary-pages-status');
     const retryButton = document.getElementById('retry-vocabulary-pages');
 
+    const pageLinks = document.getElementById('published-page-links');
+    const selectedLink = document.getElementById('selected-page-link');
+    function updateLinks() {
+        pageLinks.replaceChildren();
+        Array.from(dropdown.options).forEach(option => {
+            if (!option.dataset.url) return;
+            const link = document.createElement('a');
+            link.href = option.dataset.url; link.textContent = option.textContent;
+            link.target = '_blank'; link.rel = 'noopener';
+            pageLinks.appendChild(link);
+        });
+        const selected = dropdown.options[dropdown.selectedIndex];
+        selectedLink.href = selected?.dataset.url || '#';
+        selectedLink.textContent = selected ? 'Open '+selected.textContent+' ↗' : '';
+        selectedLink.hidden = !selected?.dataset.url;
+    }
+    updateLinks();
+
     function showStatus(message, error = false, url = null) {
         status.textContent = message;
         status.style.color = error ? '#721c24' : '#285b2a';
@@ -39,6 +57,7 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Unable to load webpages.');
             data.pages.forEach(addOption);
+            updateLinks();
             showStatus('');
         } catch (_error) {
             showStatus('Saved webpages could not be loaded. Retry to see all publishing destinations.', true);
@@ -48,7 +67,7 @@
 
     let loadingPages = loadPages();
     retryButton.addEventListener('click', () => { loadingPages = loadPages(); });
-    dropdown.addEventListener('change', () => { publishPassword.value = ''; });
+    dropdown.addEventListener('change', () => { publishPassword.value = ''; updateLinks(); });
     form.addEventListener('submit', async event => {
         event.preventDefault();
         if (createButton.disabled) return;
@@ -85,6 +104,7 @@
             }
             addOption(data.page);
             dropdown.value = data.page.id;
+            updateLinks();
             publishPassword.value = password;
             form.reset();
             document.getElementById('add-webpage').open = false;

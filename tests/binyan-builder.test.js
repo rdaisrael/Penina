@@ -54,3 +54,18 @@ test('endpoint rejects invalid requests before calling a provider',async()=>{
     await api({method:'POST',body:{...input,action:'binyan-worksheet',mode:'practice',pairs:['נפעל שלם|הווה']}},res);
     assert.equal(res.code,400);assert.match(res.body.error,/marked X/);
 });
+
+
+test('all-root-type selections accept the reported irregular vocabulary without learned marks',()=>{
+    const req=core.validateRequest({...input,vocabulary:{verbs:['אכל','שתה','הלך'],binyanim:[]},pairs:['פעל — כל הגזרות|עבר']});
+    assert.deepEqual(req.vocabulary.verbs,['אכל','שתה','הלכ']);
+    assert.equal(core.validPair('פועל — כל הגזרות|ציווי'),false);
+    assert.equal(core.validPair('הופעל — כל הגזרות|שם הפועל'),false);
+    assert.throws(()=>core.validateRequest({...req,mode:'practice'}),/marked X/);
+});
+
+test('unsupported combinations are named and suggest an actionable change',async()=>{
+    await assert.rejects(generateWorksheet(input,async()=>JSON.stringify({unavailablePairs:['פעל שלם|עבר'],lessons:[],questions:[]})),error=>{
+        assert.match(error.message,/פעל שלם\|עבר/);assert.match(error.message,/All root types/);return true;
+    });
+});

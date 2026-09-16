@@ -39,7 +39,8 @@
       <section class="panel" aria-labelledby="forms-heading">
         <h2 id="forms-heading"><span class="step">3</span> Select binyanim and tenses</h2>
         <p id="selection-help">Choose one combination to introduce a pattern, or add several for a mixed worksheet.</p>
-        <div class="pair-picker"><label>Binyan / root group<select id="group" dir="rtl"></select></label><label>Tense / form<select id="tense"></select></label><button id="add-pair" class="secondary" type="button">Add combination</button></div>
+        <label class="mix-toggle"><input id="mix-patterns" type="checkbox"> Mix several combinations</label>
+        <div class="pair-picker"><label for="group">Binyan / root group<select id="group" dir="rtl"></select></label><label for="tense">Tense / form<select id="tense"></select></label><button id="add-pair" class="secondary" type="button" hidden>Add combination</button></div>
         <div id="pairs" class="pairs" aria-label="Selected combinations"></div>
         <p id="pair-status" class="muted" role="status">Upload a workbook to begin.</p>
         <p class="muted small">Infinitives and verbal nouns are single-form exercises. Present-tense tables use gender and number.</p>

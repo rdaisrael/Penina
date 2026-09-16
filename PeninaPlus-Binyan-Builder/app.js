@@ -16,14 +16,17 @@
         if(!vocabulary)return [];
         return mode()==='practice'?vocabulary.binyanim:core.groups.flatMap(g=>core.tenses.map(t=>`${g}|${t}`).filter(core.validPair));
     }
+    const mixing=()=>$('mix-patterns').checked;
+    const currentPair=()=>`${$('group').value}|${$('tense').value}`;
+    const selectedPairs=()=>mixing()?pairs:(eligiblePairs().includes(currentPair())?[currentPair()]:[]);
     function updatePicker(){
         const available=eligiblePairs(), previous=$('group').value;
         const groups=core.groups.filter(g=>available.some(p=>p.split('|')[0]===g));
-        $('group').replaceChildren(...groups.map(g=>new Option(g,g)));
+        $('group').replaceChildren(...groups.map(g=>new Option(core.generalGroups.includes(g)?`${g.split(' ')[0]} — All root types`:g,g)));
         if(groups.includes(previous))$('group').value=previous;
         $('group').disabled=!groups.length;
         updateTenses();
-        $('selection-help').textContent=mode()==='practice'?'Only combinations marked X in this workbook are available. Add several to make mixed review.':'Choose one combination to introduce a pattern, or add several for a mixed worksheet.';
+        $('selection-help').textContent=mode()==='practice'?'Only combinations marked X in this workbook are available. Enable mixed practice to include several.':'Choose a binyan and tense, then build. All root types accepts the different root types in your vocabulary; choose a specific group to focus on that pattern.';
     }
     function updateTenses(){
         const previous=$('tense').value;
@@ -40,12 +43,15 @@
             button.addEventListener('click',()=>{pairs=pairs.filter(p=>p!==pair);dirty();renderPairs();});
             chip.append(label,button);return chip;
         }));
-        status('pair-status',!vocabulary?'Upload a workbook to begin.':mode()==='practice'&&!vocabulary.binyanim.length?'No learned combinations are marked. Add X marks to your workbook, or choose Learn.':pairs.length?`${pairs.length} combination${pairs.length===1?'':'s'} selected. Each will appear in the worksheet.`:'Add at least one combination.');
+        $('pairs').hidden=!mixing();$('add-pair').hidden=!mixing();
+        const selected=selectedPairs();
+        status('pair-status',!vocabulary?'Upload a workbook to begin.':mode()==='practice'&&!vocabulary.binyanim.length?'No learned combinations are marked. Add X marks to your workbook, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
         updateTenses();updateButton();
     }
-    function request(){return core.validateRequest({mode:mode(),vocabulary,pairs,count:Number($('count').value)});}
+    function request(){return core.validateRequest({mode:mode(),vocabulary,pairs:selectedPairs(),count:Number($('count').value)});}
     function updateButton(){
-        let valid=true;try{request();}catch{valid=false;}
+        let valid=true,reason='';try{request();}catch(error){valid=false;reason=error.message;}
+        if(!busy&&!valid)status('generation-status',mode()==='practice'&&vocabulary&&!vocabulary.binyanim.length?'Practice needs X marks beside learned combinations in your workbook. Choose Learn to introduce a pattern without X marks.':reason);
         $('generate').disabled=busy||!valid;$('generate').textContent=busy?'Building your worksheet…':'Build worksheet';
     }
     async function loadWorkbook(getFile){
@@ -64,7 +70,7 @@
             vocabulary=parsed;
             status('upload-status',`${file.name}: ${parsed.verbs.length} roots · ${parsed.binyanim.length} learned combinations · ${parsed.nouns.length} nouns · ${parsed.adjs.length} adjectives`);
             $('roots').textContent=parsed.verbs.join('  ·  ');$('vocabulary-details').hidden=false;
-            updatePicker();renderPairs();
+            updatePicker();dirty();renderPairs();
         }catch(error){if(version===uploadVersion)status('upload-status',error.message,true);}
     }
     $('vocabulary').addEventListener('change',event=>loadWorkbook(async()=>event.target.files[0]));
@@ -77,16 +83,21 @@
         });
     });
     document.querySelectorAll('input[name="mode"]').forEach(input=>input.addEventListener('change',()=>{
-        pairs=pairs.filter(pair=>eligiblePairs().includes(pair));dirty();updatePicker();renderPairs();
+        pairs=pairs.filter(pair=>eligiblePairs().includes(pair));updatePicker();dirty();renderPairs();
     }));
-    $('group').addEventListener('change',updateTenses);
+    $('group').addEventListener('change',()=>{updateTenses();dirty();renderPairs();});
+    $('tense').addEventListener('change',()=>{dirty();renderPairs();});
+    $('mix-patterns').addEventListener('change',()=>{
+        if(mixing()&&!pairs.length&&eligiblePairs().includes(currentPair()))pairs=[currentPair()];
+        dirty();renderPairs();
+    });
     $('add-pair').addEventListener('click',()=>{
         const pair=`${$('group').value}|${$('tense').value}`;
         if(pairs.includes(pair)){status('pair-status','That combination is already selected.');return;}
         if(!eligiblePairs().includes(pair)||pairs.length>=8)return;
         pairs.push(pair);dirty();renderPairs();
     });
-    $('count').addEventListener('change',()=>{dirty();if(pairs.length>Number($('count').value))status('generation-status','Choose at least as many questions as selected combinations.',true);});
+    $('count').addEventListener('change',()=>{dirty();if(selectedPairs().length>Number($('count').value))status('generation-status','Choose at least as many questions as selected combinations.',true);});
     $('title').addEventListener('input',dirty);
     const header=(title,r,key=false)=>`<div class="worksheet-heading"><p class="eyebrow">PENINAPLUS BINYAN BUILDER${key?' · ANSWER KEY':''}</p><h2>${esc(title)}</h2><p>${esc(r.request.mode==='learn'?'Learn a new pattern':'Practice learned patterns')} · ${r.questions.length} questions</p><p>${r.request.pairs.map(p=>`<bdi>${esc(pairLabel(p))}</bdi>`).join(' / ')}</p>${key?'':'<div class="name-line"><span>Name: ____________________</span><span>Date: ______________</span></div>'}</div>`;
     function renderWorksheet(r,title){

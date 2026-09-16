@@ -13,3 +13,14 @@ The prompt requires attested Modern Hebrew forms and correct root classes, with 
 Student worksheet, answer key, or both can be printed / saved as PDF via the browser. Answer keys start on a new page. Output is frozen to the successful request; edited settings leave the previous worksheet visible and labeled. Model/question text is escaped before rendering.
 
 Checks: `node --test tests/binyan-builder.test.js tests/vocabulary-upload.test.js`; browser checks use `tests/binyan-builder.browser.cjs` with `PLAYWRIGHT_MODULE` and optional `CHROME_EXECUTABLE`. Browser generation responses are fixtures, explicitly not a live AI evaluation.
+
+
+## September 16 audit fixes
+
+Reproduced the user's workbook state in the live UI: three roots (אכל, שתה, הלך), no learned X-marked pairs, a visible default binyan/tense but a disabled Build button. A live API request with those roots, the previous default פעל שלם|עבר and 12 questions returned HTTP 502 with “No suitable verbs”. Prior tests used regular sample roots and explicit Add actions, so they missed this flow.
+
+Single-pattern mode now uses the visible dropdown selection directly. Mixing is explicit and starts with the current selection; its added list is the exact generation list. Selection changes invalidate pending requests. Disabled-button reasons now appear beside Build, including too many pairs for the question count and missing learned marks. Learn does not require learned marks; Practice preserves exact uploaded mastery restrictions.
+
+Learn defaults to Paal with **All root types**, and each of the seven binyanim has that option. Specific Reader root-group choices remain available. This permits weak and irregular roots without falsely labeling them as strong roots. Passive binyan options still exclude imperative/infinitive/verbal-noun forms. The generator distinguishes broad binyan selections from specific root classes, and reports unsupported pairs by name where supplied. Structural checks still do not establish linguistic accuracy.
+
+Regression checks now cover the actual roots-only workbook shape, immediately building without Add, changing the visible tense, single/mixed transitions, and the question-count error. No changes were made to the shared Reader Excel parser or to uploaded mastery marks.

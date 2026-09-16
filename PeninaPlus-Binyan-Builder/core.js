@@ -3,7 +3,8 @@
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.BinyanBuilder = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
-    const groups = ['פעל שלם','פעל ל-ה','פעל ע"ו','פעל חפ"נ','פעל פ"י','פיעל שלם','פיעל ל-ה','הפעיל שלם','הפעיל ל-ה','הפעיל ע"ו','הפעיל פ"י','התפעל שלם','נפעל שלם','פועל שלם','הופעל שלם'];
+    const generalGroups = ['פעל — כל הגזרות','פיעל — כל הגזרות','הפעיל — כל הגזרות','התפעל — כל הגזרות','נפעל — כל הגזרות','פועל — כל הגזרות','הופעל — כל הגזרות'];
+    const groups = [...generalGroups,'פעל שלם','פעל ל-ה','פעל ע"ו','פעל חפ"נ','פעל פ"י','פיעל שלם','פיעל ל-ה','הפעיל שלם','הפעיל ל-ה','הפעיל ע"ו','הפעיל פ"י','התפעל שלם','נפעל שלם','פועל שלם','הופעל שלם'];
     const tenses = ['עבר','הווה','עתיד','שם הפועל','שם פעולה','ציווי'];
     const tenseNames = ['Past','Present','Future','Infinitive','Verbal noun','Imperative'];
     const people = {
@@ -23,7 +24,7 @@
         if(typeof pair!=='string')return false;
         const [group,tense,...rest]=pair.split('|');
         return !rest.length && groups.includes(group) && tenses.includes(tense) &&
-            (!['פועל שלם','הופעל שלם'].includes(group) || tenses.slice(0,3).includes(tense));
+            (!['פועל','הופעל'].includes(group.split(' ')[0]) || tenses.slice(0,3).includes(tense));
     }
     function validateRequest(input) {
         const fail = message => {throw new Error(message);};
@@ -63,5 +64,5 @@
         });
         return result;
     }
-    return {groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
+    return {generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
 });

@@ -14,12 +14,12 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- let fail=false,delay=0;
+ let fail=false,delay=0,lastRequest=null;
  await page.route('**/*',async route=>{
   const url=new URL(route.request().url());
   if(url.hostname!=='binyan.test')return route.abort();
   if(url.pathname==='/api/generate'){
-   const req=core.validateRequest(route.request().postDataJSON());
+   const req=core.validateRequest(route.request().postDataJSON());lastRequest=req;
    if(delay)await new Promise(r=>setTimeout(r,delay));
    return route.fulfill({status:fail?502:200,contentType:'application/json',body:JSON.stringify(fail?{error:'Test service unavailable'}:fixture(req))}).catch(()=>{});
   }
@@ -32,11 +32,21 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  await page.screenshot({path:path.join(output,'desktop.png'),fullPage:true});
  await page.locator('#sample').click();
  await page.waitForFunction(()=>document.getElementById('upload-status').textContent.includes('6 roots'));
- await page.locator('#group').selectOption('פעל שלם');await page.locator('#tense').selectOption('עבר');await page.locator('#add-pair').click();
+ assert.equal(await page.locator('#generate').isEnabled(),true,'upload immediately enables single-pattern build');
+ assert.equal(await page.locator('#group').inputValue(),'פעל — כל הגזרות','default includes irregular roots');
+ assert.equal(await page.locator('#add-pair').isVisible(),false,'single-pattern needs no Add action');
+ await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('generation-status').textContent.startsWith('Worksheet ready.'));
+ assert.deepEqual(lastRequest.pairs,['פעל — כל הגזרות|עבר']);
+ await page.locator('#tense').selectOption('הווה');
+ assert.match(await page.locator('#preview-label').innerText(),/Previous/);
+ await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('preview-label').textContent==='Ready to review');
+ assert.deepEqual(lastRequest.pairs,['פעל — כל הגזרות|הווה'],'dropdown change directly updates generated selection');
+ await page.locator('#group').selectOption('פעל שלם');await page.locator('#tense').selectOption('עבר');await page.locator('#mix-patterns').check();
+ assert.equal(await page.locator('.pair-chip').count(),1,'mixing retains the current selection');
  await page.locator('#tense').selectOption('הווה');await page.locator('#add-pair').click();
  assert.equal(await page.locator('.pair-chip').count(),2);
  await page.locator('#title').fill('My <img src=x> worksheet');
- await page.locator('#generate').click();await page.waitForSelector('#student-sheet .question');
+ await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('generation-status').textContent.startsWith('Worksheet ready.'));
  assert.equal(await page.locator('#student-sheet .question').count(),12);
  assert.equal(await page.locator('#student-sheet .lesson').count(),2);
  assert.equal(await page.locator('#student-sheet img').count(),0,'title escaped');
@@ -58,6 +68,26 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.equal(await page.locator('#student-sheet').innerHTML(),before,'failed request preserves result');
  fail=false;delay=500;await page.locator('#generate').click();await page.locator('#title').fill('Changed while loading');
  await page.waitForTimeout(700);assert.equal(await page.locator('#student-sheet').innerHTML(),before,'late response ignored');delay=0;
+ // Construct the reported workbook shape: three roots and no X-marked categories.
+ const ExcelJS=require('../PeninaPlus-Reader/vendor/exceljs-4.4.0.min.js');const workbook=new ExcelJS.Workbook();const sheet=workbook.addWorksheet('Vocabulary');
+ sheet.addRow(['שורשים','בניין','עבר','הווה','עתיד','שם הפועל','שם פעולה','ציווי','','שם עצם','','שם תואר']);
+ ['אכל','שתה','הלך'].forEach(root=>sheet.addRow([root]));
+ await page.locator('#vocabulary').setInputFiles({name:'roots-only.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(await workbook.xlsx.writeBuffer())});
+ await page.waitForFunction(()=>document.getElementById('upload-status').textContent.includes('3 roots'));
+ assert.equal(await page.locator('#generate').isDisabled(),true,'practice still requires learned marks');
+ assert.match(await page.locator('#generation-status').innerText(),/Practice needs X marks/);
+ await page.locator('input[value=learn]').check();await page.locator('#mix-patterns').uncheck();
+ assert.equal(await page.locator('#generate').isEnabled(),true,'roots-only workbook works in Learn without X marks');
+ assert.equal(await page.locator('#group').inputValue(),'פעל — כל הגזרות');
+ assert.doesNotMatch(await page.locator('#generation-status').innerText(),/Practice needs X marks/,'old disabled reason cleared');
+ await page.locator('#mix-patterns').check();
+ await page.locator('#count').selectOption('6');
+ for(const tense of ['הווה','עתיד','שם הפועל','שם פעולה','ציווי']){await page.locator('#tense').selectOption(tense);await page.locator('#add-pair').click();}
+ await page.locator('#group').selectOption('פיעל — כל הגזרות');await page.locator('#add-pair').click();
+ assert.equal(await page.locator('#generate').isDisabled(),true,'seven combinations cannot fit six questions');
+ assert.match(await page.locator('#generation-status').innerText(),/at least one per selected combination/);
+ await page.locator('#mix-patterns').uncheck();
+ assert.equal(await page.locator('#generate').isEnabled(),true,'single selection ignores previously mixed list');
  await page.locator('#vocabulary').setInputFiles({name:'bad.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('bad')});
  await page.waitForFunction(()=>document.getElementById('upload-status').classList.contains('error'));
  assert.equal(await page.locator('#generate').isDisabled(),true,'invalid upload clears vocabulary');

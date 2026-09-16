@@ -9,7 +9,7 @@ function harness(){
   list:async({prefix,cursor})=>{const matches=blobs.filter(b=>b.pathname.startsWith(prefix));const start=Number(cursor)||0;return{blobs:matches.slice(start,start+2),hasMore:start+2<matches.length,cursor:String(start+2)}},
   put:async(pathname)=>{if(blobs.some(b=>b.pathname===pathname)){const e=new Error();e.name='BlobAlreadyExistsError';throw e;}blobs.push({pathname,uploadedAt:String(++page).padStart(5,'0')});}
  }:{getPage:async id=>['sixth','seventh'].includes(id)?{id}:null}};
- vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../api/asteroids-scores.js'),'utf8'),ctx);
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../lib/asteroids-scores.js'),'utf8'),ctx);
  return async(method,grade,body)=>{const res={setHeader(){},status(n){this.code=n;return this;},json(value){this.body=JSON.parse(JSON.stringify(value));return this;}};await ctx.module.exports({method,query:{grade},body},res);return res;};
 }
 test('Class board persists top three across paginated submissions, isolates classes and handles duplicate submissions',async()=>{

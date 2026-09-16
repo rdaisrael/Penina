@@ -95,7 +95,7 @@ module.exports = async function (req, res) {
                 const origin = /^[a-z0-9.-]+(?::[0-9]+)?$/i.test(host) ? `${host.startsWith('localhost:') || host.startsWith('127.0.0.1:') ? 'http' : 'https'}://${host}` : '';
                 const html = req.query.sheet === '1'
                     ? makeSheet(decodeTitle(blob.pathname), cards, sheetOptions)
-                    : makeApp(decodeTitle(blob.pathname), cards, { matchingUrl: `/api/matching-scores?grade=${encodeURIComponent(grade)}&set=${encodeURIComponent(blob.pathname)}`, homeUrl: origin + (page.url || '/PeninaPlus-vocab-builder/flash-cards/'), leaderboardUrl: `/api/asteroids-scores?grade=${encodeURIComponent(grade)}` });
+                    : makeApp(decodeTitle(blob.pathname), cards, { matchingUrl: `/api/game-scores?game=matching&grade=${encodeURIComponent(grade)}&set=${encodeURIComponent(blob.pathname)}`, homeUrl: origin + (page.url || '/PeninaPlus-vocab-builder/flash-cards/'), leaderboardUrl: `/api/game-scores?game=asteroids&grade=${encodeURIComponent(grade)}` });
                 const disposition = req.query.download === '1' ? 'attachment' : 'inline';
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Content-Disposition', `${disposition}; filename="${encodeTitle(decodeTitle(blob.pathname))}.html"`);

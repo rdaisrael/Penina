@@ -6,7 +6,7 @@ function harness(){
  list:async({prefix,cursor})=>{const all=blobs.filter(b=>b.pathname.startsWith(prefix)),start=Number(cursor||0);return{blobs:all.slice(start,start+2),hasMore:start+2<all.length,cursor:String(start+2)}},
  put:async(pathname)=>{if(blobs.some(b=>b.pathname===pathname))throw new Error('exists');blobs.push({pathname,uploadedAt:new Date().toISOString()})}
  }:name.includes('vocabulary-pages')?{getPage:async id=>['sixth','seventh'].includes(id)?{id}:null}:app};
- vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../api/matching-scores.js'),'utf8'),ctx);
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../lib/matching-scores.js'),'utf8'),ctx);
  return async(method,body,grade='sixth')=>{const res={setHeader(){},status(n){this.code=n;return this;},json(data){this.body=JSON.parse(JSON.stringify(data));return this;}};await ctx.module.exports({method,query:{grade,set},body},res);return res;};
 }
 const valid={initials:'AB',milliseconds:15000,language:'english',matched:1,runId:'completed-run-1'};

@@ -123,7 +123,7 @@
         matchingBoard.replaceChildren();
         const heading=document.createElement('h2');heading.textContent='🏆 Match the Cards — Class Top 3';matchingBoard.append(heading);
         try{
-            const response=await fetch('/api/matching-scores?grade='+encodeURIComponent(grade),{cache:'no-store'});
+            const response=await fetch('/api/game-scores?game=matching&grade='+encodeURIComponent(grade),{cache:'no-store'});
             if(!response.ok)throw new Error();const data=await response.json();
             const active=data.boards.filter(group=>sets.some(set=>set.pathname===group.pathname));
             if(!active.length){const p=document.createElement('p');p.textContent='Race the clock! Complete Match the Cards and submit your initials to set the first record.';matchingBoard.append(p);}
@@ -194,7 +194,7 @@
             confirmText: 'Continue'
         });
         if (title === null) return null;
-        return { title: title.trim() || defaultTitle, html: PeninaOfflineStudyCards.makeApp(title.trim() || defaultTitle, cards, { homeUrl: window.location.href, leaderboardUrl: new URL('/api/asteroids-scores?grade='+encodeURIComponent(grade),window.location.href).href }) };
+        return { title: title.trim() || defaultTitle, html: PeninaOfflineStudyCards.makeApp(title.trim() || defaultTitle, cards, { homeUrl: window.location.href, leaderboardUrl: new URL('/api/game-scores?game=asteroids&grade='+encodeURIComponent(grade),window.location.href).href }) };
     }
 
     async function withCombinedSet(button, action) {

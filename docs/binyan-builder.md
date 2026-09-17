@@ -26,3 +26,11 @@ Dicta verification is not a proof of general linguistic accuracy. Its contextual
 - `tests/binyan-builder.browser.cjs`: upload, restricted options, single/mixed selection, exact learned marks, print isolation, failures, stale requests and mobile layout passed with mocked generation responses.
 - Live Dicta corpus: 71 forms spanning six roots (כתב, שתה, אכל, הלך, בנה, קנה), including complete כתב/שתה paradigms across all five tenses, verified successfully. Captured response: `tests/fixtures/binyan-dicta-paal.json`.
 - Negative regressions reject wrong morphology, vowels, root, binyan, prefixes/suffixes, malformed and extra analysis, and provider failures.
+
+## Exercise variety (local update, September 17)
+
+Teachers can select any of five exercise types, all selected initially: circle the correct form, conjugate for a pronoun, complete a sentence, complete with a word bank, and write an original sentence. The requested total question count is divided across the selected types in contiguous sections. Single-type worksheets remain available. Older API requests without `exercises` retain the conjugation-only format.
+
+Choice distractors are real forms of the same root with a different number (or past versus infinitive), and both choices must pass Dicta. Identical consonantal choices are rejected so the distinction is not dependent on tiny vowel differences. Correct-answer placement alternates. Sentence stems require exactly one blank and cannot repeat the answer. Word banks deduplicate answers and sort them independently of question order; the root and English meaning remain visible to identify the intended verb. Original-writing questions leave two lines; only the teacher key shows the example sentence, explicitly labeled as one possible answer. Dicta checks the target and alternative verb forms, not the entire sentence's meaning or the student's original writing.
+
+Validation: 150 automated tests passed; browser checks cover all five rendered sections, selection validation, RTL layout and print answer isolation. A live Dicta batch verified the target and alternative forms for a ten-question mixed exercise fixture using אכל and שתה. Browser and generation tests use fixed candidate sentences; this update has not yet had an end-to-end live AI generation/deployment check.

@@ -8,7 +8,7 @@ const output=fs.mkdtempSync('/private/tmp/binyan-builder-');
 const past=['כָּתַבְתִּי','כָּתַבְתָּ','כָּתַבְתְּ','כָּתַב','כָּתְבָה','כָּתַבְנוּ','כְּתַבְתֶּם','כְּתַבְתֶּן','כָּתְבוּ','כָּתְבוּ'];
 const present=['כּוֹתֵב','כּוֹתֶבֶת','כּוֹתְבִים','כּוֹתְבוֹת'];
 function answer(pair,person){return (pair.endsWith('הווה')?present:past)[core.persons(pair).indexOf(person)];}
-function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({pair,root:'כתב',meaning:'write',explanation:'Start with the root כתב. Notice how the ending changes with the person or form.',forms:core.persons(pair).map(person=>({person,answer:answer(pair,person)}))})):[],questions:core.plan(req).map(q=>({...q,root:'כתב',meaning:'write',hint:'Use the model and check the ending.',answer:answer(q.pair,q.person)}))};}
+function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({pair,root:'כתב',meaning:'write',explanation:'Start with the root כתב. Notice how the ending changes with the person or form.',forms:core.persons(pair).map(person=>({person,answer:answer(pair,person)}))})):[],questions:core.plan(req).map(q=>({...q,root:'כתב',meaning:'write',hint:'Use the model and check the ending.',answer:answer(q.pair,q.person),sentence:['sentence','bank','writing'].includes(q.exercise)?`${core.subject(q.person)} ___ בַּמַּחְבֶּרֶת.`:'',alternative:q.exercise==='choice'?answer(core.alternativeTarget(q).pair,core.alternativeTarget(q).person):''}))};}
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE});
  try{
@@ -48,11 +48,17 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.equal(await page.locator('.pair-chip').count(),1,'mixing retains the current selection');
  await page.locator('#tense').selectOption('הווה');await page.locator('#add-pair').click();
  assert.equal(await page.locator('.pair-chip').count(),2);
- await page.locator('#title').fill('My <img src=x> worksheet');
+ await page.locator('#title').fill('Paal practice — mixed exercises');
  await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('generation-status').textContent.startsWith('Worksheet ready.'));
  assert.equal(await page.locator('#student-sheet .question').count(),12);
  assert.equal(await page.locator('#student-sheet .lesson').count(),2);
  assert.equal(await page.locator('#student-sheet img').count(),0,'title escaped');
+ assert.equal(await page.locator('#student-sheet .exercise-section').count(),5);
+ assert.equal(await page.locator('#student-sheet .choice-options').count()>0,true);
+ assert.equal(await page.locator('#student-sheet .word-bank').count(),1);
+ assert.equal(await page.locator('#student-sheet .writing-lines').count()>0,true);
+ assert.equal(await page.locator('#student-sheet .sample-label').count(),0);
+ assert.equal(await page.locator('#answer-sheet .sample-label').count()>0,true);
  assert.equal(await page.locator('#answer-sheet').isVisible(),false);
  await page.locator('#show-key').check();assert.equal(await page.locator('#answer-sheet').isVisible(),true);
  await page.screenshot({path:path.join(output,'worksheet.png'),fullPage:true});
@@ -91,6 +97,11 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.match(await page.locator('#generation-status').innerText(),/at least one per selected combination/);
  await page.locator('#mix-patterns').uncheck();
  assert.equal(await page.locator('#generate').isEnabled(),true,'single selection ignores previously mixed list');
+ for(const checkbox of await page.locator('input[name=exercise]').all())await checkbox.uncheck();
+ assert.equal(await page.locator('#generate').isDisabled(),true);
+ assert.match(await page.locator('#generation-status').innerText(),/exercise type/);
+ await page.locator('input[name=exercise][value=sentence]').check();
+ assert.equal(await page.locator('#generate').isEnabled(),true);
  await page.locator('#vocabulary').setInputFiles({name:'bad.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('bad')});
  await page.waitForFunction(()=>document.getElementById('upload-status').classList.contains('error'));
  assert.equal(await page.locator('#generate').isDisabled(),true,'invalid upload clears vocabulary');

@@ -10,6 +10,7 @@
   <script defer src="/PeninaPlus-Reader/vendor/exceljs-4.4.0.min.js"></script>
   <script defer src="/PeninaPlus-Reader/vocabulary-upload.js"></script>
   <script defer src="core.js"></script>
+  <script defer src="exercises.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -47,6 +48,14 @@
       </section>
       <section class="panel" aria-labelledby="finish-heading">
         <h2 id="finish-heading"><span class="step">4</span> Build your worksheet</h2>
+        <fieldset class="exercise-picker"><legend>Exercise types</legend>
+          <p class="muted small">Choose one or mix several. Questions are divided among the selected types.</p>
+          <label><input type="checkbox" name="exercise" value="choice" checked> Circle the correct form</label>
+          <label><input type="checkbox" name="exercise" value="conjugate" checked> Conjugate for a pronoun</label>
+          <label><input type="checkbox" name="exercise" value="sentence" checked> Complete the sentence</label>
+          <label><input type="checkbox" name="exercise" value="bank" checked> Complete with a word bank</label>
+          <label><input type="checkbox" name="exercise" value="writing" checked> Write your own sentence</label>
+        </fieldset>
         <div class="finish-fields"><label>Worksheet title<input id="title" type="text" maxlength="90" placeholder="Hebrew conjugation practice"></label><label>Questions<select id="count"><option>6</option><option selected>12</option><option>18</option><option>24</option><option>30</option></select></label></div>
         <button id="generate" class="primary" disabled type="button">Build worksheet</button>
         <p id="generation-status" role="status" class="muted">Upload vocabulary and select a combination first.</p>

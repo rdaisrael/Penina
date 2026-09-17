@@ -53,7 +53,7 @@
         status('pair-status',!vocabulary?'Upload a workbook to begin.':mode()==='practice'&&!vocabulary.binyanim.length?'No supported Paal combinations are marked. Add X marks beside Paal Regular or Lamed hey, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
         updateTenses();updateButton();
     }
-    function request(){return core.validateRequest({mode:mode(),vocabulary,pairs:selectedPairs(),count:Number($('count').value)});}
+    function request(){return core.validateRequest({mode:mode(),vocabulary,pairs:selectedPairs(),count:Number($('count').value),exercises:[...document.querySelectorAll('input[name=exercise]:checked')].map(input=>input.value)});}
     function updateButton(){
         let valid=true,reason='';try{request();}catch(error){valid=false;reason=error.message;}
         if(!busy&&!valid)status('generation-status',mode()==='practice'&&vocabulary&&!vocabulary.binyanim.length?'Practice needs X marks beside supported Paal combinations in your workbook. Choose Learn to introduce a pattern without X marks.':reason);
@@ -103,15 +103,15 @@
         if(!eligiblePairs().includes(pair)||pairs.length>=8)return;
         pairs.push(pair);dirty();renderPairs();
     });
+    document.querySelectorAll('input[name=exercise]').forEach(input=>input.addEventListener('change',dirty));
     $('count').addEventListener('change',()=>{dirty();if(selectedPairs().length>Number($('count').value))status('generation-status','Choose at least as many questions as selected combinations.',true);});
     $('title').addEventListener('input',dirty);
     const header=(title,r,key=false)=>`<div class="worksheet-heading"><p class="eyebrow">PENINAPLUS BINYAN BUILDER${key?' · ANSWER KEY':''}</p><h2>${esc(title)}</h2><p>${esc(r.request.mode==='learn'?'Learn a new pattern':'Practice learned patterns')} · ${r.questions.length} questions</p><p>${r.request.pairs.map(p=>`<bdi>${esc(pairLabel(p))}</bdi>`).join(' / ')}</p>${key?'':'<div class="name-line"><span>Name: ____________________</span><span>Date: ______________</span></div>'}</div>`;
     function renderWorksheet(r,title){
         $('empty-preview').hidden=true;$('output').hidden=false;
         $('student-sheet').innerHTML=header(title,r)+r.lessons.map(lesson=>`<section class="lesson"><h3><bdi>${esc(pairLabel(lesson.pair))}</bdi></h3><p>Model root: <bdi class="hebrew">${esc(lesson.root)}</bdi> — ${esc(lesson.meaning)}</p><p>${esc(lesson.explanation)}</p><table class="model-table"><thead><tr><th>Person / form</th><th>Model conjugation</th></tr></thead><tbody>${lesson.forms.map(row=>`<tr><td dir="rtl" lang="he">${esc(core.people[row.person])}</td><td dir="rtl" lang="he">${esc(row.answer)}</td></tr>`).join('')}</tbody></table></section>`).join('')+
-            `<h3>Your turn</h3><p>Write the vowelled Hebrew form for each root and pattern.${r.request.mode==='learn'?' Use the model tables and hints to help.':''}</p>`+
-            r.questions.map(q=>`<div class="question"><div class="question-top"><span class="question-number">${q.number}.</span><bdi>${esc(pairLabel(q.pair))}</bdi><span>${esc(q.meaning)}</span></div><div class="question-prompt"><span>Root: <bdi class="hebrew" lang="he">${esc(q.root)}</bdi> · <bdi class="hebrew" lang="he">${esc(core.people[q.person])}</bdi></span><span class="answer-line" aria-label="Write your answer"></span></div>${r.request.mode==='learn'?`<p class="hint">Hint: ${esc(q.hint)}</p>`:''}</div>`).join('');
-        $('answer-sheet').innerHTML=header(title,r,true)+r.questions.map(q=>`<div class="question"><div class="question-top"><b>${q.number}.</b><bdi>${esc(pairLabel(q.pair))}</bdi><span>${esc(q.meaning)}</span></div><div class="question-prompt"><span><bdi class="hebrew" lang="he">${esc(q.root)} · ${esc(core.people[q.person])}</bdi></span><bdi class="key-answer" lang="he">${esc(q.answer)}</bdi></div></div>`).join('');
+            window.BinyanExercises.render(r.questions,{learn:r.request.mode==='learn'});
+        $('answer-sheet').innerHTML=header(title,r,true)+window.BinyanExercises.render(r.questions,{key:true});
         $('show-key').checked=false;$('answer-sheet').hidden=true;
         $('preview-label').textContent='Ready to review';
     }

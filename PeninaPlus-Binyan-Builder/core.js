@@ -10,6 +10,11 @@
     const groupLabel = group => `${binyanLabel(group)} · ${rootTypeLabel(group)}`;
     const tenses = ['עבר','הווה','עתיד','שם הפועל','ציווי'];
     const tenseNames = ['Past','Present','Future','Infinitive','Imperative'];
+    const exerciseTypes = {
+        choice:'Circle the correct form', conjugate:'Conjugate for a pronoun',
+        sentence:'Complete the sentence', bank:'Complete with a word bank', writing:'Write your own sentence'
+    };
+    const subjectLabels = {masculine_singular:'הוא',feminine_singular:'היא',masculine_plural:'הם',feminine_plural:'הן'};
     const people = {
         first_sg:'אני', second_m_sg:'אתה', second_f_sg:'את', third_m_sg:'הוא', third_f_sg:'היא',
         first_pl:'אנחנו', second_m_pl:'אתם', second_f_pl:'אתן', third_m_pl:'הם', third_f_pl:'הן',
@@ -40,19 +45,30 @@
         const fail = message => {throw new Error(message);};
         if(!input || !['learn','practice'].includes(input.mode))fail('Choose Learn or Practice.');
         const {mode, vocabulary:v, pairs, count}=input;
+        const exercises=input.exercises===undefined?['conjugate']:input.exercises;
+        if(!Array.isArray(exercises)||!exercises.length||exercises.some(x=>!Object.hasOwn(exerciseTypes,x))||new Set(exercises).size!==exercises.length)fail('Choose at least one exercise type.');
         if(!v || !Array.isArray(v.verbs) || !v.verbs.length || v.verbs.length>500)fail('Upload a Reader spreadsheet containing 1–500 mastered roots.');
         if(v.verbs.some(x=>typeof x!=='string'||x.length>30||!/^[א-ת\u0591-\u05C7 .־״"׳'-]+$/.test(x)||normalize(x).length<2||normalize(x).length>4))fail('Roots must contain two to four Hebrew letters. Check column A.');
         if(!Array.isArray(v.binyanim)||v.binyanim.length>100||v.binyanim.some(x=>typeof x!=='string'||x.length>80))fail('Invalid learned combinations in the spreadsheet.');
         if(!Array.isArray(pairs)||!pairs.length||pairs.length>8||pairs.some(x=>!validPair(x))||new Set(pairs).size!==pairs.length)fail('Select 1–8 different binyan and tense combinations.');
         if(mode==='practice' && pairs.some(x=>!v.binyanim.includes(x)))fail('Practice can only use combinations marked X in the uploaded spreadsheet.');
         if(!Number.isInteger(count)||count<6||count>30||count<pairs.length)fail('Choose 6–30 questions, with at least one per selected combination.');
-        return {mode,vocabulary:{verbs:[...new Set(v.verbs.map(normalize))],binyanim:v.binyanim.filter(validPair)},pairs:[...pairs],count};
+        return {mode,vocabulary:{verbs:[...new Set(v.verbs.map(normalize))],binyanim:v.binyanim.filter(validPair)},pairs:[...pairs],count,exercises:[...exercises]};
     }
     function plan(request) {
         return Array.from({length:request.count},(_,i)=>{
             const pair=request.pairs[i%request.pairs.length], ps=persons(pair);
-            return {number:i+1,pair,person:ps[Math.floor(i/request.pairs.length)%ps.length]};
+            const types=request.exercises||['conjugate'];
+            return {number:i+1,pair,person:ps[Math.floor(i/request.pairs.length)%ps.length],exercise:types[Math.floor(i*types.length/request.count)]};
         });
+    }
+    function subject(person) {return subjectLabels[person]||people[person];}
+    function alternativeTarget(q) {
+        if(q.person==='form')return {pair:q.pair.replace('|שם הפועל','|עבר'),person:'third_m_sg'};
+        const person=q.person.endsWith('_singular')?q.person.replace('_singular','_plural'):
+            q.person.endsWith('_plural')?q.person.replace('_plural','_singular'):
+            q.person.endsWith('_sg')?q.person.replace('_sg','_pl'):q.person.replace('_pl','_sg');
+        return {pair:q.pair,person};
     }
     function validateResult(result, request) {
         const fail=()=>{throw new Error('The generated worksheet did not pass its checks. Please try again or choose another combination.');};
@@ -70,9 +86,17 @@
         if(result.questions.length!==request.count)fail();
         plan(request).forEach((expected,i)=>{
             const q=result.questions[i];
-            if(!q||q.number!==expected.number||q.pair!==expected.pair||q.person!==expected.person||!rootOK(q.root)||!eligibleRoot(q.root,q.pair)||!hebrew(q.answer)||!text(q.meaning,150)||!text(q.hint,300))fail();
+            if(!q||(q.exercise||'conjugate')!==expected.exercise||q.number!==expected.number||q.pair!==expected.pair||q.person!==expected.person||!rootOK(q.root)||!eligibleRoot(q.root,q.pair)||!hebrew(q.answer)||!text(q.meaning,150)||!text(q.hint,300))fail();
+            if(['sentence','bank','writing'].includes(expected.exercise)){
+                if(!text(q.sentence,400)||q.sentence.split('___').length!==2||!/[א-ת]/.test(q.sentence)||/[<>]/.test(q.sentence))fail();
+                // The target answer must be blanked, never already supplied in the stem.
+                if(q.sentence.split(/[^א-ת\u0591-\u05C7]+/).some(word=>word&&normalize(word)===normalize(q.answer)))fail();
+            }
+            if(expected.exercise==='choice'){
+                if(!hebrew(q.alternative)||normalize(q.alternative)===normalize(q.answer))fail();
+            }
         });
         return result;
     }
-    return {eligibleRoot,binyanLabel,rootTypeLabel,groupLabel,generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
+    return {exerciseTypes,subject,alternativeTarget,eligibleRoot,binyanLabel,rootTypeLabel,groupLabel,generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
 });

@@ -33,14 +33,17 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  await page.locator('#sample').click();
  await page.waitForFunction(()=>document.getElementById('upload-status').textContent.includes('6 roots'));
  assert.equal(await page.locator('#generate').isEnabled(),true,'upload immediately enables single-pattern build');
- assert.equal(await page.locator('#group').inputValue(),'פעל — כל הגזרות','default includes irregular roots');
+ assert.equal(await page.locator('#group').inputValue(),'פעל שלם','default is the supported regular Paal group');
+ assert.equal(await page.locator('#binyan option').count(),1);
+ assert.equal(await page.locator('#group option').count(),2);
+ assert.equal(await page.locator('#tense option').count(),5);
  assert.equal(await page.locator('#add-pair').isVisible(),false,'single-pattern needs no Add action');
  await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('generation-status').textContent.startsWith('Worksheet ready.'));
- assert.deepEqual(lastRequest.pairs,['פעל — כל הגזרות|עבר']);
+ assert.deepEqual(lastRequest.pairs,['פעל שלם|עבר']);
  await page.locator('#tense').selectOption('הווה');
  assert.match(await page.locator('#preview-label').innerText(),/Previous/);
  await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('preview-label').textContent==='Ready to review');
- assert.deepEqual(lastRequest.pairs,['פעל — כל הגזרות|הווה'],'dropdown change directly updates generated selection');
+ assert.deepEqual(lastRequest.pairs,['פעל שלם|הווה'],'dropdown change directly updates generated selection');
  await page.locator('#group').selectOption('פעל שלם');await page.locator('#tense').selectOption('עבר');await page.locator('#mix-patterns').check();
  assert.equal(await page.locator('.pair-chip').count(),1,'mixing retains the current selection');
  await page.locator('#tense').selectOption('הווה');await page.locator('#add-pair').click();
@@ -78,12 +81,12 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.match(await page.locator('#generation-status').innerText(),/Practice needs X marks/);
  await page.locator('input[value=learn]').check();await page.locator('#mix-patterns').uncheck();
  assert.equal(await page.locator('#generate').isEnabled(),true,'roots-only workbook works in Learn without X marks');
- assert.equal(await page.locator('#group').inputValue(),'פעל — כל הגזרות');
+ assert.equal(await page.locator('#group').inputValue(),'פעל שלם');
  assert.doesNotMatch(await page.locator('#generation-status').innerText(),/Practice needs X marks/,'old disabled reason cleared');
  await page.locator('#mix-patterns').check();
  await page.locator('#count').selectOption('6');
- for(const tense of ['הווה','עתיד','שם הפועל','שם פעולה','ציווי']){await page.locator('#tense').selectOption(tense);await page.locator('#add-pair').click();}
- await page.locator('#group').selectOption('פיעל — כל הגזרות');await page.locator('#add-pair').click();
+ for(const tense of ['הווה','עתיד','שם הפועל','ציווי']){await page.locator('#tense').selectOption(tense);await page.locator('#add-pair').click();}
+ await page.locator('#group').selectOption('פעל ל-ה');await page.locator('#add-pair').click();await page.locator('#tense').selectOption('עבר');await page.locator('#add-pair').click();
  assert.equal(await page.locator('#generate').isDisabled(),true,'seven combinations cannot fit six questions');
  assert.match(await page.locator('#generation-status').innerText(),/at least one per selected combination/);
  await page.locator('#mix-patterns').uncheck();

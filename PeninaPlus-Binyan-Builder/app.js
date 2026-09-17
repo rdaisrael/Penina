@@ -4,7 +4,7 @@
     const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     let vocabulary=null, pairs=[], uploadVersion=0, generationVersion=0, controller=null, busy=false, result=null;
     const mode=()=>document.querySelector('input[name="mode"]:checked').value;
-    const pairLabel=pair=>{const [group,tense]=pair.split('|');return `${group} · ${core.tenseNames[core.tenses.indexOf(tense)]} / ${tense}`;};
+    const pairLabel=pair=>{const [group,tense]=pair.split('|');return `${core.groupLabel(group)} · ${core.tenseNames[core.tenses.indexOf(tense)]} / ${tense}`;};
     function status(id,message,error=false){$(id).textContent=message;$(id).classList.toggle('error',error);}
     function dirty(){
         generationVersion++;controller?.abort();controller=null;busy=false;
@@ -14,19 +14,24 @@
     }
     function eligiblePairs(){
         if(!vocabulary)return [];
-        return mode()==='practice'?vocabulary.binyanim:core.groups.flatMap(g=>core.tenses.map(t=>`${g}|${t}`).filter(core.validPair));
+        return mode()==='practice'?vocabulary.binyanim.filter(core.validPair):core.groups.flatMap(g=>core.tenses.map(t=>`${g}|${t}`).filter(core.validPair));
     }
     const mixing=()=>$('mix-patterns').checked;
     const currentPair=()=>`${$('group').value}|${$('tense').value}`;
     const selectedPairs=()=>mixing()?pairs:(eligiblePairs().includes(currentPair())?[currentPair()]:[]);
     function updatePicker(){
-        const available=eligiblePairs(), previous=$('group').value;
-        const groups=core.groups.filter(g=>available.some(p=>p.split('|')[0]===g));
-        $('group').replaceChildren(...groups.map(g=>new Option(core.generalGroups.includes(g)?`${g.split(' ')[0]} — All root types`:g,g)));
+        const available=eligiblePairs(), previous=$('group').value, previousBinyan=$('binyan').value;
+        const allGroups=core.groups.filter(g=>available.some(p=>p.split('|')[0]===g));
+        const binyanim=[...new Set(allGroups.map(g=>g.split(' ')[0]))];
+        $('binyan').replaceChildren(...binyanim.map(b=>new Option(core.binyanLabel(b),b)));
+        if(binyanim.includes(previousBinyan))$('binyan').value=previousBinyan;
+        $('binyan').disabled=!binyanim.length;
+        const groups=allGroups.filter(g=>g.split(' ')[0]===$('binyan').value);
+        $('group').replaceChildren(...groups.map(g=>new Option(core.rootTypeLabel(g),g)));
         if(groups.includes(previous))$('group').value=previous;
         $('group').disabled=!groups.length;
         updateTenses();
-        $('selection-help').textContent=mode()==='practice'?'Only combinations marked X in this workbook are available. Enable mixed practice to include several.':'Choose a binyan and tense, then build. All root types accepts the different root types in your vocabulary; choose a specific group to focus on that pattern.';
+        $('selection-help').textContent=mode()==='practice'?'Only combinations marked X in this workbook are available. Enable mixed practice to include several.':'Paal / Kal only: choose Regular or Lamed hey and a tense. Other root types are ignored. היה and חיה are not yet supported.';
     }
     function updateTenses(){
         const previous=$('tense').value;
@@ -45,13 +50,13 @@
         }));
         $('pairs').hidden=!mixing();$('add-pair').hidden=!mixing();
         const selected=selectedPairs();
-        status('pair-status',!vocabulary?'Upload a workbook to begin.':mode()==='practice'&&!vocabulary.binyanim.length?'No learned combinations are marked. Add X marks to your workbook, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
+        status('pair-status',!vocabulary?'Upload a workbook to begin.':mode()==='practice'&&!vocabulary.binyanim.length?'No supported Paal combinations are marked. Add X marks beside Paal Regular or Lamed hey, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
         updateTenses();updateButton();
     }
     function request(){return core.validateRequest({mode:mode(),vocabulary,pairs:selectedPairs(),count:Number($('count').value)});}
     function updateButton(){
         let valid=true,reason='';try{request();}catch(error){valid=false;reason=error.message;}
-        if(!busy&&!valid)status('generation-status',mode()==='practice'&&vocabulary&&!vocabulary.binyanim.length?'Practice needs X marks beside learned combinations in your workbook. Choose Learn to introduce a pattern without X marks.':reason);
+        if(!busy&&!valid)status('generation-status',mode()==='practice'&&vocabulary&&!vocabulary.binyanim.length?'Practice needs X marks beside supported Paal combinations in your workbook. Choose Learn to introduce a pattern without X marks.':reason);
         $('generate').disabled=busy||!valid;$('generate').textContent=busy?'Building your worksheet…':'Build worksheet';
     }
     async function loadWorkbook(getFile){
@@ -67,8 +72,8 @@
             // Validate roots now, before a teacher spends time configuring a worksheet.
             core.validateRequest({mode:'learn',vocabulary:parsed,pairs:['פעל שלם|עבר'],count:6});
             if(version!==uploadVersion)return;
-            vocabulary=parsed;
-            status('upload-status',`${file.name}: ${parsed.verbs.length} roots · ${parsed.binyanim.length} learned combinations · ${parsed.nouns.length} nouns · ${parsed.adjs.length} adjectives`);
+            vocabulary={...parsed,binyanim:parsed.binyanim.filter(core.validPair)};
+            status('upload-status',`${file.name}: ${parsed.verbs.length} roots · ${vocabulary.binyanim.length} supported learned combinations · ${parsed.nouns.length} nouns · ${parsed.adjs.length} adjectives`);
             $('roots').textContent=parsed.verbs.join('  ·  ');$('vocabulary-details').hidden=false;
             updatePicker();dirty();renderPairs();
         }catch(error){if(version===uploadVersion)status('upload-status',error.message,true);}
@@ -85,6 +90,7 @@
     document.querySelectorAll('input[name="mode"]').forEach(input=>input.addEventListener('change',()=>{
         pairs=pairs.filter(pair=>eligiblePairs().includes(pair));updatePicker();dirty();renderPairs();
     }));
+    $('binyan').addEventListener('change',()=>{updatePicker();dirty();renderPairs();});
     $('group').addEventListener('change',()=>{updateTenses();dirty();renderPairs();});
     $('tense').addEventListener('change',()=>{dirty();renderPairs();});
     $('mix-patterns').addEventListener('change',()=>{
@@ -114,7 +120,7 @@
         const version=++generationVersion;controller?.abort();const active=new AbortController();controller=active;busy=true;updateButton();
         const title=$('title').value.trim()||'Hebrew conjugation practice';
         status('generation-status','Building and checking your worksheet. This may take about a minute.');
-        const timeout=setTimeout(()=>active.abort(),70000);
+        const timeout=setTimeout(()=>active.abort(),110000);
         try{
             const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...input,action:'binyan-worksheet'}),signal:active.signal});
             let data;try{data=await response.json();}catch{throw new Error('The worksheet service is unavailable or took too long. Please try again.');}

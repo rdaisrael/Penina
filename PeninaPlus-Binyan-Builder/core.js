@@ -3,10 +3,13 @@
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.BinyanBuilder = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
-    const generalGroups = ['פעל — כל הגזרות','פיעל — כל הגזרות','הפעיל — כל הגזרות','התפעל — כל הגזרות','נפעל — כל הגזרות','פועל — כל הגזרות','הופעל — כל הגזרות'];
-    const groups = [...generalGroups,'פעל שלם','פעל ל-ה','פעל ע"ו','פעל חפ"נ','פעל פ"י','פיעל שלם','פיעל ל-ה','הפעיל שלם','הפעיל ל-ה','הפעיל ע"ו','הפעיל פ"י','התפעל שלם','נפעל שלם','פועל שלם','הופעל שלם'];
-    const tenses = ['עבר','הווה','עתיד','שם הפועל','שם פעולה','ציווי'];
-    const tenseNames = ['Past','Present','Future','Infinitive','Verbal noun','Imperative'];
+    const generalGroups = [];
+    const groups = ['פעל שלם','פעל ל-ה'];
+    const binyanLabel = () => 'קל (פעל)';
+    const rootTypeLabel = group => group==='פעל ל-ה'?'ל״ה — Lamed hey':'Regular — שלם';
+    const groupLabel = group => `${binyanLabel(group)} · ${rootTypeLabel(group)}`;
+    const tenses = ['עבר','הווה','עתיד','שם הפועל','ציווי'];
+    const tenseNames = ['Past','Present','Future','Infinitive','Imperative'];
     const people = {
         first_sg:'אני', second_m_sg:'אתה', second_f_sg:'את', third_m_sg:'הוא', third_f_sg:'היא',
         first_pl:'אנחנו', second_m_pl:'אתם', second_f_pl:'אתן', third_m_pl:'הם', third_f_pl:'הן',
@@ -23,8 +26,15 @@
     function validPair(pair) {
         if(typeof pair!=='string')return false;
         const [group,tense,...rest]=pair.split('|');
-        return !rest.length && groups.includes(group) && tenses.includes(tense) &&
-            (!['פועל','הופעל'].includes(group.split(' ')[0]) || tenses.slice(0,3).includes(tense));
+        return !rest.length && groups.includes(group) && tenses.includes(tense);
+    }
+    // Classroom scope: exclude other weak-root groups; gutturals and הלך/אכל
+    // remain eligible, with each actual conjugation independently verified.
+    function eligibleRoot(root, pair) {
+        root=normalize(root);
+        if(root.length!==3 || !validPair(pair))return false;
+        if(pair.startsWith('פעל ל-ה|'))return root.endsWith('ה') && !['היה','חיה'].includes(root);
+        return !root.endsWith('ה') && !/^[ני]/.test(root) && !/[וי]/.test(root[1]);
     }
     function validateRequest(input) {
         const fail = message => {throw new Error(message);};
@@ -32,11 +42,11 @@
         const {mode, vocabulary:v, pairs, count}=input;
         if(!v || !Array.isArray(v.verbs) || !v.verbs.length || v.verbs.length>500)fail('Upload a Reader spreadsheet containing 1–500 mastered roots.');
         if(v.verbs.some(x=>typeof x!=='string'||x.length>30||!/^[א-ת\u0591-\u05C7 .־״"׳'-]+$/.test(x)||normalize(x).length<2||normalize(x).length>4))fail('Roots must contain two to four Hebrew letters. Check column A.');
-        if(!Array.isArray(v.binyanim)||v.binyanim.length>100||v.binyanim.some(x=>!validPair(x)))fail('Invalid learned combinations in the spreadsheet.');
+        if(!Array.isArray(v.binyanim)||v.binyanim.length>100||v.binyanim.some(x=>typeof x!=='string'||x.length>80))fail('Invalid learned combinations in the spreadsheet.');
         if(!Array.isArray(pairs)||!pairs.length||pairs.length>8||pairs.some(x=>!validPair(x))||new Set(pairs).size!==pairs.length)fail('Select 1–8 different binyan and tense combinations.');
         if(mode==='practice' && pairs.some(x=>!v.binyanim.includes(x)))fail('Practice can only use combinations marked X in the uploaded spreadsheet.');
         if(!Number.isInteger(count)||count<6||count>30||count<pairs.length)fail('Choose 6–30 questions, with at least one per selected combination.');
-        return {mode,vocabulary:{verbs:[...new Set(v.verbs.map(normalize))],binyanim:[...v.binyanim]},pairs:[...pairs],count};
+        return {mode,vocabulary:{verbs:[...new Set(v.verbs.map(normalize))],binyanim:v.binyanim.filter(validPair)},pairs:[...pairs],count};
     }
     function plan(request) {
         return Array.from({length:request.count},(_,i)=>{
@@ -52,7 +62,7 @@
         if(!result || !Array.isArray(result.lessons)||!Array.isArray(result.questions))fail();
         if(result.lessons.length!==(request.mode==='learn'?request.pairs.length:0))fail();
         result.lessons.forEach((lesson,i)=>{
-            if(lesson.pair!==request.pairs[i]||!rootOK(lesson.root)||!text(lesson.meaning,150)||!text(lesson.explanation))fail();
+            if(lesson.pair!==request.pairs[i]||!rootOK(lesson.root)||!eligibleRoot(lesson.root,lesson.pair)||!text(lesson.meaning,150)||!text(lesson.explanation))fail();
             const ps=persons(lesson.pair);
             if(!Array.isArray(lesson.forms)||lesson.forms.length!==ps.length)fail();
             lesson.forms.forEach((row,j)=>{if(row.person!==ps[j]||!hebrew(row.answer))fail();});
@@ -60,9 +70,9 @@
         if(result.questions.length!==request.count)fail();
         plan(request).forEach((expected,i)=>{
             const q=result.questions[i];
-            if(!q||q.number!==expected.number||q.pair!==expected.pair||q.person!==expected.person||!rootOK(q.root)||!hebrew(q.answer)||!text(q.meaning,150)||!text(q.hint,300))fail();
+            if(!q||q.number!==expected.number||q.pair!==expected.pair||q.person!==expected.person||!rootOK(q.root)||!eligibleRoot(q.root,q.pair)||!hebrew(q.answer)||!text(q.meaning,150)||!text(q.hint,300))fail();
         });
         return result;
     }
-    return {generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
+    return {eligibleRoot,binyanLabel,rootTypeLabel,groupLabel,generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
 });

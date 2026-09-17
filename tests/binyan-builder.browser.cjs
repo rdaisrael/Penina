@@ -8,7 +8,7 @@ const output=fs.mkdtempSync('/private/tmp/binyan-builder-');
 const past=['כָּתַבְתִּי','כָּתַבְתָּ','כָּתַבְתְּ','כָּתַב','כָּתְבָה','כָּתַבְנוּ','כְּתַבְתֶּם','כְּתַבְתֶּן','כָּתְבוּ','כָּתְבוּ'];
 const present=['כּוֹתֵב','כּוֹתֶבֶת','כּוֹתְבִים','כּוֹתְבוֹת'];
 function answer(pair,person){return (pair.endsWith('הווה')?present:past)[core.persons(pair).indexOf(person)];}
-function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({pair,root:'כתב',meaning:'write',explanation:'Start with the root כתב. Notice how the ending changes with the person or form.',forms:core.persons(pair).map(person=>({person,answer:answer(pair,person)}))})):[],questions:core.plan(req).map(q=>({...q,root:'כתב',meaning:'write',hint:'Use the model and check the ending.',answer:answer(q.pair,q.person),sentence:['sentence','bank','writing'].includes(q.exercise)?`${core.subject(q.person)} ___ בַּמַּחְבֶּרֶת.`:'',alternative:q.exercise==='choice'?answer(core.alternativeTarget(q).pair,core.alternativeTarget(q).person):''}))};}
+function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({pair,root:'כתב',meaning:'write',explanation:'Start with the root כתב. Notice how the ending changes with the person or form.',forms:core.persons(pair).map(person=>({person,answer:answer(pair,person)}))})):[],questions:core.plan(req).map(q=>({...q,root:'כתב',meaning:'write',hint:'Use the model and check the ending.',answer:answer(q.pair,q.person),sentence:['sentence','writing'].includes(q.exercise)?`${core.subject(q.person)} ___ בַּמַּחְבֶּרֶת.`:'',alternative:q.exercise==='choice'?answer(core.alternativeTarget(q).pair,core.alternativeTarget(q).person):''}))};}
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE});
  try{
@@ -53,9 +53,9 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.equal(await page.locator('#student-sheet .question').count(),12);
  assert.equal(await page.locator('#student-sheet .lesson').count(),2);
  assert.equal(await page.locator('#student-sheet img').count(),0,'title escaped');
- assert.equal(await page.locator('#student-sheet .exercise-section').count(),5);
+ assert.equal(await page.locator('#student-sheet .exercise-section').count(),4);
  assert.equal(await page.locator('#student-sheet .choice-options').count()>0,true);
- assert.equal(await page.locator('#student-sheet .word-bank').count(),1);
+ assert.equal(await page.locator('#student-sheet .word-bank').count(),0);
  assert.equal(await page.locator('#student-sheet .writing-lines').count()>0,true);
  assert.equal(await page.locator('#student-sheet .sample-label').count(),0);
  assert.equal(await page.locator('#answer-sheet .sample-label').count()>0,true);

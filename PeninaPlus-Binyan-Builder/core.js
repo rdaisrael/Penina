@@ -12,7 +12,7 @@
     const tenseNames = ['Past','Present','Future','Infinitive','Imperative'];
     const exerciseTypes = {
         choice:'Circle the correct form', conjugate:'Conjugate for a pronoun',
-        sentence:'Complete the sentence', bank:'Complete with a word bank', writing:'Write your own sentence'
+        sentence:'Complete the sentence', writing:'Write your own sentence'
     };
     const subjectLabels = {masculine_singular:'הוא',feminine_singular:'היא',masculine_plural:'הם',feminine_plural:'הן'};
     const people = {
@@ -87,7 +87,7 @@
         plan(request).forEach((expected,i)=>{
             const q=result.questions[i];
             if(!q||(q.exercise||'conjugate')!==expected.exercise||q.number!==expected.number||q.pair!==expected.pair||q.person!==expected.person||!rootOK(q.root)||!eligibleRoot(q.root,q.pair)||!hebrew(q.answer)||!text(q.meaning,150)||!text(q.hint,300))fail();
-            if(['sentence','bank','writing'].includes(expected.exercise)){
+            if(['sentence','writing'].includes(expected.exercise)){
                 if(!text(q.sentence,400)||q.sentence.split('___').length!==2||!/[א-ת]/.test(q.sentence)||/[<>]/.test(q.sentence))fail();
                 // The target answer must be blanked, never already supplied in the stem.
                 if(q.sentence.split(/[^א-ת\u0591-\u05C7]+/).some(word=>word&&normalize(word)===normalize(q.answer)))fail();

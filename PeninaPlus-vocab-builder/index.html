@@ -791,13 +791,6 @@
             </div>
             <p id="practice-saved-status" role="status" style="text-align: center;"></p>
             <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
-                <fieldset class="checkbox-group" style="margin: 0 0 16px; padding: 12px; border: 1px solid #dcd3c6;">
-                    <legend>Include in published cards, sheets, and games</legend>
-                    <label><input type="checkbox" id="publish-english-translation" checked> English Translation</label>
-                    <label><input type="checkbox" id="publish-hebrew-translation" checked> Hebrew Translation</label>
-                    <label><input type="checkbox" id="publish-context-quotes" checked> Context Quote</label>
-                </fieldset>
-                <p style="font-size: 13px; margin: 0 0 14px;">These choices apply to the published set. Games use only the included answer languages.</p>
                 <div class="publish-card-controls">
                     <div class="form-group">
                         <label for="publish-card-grade">Publish Flashcards, Sheets, and Practice Exercises to:</label>
@@ -844,10 +837,10 @@
     </div>
 
         <div id="draft-context-tools" class="draft-context-tools">
-            <div class="draft-tools-message">Click any context quote or translation to edit it directly. To regenerate quotes, check the desired quotes and click 'Regenerate Selected Context Quotes'.</div>
+            <div class="draft-tools-message">Include choices apply to this preview, cards, sheets, and games. Save Draft preserves all content and settings, including unchecked content.<br>Click any context quote or translation to edit it directly. To regenerate quotes, check the desired quotes and click 'Regenerate Selected Context Quotes'.</div>
             <div class="draft-tools-buttons">
-                <div class="display-options" role="group" aria-label="Display options">
-                    <strong>Display:</strong>
+                <div class="display-options" role="group" aria-label="Include in preview, cards, sheets, and games">
+                    <strong>Include:</strong>
                     <label><input type="checkbox" id="english-translation" checked> English Translation</label>
                     <label><input type="checkbox" id="hebrew-translation" checked> Hebrew Translation</label>
                     <label><input type="checkbox" id="context-quotes" checked> Context Quote</label>
@@ -1167,6 +1160,15 @@
             }
         }
 
+        function getInclusionOptions() {
+            return {
+                english: displayOptionEnabled('english-translation'),
+                hebrew: displayOptionEnabled('hebrew-translation'),
+                context: displayOptionEnabled('context-quotes'),
+                fontSize: Number(getControlValue('font-size')) || 14
+            };
+        }
+
         function downloadOfflineStudyCards() {
             if (!generatedRows.length) {
                 alert('Generate a vocabulary sheet before downloading offline study cards.');
@@ -1177,7 +1179,8 @@
             try {
                 PeninaOfflineStudyCards.download({
                     title: document.getElementById('list-title').value.trim(),
-                    rows: getWorkbookExportRows()
+                    rows: getWorkbookExportRows(),
+                    publicationOptions: getInclusionOptions()
                 });
             } catch (error) {
                 alert(error && error.message ? error.message : 'The offline study cards could not be downloaded.');
@@ -1211,12 +1214,7 @@
             setPublishStudyCardsStatus('Preparing and publishing the flashcards and sheets...');
             try {
                 const rows = getWorkbookExportRows();
-                const sheetOptions = {
-                    english: displayOptionEnabled('publish-english-translation'),
-                    hebrew: displayOptionEnabled('publish-hebrew-translation'),
-                    context: displayOptionEnabled('publish-context-quotes'),
-                    fontSize: Number(getControlValue('font-size')) || 14
-                };
+                const sheetOptions = getInclusionOptions();
                 const html = PeninaOfflineStudyCards.makeApp(title, PeninaOfflineStudyCards.toCards(rows), { publicationOptions: sheetOptions })
                     + '<script id="peninaSheetOptions" type="application/json">'
                     + JSON.stringify(sheetOptions).replace(/</g, '\\u003c') + '<\/script>';
@@ -1342,7 +1340,7 @@
             for (let i = 0; i < generatedRows.length; i++) syncGeneratedRowFromDom(i);
             return {
                 draftType: 'PeninaPlusVocabularyBuilderDraft',
-                draftVersion: 1,
+                draftVersion: 2,
                 savedAt: new Date().toISOString(),
                 inputs: {
                     listTitle: getControlValue('list-title'),
@@ -1351,9 +1349,6 @@
                     englishTranslation: getControlValue('english-translation'),
                     hebrewTranslation: getControlValue('hebrew-translation'),
                     contextQuotes: getControlValue('context-quotes'),
-                    publishEnglishTranslation: getControlValue('publish-english-translation'),
-                    publishHebrewTranslation: getControlValue('publish-hebrew-translation'),
-                    publishContextQuotes: getControlValue('publish-context-quotes'),
                     substituteNames: getControlValue('substitute-names'),
                     fontSize: getControlValue('font-size'),
                     kerning: getControlValue('kerning'),
@@ -1408,12 +1403,9 @@
             setControlValue('source-type', legacyNoContext ? 'Tanakh' : (inputs.sourceType || 'Tanakh'));
             sourceTypeSelect.dispatchEvent(new Event('change'));
             setControlValue('word-list', inputs.wordList || '');
-            setControlValue('english-translation', inputs.englishTranslation !== false);
-            setControlValue('hebrew-translation', inputs.hebrewTranslation !== false);
-            setControlValue('context-quotes', legacyNoContext ? false : inputs.contextQuotes);
-            setControlValue('publish-english-translation', inputs.publishEnglishTranslation !== false);
-            setControlValue('publish-hebrew-translation', inputs.publishHebrewTranslation !== false);
-            setControlValue('publish-context-quotes', inputs.publishContextQuotes !== false);
+            setControlValue('english-translation', (inputs.englishTranslation ?? inputs.publishEnglishTranslation) !== false);
+            setControlValue('hebrew-translation', (inputs.hebrewTranslation ?? inputs.publishHebrewTranslation) !== false);
+            setControlValue('context-quotes', legacyNoContext ? false : (inputs.contextQuotes ?? inputs.publishContextQuotes) !== false);
             setControlValue('substitute-names', inputs.substituteNames);
             setControlValue('font-size', inputs.fontSize || '14');
             setControlValue('kerning', inputs.kerning || '0');
@@ -1470,9 +1462,6 @@
             setControlValue('english-translation', true);
             setControlValue('hebrew-translation', true);
             setControlValue('context-quotes', true);
-            setControlValue('publish-english-translation', true);
-            setControlValue('publish-hebrew-translation', true);
-            setControlValue('publish-context-quotes', true);
             setControlValue('substitute-names', true);
             setControlValue('font-size', '14');
             setControlValue('kerning', '0');
@@ -2412,6 +2401,8 @@ function updateTalmudModeVisibility() {
             const englishTextEl = tr.querySelector('.english-text');
             const hebrewCitationEl = tr.querySelector('.hebrew-citation');
             const englishCitationEl = tr.querySelector('.english-citation');
+            const originalText = el => el.dataset && el.dataset.original !== undefined
+                ? stripHtmlToText(el.dataset.original) : el.textContent;
             if (definitionEl) {
                 const text = definitionEl.textContent.trim();
                 if (text || !row.suppressEnglishTermTranslation) {
@@ -2419,11 +2410,11 @@ function updateTalmudModeVisibility() {
                     row.suppressEnglishTermTranslation = isNoGenerationMarker(text);
                 }
             }
-            if (modernHebrewTermEl) setOptionalGeneratedRowValue(row, 'modernHebrewTranslation', modernHebrewTermEl.textContent, 'suppressHebrewTermTranslation');
-            if (hebrewTextEl) setOptionalGeneratedRowValue(row, 'hebrewContext', hebrewTextEl.textContent, 'suppressContextQuote');
-            if (modernHebrewContextEl) setOptionalGeneratedRowValue(row, 'modernHebrewContext', modernHebrewContextEl.textContent, 'suppressHebrewContextTranslation');
+            if (modernHebrewTermEl) setOptionalGeneratedRowValue(row, 'modernHebrewTranslation', originalText(modernHebrewTermEl), 'suppressHebrewTermTranslation');
+            if (hebrewTextEl) setOptionalGeneratedRowValue(row, 'hebrewContext', originalText(hebrewTextEl), 'suppressContextQuote');
+            if (modernHebrewContextEl) setOptionalGeneratedRowValue(row, 'modernHebrewContext', originalText(modernHebrewContextEl), 'suppressHebrewContextTranslation');
             if (englishTextEl) setOptionalGeneratedRowValue(row, 'englishContext', englishTextEl.textContent, 'suppressEnglishContextTranslation');
-            if (hebrewCitationEl) setOptionalGeneratedRowValue(row, 'hebrewCitation', hebrewCitationEl.textContent, 'suppressHebrewCitation');
+            if (hebrewCitationEl) setOptionalGeneratedRowValue(row, 'hebrewCitation', originalText(hebrewCitationEl), 'suppressHebrewCitation');
             if (englishCitationEl) setOptionalGeneratedRowValue(row, 'englishCitation', englishCitationEl.textContent, 'suppressEnglishCitation');
         }
 

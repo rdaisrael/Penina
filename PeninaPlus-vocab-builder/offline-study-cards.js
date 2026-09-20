@@ -821,7 +821,7 @@ byId('termFirst').onclick=()=>{termFirst=true;sideIndex=0;byId('termFirst').clas
         const rows = Array.isArray(options && options.rows) ? options.rows : [];
         if (!rows.length) throw new Error('There are no vocabulary rows to download.');
         const title = safeFileName(options && options.title);
-        const blob = new Blob([makeApp(title, toCards(rows))], { type: 'text/html;charset=utf-8' });
+        const blob = new Blob([makeApp(title, toCards(rows), { publicationOptions: options.publicationOptions })], { type: 'text/html;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;

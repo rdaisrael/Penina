@@ -123,3 +123,68 @@ test('display choices never disable generation and can be toggled without alteri
     assert.equal(context.document.body.className, 'mode-full');
     assert.equal(classes.size, 0);
 });
+
+test('one set of inclusion choices survives JSON round trips with hidden content and formatting', () => {
+    assert(!html.includes('id="publish-english-translation"'));
+    assert(!html.includes('id="publish-hebrew-translation"'));
+    assert(!html.includes('id="publish-context-quotes"'));
+    const controls = ['english-translation', 'hebrew-translation', 'context-quotes'];
+    const elements = {};
+    const element = id => elements[id] ||= { type: controls.includes(id) || id === 'substitute-names' ? 'checkbox' : 'text',
+        value: '', checked: true, style: {}, classList: { add() {}, remove() {} } };
+    const context = {
+        document: { getElementById: element, documentElement: { style: { setProperty() {} } } },
+        sourceTypeSelect: { dispatchEvent() {} }, Event: class {}, renderChips() {},
+        updateFontSizeVariables() {}, updateMargin() {}, updateViewModeLock() {}, applyTitleText() {},
+        setVocabularyWorkbookStatus() {}, updateWorkbookExportAvailability() {}, refreshOriginalHebrewDatasets() {},
+        updateTextDisplay() {}, updateVocabInputWarning() {}, syncGeneratedRowFromDom() {},
+        getSelectedSourceTargets: () => [], importedVocabularyRows: [],
+        generatedRows: [{ item: { hebrew: 'סוּס', english: 'Edited horse' }, modernHebrewTranslation: 'בעל חיים',
+            hebrewContext: 'סוּס רץ', modernHebrewContext: 'הסוס רץ', englishContext: 'Edited context',
+            hebrewCitation: 'מקור', englishCitation: 'Source', alternativeAnswers: { english: ['camel'] } }],
+        renderVocabularyRow: row => JSON.stringify(row),
+        vocabTbody: { innerHTML: '' }, docTitle: { innerHTML: '' }, pageContainer: { style: { display: 'block' } }
+    };
+    vm.createContext(context);
+    vm.runInContext(section('        function getControlValue(', '        function safeDraftFileName(')
+        + section('        function applyDraftPayload(', '        function clearVocabularyForm(')
+        + section('        function getInclusionOptions(', '        function downloadOfflineStudyCards(')
+        + section('        function displayOptionEnabled(', '        function updateTranslationOptionAvailability('), context);
+    context.setControlValue('font-size', '18');
+    context.setControlValue('nekudot-toggle', 'strip');
+    context.setControlValue('font-choice', "'David Libre', serif");
+    context.setControlValue('english-font-choice', 'Georgia, serif');
+    context.setControlValue('margin-mode', 'right');
+    const originalRows = JSON.stringify(context.generatedRows);
+    for (let mask = 0; mask < 8; mask++) {
+        controls.forEach((id, index) => context.setControlValue(id, !!(mask & (1 << index))));
+        const payload = JSON.parse(JSON.stringify(context.buildDraftPayload()));
+        context.generatedRows = [];
+        controls.forEach(id => context.setControlValue(id, true));
+        context.applyDraftPayload(payload);
+        assert.equal(JSON.stringify(context.generatedRows), originalRows);
+        const options = context.getInclusionOptions();
+        assert.deepEqual([options.english, options.hebrew, options.context], controls.map((_, i) => !!(mask & (1 << i))));
+        assert.equal(options.fontSize, 18);
+        assert.equal(context.getControlValue('nekudot-toggle'), 'strip');
+        assert.equal(context.getControlValue('font-choice'), "'David Libre', serif");
+        assert.equal(context.getControlValue('english-font-choice'), 'Georgia, serif');
+        assert.equal(context.getControlValue('margin-mode'), 'right');
+    }
+});
+
+test('saving a row uses original vocalized Hebrew even when the display strips vowels', () => {
+    const row = { item: { english: 'horse' } };
+    const original = 'סוּס';
+    const context = {
+        generatedRows: [row],
+        vocabTbody: { querySelector: () => ({ querySelector: selector => selector === '.hebrew-text'
+            ? { textContent: 'סוס', dataset: { original } } : null }) },
+        stripHtmlToText: text => text,
+        setOptionalGeneratedRowValue: (target, field, value) => { target[field] = value; }
+    };
+    vm.createContext(context);
+    vm.runInContext(section('        function syncGeneratedRowFromDom(', '        function extractBracketedDefinitionExpansionGlobal('), context);
+    context.syncGeneratedRowFromDom(0);
+    assert.equal(row.hebrewContext, original);
+});

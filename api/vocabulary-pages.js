@@ -4,7 +4,7 @@ const { listPages, createPage } = require('../lib/vocabulary-pages');
 const CREATION_PASSWORD_SALT = '4faa30f60e1960ddedf0893d8ebc0dd8';
 const CREATION_PASSWORD_HASH = process.env.VOCABULARY_PAGE_CREATE_PASSWORD
     ? crypto.scryptSync(process.env.VOCABULARY_PAGE_CREATE_PASSWORD, CREATION_PASSWORD_SALT, 32)
-    : Buffer.from('9ea0d33bcbcf18de0e450f625919ec770d6d4fe5012ee3b3f7aa206ca164e3bf', 'hex');
+    : Buffer.from('415b6eb7993b610c1c7504517b5da13a02b2b36d49c5777d6321081347b66eeb', 'hex');
 
 module.exports = async function (req, res) {
     res.setHeader('Cache-Control', 'no-store');

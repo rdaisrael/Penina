@@ -55,6 +55,22 @@ function server() {
     return { request, create, blobs, env };
 }
 
+test('Default creation credential works and environment overrides replace it', async () => {
+    const { request, env, blobs } = server();
+    delete env.VOCABULARY_PAGE_CREATE_PASSWORD;
+    const body = { name: 'New Class', password: 'page-password', creationPassword: '1-wc' };
+    for (const creationPassword of ['1234', 'wrong', '1-WC']) {
+        assert.equal((await request('api/vocabulary-pages.js', 'POST', { ...body, creationPassword })).code, 401);
+        assert.equal(blobs.size, 0);
+    }
+    assert.equal((await request('api/vocabulary-pages.js', 'POST', body)).code, 201);
+    env.VOCABULARY_PAGE_CREATE_PASSWORD = 'test-admin-password';
+    assert.equal((await request('api/vocabulary-pages.js', 'POST', { ...body, name: 'Other Class' })).code, 401);
+    assert.equal((await request('api/vocabulary-pages.js', 'POST', {
+        ...body, name: 'Other Class', creationPassword: 'test-admin-password'
+    })).code, 201);
+});
+
 test('Created pages persist across requests, list alongside grades, and expose no credentials', async () => {
     const { request, create, blobs } = server();
     const created = await create({ name: '  Ninth   Grade  ', password: 'סיסמה<&> secret' });

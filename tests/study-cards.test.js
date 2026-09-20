@@ -213,3 +213,44 @@ test('Print button opens an eight-card preview directly with all content',()=>{
  assert.equal((pages.match(/paper-sheet eight-up/g)||[]).length,4);
  for(const text of ['מילה 1','הגדרה 1','Definition 1','מקור 1','עברית 1','Context 1'])assert(pages.includes(text));
 });
+
+test('Teacher publication choices survive cards, downloads, sheets and game rebuilding without changing the draft', async () => {
+    const original = { n: 1, term: 'סוס', english: 'horse', hebrew: 'בעל חיים',
+        contextQuote: 'מקור ייחודי', hebrewTranslation: 'תרגום הקשר ייחודי', englishTranslation: 'Unique English context',
+        sourceHebrew: 'מקור', sourceEnglish: 'Source',
+        contextQuoteRuns: [{ text: 'מקור ייחודי', bold: true }],
+        hebrewTranslationRuns: [{ text: 'תרגום הקשר ייחודי', bold: true }],
+        englishTranslationRuns: [{ text: 'Unique English context', bold: true }],
+        alternativeAnswers: {
+            english: { term: 'סוס', definition: 'horse', answers: ['donkey', 'camel', 'goat', 'sheep'] },
+            hebrew: { term: 'סוס', definition: 'בעל חיים', answers: ['אבן', 'כיסא', 'שולחן', 'בית'] }
+        }
+    };
+    const before = JSON.stringify(original);
+    for (let mask = 0; mask < 8; mask++) {
+        const options = { english: !!(mask & 1), hebrew: !!(mask & 2), context: !!(mask & 4) };
+        const html = app.makeApp(title, [original], { publicationOptions: options });
+        const published = JSON.parse(html.match(/<script id="peninaCardData" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+        for (const lang of ['english', 'hebrew']) {
+            assert.equal(published[0][lang], options[lang] ? original[lang] : '');
+            assert.equal(app.practiceRows(published, lang).length, options[lang] ? 1 : 0);
+            assert.equal(published[0][lang + 'Translation'], options[lang] && options.context ? original[lang + 'Translation'] : '');
+            if (!options[lang]) assert(!html.includes(original[lang]));
+        }
+        assert.equal(published[0].contextQuote, options.context ? original.contextQuote : '');
+        if (!options.context) assert(!html.includes(original.contextQuote));
+        const { handler, pathname, res } = publishingApi(html);
+        for (const extra of [{}, { download: '1' }, { sheet: '1' }]) {
+            const response = res();
+            await handler({ method: 'GET', query: { grade: 'sixth', view: pathname, ...extra } }, response);
+            assert.equal(response.code, 200);
+            const data = extra.sheet
+                ? JSON.parse(response.body.match(/<script id="peninaSheetData" type="application\/json">([\s\S]*?)<\/script>/)[1]).cards
+                : JSON.parse(response.body.match(/<script id="peninaCardData" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+            assert.deepEqual(data, published);
+        }
+        // Combined sets are also rebuilt from this filtered card data.
+        assert(!app.makeApp('Combined', published).includes('id="publish-english-translation"'));
+        assert.equal(JSON.stringify(original), before);
+    }
+});

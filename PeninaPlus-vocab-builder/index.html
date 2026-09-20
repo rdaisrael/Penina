@@ -803,6 +803,13 @@
             </div>
             <p id="practice-saved-status" role="status" style="text-align: center;"></p>
             <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
+                <fieldset class="checkbox-group" style="margin: 0 0 16px; padding: 12px; border: 1px solid #dcd3c6;">
+                    <legend>Include in published cards, sheets, and games</legend>
+                    <label><input type="checkbox" id="publish-english-translation" checked> English Translation</label>
+                    <label><input type="checkbox" id="publish-hebrew-translation" checked> Hebrew Translation</label>
+                    <label><input type="checkbox" id="publish-context-quotes" checked> Context Quote</label>
+                </fieldset>
+                <p style="font-size: 13px; margin: 0 0 14px;">These choices apply to the published set. Games use only the included answer languages.</p>
                 <div class="publish-card-controls">
                     <div class="form-group">
                         <label for="publish-card-grade">Publish Flashcards, Sheets, and Practice Exercises to:</label>
@@ -1228,12 +1235,12 @@
             try {
                 const rows = getWorkbookExportRows();
                 const sheetOptions = {
-                    english: displayOptionEnabled('english-translation'),
-                    hebrew: displayOptionEnabled('hebrew-translation'),
-                    context: displayOptionEnabled('context-quotes') && getControlValue('view-mode') !== 'mode-basic',
+                    english: displayOptionEnabled('publish-english-translation'),
+                    hebrew: displayOptionEnabled('publish-hebrew-translation'),
+                    context: displayOptionEnabled('publish-context-quotes'),
                     fontSize: Number(getControlValue('font-size')) || 14
                 };
-                const html = PeninaOfflineStudyCards.makeApp(title, PeninaOfflineStudyCards.toCards(rows))
+                const html = PeninaOfflineStudyCards.makeApp(title, PeninaOfflineStudyCards.toCards(rows), { publicationOptions: sheetOptions })
                     + '<script id="peninaSheetOptions" type="application/json">'
                     + JSON.stringify(sheetOptions).replace(/</g, '\\u003c') + '<\/script>';
                 const response = await fetch('/api/flashcard-sets', {
@@ -1367,6 +1374,9 @@
                     englishTranslation: getControlValue('english-translation'),
                     hebrewTranslation: getControlValue('hebrew-translation'),
                     contextQuotes: getControlValue('context-quotes'),
+                    publishEnglishTranslation: getControlValue('publish-english-translation'),
+                    publishHebrewTranslation: getControlValue('publish-hebrew-translation'),
+                    publishContextQuotes: getControlValue('publish-context-quotes'),
                     substituteNames: getControlValue('substitute-names'),
                     fontSize: getControlValue('font-size'),
                     kerning: getControlValue('kerning'),
@@ -1425,6 +1435,9 @@
             setControlValue('english-translation', inputs.englishTranslation !== false);
             setControlValue('hebrew-translation', inputs.hebrewTranslation !== false);
             setControlValue('context-quotes', legacyNoContext ? false : inputs.contextQuotes);
+            setControlValue('publish-english-translation', inputs.publishEnglishTranslation !== false);
+            setControlValue('publish-hebrew-translation', inputs.publishHebrewTranslation !== false);
+            setControlValue('publish-context-quotes', inputs.publishContextQuotes !== false);
             setControlValue('substitute-names', inputs.substituteNames);
             setControlValue('font-size', inputs.fontSize || '14');
             setControlValue('kerning', inputs.kerning || '0');
@@ -1486,6 +1499,9 @@
             setControlValue('english-translation', true);
             setControlValue('hebrew-translation', true);
             setControlValue('context-quotes', true);
+            setControlValue('publish-english-translation', true);
+            setControlValue('publish-hebrew-translation', true);
+            setControlValue('publish-context-quotes', true);
             setControlValue('substitute-names', true);
             setControlValue('font-size', '14');
             setControlValue('kerning', '0');

@@ -686,7 +686,30 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
 <script>(${mountGames.toString()})(${JSON.stringify(groups).replace(/</g, '\\u003c')}, ${mountAsteroids.toString()}, ${createAsteroids.toString()}, ${mountChomp.toString()});</script>`;
     }
 
+    // Exclude unpublished content from the artifact itself, including game answers.
+    // Copies preserve the teacher's complete generated data for later publishing.
+    function publicationCards(cards, options = {}) {
+        return cards.map(card => {
+            const result = { ...card };
+            if (card.alternativeAnswers) result.alternativeAnswers = { ...card.alternativeAnswers };
+            for (const language of ['english', 'hebrew']) {
+                if (options[language] !== false) continue;
+                result[language] = '';
+                result[language + 'Translation'] = '';
+                result[language + 'TranslationRuns'] = [];
+                result[language === 'english' ? 'sourceEnglish' : 'sourceHebrew'] = '';
+                if (result.alternativeAnswers) delete result.alternativeAnswers[language];
+            }
+            if (options.context === false) {
+                for (const key of ['contextQuote', 'hebrewTranslation', 'englishTranslation', 'sourceHebrew', 'sourceEnglish']) result[key] = '';
+                for (const key of ['contextQuoteRuns', 'hebrewTranslationRuns', 'englishTranslationRuns']) result[key] = [];
+            }
+            return result;
+        });
+    }
+
     function makeApp(title, cards, options = {}) {
+        if (options.publicationOptions) cards = publicationCards(cards, options.publicationOptions);
         const groups = Object.fromEntries(['english', 'hebrew'].map(language => [language, practiceRows(cards, language)]).filter(([, rows]) => rows.length));
         const safeTitle = escapeHtml(title);
         const homeUrl = /^(https?:\/\/|\/(?!\/))/.test(options.homeUrl || '') ? options.homeUrl : '/PeninaPlus-vocab-builder/flash-cards/';
@@ -770,7 +793,7 @@ byId('termFirst').onclick=()=>{termFirst=true;sideIndex=0;byId('termFirst').clas
         setTimeout(() => URL.revokeObjectURL(url), 0);
     }
 
-    const api = { download, makeApp, toCards, practiceRows, createAsteroids, mountChomp };
+    const api = { download, makeApp, toCards, publicationCards, practiceRows, createAsteroids, mountChomp };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     if (typeof window !== 'undefined') window.PeninaOfflineStudyCards = api;
 })();

@@ -435,17 +435,25 @@
             margin-bottom: 8px;
             max-width: 7.5in;
         }
+        .display-options { flex: 1 1 440px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+        .display-options label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+        .hide-english-translation .term-english-translation,
+        .hide-english-translation .english-text,
+        .hide-english-translation .english-citation,
+        .hide-hebrew-translation .modern-hebrew-term-translation,
+        .hide-hebrew-translation .modern-hebrew-context { display: none !important; }
+        .english-citation-row .hebrew-citation { margin: 0; }
         .draft-tools-buttons {
             display: flex;
             gap: 10px;
             align-items: stretch;
-            flex-wrap: nowrap;
-            max-width: 7.5in;
+            flex-wrap: wrap;
+            max-width: 100%;
         }
         .draft-tools-buttons button {
             flex: 1 1 0;
             width: 0;
-            min-width: 0;
+            min-width: 140px;
             min-height: 42px;
             padding: 9px 12px;
             border-radius: 6px;
@@ -462,6 +470,8 @@
             justify-content: center;
             text-align: center;
         }
+        #regenerate-selected-context-quotes-btn { flex: 0 1 170px; }
+        #save-draft-context-btn { flex: 0 1 90px; min-width: 90px; }
         .draft-tools-buttons button:hover { filter: brightness(0.97); }
         .draft-tools-buttons button:active,
         .draft-tools-buttons button.button-pressed {
@@ -663,13 +673,6 @@
                 </div>
             </div>
 
-            <div class="form-group checkbox-group" style="margin-bottom: 15px;">
-                <label><input type="checkbox" id="alphabetize-list" checked> Alphabetize List</label>
-                <label><input type="checkbox" id="english-translation" checked> English Translation</label>
-                <label><input type="checkbox" id="hebrew-translation" checked> Hebrew Translation</label>
-                <label><input type="checkbox" id="context-quotes" checked> Context Quote</label>
-            </div>
-
             <div id="context-source-controls" class="form-group context-source-controls">
                 <div style="flex: 0 0 230px;">
                     <label for="source-type">Context Source:</label>
@@ -848,6 +851,12 @@
         <div id="draft-context-tools" class="draft-context-tools">
             <div class="draft-tools-message">Click any context quote or translation to edit it directly. To regenerate quotes, check the desired quotes and click 'Regenerate Selected Context Quotes'.</div>
             <div class="draft-tools-buttons">
+                <div class="display-options" role="group" aria-label="Display options">
+                    <strong>Display:</strong>
+                    <label><input type="checkbox" id="english-translation" checked> English Translation</label>
+                    <label><input type="checkbox" id="hebrew-translation" checked> Hebrew Translation</label>
+                    <label><input type="checkbox" id="context-quotes" checked> Context Quote</label>
+                </div>
                 <button type="button" id="regenerate-selected-context-quotes-btn">Regenerate Selected Context Quotes &#8634;</button>
                 <button type="button" id="save-draft-context-btn">Save Draft</button>
             </div>
@@ -898,18 +907,13 @@
             titleEl.innerHTML = stylizeTitleText(rawTitle);
         }
 
-        function contextQuotesEnabled() {
-            const contextQuotesCheckbox = document.getElementById('context-quotes');
-            return !contextQuotesCheckbox || contextQuotesCheckbox.checked;
-        }
+        // Generation always produces all available fields. Display choices only hide content.
+        function contextQuotesEnabled() { return true; }
+        function englishTranslationEnabled() { return true; }
+        function hebrewTranslationEnabled() { return true; }
 
-        function englishTranslationEnabled() {
-            const checkbox = document.getElementById('english-translation');
-            return !checkbox || checkbox.checked;
-        }
-
-        function hebrewTranslationEnabled() {
-            const checkbox = document.getElementById('hebrew-translation');
+        function displayOptionEnabled(id) {
+            const checkbox = document.getElementById(id);
             return !checkbox || checkbox.checked;
         }
 
@@ -924,10 +928,12 @@
             const sourceType = document.getElementById('source-type').value;
             const viewMode = document.getElementById('view-mode');
             const contextSourceControls = document.getElementById('context-source-controls');
-            if (contextSourceControls) contextSourceControls.hidden = !contextQuotesEnabled();
+            if (contextSourceControls) contextSourceControls.hidden = false;
+            document.documentElement.classList.toggle('hide-english-translation', !displayOptionEnabled('english-translation'));
+            document.documentElement.classList.toggle('hide-hebrew-translation', !displayOptionEnabled('hebrew-translation'));
             if (!viewMode) return;
 
-            if (sourceType === 'No Context Quotes' || !contextQuotesEnabled()) {
+            if (!displayOptionEnabled('context-quotes')) {
                 viewMode.value = 'mode-basic';
                 viewMode.disabled = true;
                 document.body.className = 'mode-basic';
@@ -996,9 +1002,9 @@
         const publishCardPassword = document.getElementById('publish-card-password');
         const publishStudyCardsStatus = document.getElementById('publish-study-cards-status');
         let importedVocabularyRows = [];
-        if (contextQuotesCheckbox) {
-            contextQuotesCheckbox.addEventListener('change', updateViewModeLock);
-        }
+        ['english-translation', 'hebrew-translation', 'context-quotes'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateViewModeLock);
+        });
 
         function setVocabularyWorkbookStatus(message, isError = false) {
             if (!vocabularyWorkbookStatus) return;
@@ -1222,9 +1228,9 @@
             try {
                 const rows = getWorkbookExportRows();
                 const sheetOptions = {
-                    english: englishTranslationEnabled(),
-                    hebrew: hebrewTranslationEnabled(),
-                    context: contextQuotesEnabled() && getControlValue('view-mode') !== 'mode-basic',
+                    english: displayOptionEnabled('english-translation'),
+                    hebrew: displayOptionEnabled('hebrew-translation'),
+                    context: displayOptionEnabled('context-quotes') && getControlValue('view-mode') !== 'mode-basic',
                     fontSize: Number(getControlValue('font-size')) || 14
                 };
                 const html = PeninaOfflineStudyCards.makeApp(title, PeninaOfflineStudyCards.toCards(rows))
@@ -1358,7 +1364,6 @@
                     listTitle: getControlValue('list-title'),
                     sourceType: getControlValue('source-type'),
                     wordList: getControlValue('word-list'),
-                    alphabetizeList: getControlValue('alphabetize-list'),
                     englishTranslation: getControlValue('english-translation'),
                     hebrewTranslation: getControlValue('hebrew-translation'),
                     contextQuotes: getControlValue('context-quotes'),
@@ -1417,7 +1422,6 @@
             setControlValue('source-type', legacyNoContext ? 'Tanakh' : (inputs.sourceType || 'Tanakh'));
             sourceTypeSelect.dispatchEvent(new Event('change'));
             setControlValue('word-list', inputs.wordList || '');
-            setControlValue('alphabetize-list', inputs.alphabetizeList);
             setControlValue('english-translation', inputs.englishTranslation !== false);
             setControlValue('hebrew-translation', inputs.hebrewTranslation !== false);
             setControlValue('context-quotes', legacyNoContext ? false : inputs.contextQuotes);
@@ -1479,7 +1483,6 @@
             setControlValue('source-type', 'Tanakh');
             sourceTypeSelect.dispatchEvent(new Event('change'));
             setControlValue('word-list', '');
-            setControlValue('alphabetize-list', true);
             setControlValue('english-translation', true);
             setControlValue('hebrew-translation', true);
             setControlValue('context-quotes', true);
@@ -2881,10 +2884,10 @@ function updateTalmudModeVisibility() {
                         </td>
                         <td class="col-context">
                             <div class="hebrew-text" contenteditable="true">${highlightedHebrew}</div>
-                            ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl" contenteditable="true">${escapeVocabularyHtml(row.hebrewCitation)}</div>` : ''}
                             ${showHebrewTranslation && row.modernHebrewContext ? `<div class="modern-hebrew-context" contenteditable="true">${highlightedModernHebrew}</div>` : ''}
                             ${showEnglishTranslation ? `<div class="english-text" contenteditable="true">${highlightedEnglish}</div>` : ''}
                             <div class="english-citation-row">
+                            ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl" contenteditable="true">${escapeVocabularyHtml(row.hebrewCitation)}</div>` : ''}
                                 ${showEnglishTranslation && row.englishCitation ? `<div class="citation english-citation" dir="ltr" contenteditable="true">${escapeVocabularyHtml(row.englishCitation)}</div>` : '<div class="citation english-citation" dir="ltr" contenteditable="true"></div>'}
                                 <label class="context-row-checkbox-slot" aria-label="Select this context quote for regeneration"><input type="checkbox" class="context-quote-checkbox" data-row-index="${rowIndex}"></label>
                             </div>
@@ -3074,9 +3077,7 @@ function updateTalmudModeVisibility() {
                     return "";
                 }
 
-                if (document.getElementById('alphabetize-list').checked) {
-                    vocabList.sort((a, b) => a.hebrew.localeCompare(b.hebrew, 'he'));
-                }
+                vocabList.sort((a, b) => a.hebrew.localeCompare(b.hebrew, 'he'));
 
                 const preparedItems = [];
                 const noContextMode = sourceType === 'No Context Quotes' || !contextQuotesEnabled();

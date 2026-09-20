@@ -96,3 +96,30 @@ test('Sefaria respects suppressed English context while retaining ordinary trans
         assert.equal((await generate(source, { englishContextTranslation: 'Teacher translation' })).row.englishContext, 'Teacher translation');
     }
 });
+
+
+test('display choices never disable generation and can be toggled without altering rows', () => {
+    const elements = Object.fromEntries(['english-translation', 'hebrew-translation', 'context-quotes'].map(id => [id, { checked: false }]));
+    elements['source-type'] = { value: 'Talmud' };
+    elements['view-mode'] = {};
+    elements['context-source-controls'] = {};
+    const classes = new Set();
+    const context = { document: {
+        getElementById: id => elements[id], body: {},
+        documentElement: { classList: { toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); } } }
+    } };
+    vm.createContext(context);
+    vm.runInContext(section('        function contextQuotesEnabled()', '        function updateFontSizeVariables('), context);
+    assert.equal(context.contextQuotesEnabled(), true);
+    assert.equal(context.englishTranslationEnabled(), true);
+    assert.equal(context.hebrewTranslationEnabled(), true);
+    context.updateViewModeLock();
+    assert.equal(context.document.body.className, 'mode-basic');
+    assert.equal(elements['context-source-controls'].hidden, false);
+    assert(classes.has('hide-english-translation'));
+    assert(classes.has('hide-hebrew-translation'));
+    for (const id of ['english-translation', 'hebrew-translation', 'context-quotes']) elements[id].checked = true;
+    context.updateViewModeLock();
+    assert.equal(context.document.body.className, 'mode-full');
+    assert.equal(classes.size, 0);
+});

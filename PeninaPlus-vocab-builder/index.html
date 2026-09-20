@@ -188,6 +188,11 @@
             margin-bottom: 20px; 
         }
         .form-group { margin-bottom: 20px; }
+        .font-settings-row { display: grid; grid-template-columns: 1.2fr .85fr 1fr 1.2fr; gap: 12px; margin-top: 15px; }
+        .font-settings-row .form-group { min-width: 0; }
+        .font-settings-row label { font-size: 14px; white-space: nowrap; }
+        .font-settings-row select { font-size: 14px; padding: 10px 6px; }
+        @media (max-width: 600px) { .font-settings-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         label { font-weight: bold; display: block; margin-bottom: 8px; color: #5a5248; }
         
         input[type="text"], textarea, select, #publish-card-password, #new-page-password, #page-creation-password {
@@ -396,16 +401,16 @@
         .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; min-width: 0; padding: 4pt 6pt; line-height: 1.12; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
         .col-translation { min-width: 0; padding: 4pt 6pt; vertical-align: top; }
         .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); min-width: 0; padding: 4pt 6pt; line-height: 1.12; overflow-wrap: anywhere; word-break: break-word; }
-        .term-english-translation { padding: 0; }
-        .modern-hebrew-term-translation { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); margin-bottom: var(--translation-block-gap, 6pt); line-height: 1.12; }
-        .col-context { min-width: 0; padding: 3pt 5pt; font-size: var(--context-font-size, 12pt); line-height: 1.08; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+        .term-english-translation { padding: 0; line-height: 1.5; }
+        .modern-hebrew-term-translation { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); margin-bottom: var(--translation-block-gap, 10pt); line-height: 1.5; }
+        .col-context { vertical-align: bottom; min-width: 0; padding: 3pt 5pt; font-size: var(--context-font-size, 12pt); line-height: 1.08; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
         .hebrew-word, .hebrew-text, .modern-hebrew-term-translation, .modern-hebrew-context, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
         .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.08; }
-        .col-context .hebrew-text { font-size: var(--context-font-size, 12pt); margin: 0; }
-        .modern-hebrew-context { direction: rtl; text-align: right; font-size: var(--context-font-size, 12pt); margin-top: var(--translation-block-gap, 6pt); font-style: italic; line-height: 1.08; }
-        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 0.5pt; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.08; letter-spacing: var(--global-letter-spacing, 0px); }
-        .col-context .english-text { font-size: var(--context-font-size, 12pt); margin-top: var(--translation-block-gap, 6pt); }
+        .col-context .hebrew-text { line-height: 1.5; font-size: var(--context-font-size, 12pt); margin: 0; }
+        .modern-hebrew-context { direction: rtl; text-align: right; font-size: var(--context-font-size, 12pt); margin-top: var(--translation-block-gap, 10pt); font-style: italic; line-height: 1.5; }
+        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 0.5pt; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.5; letter-spacing: var(--global-letter-spacing, 0px); }
+        .col-context .english-text { font-size: var(--context-font-size, 12pt); margin-top: var(--translation-block-gap, 10pt); }
         .citation { font-size: var(--citation-font-size, 8pt); line-height: 1.0; margin-top: 0.25pt; color: #666; white-space: normal; font-weight: normal; }
         .hebrew-citation { direction: rtl; text-align: right; margin-bottom: 0.25pt; }
         .english-citation { direction: ltr; text-align: left; font-family: var(--english-font, Arial, sans-serif) !important; }
@@ -510,23 +515,16 @@
             text-align: left;
         }
         .english-citation-row {
-            display: flex;
-            align-items: center;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr);
+            align-items: end;
             gap: 6px;
             direction: ltr;
-            margin-top: 0.25pt;
+            margin-top: 6pt;
         }
-        .english-citation-row .english-citation {
-            flex: 1 1 auto;
-            min-width: 0;
-            margin-top: 0;
-        }
-        .context-row-checkbox-slot {
-            flex: 0 0 16px;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-        }
+        .english-citation-row .english-citation { grid-column: 1; grid-row: 1; min-width: 0; margin: 0; }
+        .english-citation-row .hebrew-citation { grid-column: 3; grid-row: 1; min-width: 0; margin: 0; }
+        .context-row-checkbox-slot { grid-column: 2; grid-row: 1; display: flex; justify-content: center; margin: 0; }
         .col-context [contenteditable="true"] { min-height: 1.25em; cursor: text; }
         [contenteditable="true"]:focus { outline: 2px solid #7a3df0; outline-offset: 2px; }
 
@@ -601,7 +599,7 @@
             --context-font-size: 12pt;
             --citation-font-size: 8pt;
             --title-font-size: 21pt;
-            --translation-block-gap: 6pt;
+            --translation-block-gap: 10pt;
         }
         
         [dir="ltr"], .english-text, .col-english, #vocab-table th {
@@ -747,25 +745,8 @@
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                    <div class="form-group" style="flex: 1; min-width: 200px;">
-                        <label for="view-mode">View Mode:</label>
-                        <select id="view-mode" onchange="document.body.className = this.value">
-                            <option value="mode-full">Full Context (3 Columns)</option>
-                            <option value="mode-basic">Basic (2 Columns)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex: 1; min-width: 200px;">
-                        <label for="nekudot-toggle">Nekudot:</label>
-                        <select id="nekudot-toggle" onchange="updateTextDisplay()">
-                            <option value="show">Show Nekudot</option>
-                            <option value="strip">Strip Nekudot</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                <div class="font-settings-row">
+                    <div class="form-group">
                         <label for="font-choice">Choose Hebrew Font:</label>
                         <select id="font-choice">
                             <option value="Arial, sans-serif">Arial (Modern)</option>
@@ -773,7 +754,14 @@
                             <option value="'Dyslexic-Kriah', 'Alef', sans-serif">Dyslexic-Kriah</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                    <div class="form-group">
+                        <label for="nekudot-toggle">Nekudot:</label>
+                        <select id="nekudot-toggle" onchange="updateTextDisplay()">
+                            <option value="show">Show Nekudot</option>
+                            <option value="strip">Strip Nekudot</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="english-font-choice">Choose English Font:</label>
                         <select id="english-font-choice">
                             <option value="Arial, sans-serif">Arial</option>
@@ -781,7 +769,7 @@
                             <option value="'OpenDyslexic', sans-serif">OpenDyslexic</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                    <div class="form-group">
                         <label for="margin-mode">Margins (Print Layout):</label>
                         <select id="margin-mode" onchange="updateMargin(this.value)">
                             <option value="none">Standard (0.75")</option>
@@ -932,23 +920,12 @@
         }
 
         function updateViewModeLock() {
-            const sourceType = document.getElementById('source-type').value;
-            const viewMode = document.getElementById('view-mode');
             const contextSourceControls = document.getElementById('context-source-controls');
             if (contextSourceControls) contextSourceControls.hidden = false;
             document.documentElement.classList.toggle('hide-english-translation', !displayOptionEnabled('english-translation'));
             document.documentElement.classList.toggle('hide-hebrew-translation', !displayOptionEnabled('hebrew-translation'));
-            if (!viewMode) return;
-
-            if (!displayOptionEnabled('context-quotes')) {
-                viewMode.value = 'mode-basic';
-                viewMode.disabled = true;
-                document.body.className = 'mode-basic';
-            } else {
-                viewMode.disabled = false;
-                viewMode.value = 'mode-full';
-                document.body.className = 'mode-full';
-            }
+            const includeContext = displayOptionEnabled('context-quotes');
+            document.body.className = includeContext ? 'mode-full' : 'mode-basic';
         }
 
         function updateFontSizeVariables(baseSize) {
@@ -1380,7 +1357,6 @@
                     substituteNames: getControlValue('substitute-names'),
                     fontSize: getControlValue('font-size'),
                     kerning: getControlValue('kerning'),
-                    viewMode: getControlValue('view-mode'),
                     nekudotToggle: getControlValue('nekudot-toggle'),
                     hebrewFontChoice: getControlValue('font-choice'),
                     englishFontChoice: getControlValue('english-font-choice'),
@@ -1459,11 +1435,6 @@
             document.documentElement.style.setProperty('--english-font', getControlValue('english-font-choice'));
             updateMargin(getControlValue('margin-mode') || 'none');
             updateViewModeLock();
-            const requestedViewMode = inputs.viewMode;
-            if (requestedViewMode && !document.getElementById('view-mode').disabled) {
-                setControlValue('view-mode', requestedViewMode);
-                document.body.className = requestedViewMode;
-            }
             applyTitleText(getControlValue('list-title') || '');
 
             importedVocabularyRows = Array.isArray(payload.importedVocabularyRows) ? payload.importedVocabularyRows : [];
@@ -1509,7 +1480,6 @@
             setControlValue('font-choice', 'Arial, sans-serif');
             setControlValue('english-font-choice', 'Arial, sans-serif');
             setControlValue('margin-mode', 'none');
-            setControlValue('view-mode', 'mode-full');
 
             selectedSourceTargets = [];
             renderChips();

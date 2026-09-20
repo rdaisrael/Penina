@@ -80,18 +80,18 @@
             }
             return result;
         }
-        function draw(text,x,top,available,fontSize,bold,color='#222') {
+        function draw(text,x,top,available,fontSize,bold,color='#222',direction) {
             font(fontSize,bold);ctx.fillStyle=color;ctx.textBaseline='top';
-            const rtl=/[\u0590-\u05ff]/.test(text);
+            const rtl=direction ? direction==='rtl' : /[\u0590-\u05ff]/.test(text);
             ctx.direction=rtl?'rtl':'ltr';ctx.textAlign=rtl?'right':'left';
             ctx.fillText(text,rtl?x+available:x,top);
         }
         function cell(blocks, available) {
             const result=[];
             blocks.filter(block=>block.text).forEach((block,index) => {
-                if(index)result.push({text:'',height:6,size:6});
+                if(index)result.push({text:'',height:10,size:10});
                 lines(block.text,available-16,block.size,block.bold).forEach(text => {
-                    result.push({...block,text,height:block.size*1.4});
+                    result.push({...block,text,height:block.size*1.6});
                 });
             });
             return result;
@@ -101,11 +101,20 @@
             const definitions=[];
             if(options.hebrew!==false)definitions.push({text:card.hebrew,size,bold:false});
             if(options.english!==false)definitions.push({text:card.english,size:size*.86,bold:false});
-            const context=[{text:card.contextQuote,size:size*.95},{text:card.sourceHebrew,size:9}];
+            const context=[{text:card.contextQuote,size:size*.95}];
             if(options.hebrew!==false)context.push({text:card.hebrewTranslation,size:size*.86});
-            if(options.english!==false)context.push({text:card.englishTranslation,size:size*.8},{text:card.sourceEnglish,size:9});
+            if(options.english!==false)context.push({text:card.englishTranslation,size:size*.8});
             const cells=[cell([{text:card.term,size,bold:true}],columns[0]),cell(definitions,columns[1])];
-            if(columns.length===3)cells.push(cell(context,columns[2]));
+            if(columns.length===3) {
+                const items=cell(context,columns[2]);
+                const citationWidth=(columns[2]-24)/2;
+                const hebrew=card.sourceHebrew ? lines(card.sourceHebrew,citationWidth,9,false) : [];
+                const english=options.english!==false && card.sourceEnglish ? lines(card.sourceEnglish,citationWidth,9,false) : [];
+                const count=Math.max(hebrew.length,english.length);
+                if(count)items.push({text:'',height:10,size:10});
+                for(let i=0;i<count;i++)items.push({citation:true,hebrew:hebrew[i]||'',english:english[i]||'',height:12,size:9});
+                cells.push(items);
+            }
             const height=Math.max(30,...cells.map(items=>items.reduce((total,item)=>total+item.height,16)));
             if(y+height>bottom && height<=bottom-130) newPage();
             // An exceptionally long row continues across pages, keeping all its text.
@@ -122,7 +131,16 @@
                 chunks.forEach((chunk,index)=>{
                     ctx.strokeStyle='#c8c5bf';ctx.lineWidth=.5;ctx.strokeRect(x,y,columns[index],rowHeight);
                     let top=y+8;
-                    chunk.items.forEach(item=>{draw(item.text,x+8,top,columns[index]-16,item.size,item.bold);top+=item.height;});
+                    const citationHeight=chunk.items.filter(item=>item.citation).reduce((sum,item)=>sum+item.height,0);
+                    let citationTop=y+rowHeight-8-citationHeight;
+                    chunk.items.forEach(item=>{
+                        if(item.citation) {
+                            const half=(columns[index]-24)/2;
+                            draw(item.english,x+8,citationTop,half,item.size,false,'#666','ltr');
+                            draw(item.hebrew,x+16+half,citationTop,half,item.size,false,'#666','rtl');
+                            citationTop+=item.height;
+                        } else {draw(item.text,x+8,top,columns[index]-16,item.size,item.bold);top+=item.height;}
+                    });
                     x+=columns[index];
                 });
                 y+=rowHeight;

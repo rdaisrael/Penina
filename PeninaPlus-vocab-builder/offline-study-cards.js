@@ -57,8 +57,44 @@
             if (new Set(keys).size !== 4 || answers.some((answer, i) => !keys[i] || answer.length > 500
                 || keys[i] === key(term) || keys[i] === key(definition)
                 || (language === 'hebrew' ? !/[א-ת]/.test(answer) : !/[a-z]/i.test(answer) || /[א-ת]/.test(answer)))) return [];
-            return [{ id, term, definition, answers }];
+            return [{ id, term, definition, answers, ...(card.studySet ? { studySet: card.studySet, studyDate: card.studyDate } : {}) }];
         });
+    }
+
+    // Dates are assigned by the server in the class's calendar timezone.
+    function scheduleClassTerms(rows, random = Math.random) {
+        const shuffle = values => {
+            const result = values.slice();
+            for (let i = result.length - 1; i > 0; i--) {
+                const j = Math.floor(random() * (i + 1));
+                [result[i], result[j]] = [result[j], result[i]];
+            }
+            return result;
+        };
+        if (!rows.some(row => row.studyDate)) return shuffle(rows);
+        const latest = rows.reduce((date, row) => row.studyDate > date ? row.studyDate : date, '');
+        const recent = new Map();
+        const old = rows.filter(row => row.studyDate !== latest);
+        for (const row of rows.filter(row => row.studyDate === latest)) {
+            if (!recent.has(row.studySet)) recent.set(row.studySet, []);
+            recent.get(row.studySet).push(row);
+        }
+        if (!old.length) return shuffle(rows);
+        const pools = [...recent.values()].map(shuffle), older = shuffle(old);
+        const rounds = Math.max(older.length, ...pools.map(pool => Math.ceil(pool.length / 3)));
+        const result = [];
+        for (let round = 0; round < rounds; round++) {
+            for (const pool of pools) {
+                for (let i = 0; i < 3; i++) result.push(pool[(round * 3 + i) % pool.length]);
+            }
+            result.push(older[round % older.length]);
+        }
+        return result.map((row, id) => ({ ...row, id, scheduled: true }));
+    }
+
+    function makeClassGames(title, cards, options = {}) {
+        const groups = Object.fromEntries(['english', 'hebrew'].map(language => [language, practiceRows(cards, language)]).filter(([, rows]) => rows.length));
+        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — Gamify</title><style>body{font:16px Arial,sans-serif;background:#faf7ff;color:#241632;max-width:960px;margin:32px auto;padding:20px}button{border:1px solid #cab5e0;border-radius:12px;background:white;padding:12px;font:inherit}a{color:#7024b5}.games-dialog{box-sizing:border-box}</style></head><body><a href="${escapeHtml(options.homeUrl)}">← Class home</a><h1>${escapeHtml(title)} — Gamify!</h1><p>Practice across your class sets, with extra practice for the newest material.</p>${Object.keys(groups).length ? '<button id="gamify" type="button">Choose a game</button>' : '<p>No game-ready terms are available yet.</p>'}<script id="peninaClassConfig" type="application/json">${JSON.stringify({leaderboardUrl:options.leaderboardUrl}).replace(/</g, '\\u003c')}</script>${gamesMarkup(groups)}</body></html>`;
     }
 
     // Pure game state: no DOM, timers, or network. Also embedded in offline files.
@@ -213,8 +249,8 @@
         function ask() {
             clearControls(); overlay.hidden = false; question.replaceChildren(); setFeedback('');
             if (!deck.length) {
-                deck = shuffled(rows);
-                if (deck.length > 1 && deck[0].id === lastRow?.id) [deck[0], deck[1]] = [deck[1], deck[0]];
+                deck = rows.some(row => row.scheduled) ? rows.slice() : shuffled(rows);
+                if (!rows.some(row => row.scheduled) && deck.length > 1 && deck[0].id === lastRow?.id) [deck[0], deck[1]] = [deck[1], deck[0]];
             }
             const row = deck.shift(); lastRow = row;
             const heading = el('h3', state.correct || state.incorrect ? 'Refuel: earn 10 fuel cells' : 'Answer a word to launch');
@@ -383,7 +419,7 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
     }
 
     // Serialized into downloaded HTML so all games also work offline.
-    function mountGames(groups, mountAsteroids, createAsteroids, mountChomp) {
+    function mountGames(groups, mountAsteroids, createAsteroids, mountChomp, scheduleClassTerms) {
         const doc = document, byId = id => doc.getElementById(id);
         const dialog = byId('gamesDialog'), board = byId('gameBoard'), feedback = byId('gameFeedback');
         const title = byId('gameTitle'), progress = byId('gameProgress'), next = byId('gameNext');
@@ -526,6 +562,9 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
         window.addEventListener('resize', drawLines);
         function matching() {
             let group = rows.slice(offset, offset + 6);
+            const seenTerms = new Set();
+            const duplicate = group.findIndex(row => { if (seenTerms.has(row.term)) return true; seenTerms.add(row.term); return false; });
+            if (duplicate > 0) group = group.slice(0, duplicate);
             const items = [];
             const key = text => text.normalize('NFKC').toLowerCase().replace(/[\u0591-\u05c7]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
             function distractors() {
@@ -599,7 +638,7 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
         function render() {
             clearSelection(); matched = new Set(); drag = null;
             board.replaceChildren(); message(''); next.hidden = true;
-            if (offset >= rows.length && mode === 'cards' && cardRound === 1) { cardRound = 2; offset = 0; rows = shuffle(rows); }
+            if (offset >= rows.length && mode === 'cards' && cardRound === 1) { cardRound = 2; offset = 0; rows = scheduleClassTerms(groups[language.value]); }
             if (offset >= rows.length) { summary(); return; }
             updateProgress(); mode === 'quiz' ? quiz() : matching();
             title.focus();
@@ -635,7 +674,7 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
             stopPending();stopAsteroids?.(); stopAsteroids = null;
             matchingRunId=typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
             mastered=new Set();startedAt=performance.now();finishedMs=0;totalTerms=groups[language.value].length;
-            cardRound = 1; mode = value; rows = shuffle(groups[language.value]); offset = score = attempts = 0;
+            cardRound = 1; mode = value; rows = scheduleClassTerms(groups[language.value]);totalTerms=rows.length; offset = score = attempts = 0;
             byId('gameMenu').hidden = true; byId('gamePlay').hidden = false;
             title.textContent = labels[mode];
             if (mode === 'chomp') {
@@ -683,7 +722,7 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
 .game-lobby{max-width:480px;margin:24px auto;text-align:center}.game-lobby ol{padding:0;list-style-position:inside}.game-lobby li{padding:12px;border-bottom:1px solid #e2d7ed;font-size:20px;font-weight:750}.game-lobby p{color:#675772;line-height:1.5}.game-launch{display:block;width:100%;margin-top:22px;background:#7024b5;color:#fff;font-size:22px;font-weight:850}.game-mistake{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff3f0e8;color:#c52638;pointer-events:auto;text-align:center}.game-mistake span{font-size:min(55vh,300px);line-height:.9;font-weight:900}.game-mistake strong{font-size:clamp(24px,5vw,44px)}@keyframes card-pop{35%{transform:scale(1.12);background:#b0f2c9}100%{transform:scale(.1);opacity:0}}.game-tile.popping{animation:card-pop .32s ease-out forwards;pointer-events:none}.game-tile.popped{visibility:hidden;pointer-events:none}@media(prefers-reduced-motion:reduce){.game-tile.popping{animation:none;opacity:0}}.game-menu-intro{font-size:20px;color:#514169}.game-menu-options button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:10px;min-height:170px;padding:24px!important;background:linear-gradient(135deg,#f2e7ff,#e5f5ff);border:2px solid #cbb4ef;box-shadow:0 8px 20px #39225714}.game-menu-options button:nth-child(2){background:linear-gradient(135deg,#dcfaf1,#e5f5ff)}.game-menu-options button:nth-child(3){background:linear-gradient(135deg,#fff0d7,#ffe6ed)}.game-menu-options button:nth-child(4){background:linear-gradient(135deg,#291447,#243d79);color:white}.game-menu-options strong{font-size:22px}.game-menu-options small{font-size:14px;line-height:1.5}.game-icon{font-size:34px}.asteroids-hud{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;background:#26163e;color:#fff;border-radius:16px 16px 0 0}.asteroids-hud b{font-size:23px;color:#ffec55;margin-left:5px}.asteroids-hud button{background:#fff;color:#26163e}.asteroids-arena{position:relative;background:#0c1026;border-radius:0 0 16px 16px;overflow:hidden}.asteroids-arena canvas{display:block;width:100%;height:auto;min-height:250px;object-fit:contain;outline-offset:-4px}.asteroids-arena canvas:focus-visible{outline:3px solid #ffec55}.asteroids-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:#0c1026d9;overflow:auto}.asteroids-question{width:min(100%,600px);max-height:100%;overflow:auto;padding:20px;border:1px solid #a089d0;border-radius:18px;background:#faf7ff;color:#241632}.asteroids-question h3{margin:0;font-size:22px}.asteroids-question p{margin:12px 0}.asteroids-question .asteroids-term{font-size:30px;font-weight:850;text-align:center}.asteroids-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}.asteroids-options button{white-space:normal;overflow-wrap:anywhere;padding:10px;font-size:16px;min-height:44px}.asteroids-options button.correct{background:#dcf6e3;border-color:#21823b;color:#164f26;opacity:1}.asteroids-options button.wrong{background:#ffe1dc;border-color:#b43d2b;color:#792519;opacity:1}.asteroids-result{font-weight:800;overflow-wrap:anywhere}.asteroids-continue{background:#7024b5;color:#ffec55;width:100%;font-weight:850}.asteroids-controls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.asteroids-controls button{touch-action:none;user-select:none;background:#eee4fc;color:#351454;font-size:16px;padding:12px 4px}.asteroids-controls button[data-flight=fire]{background:#7024b5;color:#ffec55}.asteroids-rules{font-size:13px;line-height:1.7;color:#5e526f}@media(max-width:540px){.game-menu-options{grid-template-columns:1fr}.asteroids-arena canvas{min-height:240px}.asteroids-overlay{position:relative;padding:10px}.asteroids-overlay[hidden]{display:none!important}.asteroids-arena:has(.asteroids-overlay:not([hidden])) canvas{display:none}.asteroids-question{padding:16px}.asteroids-options{grid-template-columns:1fr}.asteroids-controls button{font-size:13px}.asteroids-hud{padding:10px;font-size:13px}.asteroids-hud b{font-size:20px}}
 </style>
 <dialog id="gamesDialog" class="games-dialog" aria-labelledby="gamesTitle"><div class="games-heading"><div class="games-brand"><h2 id="gamesTitle">Gamify!</h2><button id="gameBack" type="button" hidden>Choose another game</button></div><button id="gameClose" type="button">Close</button></div><section id="gameMenu"><p class="game-menu-intro">Choose your challenge. Build your skills. Beat your best.</p><label>Answer language <select id="gameLanguage"></select></label><div class="game-menu-options"><button type="button" data-game="quiz"><span class="game-icon">⚡</span><strong>Quick Quiz</strong><small>Trust your knowledge. Find the right definition.</small></button><button type="button" data-game="lines"><span class="game-icon">🔗</span><strong>Connect the Words</strong><small>Draw the connections. Outsmart the distractors.</small></button><button type="button" data-game="cards"><span class="game-icon">🧩</span><strong>Match the Cards</strong><small>Find every pair. Leave the decoys behind.</small></button><button type="button" data-game="asteroids"><span class="game-icon">🚀</span><strong>Vocabulary Asteroids</strong><small>Fuel up. Survive three rounds. Become captain.</small></button><button type="button" data-game="chomp"><span class="game-icon">👻</span><strong>Chomp &amp; Charge</strong><small>Chomp the dots. Chase the ghosts. Power up with words.</small></button></div></section><section id="gameLobby" class="game-lobby" hidden><h2 id="lobbyTitle" tabindex="-1"></h2><p id="lobbyHelp"></p><h3 id="lobbyRankingTitle">Top 3</h3><ol id="lobbyScores"></ol><p id="lobbyNote" role="status"></p><button id="gameLaunch" class="game-launch" type="button">Launch</button></section><section id="gamePlay" hidden><h2 id="gameTitle" tabindex="-1"></h2><p id="gameHelp"></p><p id="gameProgress" role="status"></p><div id="gameBoard" class="game-board"></div><p id="gameFeedback" class="game-feedback" role="status" aria-live="polite"></p><button id="gameNext" type="button" hidden>Next</button><div class="game-footer"><button id="gameAgain" type="button">Play again</button></div></section></dialog>
-<script>(${mountGames.toString()})(${JSON.stringify(groups).replace(/</g, '\\u003c')}, ${mountAsteroids.toString()}, ${createAsteroids.toString()}, ${mountChomp.toString()});</script>`;
+<script>(${mountGames.toString()})(${JSON.stringify(groups).replace(/</g, '\\u003c')}, ${mountAsteroids.toString()}, ${createAsteroids.toString()}, ${mountChomp.toString()}, ${scheduleClassTerms.toString()});</script>`;
     }
 
     // Exclude unpublished content from the artifact itself, including game answers.
@@ -710,7 +749,7 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
 
     function makeApp(title, cards, options = {}) {
         if (options.publicationOptions) cards = publicationCards(cards, options.publicationOptions);
-        const groups = Object.fromEntries(['english', 'hebrew'].map(language => [language, practiceRows(cards, language)]).filter(([, rows]) => rows.length));
+        const groups = options.hideGames ? {} : Object.fromEntries(['english', 'hebrew'].map(language => [language, practiceRows(cards, language)]).filter(([, rows]) => rows.length));
         const safeTitle = escapeHtml(title);
         const homeUrl = /^(https?:\/\/|\/(?!\/))/.test(options.homeUrl || '') ? options.homeUrl : '/PeninaPlus-vocab-builder/flash-cards/';
         const cardData = JSON.stringify(cards).replace(/</g, '\\u003c');
@@ -793,7 +832,7 @@ byId('termFirst').onclick=()=>{termFirst=true;sideIndex=0;byId('termFirst').clas
         setTimeout(() => URL.revokeObjectURL(url), 0);
     }
 
-    const api = { download, makeApp, toCards, publicationCards, practiceRows, createAsteroids, mountChomp };
+    const api = { scheduleClassTerms, makeClassGames, download, makeApp, toCards, publicationCards, practiceRows, createAsteroids, mountChomp };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     if (typeof window !== 'undefined') window.PeninaOfflineStudyCards = api;
 })();

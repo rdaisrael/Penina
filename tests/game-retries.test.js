@@ -24,7 +24,7 @@ test('Correct quiz answer advances automatically once after feedback',()=>{
  callbacks[0].fn();assert.equal(ctx.offset,1);assert.equal(ctx.rendered,true);
 });
 test('Cards start a second round before showing the final summary',()=>{
- const ctx={offset:3,rows:[1,2,3],mode:'cards',cardRound:1,matched:null,drag:null,clearSelection(){},board:{replaceChildren(){}},message(){},next:{},shuffle:rows=>rows.slice().reverse(),summary(){ctx.summaries++},summaries:0,updateProgress(){},matching(){ctx.matches++},matches:0,title:{focus(){}}};
+ const ctx={scheduleClassTerms:rows=>rows.slice().reverse(),groups:{english:[1,2,3]},language:{value:'english'},offset:3,rows:[1,2,3],mode:'cards',cardRound:1,matched:null,drag:null,clearSelection(){},board:{replaceChildren(){}},message(){},next:{},shuffle:rows=>rows.slice().reverse(),summary(){ctx.summaries++},summaries:0,updateProgress(){},matching(){ctx.matches++},matches:0,title:{focus(){}}};
  vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('        function render()'),source.indexOf('        async function prepare('))+'render();',ctx);
  assert.equal(ctx.cardRound,2);assert.equal(ctx.offset,0);assert.equal(ctx.summaries,0);assert.equal(ctx.matches,1);
  ctx.offset=3;vm.runInContext('render()',ctx);assert.equal(ctx.summaries,1);

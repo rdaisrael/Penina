@@ -66,7 +66,12 @@ test('Student library detects teacher-created games from published data, hides l
         await context.module.exports({method:'GET',query:{grade:'sixth',...query}},res);return res;
     }
     assert.equal((await request({})).body.sets[0].hasGames,true);
-    assert((await request({view:pathname})).body.includes('id="gamesDialog"'));
+    assert(!(await request({view:pathname})).body.includes('id="gamesDialog"'));
+    const games = await request({games:'1'});
+    assert.equal(games.code,200);
+    assert(games.body.includes('id="gamesDialog"'));
+    assert(games.body.includes('2026-09-13')); // midnight UTC is the prior New York date
+    assert(games.body.includes(pathname));
     html = app.makeApp('Review',[card]);
     assert.equal((await request({})).body.sets[0].hasGames,false);
     html = 'invalid stored data';

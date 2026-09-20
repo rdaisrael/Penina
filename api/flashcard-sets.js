@@ -1,6 +1,6 @@
 const { del, list, put } = require('@vercel/blob');
 const { getPage, publicPage, authenticatePage } = require('../lib/vocabulary-pages');
-const { makeApp, practiceRows } = require('../PeninaPlus-vocab-builder/offline-study-cards');
+const { makeApp, makeClassGames, practiceRows } = require('../PeninaPlus-vocab-builder/offline-study-cards');
 
 const { makeSheet } = require('../PeninaPlus-vocab-builder/vocabulary-sheets');
 
@@ -76,6 +76,19 @@ module.exports = async function (req, res) {
         if (!page) return send(res, 400, { error: 'Choose an existing vocabulary webpage.' });
         if (req.method === 'GET') {
             const blobs = await listAll(`vocabulary-cards/${grade}/`);
+            if (req.query.games === '1') {
+                const dateFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+                const groups = await Promise.all(blobs.map(async blob => {
+                    const response = await fetch(blob.url);
+                    if (!response.ok) throw new Error('A class set could not be loaded.');
+                    const parts = Object.fromEntries(dateFormat.formatToParts(new Date(blob.uploadedAt)).map(part => [part.type, part.value]));
+                    const studyDate = `${parts.year}-${parts.month}-${parts.day}`;
+                    return savedCards(await response.text()).map(card => ({ ...card, studySet: blob.pathname, studyDate }));
+                }));
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.setHeader('Cache-Control', 'no-store');
+                return res.status(200).send(makeClassGames(page.name, groups.flat(), { homeUrl: page.url, leaderboardUrl: `/api/game-scores?game=asteroids&grade=${encodeURIComponent(grade)}` }));
+            }
             const requestedView = String((req.query && req.query.view) || '');
             if (requestedView) {
                 const blob = blobs.find(item => item.pathname === requestedView);
@@ -95,7 +108,7 @@ module.exports = async function (req, res) {
                 const origin = /^[a-z0-9.-]+(?::[0-9]+)?$/i.test(host) ? `${host.startsWith('localhost:') || host.startsWith('127.0.0.1:') ? 'http' : 'https'}://${host}` : '';
                 const html = req.query.sheet === '1'
                     ? makeSheet(decodeTitle(blob.pathname), cards, sheetOptions)
-                    : makeApp(decodeTitle(blob.pathname), cards, { matchingUrl: `/api/game-scores?game=matching&grade=${encodeURIComponent(grade)}&set=${encodeURIComponent(blob.pathname)}`, homeUrl: origin + (page.url || '/PeninaPlus-vocab-builder/flash-cards/'), leaderboardUrl: `/api/game-scores?game=asteroids&grade=${encodeURIComponent(grade)}` });
+                    : makeApp(decodeTitle(blob.pathname), cards, { hideGames: true, matchingUrl: `/api/game-scores?game=matching&grade=${encodeURIComponent(grade)}&set=${encodeURIComponent(blob.pathname)}`, homeUrl: origin + (page.url || '/PeninaPlus-vocab-builder/flash-cards/'), leaderboardUrl: `/api/game-scores?game=asteroids&grade=${encodeURIComponent(grade)}` });
                 const disposition = req.query.download === '1' ? 'attachment' : 'inline';
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Content-Disposition', `${disposition}; filename="${encodeTitle(decodeTitle(blob.pathname))}.html"`);

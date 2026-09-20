@@ -12,6 +12,12 @@
     const management = document.getElementById('management');
     const removeButton = document.getElementById('remove-sets');
     manageTrigger.textContent = '⚙';
+    const classGamify = document.createElement('a');
+    classGamify.className = 'set-action gamify-action';
+    classGamify.textContent = 'Gamify! — All class terms';
+    classGamify.href = `/api/flashcard-sets?grade=${encodeURIComponent(grade)}&games=1#gamify`;
+    classGamify.hidden = true;
+    document.querySelector('.toolbar').before(classGamify);
     let sets = [];
     const selectedForCombination = new Set();
     let managementMode = false;
@@ -107,7 +113,6 @@
                         <a class="set-action" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (PDF)">Download PDF</a>
                         <a class="set-action" href="${escapeHtml(set.sheetPrintUrl)}" aria-label="Print Sheets">Print</a>
                     </section>` : ''}
-                ${set.hasGames ? `<a class="set-action gamify-action" href="${escapeHtml(set.url + '#gamify')}">Gamify!</a>` : ''}
                 </div></article>`;
         }).join('');
         if (!visible.length) {
@@ -127,6 +132,7 @@
                 document.querySelector('h1').textContent = data.page.name;
             }
             sets = Array.isArray(data.sets) ? data.sets : [];
+            classGamify.hidden = !sets.some(set => set.hasGames);
             render();
         } catch (error) {
             status.textContent = error && error.message ? error.message : 'Unable to load vocabulary sets.';
@@ -176,7 +182,7 @@
             confirmText: 'Continue'
         });
         if (title === null) return null;
-        return { title: title.trim() || defaultTitle, html: PeninaOfflineStudyCards.makeApp(title.trim() || defaultTitle, cards, { homeUrl: window.location.href, leaderboardUrl: new URL('/api/game-scores?game=asteroids&grade='+encodeURIComponent(grade),window.location.href).href }) };
+        return { title: title.trim() || defaultTitle, html: PeninaOfflineStudyCards.makeApp(title.trim() || defaultTitle, cards, { hideGames: true, homeUrl: window.location.href, leaderboardUrl: new URL('/api/game-scores?game=asteroids&grade='+encodeURIComponent(grade),window.location.href).href }) };
     }
 
     async function withCombinedSet(button, action) {

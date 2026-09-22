@@ -33,9 +33,6 @@
             if (key === normalize(row.definition) || key === normalize(row.term) || seen.has(key)) {
                 throw new Error(`Use four different incorrect answers for “${row.term}”, distinct from the term and definition.`);
             }
-            if (language === 'hebrew' ? !/[א-ת]/.test(answer) : (!/[a-z]/i.test(answer) || /[א-ת]/.test(answer))) {
-                throw new Error(`Write every alternate answer in ${languages[language]}.`);
-            }
             seen.add(key);
         });
     }
@@ -113,13 +110,13 @@
         };
     }
 
-    function mount({ button, getRows, onSubmit, document: doc = document, fetchImpl = (...args) => fetch(...args) }) {
+    function mount({ button, getRows, onSubmit, onSubmitted = () => {}, document: doc = document, fetchImpl = (...args) => fetch(...args) }) {
         const dialog = doc.createElement('dialog');
         dialog.id = 'practice-exercises-dialog';
         dialog.setAttribute('aria-labelledby', 'practice-title');
         dialog.setAttribute('aria-describedby', 'practice-help');
         dialog.innerHTML = `
-            <h2 id="practice-title">Create Additional Practice Exercises</h2>
+            <h2 id="practice-title">Generate alternate answers</h2>
             <p id="practice-help">Choose a language to generate alternative answers immediately. Review the answers, then Submit to save them. Use Submit or Cancel before choosing another language.</p>
             <div class="practice-choices" role="group" aria-label="Alternate answer language">
                 <button type="button" data-language="english" aria-pressed="false">Generate Alternative English Answers</button>
@@ -127,7 +124,7 @@
             </div>
             <p id="practice-lock" role="status"></p>
             <form id="practice-form" hidden>
-                <p>Review the correct definition and the four generated incorrect answers. You can edit any answer. The language button above fills any empty cells, including when retrying failed generation. Check individual cells to replace them with Regenerate. Review AI suggestions before submitting.</p>
+                <p>Review the correct definition and the four generated incorrect answers. You can edit any answer in English, Hebrew, or a mix of both. The language button above fills any empty cells, including when retrying failed generation. Check individual cells to replace them with Regenerate. Review AI suggestions before submitting.</p>
                 <div class="practice-table-scroll" role="region" aria-label="Alternate answers table; scroll horizontally for all four answers" tabindex="0">
                     <table dir="ltr"><caption id="practice-caption"></caption><thead><tr>
                         <th scope="col">Term</th><th scope="col">Definition</th>
@@ -182,7 +179,7 @@
                     label.append(checkbox, doc.createTextNode(' Regenerate this answer'));
                     const input = doc.createElement('textarea');
                     input.value = answer; input.rows = 3; input.maxLength = 500;
-                    input.dir = session.language === 'hebrew' ? 'rtl' : 'ltr';
+                    input.dir = 'auto';
                     input.lang = session.language === 'hebrew' ? 'he' : 'en';
                     input.setAttribute('aria-label', `Alternate answer ${slot + 1} for ${row.term}, row ${row.id + 1}`);
                     input.addEventListener('input', () => { session.edit(row.id, slot, input.value); error(''); refresh(); });
@@ -253,7 +250,7 @@
         find('#practice-regenerate').addEventListener('click', () => generate(false));
         form.addEventListener('submit', event => {
             event.preventDefault(); if (busy) return;
-            try { const saved = session.submit(); onSubmit(session.language, saved); cancel(); }
+            try { const saved = session.submit(); onSubmit(session.language, saved); cancel(); onSubmitted(); }
             catch (err) { error(err.message); }
         });
         return { dialog };

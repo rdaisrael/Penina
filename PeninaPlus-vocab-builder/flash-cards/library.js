@@ -16,6 +16,8 @@
     classGamify.className = 'set-action gamify-action';
     classGamify.textContent = 'Gamify! — All class terms';
     classGamify.href = `/api/flashcard-sets?grade=${encodeURIComponent(grade)}&games=1#gamify`;
+    classGamify.target = '_blank';
+    classGamify.rel = 'noopener';
     classGamify.hidden = true;
     document.querySelector('.toolbar').before(classGamify);
     let sets = [];
@@ -103,15 +105,15 @@
                 <div class="set-actions">
                     <section class="set-action-group" aria-label="Flashcards">
                         <h3>Flashcards</h3>
-                        <a class="set-action" href="${escapeHtml(set.url)}" aria-label="View Flashcards">View</a>
-                        <a class="set-action" href="${escapeHtml(set.downloadUrl || set.url)}" download aria-label="Download Flashcards">Download</a>
-                        <a class="set-action" href="${escapeHtml(set.printUrl || set.url + '#print')}" aria-label="Print Flashcards">Print</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.url)}" aria-label="View Flashcards">View</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.downloadUrl || set.url)}" download aria-label="Download Flashcards">Download</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.printUrl || set.url + '#print')}" aria-label="Print Flashcards">Print</a>
                     </section>
                     ${set.sheetUrl ? `<section class="set-action-group" aria-label="Sheets">
                         <h3>Sheets</h3>
-                        <a class="set-action" href="${escapeHtml(set.sheetUrl)}" aria-label="View Sheets">View</a>
-                        <a class="set-action" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (PDF)">Download PDF</a>
-                        <a class="set-action" href="${escapeHtml(set.sheetPrintUrl)}" aria-label="Print Sheets">Print</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetUrl)}" aria-label="View Sheets">View</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (PDF)">Download PDF</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetPrintUrl)}" aria-label="Print Sheets">Print</a>
                     </section>` : ''}
                 </div></article>`;
         }).join('');

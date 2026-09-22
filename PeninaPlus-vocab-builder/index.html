@@ -390,12 +390,12 @@
             direction: ltr;
         }
         
-        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 14px 10px; margin-top: 0; margin-bottom: 12px; font-size: var(--title-font-size, 18pt); border-radius: 4px; letter-spacing: var(--global-letter-spacing, 0px); }
+        h1.doc-title { background-color: #2c3e50; color: white; text-align: center; padding: 14px 10px; margin-top: 0; margin-bottom: 12px; font-size: var(--title-font-size, 18pt); border-radius: 4px; letter-spacing: var(--global-letter-spacing, 1px); }
         table { width: 100%; border-collapse: collapse; border: 1px solid #dcd3c6; table-layout: fixed; font-size: var(--base-font-size, 14pt); }
         #vocab-table col.col-word { width: 25%; }
         #vocab-table col.col-definition { width: 25%; }
         #vocab-table col.col-context-layout { width: 50%; }
-        th, td { border: 1px solid #dcd3c6; padding: 4pt 6pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); line-height: 1.12; letter-spacing: var(--global-letter-spacing, 0px); }
+        th, td { border: 1px solid #dcd3c6; padding: 4pt 6pt; vertical-align: top; box-sizing: border-box; overflow-wrap: anywhere; word-break: normal; font-size: var(--base-font-size, 14pt); line-height: 1.12; letter-spacing: var(--global-letter-spacing, 1px); }
         th { background-color: #f4efe6; font-weight: bold; text-align: center; color: #4a4238; }
         
         .col-hebrew { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); white-space: normal; min-width: 0; padding: 4pt 6pt; line-height: 1.12; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
@@ -405,11 +405,11 @@
         .modern-hebrew-term-translation { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); margin-bottom: var(--translation-block-gap, 10pt); line-height: 1.5; }
         .col-context { vertical-align: bottom; min-width: 0; padding: 3pt 5pt; font-size: var(--context-font-size, 12pt); line-height: 1.08; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
-        .hebrew-word, .hebrew-text, .modern-hebrew-term-translation, .modern-hebrew-context, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 0px); }
+        .hebrew-word, .hebrew-text, .modern-hebrew-term-translation, .modern-hebrew-context, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 1px); }
         .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.08; }
         .col-context .hebrew-text { line-height: 1.5; font-size: var(--context-font-size, 12pt); margin: 0; }
         .modern-hebrew-context { direction: rtl; text-align: right; font-size: var(--context-font-size, 12pt); margin-top: var(--translation-block-gap, 10pt); font-style: italic; line-height: 1.5; }
-        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 0.5pt; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.5; letter-spacing: var(--global-letter-spacing, 0px); }
+        .english-text { direction: ltr; text-align: left; font-style: italic; margin-top: 0.5pt; overflow-wrap: anywhere; word-break: break-word; font-size: var(--base-font-size, 14pt); line-height: 1.5; letter-spacing: var(--global-letter-spacing, 1px); }
         .col-context .english-text { font-size: var(--context-font-size, 12pt); margin-top: var(--translation-block-gap, 10pt); }
         .citation { font-size: var(--citation-font-size, 8pt); line-height: 1.0; margin-top: 0.25pt; color: #666; white-space: normal; font-weight: normal; }
         .hebrew-citation { direction: rtl; text-align: right; margin-bottom: 0.25pt; }
@@ -537,7 +537,7 @@
         }
         #search-status-notice { text-align: center; }
         .penina-footer { margin-top: 20px; text-align: center; font-size: 10pt; color: #6a6258; line-height: 1.3; }
-        #page, #page * { letter-spacing: var(--global-letter-spacing, 0px); }
+        #page, #page * { letter-spacing: var(--global-letter-spacing, 1px); }
         .title-hebrew { font-family: var(--hebrew-font, Arial, sans-serif) !important; }
         .title-english { font-family: var(--english-font, Arial, sans-serif) !important; }
         
@@ -594,7 +594,7 @@
         :root {
             --english-font: Arial, sans-serif;
             --hebrew-font: Arial, sans-serif;
-            --global-letter-spacing: 0px;
+            --global-letter-spacing: 1px;
             --base-font-size: 14pt;
             --context-font-size: 12pt;
             --citation-font-size: 8pt;
@@ -740,8 +740,8 @@
                         <input type="range" id="font-size" min="10" max="36" value="14">
                     </div>
                     <div class="slider-container">
-                        <label for="kerning">Letter Spacing: <span id="kerning-val">0px</span></label>
-                        <input type="range" id="kerning" min="0" max="10" value="0">
+                        <label for="kerning">Letter Spacing: <span id="kerning-val">1px</span></label>
+                        <input type="range" id="kerning" min="0" max="10" value="1">
                     </div>
                 </div>
 
@@ -786,7 +786,7 @@
                 <button onclick="window.print()" style="background-color: #28a745; width: auto; padding: 10px 40px;">Print Vocabulary Sheet</button>
                 <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Export Filled Spreadsheet</button>
                 <button type="button" id="save-draft-btn" style="background-color: #b58900; width: auto; padding: 10px 40px;">Save JSON Draft</button>
-                <button type="button" id="create-practice-exercises-btn" disabled>Create Additional Practice Exercises</button>
+                <button type="button" id="create-practice-exercises-btn" disabled>Generate alternate answers</button>
                 <button type="button" id="download-offline-study-cards-btn" style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
             </div>
             <p id="practice-saved-status" role="status" style="text-align: center;"></p>
@@ -1008,6 +1008,8 @@
             if (link && message) {
                 const anchor = document.createElement('a');
                 anchor.href = link;
+                anchor.target = '_blank';
+                anchor.rel = 'noopener';
                 anchor.textContent = ' Open the webpage →';
                 anchor.style.fontWeight = 'bold';
                 publishStudyCardsStatus.appendChild(anchor);
@@ -1393,6 +1395,10 @@
             URL.revokeObjectURL(url);
         }
 
+        function offerBackup() {
+            if (window.confirm('Do you want to save a backup?')) saveDraftToFile();
+        }
+
         function applyDraftPayload(payload) {
             if (!payload || payload.draftType !== 'PeninaPlusVocabularyBuilderDraft') {
                 throw new Error('This does not look like a PeninaPlus Vocabulary Builder draft.');
@@ -1408,7 +1414,7 @@
             setControlValue('context-quotes', legacyNoContext ? false : (inputs.contextQuotes ?? inputs.publishContextQuotes) !== false);
             setControlValue('substitute-names', inputs.substituteNames);
             setControlValue('font-size', inputs.fontSize || '14');
-            setControlValue('kerning', inputs.kerning || '0');
+            setControlValue('kerning', inputs.kerning ?? '1');
             setControlValue('nekudot-toggle', inputs.nekudotToggle || 'show');
             setControlValue('font-choice', inputs.hebrewFontChoice || 'Arial, sans-serif');
             setControlValue('english-font-choice', inputs.englishFontChoice || 'Arial, sans-serif');
@@ -1420,9 +1426,9 @@
             setControlValue('hidden-perek-input', inputs.hiddenPerekInput || '');
 
             document.getElementById('font-size-val').innerText = (parseInt(getControlValue('font-size'), 10) || 14) + 'pt';
-            document.getElementById('kerning-val').innerText = (getControlValue('kerning') || '0') + 'px';
+            document.getElementById('kerning-val').innerText = (getControlValue('kerning') || '1') + 'px';
             updateFontSizeVariables(parseInt(getControlValue('font-size'), 10) || 14);
-            document.documentElement.style.setProperty('--global-letter-spacing', (getControlValue('kerning') || '0') + 'px');
+            document.documentElement.style.setProperty('--global-letter-spacing', (getControlValue('kerning') || '1') + 'px');
             document.documentElement.style.setProperty('--hebrew-font', getControlValue('font-choice'));
             document.documentElement.style.setProperty('--english-font', getControlValue('english-font-choice'));
             updateMargin(getControlValue('margin-mode') || 'none');
@@ -1464,7 +1470,7 @@
             setControlValue('context-quotes', true);
             setControlValue('substitute-names', true);
             setControlValue('font-size', '14');
-            setControlValue('kerning', '0');
+            setControlValue('kerning', '1');
             setControlValue('nekudot-toggle', 'show');
             setControlValue('font-choice', 'Arial, sans-serif');
             setControlValue('english-font-choice', 'Arial, sans-serif');
@@ -1492,9 +1498,9 @@
             document.querySelectorAll('.context-quote-checkbox').forEach(checkbox => { checkbox.checked = false; });
 
             document.getElementById('font-size-val').innerText = '14pt';
-            document.getElementById('kerning-val').innerText = '0px';
+            document.getElementById('kerning-val').innerText = '1px';
             updateFontSizeVariables(14);
-            document.documentElement.style.setProperty('--global-letter-spacing', '0px');
+            document.documentElement.style.setProperty('--global-letter-spacing', '1px');
             document.documentElement.style.setProperty('--hebrew-font', getControlValue('font-choice'));
             document.documentElement.style.setProperty('--english-font', getControlValue('english-font-choice'));
             updateMargin('none');
@@ -2352,6 +2358,7 @@ function updateTalmudModeVisibility() {
                 for (let i = 0; i < generatedRows.length; i++) syncGeneratedRowFromDom(i);
                 return generatedRows;
             },
+            onSubmitted: offerBackup,
             onSubmit(language, answers) {
                 answers.forEach((data, index) => {
                     const row = generatedRows[index];
@@ -2674,6 +2681,7 @@ function updateTalmudModeVisibility() {
                     throw new Error('This row does not use context quotations.');
                 }
                 replaceRenderedRow(rowIndex);
+                return true;
             } catch (error) {
                 if (contextCell) {
                     contextCell.classList.remove('context-regenerating');
@@ -2695,11 +2703,12 @@ function updateTalmudModeVisibility() {
                 return;
             }
             let completedSuccessfully = false;
+            let regeneratedCount = 0;
             if (button) button.disabled = true;
             try {
                 for (let i = 0; i < indexes.length; i++) {
                     if (button) button.textContent = `Regenerating ${i + 1}/${indexes.length}...`;
-                    await regenerateContextForRow(indexes[i]);
+                    if (await regenerateContextForRow(indexes[i])) regeneratedCount++;
                     await new Promise(resolve => window.setTimeout(resolve, 0));
                 }
                 completedSuccessfully = true;
@@ -2711,6 +2720,7 @@ function updateTalmudModeVisibility() {
                 if (completedSuccessfully) {
                     clearContextQuoteSelections();
                 }
+                if (regeneratedCount > 0) offerBackup();
             }
         }
 
@@ -3430,6 +3440,9 @@ function updateTalmudModeVisibility() {
                 vocabTbody.innerHTML = htmlOutput;
                 refreshOriginalHebrewDatasets();
                 updateTextDisplay();
+                if (!noContextMode && generatedRows.some(row => row.hebrewContext && row.hebrewContext !== 'Word not found in context.')) {
+                    offerBackup();
+                }
             } catch (e) {
                 vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${escapeVocabularyHtml(e.message)}</td></tr>`;
             } finally {

@@ -55,8 +55,7 @@
                 || !Array.isArray(saved.answers) || saved.answers.length !== 4) return [];
             const answers = saved.answers.map(clean), keys = answers.map(key);
             if (new Set(keys).size !== 4 || answers.some((answer, i) => !keys[i] || answer.length > 500
-                || keys[i] === key(term) || keys[i] === key(definition)
-                || (language === 'hebrew' ? !/[א-ת]/.test(answer) : !/[a-z]/i.test(answer) || /[א-ת]/.test(answer)))) return [];
+                || keys[i] === key(term) || keys[i] === key(definition))) return [];
             return [{ id, term, definition, answers, ...(card.studySet ? { studySet: card.studySet, studyDate: card.studyDate } : {}) }];
         });
     }
@@ -94,7 +93,7 @@
 
     function makeClassGames(title, cards, options = {}) {
         const groups = Object.fromEntries(['english', 'hebrew'].map(language => [language, practiceRows(cards, language)]).filter(([, rows]) => rows.length));
-        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — Gamify</title><style>body{font:16px Arial,sans-serif;background:#faf7ff;color:#241632;max-width:960px;margin:32px auto;padding:20px}button{border:1px solid #cab5e0;border-radius:12px;background:white;padding:12px;font:inherit}a{color:#7024b5}.games-dialog{box-sizing:border-box}</style></head><body><a href="${escapeHtml(options.homeUrl)}">← Class home</a><h1>${escapeHtml(title)} — Gamify!</h1><p>Practice across your class sets, with extra practice for the newest material.</p>${Object.keys(groups).length ? '<button id="gamify" type="button">Choose a game</button>' : '<p>No game-ready terms are available yet.</p>'}<script id="peninaClassConfig" type="application/json">${JSON.stringify({leaderboardUrl:options.leaderboardUrl}).replace(/</g, '\\u003c')}</script>${gamesMarkup(groups)}</body></html>`;
+        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — Gamify</title><style>body{font:16px Arial,sans-serif;background:#faf7ff;color:#241632;max-width:960px;margin:32px auto;padding:20px}button{border:1px solid #cab5e0;border-radius:12px;background:white;padding:12px;font:inherit}a{color:#7024b5}.games-dialog{box-sizing:border-box}</style></head><body><a target="_blank" rel="noopener" href="${escapeHtml(options.homeUrl)}">← Class home</a><h1>${escapeHtml(title)} — Gamify!</h1><p>Practice across your class sets, with extra practice for the newest material.</p>${Object.keys(groups).length ? '<button id="gamify" type="button">Choose a game</button>' : '<p>No game-ready terms are available yet.</p>'}<script id="peninaClassConfig" type="application/json">${JSON.stringify({leaderboardUrl:options.leaderboardUrl}).replace(/</g, '\\u003c')}</script>${gamesMarkup(groups)}</body></html>`;
     }
 
     // Pure game state: no DOM, timers, or network. Also embedded in offline files.
@@ -777,7 +776,7 @@ body.print-preview-open .app{display:none}body.print-preview-open .print-preview
 </style>
 </head>
 <body><div class="app">
-<header><div><a class="home-link" href="${escapeHtml(homeUrl)}">← Class home</a><h1>${safeTitle}</h1></div><div class="badge"><span id="count">${cards.length}</span><span>cards</span></div></header>
+<header><div><a class="home-link" target="_blank" rel="noopener" href="${escapeHtml(homeUrl)}">← Class home</a><h1>${safeTitle}</h1></div><div class="badge"><span id="count">${cards.length}</span><span>cards</span></div></header>
 <main class="layout"><aside class="panel">
 
 <p class="section-title" style="margin-top:16px">Flip order</p><div class="orders"><button id="termFirst" class="active">Term - Definition</button><button id="translationFirst">Definition - Term</button></div>

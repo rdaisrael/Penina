@@ -17,8 +17,7 @@ test('Only complete, current teacher answers unlock games; invalid or stale lang
         c => { c.alternativeAnswers.english.answers.pop(); },
         c => { c.alternativeAnswers.english.answers[0] = ''; },
         c => { c.alternativeAnswers.english.answers[0] = 'horse'; },
-        c => { c.alternativeAnswers.english.answers[0] = 'camel'; },
-        c => { c.alternativeAnswers.english.answers[0] = 'חמור'; }
+        c => { c.alternativeAnswers.english.answers[0] = 'camel'; }
     ]) {
         const changed = ready(); mutate(changed);
         assert.equal(app.practiceRows([changed], 'english').length, 0);
@@ -95,4 +94,11 @@ test('Matching rounds always reserve three decoys, including sets whose alternat
         }
         assert.deepEqual(covered,rows.map(row=>row.id));
     }
+});
+
+test('mixed English and Hebrew manual alternatives stay available in games', () => {
+    const mixed = ready();
+    mixed.alternativeAnswers.english.answers = ['חמור', 'camel / גמל', 'goat', 'כבש'];
+    assert.deepEqual(app.practiceRows([mixed], 'english')[0].answers, mixed.alternativeAnswers.english.answers);
+    assert(app.makeApp('Mixed', [mixed]).includes('id="gamify"'));
 });

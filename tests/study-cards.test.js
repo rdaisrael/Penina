@@ -169,8 +169,8 @@ test('Sheets omit N markers from every optional field',()=>{
 test('Manual context edits sync immediately, and regeneration still operates only on checked rows',async()=>{
     const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/index.html'),'utf8');
     const selected=[{dataset:{rowIndex:'1'}}];
-    const regenerated=[];const alerts=[];const synced=[];
-    const context={document:{querySelectorAll:()=>selected},window:{setTimeout:fn=>fn()},setTimeout:fn=>fn(),alert:message=>alerts.push(message),regenerateContextForRow:async i=>regenerated.push(i),clearContextQuoteSelections(){},syncGeneratedRowFromDom:i=>synced.push(i),vocabTbody:{addEventListener:(name,callback)=>{assert.equal(name,'input');context.onInput=callback;}}};
+    const regenerated=[];const alerts=[];const synced=[];let backups=0;
+    const context={offerBackup:()=>backups++,document:{querySelectorAll:()=>selected},window:{setTimeout:fn=>fn()},setTimeout:fn=>fn(),alert:message=>alerts.push(message),regenerateContextForRow:async i=>regenerated.push(i),clearContextQuoteSelections(){},syncGeneratedRowFromDom:i=>synced.push(i),vocabTbody:{addEventListener:(name,callback)=>{assert.equal(name,'input');context.onInput=callback;}}};
     vm.createContext(context);
     const selection=source.slice(source.indexOf('        function getSelectedContextQuoteIndexes()'),source.indexOf('        function refreshOriginalHebrewDatasets('));
     const regenerate=source.slice(source.indexOf('        async function regenerateSelectedContextQuotes('),source.indexOf('        function normalizeHebrewForDisplayMatchGlobal('));
@@ -180,7 +180,9 @@ test('Manual context edits sync immediately, and regeneration still operates onl
     context.onInput({target:{closest:()=>edited}});
     assert.equal(edited.dataset.original,'new quote');assert.deepEqual(synced,[0]);
     await context.regenerateSelectedContextQuotes(null);
-    assert.deepEqual(regenerated,[1]);
+    assert.deepEqual(regenerated,[1]);assert.equal(backups,1);
+    context.regenerateContextForRow=async()=>false;
+    await context.regenerateSelectedContextQuotes(null);assert.equal(backups,1);
     selected.length=0;await context.regenerateSelectedContextQuotes(null);
     assert.equal(alerts.length,1);assert.deepEqual(regenerated,[1]);
 });

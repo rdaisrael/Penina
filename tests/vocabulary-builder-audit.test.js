@@ -53,7 +53,7 @@ async function generate(source, overrides) {
         document: { getElementById: element }, searchStatusNotice: null,
         englishTranslationEnabled: () => true, hebrewTranslationEnabled: () => false,
         contextQuotesEnabled: () => true, updateViewModeLock() {}, getVocabularyInputProblems: () => [],
-        generateBtn: {}, generatedRows: [], updateWorkbookExportAvailability() {},
+        offerBackup() {}, generateBtn: {}, generatedRows: [], updateWorkbookExportAvailability() {},
         yieldToBrowser: async () => {}, vocabTbody: {}, pageContainer: { style: {} }, applyTitleText() {},
         importedVocabularyRows: [{ term: 'סוס', englishTermTranslation: 'horse', ...overrides }],
         addNikkudWithDicta: async text => text, containsHebrew: text => /[א-ת]/.test(text),

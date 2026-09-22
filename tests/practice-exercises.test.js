@@ -75,14 +75,17 @@ test('generation rejects incomplete, duplicate, unrequested and malformed AI cel
     assert.deepEqual(output.map(row => row.answers), [alternatives, alternatives]);
 });
 
-test('Submit requires four distinct answers in the selected language and a definition', () => {
+test('Submit accepts English and Hebrew answers and requires four distinct answers and a definition', () => {
     const session = practice.createSession(source()); session.choose('english');
     assert.throws(() => session.submit(), /every cell/);
     session.rows[0].answers = alternatives.slice();
     assert.deepEqual(session.submit()[0], { version: 1, term: 'סוס', definition: 'horse', answers: alternatives });
     session.rows[0].answers[1] = 'DONKEY!'; assert.throws(() => session.submit(), /different/);
     session.rows[0].answers = ['חמור', 'גמל', 'עז', 'כבש'];
-    assert.throws(() => session.submit(), /English/);
+    assert.equal(session.submit().length, 1);
+    session.rows[0].answers[0] = 'donkey / חמור';
+    assert.equal(session.submit()[0].answers[0], 'donkey / חמור');
+    session.rows[0].answers[0] = 'חמור';
     session.language = 'hebrew'; assert.equal(session.submit().length, 1);
     session.rows[0].answers[1] = 'חֲמוֹר'; assert.throws(() => session.submit(), /different/);
     session.rows[0].definition = ''; assert.throws(() => session.submit(), /definition/);
@@ -130,9 +133,10 @@ function modal(fetchImpl, rows = source(), extraGlobals = {}) {
         api = context.module.exports;
     }
     const saved = [];
-    const { dialog } = api.mount({ button, document, fetchImpl, getRows: () => rows, onSubmit: (...args) => saved.push(args) });
+    let backupCount = 0;
+    const { dialog } = api.mount({ button, document, fetchImpl, getRows: () => rows, onSubmit: (...args) => saved.push(args), onSubmitted: () => { assert.equal(dialog.open, false); backupCount++; } });
     button.fire('click');
-    return { button, dialog, saved, find: selector => dialog.querySelector(selector) };
+    return { button, dialog, saved, get backupCount() { return backupCount; }, find: selector => dialog.querySelector(selector) };
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -154,6 +158,7 @@ test('modal locks on generation, renders editable cells, submits, and reopens un
     ui.find('form').fire('submit');
     assert.equal(ui.saved[0][0], 'english'); assert.equal(ui.saved[0][1][0].answers[0], 'cow');
     assert.equal(ui.dialog.open, false); assert.equal(ui.button.focused, true);
+    assert.equal(ui.backupCount, 1);
     ui.button.fire('click'); assert(choices.every(choice => !choice.disabled));
     assert.equal(ui.find('form').hidden, true);
 });
@@ -196,7 +201,7 @@ test('failed later batch leaves all answers unchanged and restores controls for 
 });
 
 test('HTML integrates the purple button immediately before offline cards and loads valid scripts', () => {
-    assert.match(html, /id="create-practice-exercises-btn"[^>]*>Create Additional Practice Exercises<\/button>\s*<button[^>]*id="download-offline-study-cards-btn"/);
+    assert.match(html, /id="create-practice-exercises-btn"[^>]*>Generate alternate answers<\/button>\s*<button[^>]*id="download-offline-study-cards-btn"/);
     assert.match(html, /<link rel="stylesheet" href="practice-exercises.css">/);
     assert(html.indexOf('src="practice-exercises.js"') < html.indexOf('PeninaPracticeExercises.mount'));
     assert.match(fs.readFileSync(require.resolve('../PeninaPlus-vocab-builder/practice-exercises.css'), 'utf8'), /#create-practice-exercises-btn\s*\{[^}]*background: #7a3df0/);
@@ -218,7 +223,7 @@ test('real HTML submit integration survives JSON draft export and import with bo
     };
     let mounted;
     const context = vm.createContext({ PeninaPracticeExercises: { mount: options => { mounted = options; } },
-        createPracticeExercisesButton: {}, syncGeneratedRowFromDom() {}, document: { getElementById: element, documentElement: { style: { setProperty() {} } }, body: {} },
+        offerBackup() {}, createPracticeExercisesButton: {}, syncGeneratedRowFromDom() {}, document: { getElementById: element, documentElement: { style: { setProperty() {} } }, body: {} },
         getControlValue: () => '', getSelectedSourceTargets: () => [], importedVocabularyRows: [], pageContainer: element('page'), docTitle: element('title'), vocabTbody: element('tbody'),
         setControlValue() {}, sourceTypeSelect: { dispatchEvent() {} }, Event: class {}, renderChips() {}, updateFontSizeVariables() {}, updateMargin() {}, updateViewModeLock() {},
         applyTitleText() {}, setVocabularyWorkbookStatus() {}, updateWorkbookExportAvailability() {}, renderVocabularyRow: () => '<tr></tr>', refreshOriginalHebrewDatasets() {}, updateTextDisplay() {}, updateVocabInputWarning() {}
@@ -258,4 +263,15 @@ test('Hebrew language button generates immediately and preserves saved answers o
     assert.deepEqual(saved.dialog.querySelectorAll('textarea').map(input => input.value), answers);
     assert(html.includes('Publish Flashcards, Sheets, and Practice Exercises'));
     assert(!html.includes('Publish Flashcards and Sheets'));
+});
+
+test('backup prompt downloads only when accepted', () => {
+    const start = html.indexOf('        function offerBackup()');
+    const code = html.slice(start, html.indexOf('        function applyDraftPayload', start));
+    let downloads = 0, accepted = false;
+    const context = { window: { confirm(message) { assert.equal(message, 'Do you want to save a backup?'); return accepted; } },
+        saveDraftToFile() { downloads++; } };
+    vm.createContext(context); vm.runInContext(code, context);
+    context.offerBackup(); assert.equal(downloads, 0);
+    accepted = true; context.offerBackup(); assert.equal(downloads, 1);
 });

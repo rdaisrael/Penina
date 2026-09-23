@@ -140,3 +140,13 @@ test('A screen that misses the server reveal still displays the answer for two s
  const data={phase:'question',index:1,lastReveal:{phase:'reveal',index:0}};
  context.present(data);assert.deepEqual(drawn,['reveal']);now=2999;context.present(data);assert.deepEqual(drawn,['reveal']);now=3000;context.present(data);assert.deepEqual(drawn,['reveal','question']);
 });
+
+test('Wrong answers show a brief X only to that student after reveal, once per question',()=>{
+ const marks=[],timers=[];
+ const context={host:false,celebrated:new Set(),document:{createElement:()=>({children:[],setAttribute(){},append(...items){this.children.push(...items);},remove(){this.removed=true;}}),body:{append:mark=>marks.push(mark)}},setTimeout:fn=>timers.push(fn)};
+ vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function wrongAnswer(data){'),client.indexOf(' function present(data){')),context);
+ const data={phase:'question',index:0,me:{choice:1},question:{correct:0}};
+ context.wrongAnswer(data);assert.equal(marks.length,0);data.phase='reveal';context.wrongAnswer(data);context.wrongAnswer(data);
+ assert.equal(marks.length,1);assert.equal(marks[0].children[0].textContent,'✕');timers[0]();assert.equal(marks[0].removed,true);
+ context.wrongAnswer({...data,index:1,me:{choice:0}});context.wrongAnswer({...data,index:2,me:{choice:null}});context.host=true;context.wrongAnswer({...data,index:3});assert.equal(marks.length,1);
+});

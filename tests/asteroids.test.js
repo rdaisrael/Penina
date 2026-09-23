@@ -113,3 +113,17 @@ test('Firing the first shot costs fuel only; returning from a vocabulary questio
  s.rocks=[{size:'large',radius:42,x:s.ship.x,y:s.ship.y,vx:0,vy:0,angle:0,spin:0}];
  game.tick(.01);assert(s.score>=300);assert.equal(s.lastDamage,undefined);
 });
+
+test('Five distinct jet bursts require a new answer; holding counts once and refilling resets both supplies',()=>{
+ const game=app.createAsteroids(),s=game.state;game.answer(true);game.launch();s.ship.shield=100;
+ assert.equal(s.jets,5);
+ for(let burst=0;burst<5;burst++){
+  game.tick(.01,{thrust:true});assert.equal(s.jets,4-burst);assert.equal(s.phase,'flying');
+  for(let frame=0;frame<10;frame++)game.tick(.01,{thrust:true});
+  assert.equal(s.jets,4-burst);game.tick(.01,{});
+  assert.equal(s.phase,burst===4?'question':'flying');
+ }
+ const snapshot=JSON.stringify(s);game.tick(.01,{thrust:true,fire:true});assert.equal(JSON.stringify(s),snapshot);
+ game.answer(false);assert.equal(s.jets,0);game.nextQuestion();game.answer(true);assert.equal(s.jets,5);assert.equal(s.fuel,10);
+ game.launch();game.tick(.01,{thrust:true});game.pause();game.tick(.01,{thrust:true});assert.equal(s.jets,4);game.launch();game.tick(.01,{thrust:true});assert.equal(s.jets,4);
+});

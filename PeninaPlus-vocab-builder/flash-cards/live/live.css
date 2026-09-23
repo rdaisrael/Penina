@@ -5,3 +5,8 @@
 .fireworks i{position:absolute;width:8px;height:8px;border-radius:50%;opacity:0;animation:live-spark 1s ease-out var(--delay) forwards}
 @keyframes live-spark{0%{opacity:1;transform:translate(0,0) scale(.6)}70%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.2)}}
 @media(prefers-reduced-motion:reduce){.fireworks{display:none}}
+
+.wrong-answer-mark{position:fixed;top:18%;left:50%;transform:translateX(-50%);z-index:1000;pointer-events:none;display:grid;justify-items:center;padding:12px 28px;background:#fff0f1;color:#ac343e;border:3px solid #ac343e;border-radius:22px;box-shadow:0 8px 30px #25183926;animation:live-wrong .25s ease-out}
+.wrong-answer-mark span{font-size:80px;font-weight:900;line-height:1.1}.wrong-answer-mark strong{font-size:20px}
+@keyframes live-wrong{from{opacity:0;scale:.8}to{opacity:1;scale:1}}
+@media(prefers-reduced-motion:reduce){.wrong-answer-mark{animation:none}}

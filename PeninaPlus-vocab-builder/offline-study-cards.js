@@ -100,7 +100,7 @@
     function createAsteroids(random = Math.random) {
         const width = 900, height = 500;
         const sizes = { large: { radius: 42, points: 20, next: 'medium' }, medium: { radius: 25, points: 50, next: 'small' }, small: { radius: 13, points: 100 } };
-        const state = { width, height, score: 300, fuel: 0, wave: 1, hits: 0, correct: 0, incorrect: 0,
+        const state = { width, height, score: 300, fuel: 0, jets: 0, thrustActive: false, wave: 1, hits: 0, correct: 0, incorrect: 0,
             phase: 'question', rocks: [], enemies: [], enemyShots: [], bullets: [], effects: [], cooldown: 0,
             ship: { x: width / 2, y: height / 2, vx: 0, vy: 0, angle: -Math.PI / 2, shield: 2 } };
         const wrap = (value, limit) => (value % limit + limit) % limit;
@@ -130,7 +130,7 @@
         }
         function answer(correct) {
             if (state.phase !== 'question') return false;
-            if (correct) { state.fuel += 10; state.correct++; state.phase = 'ready'; }
+            if (correct) { state.fuel = 10; state.jets = 5; state.thrustActive = false; state.correct++; state.phase = 'ready'; }
             else { state.score = Math.max(0,state.score-25); state.incorrect++; state.phase = state.score ? 'review' : 'gameover'; }
             return true;
         }
@@ -153,6 +153,13 @@
         }
         function tick(seconds, controls = {}) {
             if (state.phase !== 'flying') return;
+            // One press-and-hold is one jet burst; ask after the fifth burst is released.
+            if (!controls.thrust && state.thrustActive && !state.jets) { state.thrustActive=false; state.phase='question'; return; }
+            if (controls.thrust && !state.thrustActive) {
+                if (!state.jets) { state.phase='question'; return; }
+                state.jets--;
+            }
+            state.thrustActive=!!controls.thrust;
             const dt = Math.min(Math.max(seconds, 0), .035), ship = state.ship;
             state.cooldown = Math.max(0, state.cooldown - dt);
             ship.angle += ((controls.right ? 1 : 0) - (controls.left ? 1 : 0)) * 3.5 * dt;
@@ -207,7 +214,7 @@
 
     function mountAsteroids({ board, rows, createEngine, setFeedback, setProgress }) {
         const doc = board.ownerDocument, game = createEngine(), state = game.state;
-        board.innerHTML = `<div class="asteroids-hud"><span>Score <b id="asteroidScore">300</b></span><span>Fuel cells <b id="asteroidFuel">0</b> / 10</span><span>Round <b id="asteroidWave">1</b></span><button id="asteroidPause" type="button" disabled>Pause</button></div><div class="asteroids-arena"><canvas id="asteroidCanvas" width="900" height="500" tabindex="0" aria-label="Asteroids play area. Left and right arrows turn, up arrow thrusts, space fires. Press P to pause.">Use a browser with canvas support to play Asteroids.</canvas><div id="asteroidOverlay" class="asteroids-overlay"><section id="asteroidQuestion" class="asteroids-question" aria-labelledby="asteroidQuestionTitle"></section></div></div><div class="asteroids-controls" aria-label="Spaceship controls"><button type="button" data-flight="left" aria-label="Turn left">↶ Left</button><button type="button" data-flight="thrust" aria-label="Thrust">↑ Thrust</button><button type="button" data-flight="right" aria-label="Turn right">Right ↷</button><button type="button" data-flight="fire" aria-label="Fire">● Fire</button></div><p class="asteroids-rules">Large asteroid: <b>20</b> · Medium: <b>50</b> · Small: <b>100</b> · Martian: <b>125</b> · Enemy ship: <b>200</b> · Collision / enemy fire: <b>−150</b> · Wrong answer: <b>−25</b> · Start: <b>300</b><br>Arrows or W/A/D to fly · Space to fire · P to pause. You can also hold the buttons above.</p>`;
+        board.innerHTML = `<div class="asteroids-hud"><span>Score <b id="asteroidScore">300</b></span><span>Fuel cells <b id="asteroidFuel">0</b> / 10</span><span>Jet bursts <b id="asteroidJets">0</b> / 5</span><span>Round <b id="asteroidWave">1</b></span><button id="asteroidPause" type="button" disabled>Pause</button></div><div class="asteroids-arena"><canvas id="asteroidCanvas" width="900" height="500" tabindex="0" aria-label="Asteroids play area. Left and right arrows turn, up arrow thrusts, space fires. Press P to pause.">Use a browser with canvas support to play Asteroids.</canvas><div id="asteroidOverlay" class="asteroids-overlay"><section id="asteroidQuestion" class="asteroids-question" aria-labelledby="asteroidQuestionTitle"></section></div></div><div class="asteroids-controls" aria-label="Spaceship controls"><button type="button" data-flight="left" aria-label="Turn left">↶ Left</button><button type="button" data-flight="thrust" aria-label="Thrust">↑ Thrust</button><button type="button" data-flight="right" aria-label="Turn right">Right ↷</button><button type="button" data-flight="fire" aria-label="Fire">● Fire</button></div><p class="asteroids-rules">Large asteroid: <b>20</b> · Medium: <b>50</b> · Small: <b>100</b> · Martian: <b>125</b> · Enemy ship: <b>200</b> · Collision / enemy fire: <b>−150</b> · Wrong answer: <b>−25</b> · Start: <b>300</b><br>Arrows or W/A/D to fly · Space to fire · P to pause. Each thrust press-and-hold uses one of your 5 jet bursts. Release the fifth burst to answer a new question. You can also hold the buttons above.</p>`;
         const find = id => board.querySelector('#' + id);
         const canvas = find('asteroidCanvas'), ctx = canvas.getContext('2d');
         const overlay = find('asteroidOverlay'), question = find('asteroidQuestion'), pause = find('asteroidPause');
@@ -224,6 +231,7 @@
         function update() {
             find('asteroidScore').textContent = state.score;
             find('asteroidFuel').textContent = state.fuel;
+            find('asteroidJets').textContent = state.jets;
             find('asteroidWave').textContent = state.wave;
             const progress = `${state.correct} correct answers · ${state.incorrect} incorrect · ${state.hits} asteroids hit`;
             setProgress(progress);
@@ -252,7 +260,7 @@
                 if (!rows.some(row => row.scheduled) && deck.length > 1 && deck[0].id === lastRow?.id) [deck[0], deck[1]] = [deck[1], deck[0]];
             }
             const row = deck.shift(); lastRow = row;
-            const heading = el('h3', state.correct || state.incorrect ? 'Refuel: earn 10 fuel cells' : 'Answer a word to launch');
+            const heading = el('h3', state.correct || state.incorrect ? 'Refuel: 10 shots and 5 jet bursts' : 'Answer a word to launch');
             heading.id = 'asteroidQuestionTitle'; heading.tabIndex = -1;
             const term = el('p', row.term, 'asteroids-term'); term.dir = 'auto';
             const instruction = el('p', 'Choose the correct definition.');
@@ -269,7 +277,7 @@
                     });
                     if (!correct) node.classList.add('wrong');
                     if(state.phase==='gameover'){showEnd();update();return;}
-                    if(correct){resume();setFeedback('Correct! +10 fuel cells. Fly!');return;}
+                    if(correct){resume();setFeedback('Correct! 10 shots and 5 jet bursts. Fly!');return;}
                     const message = correct ? 'Correct! You earned 10 fuel cells.' : `Incorrect. −25 points. The correct answer is: ${row.definition}. No new fuel.`;
                     result.textContent = message;
                     const proceed = action('Next question', () => {
@@ -779,7 +787,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             }
             if (mode === 'asteroids') {
                 board.replaceChildren(); next.hidden = true; message('');
-                byId('gameHelp').textContent = 'Earn 10 fuel cells for every correct answer. There are 3 rounds: asteroids, pursuing Martians, then enemy ships. Hits cost 150 points; wrong answers cost 25. Zero points means game over.';
+                byId('gameHelp').textContent = 'Each correct answer refills 10 shots and 5 jet bursts. After five thrust presses, answer a new question. There are 3 rounds: asteroids, pursuing Martians, then enemy ships. Hits cost 150 points; wrong answers cost 25. Zero points means game over.';
                 stopAsteroids = mountAsteroids({ board, rows, createEngine: createAsteroids, setFeedback: message, setProgress: text => { if (progress.textContent !== text) progress.textContent = text; } });
                 return;
             }

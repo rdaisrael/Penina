@@ -44,6 +44,14 @@
   }
   document.body.append(burst);setTimeout(()=>burst.remove(),1400);
  }
+ function wrongAnswer(data){
+  if(host||data.phase!=='reveal'||data.me?.choice==null||data.me.choice===data.question.correct||celebrated.has(data.index))return;
+  celebrated.add(data.index);
+  const mark=document.createElement('div');mark.className='wrong-answer-mark';mark.setAttribute('role','status');
+  const symbol=document.createElement('span');symbol.textContent='✕';symbol.setAttribute('aria-hidden','true');
+  const label=document.createElement('strong');label.textContent='Incorrect';mark.append(symbol,label);
+  document.body.append(mark);setTimeout(()=>mark.remove(),1400);
+ }
  function present(data){
   if(data.serverNow)clockOffset=data.serverNow-Date.now();
   const reveal=data.phase==='reveal'?data:data.lastReveal;
@@ -55,7 +63,7 @@
   draw(data);updateClock();
  }
  function draw(data){
-  fireworks(data);
+  fireworks(data);wrongAnswer(data);
   const signature=JSON.stringify(data)+busy+online;if(signature===stamp)return;stamp=signature;snapshot=data;
   const meta=`<div class="question-meta"><span>${esc(data.className)}</span><span>Game <b>${code}</b> · ${data.playerCount} joined</span></div>`;
   if(data.phase==='lobby'){

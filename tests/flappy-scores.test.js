@@ -21,6 +21,12 @@ test('Class board persists top three across paginated submissions, isolates clas
 });
 test('Board rejects names, invalid scores, incomplete runs, missing classes and unsupported methods',async()=>{
  const request=harness(),valid={initials:'AB',score:500,rounds:3,runId:'completed-run-1'};
- for(const edit of [{initials:'David'},{initials:'<x>'},{score:-5},{score:1505},{score:NaN},{score:501},{runId:'../x'}])assert.equal((await request('POST','sixth',{...valid,...edit})).code,400);
+ for(const edit of [{initials:'David'},{initials:'<x>'},{score:-5},{score:4505},{score:NaN},{score:501},{runId:'../x'}])assert.equal((await request('POST','sixth',{...valid,...edit})).code,400);
  assert.equal((await request('GET','missing')).code,404);assert.equal((await request('DELETE','sixth')).code,405);
+});
+
+test('Three-round maximum score is accepted and higher scores are rejected',async()=>{
+ const request=harness(),run={initials:'AB',score:4500,runId:'three-round-run-1'};
+ assert.equal((await request('POST','sixth',run)).code,200);
+ assert.equal((await request('POST','sixth',{...run,score:4550})).code,400);
 });

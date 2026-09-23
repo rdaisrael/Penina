@@ -22,10 +22,24 @@ test('Correct answers continue flying with unchanged height and momentum and no 
  assert.equal(after.y,before.y);assert.equal(after.vy,before.vy);assert.equal(after.readTime,0);
  assert.equal(h.get('#fv-overlay').hidden,true);assert.equal(h.get('#fv-flap').disabled,false);
  assert(h.get('#fv-feedback').textContent.startsWith('Correct! +100'));
- for(let i=1;i<5;i++)c.resolve(c.get().answers.indexOf('horse'));
- assert.equal(c.get().score,500);assert.equal(c.get().state,'over');assert.equal(h.get('#fv-overlay').hidden,false);
+ for(let i=1;i<15;i++)c.resolve(c.get().answers.indexOf('horse'));
+ assert.equal(c.get().score,1500);assert.equal(c.get().state,'over');assert.equal(h.get('#fv-overlay').hidden,false);
 });
 test('Wrong answers still pause for correction and do not skip vocabulary',()=>{
  const h=harness(),c=h.control;c.start();c.resolve(c.get().answers.findIndex(a=>a!=='horse'));
  assert.equal(c.get().state,'feedback');assert.equal(c.get().index,0);assert.equal(h.get('#fv-overlay').hidden,false);assert.equal(h.get('#fv-flap').disabled,true);
+});
+
+test('Three rounds advance without interruption, retain lives, and finish after fifteen words',()=>{
+ const h=harness(),c=h.control;c.setSpeed(3);c.start();
+ assert.equal(h.get('#fv-picker').open,false);
+ c.resolve(-1);c.question();
+ for(let round=1;round<=3;round++){
+  assert(h.get('#fv-round').textContent.startsWith('ROUND '+round+' / 3'));
+  for(let word=0;word<5;word++)c.resolve(c.get().answers.indexOf('horse'));
+  assert.equal(c.get().lives,2);
+  assert.equal(c.get().state,round<3?'flight':'over');
+ }
+ assert.equal(c.get().score,4450);
+ c.start();assert.equal(c.get().index,0);assert.equal(c.get().lives,3);
 });

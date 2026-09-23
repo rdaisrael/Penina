@@ -42,7 +42,7 @@ test('Two host controllers cannot advance the same state twice; refresh reconstr
 test('Tokens are room-scoped and tamper-proof; sessions expire after four hours',async()=>{
  const h=await setup(),other=await h.create();assert.equal((await h.request(null,{code:other.body.code},h.hostToken)).code,401);
  assert.equal((await h.request(null,{code:h.code},h.studentToken+'x')).code,401);
- h.advance(4*60*60*1000+1);assert.equal((await h.request(null,{code:h.code},h.hostToken)).code,410);
+ h.advance(4*60*60*1000+1);assert.equal((await h.request(null,{code:h.code},h.hostToken)).code,401);
 });
 test('All five questions complete a game and the final board preserves student totals',async()=>{
  const h=await setup();await h.request('start',{code:h.code,version:0},h.hostToken);
@@ -149,4 +149,26 @@ test('Wrong answers show a brief X only to that student after reveal, once per q
  context.wrongAnswer(data);assert.equal(marks.length,0);data.phase='reveal';context.wrongAnswer(data);context.wrongAnswer(data);
  assert.equal(marks.length,1);assert.equal(marks[0].children[0].textContent,'✕');timers[0]();assert.equal(marks[0].removed,true);
  context.wrongAnswer({...data,index:1,me:{choice:0}});context.wrongAnswer({...data,index:2,me:{choice:null}});context.host=true;context.wrongAnswer({...data,index:3});assert.equal(marks.length,1);
+});
+
+test('Concurrent classroom reads share storage work, while answers invalidate the cache',async()=>{
+ const h=await setup();await h.request('start',{code:h.code,version:0},h.hostToken);
+ const before=h.operations.lists;
+ const views=await Promise.all(Array.from({length:26},()=>h.request(null,{code:h.code},h.studentToken)));
+ assert.equal(h.operations.lists-before,1);assert(views.every(v=>v.body.phase==='question'));
+ await h.request('answer',{code:h.code,index:0,choice:1},h.studentToken);
+ const refreshed=await h.request(null,{code:h.code},h.studentToken);assert.equal(refreshed.body.me.choice,1);
+ const cached=h.operations.lists;await h.request(null,{code:h.code},h.studentToken);assert.equal(h.operations.lists,cached);
+ h.advance(751);await h.request(null,{code:h.code},h.studentToken);assert.equal(h.operations.lists,cached+1);
+ const unauth=h.operations.lists;assert.equal((await h.request(null,{code:h.code})).code,401);assert.equal(h.operations.lists,unauth);
+});
+
+test('Polling stops for finished or hidden games and backs off on storage errors',async()=>{
+ const source=client.slice(client.indexOf(' async function poll(){'),client.indexOf(' async function act('));
+ let calls=0;const scheduled=[];
+ const context={clearTimeout(){},timer:null,stopped:false,auth:'token',document:{hidden:false},pollId:0,snapshot:null,failures:0,online:true,status:{},host:false,showError(){},draw(){},updateClock(){},present(data){context.snapshot=data;},request:async()=>{calls++;return {phase:'ended',version:2};},setTimeout(fn,ms){scheduled.push(ms);}};
+ vm.createContext(context);vm.runInContext(source,context);
+ await context.poll();assert.equal(context.stopped,true);assert.equal(scheduled.length,0);await context.poll();assert.equal(calls,1);
+ context.stopped=false;context.snapshot=null;context.document.hidden=true;await context.poll();assert.equal(calls,1);
+ context.document.hidden=false;context.request=async()=>{throw new Error('Storage unavailable');};await context.poll();await context.poll();assert.deepEqual(scheduled,[4000,8000]);
 });

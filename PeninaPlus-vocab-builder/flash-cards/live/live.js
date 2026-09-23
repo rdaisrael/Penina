@@ -1,7 +1,7 @@
 (() => {
  'use strict';
  const params=new URLSearchParams(location.search),stage=document.getElementById('stage'),status=document.getElementById('connection'),error=document.getElementById('error');
- const host=params.get('host')==='1';let code=params.get('code')||'',auth='',snapshot=null,stamp='',timer=null,busy=false,stopped=false,online=true,pollId=0;
+ const host=params.get('host')==='1';let code=params.get('code')||'',auth='',snapshot=null,stamp='',timer=null,busy=false,stopped=false,online=true,pollId=0,failures=0;
  const storageKey=()=>`penina-live-${host?'host':'student'}-${code}`;
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let clockOffset=0;const celebrated=new Set();
@@ -82,10 +82,14 @@
   stage.innerHTML=meta+`<section><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span>${data.answeredCount} / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div>${data.deadline?'<p class="countdown" data-clock role="timer"></p>':''}${data.paused?'<p class="notice">Paused by teacher</p>':''}${revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}<h1 class="question" dir="auto">${esc(q.term)}</h1><div class="answers">${answerMarkup}</div>${!host?`<p class="notice ${revealed&&choice===q.correct?'success':''}" role="status">${revealed?(choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'):(choice!==null?'Answer '+letters[choice]+' saved. Waiting for the answer reveal.':'Choose the matching definition. Your first answer is final.')}</p>`:''}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>${revealed?`<div class="reveal-grid"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after 2 seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></div>`:`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${p.answered?'✓ ':''}${esc(p.name)}</li>`).join('')}</ul>`}`:''}</section>`;
  }
  async function poll(){
-  clearTimeout(timer);if(stopped||!auth)return;const currentPoll=++pollId;
-  try{const data=await request();if(currentPoll!==pollId||stopped)return;if(snapshot&&data.version<snapshot.version)return;online=true;status.textContent=host?'Teacher screen · Connected':'Connected';showError('');present(data);}
-  catch(e){if(currentPoll!==pollId||stopped)return;online=false;status.textContent='Reconnecting…';showError(e.message);if(snapshot)draw(snapshot);if([401,404,410].includes(e.status)){stopped=true;status.textContent='Game unavailable';return;}}
-  if(!stopped)timer=setTimeout(poll,document.hidden?2000:snapshot?.seconds?500:2000);
+  clearTimeout(timer);if(stopped||!auth||document.hidden)return;const currentPoll=++pollId;
+  try{const data=await request();if(currentPoll!==pollId||stopped)return;if(snapshot&&data.version<snapshot.version)return;failures=0;online=true;status.textContent=host?'Teacher screen · Connected':'Connected';showError('');present(data);}
+  catch(e){if(currentPoll!==pollId||stopped)return;failures++;online=false;status.textContent='Reconnecting…';showError(e.message);if(snapshot)draw(snapshot);if([401,404,410].includes(e.status)){stopped=true;status.textContent='Game unavailable';return;}}
+  if(snapshot?.phase==='ended'){stopped=true;return;}
+  if(!stopped&&!document.hidden){
+   const delay=failures?Math.min(30000,2000*2**Math.min(failures,4)):snapshot?.phase==='lobby'||snapshot?.paused?3000:1000;
+   timer=setTimeout(poll,delay);
+  }
  }
  async function act(action,extra={}){
   if(busy||!snapshot)return;++pollId;clearTimeout(timer);busy=true;if(snapshot)draw(snapshot);showError('');
@@ -103,8 +107,8 @@
  });
  setInterval(updateClock,100);
  window.addEventListener('pagehide',()=>{stopped=true;clearTimeout(timer);});
- window.addEventListener('pageshow',()=>{if(auth&&stopped){stopped=false;poll();}});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden&&auth&&!busy&&!stopped)poll();});
+ window.addEventListener('pageshow',()=>{if(auth&&stopped&&snapshot?.phase!=='ended'){stopped=false;poll();}});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);return;}if(auth&&!busy&&!stopped)poll();});
  auth=stored(storageKey())||'';
  if(host&&!auth){stage.innerHTML='<section class="panel waiting"><h1>Open Teacher tools first.</h1><p>Start a live game from your class webpage using its editing code.</p><a class="button primary" href="../">Back to classes</a></section>';}
  else if(auth){status.textContent='Connecting…';poll();}else joinForm();

@@ -11,7 +11,19 @@
     const manageTrigger = document.getElementById('manage-trigger');
     const management = document.getElementById('management');
     const removeButton = document.getElementById('remove-sets');
-    manageTrigger.textContent = '⚙';
+    manageTrigger.textContent = '●';
+    manageTrigger.setAttribute('aria-label', 'Open teacher tools');
+    const joinLive = document.createElement('a');
+    joinLive.className = 'set-action live-join-action';
+    joinLive.textContent = 'Join Live Game';
+    joinLive.href = '/PeninaPlus-vocab-builder/flash-cards/live/';
+    document.querySelector('.toolbar').before(joinLive);
+    const startLive = document.createElement('button');
+    startLive.type = 'button';startLive.className = 'combine-action primary';startLive.textContent = 'Start Live Game';
+    startLive.addEventListener('click', openLiveSetup);management.prepend(startLive);
+    const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';
+    lockTools.onclick = () => { managementMode = false;managementPassword = '';management.hidden = true;manageTrigger.hidden = false;render(); };
+    management.append(lockTools);
     const classGamify = document.createElement('a');
     classGamify.className = 'set-action gamify-action';
     classGamify.textContent = 'Gamify! — All class terms';
@@ -223,10 +235,37 @@
         });
     }
 
+    async function openLiveSetup() {
+        const eligible = sets.filter(set => set.hasGames);
+        if (!eligible.length) { await showMessage('No game-ready sets', 'Publish a set with teacher-approved answer choices first.'); return; }
+        const selected = new Set(selectedPathnames());
+        const dialog = document.createElement('dialog');
+        dialog.className = 'input-dialog live-setup';
+        dialog.innerHTML = `<form class="input-dialog-form"><h2>Start Live Game</h2><p>Students join with a game code. You reveal each answer and control the pace.</p><fieldset><legend>Vocabulary sets</legend>${eligible.map(set => `<label class="live-set"><input type="checkbox" name="sets" value="${escapeHtml(set.pathname)}" ${!selected.size || selected.has(set.pathname) ? 'checked' : ''}><span>${escapeHtml(set.title)}</span></label>`).join('')}</fieldset><label>Answer language<select name="language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><label>Questions<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><p>100 points per correct answer. Fewer questions are used if the selected sets have fewer approved terms.</p><p class="live-setup-error" role="alert"></p><div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Open lobby →</button></div></form>`;
+        document.body.appendChild(dialog);dialog.showModal();
+        let creating = false;
+        dialog.addEventListener('cancel', event => { if (creating) event.preventDefault(); });
+        dialog.addEventListener('close', () => dialog.remove());
+        dialog.querySelector('[data-cancel]').onclick = () => dialog.close();
+        dialog.querySelector('form').onsubmit = async event => {
+            event.preventDefault();if (creating) return;
+            const form = event.currentTarget, pathnames = [...form.querySelectorAll('input[name="sets"]:checked')].map(input => input.value);
+            const note = form.querySelector('.live-setup-error');
+            if (!pathnames.length) { note.textContent = 'Choose at least one vocabulary set.'; return; }
+            creating = true;note.textContent = 'Opening the lobby…';form.querySelectorAll('button').forEach(button => { button.disabled = true; });
+            try {
+                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, password: managementPassword, pathnames, language: form.elements.language.value, count: Number(form.elements.count.value) }) });
+                const data = await response.json();if (!response.ok) throw new Error(data.error || 'Unable to open a lobby.');
+                sessionStorage.setItem('penina-live-host-' + data.code, data.hostToken);
+                window.location.assign('/PeninaPlus-vocab-builder/flash-cards/live/?host=1&code=' + data.code);
+            } catch (error) { note.textContent = error.message;creating = false;form.querySelectorAll('button').forEach(button => { button.disabled = false; }); }
+        };
+    }
+
     async function enterManagementMode() {
         const password = await openInputDialog({
-            title: 'Manage flashcard sets',
-            label: 'Publishing password',
+            title: 'Teacher tools',
+            label: 'Class editing code',
             input: true,
             type: 'password',
             confirmText: 'Unlock'
@@ -248,7 +287,7 @@
             management.hidden = false;
             render();
         } catch (error) {
-            await showMessage('Unable to unlock management', error && error.message ? error.message : 'The password could not be verified.');
+            await showMessage('Unable to unlock teacher tools', error && error.message ? error.message : 'The password could not be verified.');
         } finally {
             manageTrigger.disabled = false;
         }

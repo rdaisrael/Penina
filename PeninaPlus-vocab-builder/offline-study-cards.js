@@ -441,13 +441,32 @@ function speedUI(){root.querySelectorAll('[data-speed]').forEach(b=>b.setAttribu
 function stats(){el('score').textContent=score;el('lives').textContent='♥'.repeat(lives)+'♡'.repeat(3-lives);el('lives').setAttribute('aria-label',lives+' lives remaining');el('lives-label').textContent=lives+' '+(lives===1?'LIFE':'LIVES');el('progress').style.width=(index/5*100)+'%';el('round').textContent='TERM → DEFINITION · WORD '+Math.min(index+1,5)+' OF 5';speedUI();}
 function stop(){cancelAnimationFrame(raf);root.classList.remove('active');el('bird').classList.remove('flying');el('flap').disabled=true;el('pause').disabled=true;}
 function draw(){el('bird').style.top=y+'px';el('bird').style.transform='rotate('+Math.max(-13,Math.min(18,vy/14))+'deg) scale(.65)';el('gate').style.left=x+'px';}
-function question(){state='flight';rewardSpeed=speed;const q=words[index];answers=[q.word,...q.answers.slice().sort(()=>Math.random()-.5).slice(0,2)].sort(()=>Math.random()-.5);['a','b','c'].forEach((id,i)=>{const node=el(id);node.textContent=answers[i];node.dir='auto';node.classList.toggle('long',answers[i].length>40);node.classList.toggle('very-long',answers[i].length>100);});el('clue').textContent=q.clue;el('clue').dir='auto';el('overlay').hidden=true;el('gate').hidden=false;y=191;vy=0;x=el('world').clientWidth-el('gate').offsetWidth-12;readTime=.7;el('flap').disabled=false;el('pause').disabled=false;el('pause').textContent='Pause';el('bird').classList.add('flying');stats();draw();el('flap').focus({preventScroll:true});last=performance.now();raf=requestAnimationFrame(tick);}
+function question(keepFlying=false){cancelAnimationFrame(raf);state='flight';rewardSpeed=speed;const q=words[index];answers=[q.word,...q.answers.slice().sort(()=>Math.random()-.5).slice(0,2)].sort(()=>Math.random()-.5);['a','b','c'].forEach((id,i)=>{const node=el(id);node.textContent=answers[i];node.dir='auto';node.classList.toggle('long',answers[i].length>40);node.classList.toggle('very-long',answers[i].length>100);});el('clue').textContent=q.clue;el('clue').dir='auto';el('overlay').hidden=true;el('gate').hidden=false;if(!keepFlying){y=191;vy=0;}x=el('world').clientWidth-el('gate').offsetWidth-12;readTime=keepFlying?0:.7;el('flap').disabled=false;el('pause').disabled=false;el('pause').textContent='Pause';el('bird').classList.add('flying');stats();draw();el('flap').focus({preventScroll:true});last=performance.now();raf=requestAnimationFrame(tick);}
 // Rise is v² / (2g): dividing velocity by sqrt(3) gives one-third the rise.
 function flap(){if(state==='flight'){readTime=0;vy=-270/Math.sqrt(3);}}
 function tick(t){if(destroyed||state!=='flight')return;const dt=Math.min((t-last)/1000,.035);last=t;if(readTime>0){readTime-=dt;}else{vy=Math.min(170,vy+270*dt);y+=vy*dt;if(y<0){y=0;vy=0;}if(y>378){y=378;vy=0;}const bx=el('bird').offsetLeft,travel=Math.max(70,el('world').clientWidth-el('gate').offsetWidth-12-bx-40);x-=travel/7*speed*dt;draw();if(x+el('gate').offsetWidth*.2<=bx+40){resolve(laneAt(y));return;}}raf=requestAnimationFrame(tick);}
 function laneAt(top){return [[0,124],[156,280],[312,436]].findIndex(([a,b])=>top+20>=a&&top+38<=b);}
 function panel(title,message,label,action){el('overlay').hidden=false;el('overlay').innerHTML='';const h=document.createElement('h2');h.textContent=title;const p=document.createElement('p');p.textContent=message;const b=document.createElement('button');b.type='button';b.className='primary';b.textContent=label;b.onclick=action;el('overlay').append(h,p,b);}
-function resolve(lane){if(state!=='flight')return;stop();state='feedback';const q=words[index],ok=lane>=0&&answers[lane]===q.word;let message;if(ok){score+=100*rewardSpeed;correct++;index++;message='+'+100*rewardSpeed+' points at '+rewardSpeed+'x. '+q.example;}else{const penalty=lane<0?50:100;score-=penalty;lives--;if(!missed.includes(q.word))missed.push(q.word);message='−'+penalty+' points · −1 life. '+'Correct answer: '+q.example+'.';}stats();el('feedback').textContent=message;save();if(lives===0){end('Out of lives','Three mistakes ended this run. Start over with 3 lives and 0 points.');return;}panel(ok?'Correct: '+q.word:lane<0?'You hit the green pipe':'That was the wrong word',message,index>=5?'Finish run →':ok?'Next word →':'Try this word again →',()=>{if(index>=5)end('Flight complete',correct+'/5 vocabulary choices correct.');else question();});}
+function resolve(lane){
+ if(state!=='flight')return;
+ const q=words[index],ok=lane>=0&&answers[lane]===q.word;
+ if(ok){
+  score+=100*rewardSpeed;correct++;index++;
+  el('feedback').textContent='Correct! +'+100*rewardSpeed+' points at '+rewardSpeed+'x. '+q.example;
+  stats();save();
+  if(index>=words.length){end('Flight complete',correct+'/5 vocabulary choices correct.');return;}
+  // Keep the bird's height and momentum; the next question enters without a modal.
+  question(true);
+  return;
+ }
+ stop();state='feedback';
+ const penalty=lane<0?50:100;score-=penalty;lives--;
+ if(!missed.includes(q.word))missed.push(q.word);
+ const message='−'+penalty+' points · −1 life. Correct answer: '+q.example+'.';
+ stats();el('feedback').textContent=message;save();
+ if(lives===0){end('Out of lives','Three mistakes ended this run. Start over with 3 lives and 0 points.');return;}
+ panel(lane<0?'You hit the green pipe':'That was the wrong word',message,'Try this word again →',()=>question());
+}
 function end(title,message){stop();state='over';el('round').textContent='RUN FINISHED';panel(title,score+' points. '+message,'Start over →',start);el('feedback').textContent='Submit score to record this run on the class board, or start over.';el('submit').disabled=submitted;save();}
 function start(){stop();runId=crypto.randomUUID();index=0;score=0;lives=3;correct=0;missed=[];recallCorrect=0;submitted=false;el('submit').disabled=false;el('feedback').textContent='Tap or press Space for a small wingbeat. Aim the body at the word; wings can overlap the edges.';question();save();el('flap').focus({preventScroll:true});}
 function submitScore(){

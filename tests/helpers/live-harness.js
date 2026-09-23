@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),crypto=require('node:crypto');
 const app=require('../../PeninaPlus-vocab-builder/offline-study-cards');
-module.exports=function liveHarness(){
- const storage=new Map();const operations={lists:0,writes:0};let now=Date.now();
+module.exports=function liveHarness(options={}){
+ const storage=new Map();const operations={lists:0,writes:0,dbLists:0,dbWrites:0};let now=Date.now();
  const sample=[['סוס','horse',['donkey','camel','goat','sheep']],['בית','house',['garden','street','bridge','store']],['מים','water',['bread','milk','wine','salt']],['ספר','book',['table','chair','door','window']],['אור','light',['darkness','sound','wind','rain']],['דרך','path',['wall','roof','floor','field']],['זמן','time',['place','reason','number','name']],['קול','voice',['color','shape','taste','smell']],['גדול','large',['small','short','narrow','thin']],['חדש','new',['old','broken','empty','heavy']]];
  const cards=sample.map(([term,english,answers])=>({term,english,alternativeAnswers:{english:{term,definition:english,answers}}}));
  const setPath='vocabulary-cards/sixth/demo--'+Buffer.from('Class vocabulary').toString('base64url')+'.html';
@@ -9,7 +9,12 @@ module.exports=function liveHarness(){
  const blob=p=>({pathname:p,url:'https://blob.test/'+p,uploadedAt:storage.get(p).uploadedAt});
  const blobApi={list:async({prefix,cursor,limit=1000})=>{operations.lists++;const matches=[...storage.keys()].filter(k=>k.startsWith(prefix));const start=Number(cursor)||0;return{blobs:matches.slice(start,start+limit).map(blob),hasMore:start+limit<matches.length,cursor:String(start+limit)};},put:async(p,body)=>{operations.writes++;if(storage.has(p))throw new Error('Exists');storage.set(p,{body,uploadedAt:new Date(now).toISOString()});return blob(p);}};
  const page={id:'sixth',name:'Demo Class Vocabulary',url:'/PeninaPlus-vocab-builder/flash-cards/?page=sixth'};
- const ctx={module:{exports:{}},Buffer,console,process:{env:{VOCABULARY_PAGE_SECRET:'test-only-secret-not-for-production'}},Date:class extends Date{static now(){return now;}},require:name=>name==='node:crypto'?crypto:name==='@vercel/blob'?blobApi:name==='./vocabulary-pages'?{getPage:async id=>id==='sixth'?page:null,authenticatePage:(_p,p)=>p==='demo'?null:{status:401,error:'Incorrect class editing code.'}}:app,fetch:async url=>{const p=url.replace('https://blob.test/',''),entry=storage.get(p);return{ok:!!entry,text:async()=>entry.body,json:async()=>JSON.parse(entry.body)};}};
+ const ctx={module:{exports:{}},Buffer,console,process:{env:{VOCABULARY_PAGE_SECRET:'test-only-secret-not-for-production'}},Date:class extends Date{static now(){return now;}},require:name=>name==='./live-store'?{
+  configured:()=>!!options.database,
+  realtime:topic=>options.database?{url:'https://test.supabase.co',key:'publishable-test',topic}:null,
+  list:async prefix=>{operations.dbLists++;return [...storage.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,payload:storage.get(p).body}));},
+  put:async(p,body)=>{operations.dbWrites++;if(storage.has(p)){const e=new Error('Already saved');e.status=409;throw e;}storage.set(p,{body,uploadedAt:new Date(now).toISOString()});},prune:async()=>{}
+ }:name==='node:crypto'?crypto:name==='@vercel/blob'?blobApi:name==='./vocabulary-pages'?{getPage:async id=>id==='sixth'?page:null,authenticatePage:(_p,p)=>p==='demo'?null:{status:401,error:'Incorrect class editing code.'}}:app,fetch:async url=>{const p=url.replace('https://blob.test/',''),entry=storage.get(p);return{ok:!!entry,text:async()=>entry.body,json:async()=>JSON.parse(entry.body)};}};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../lib/live-game.js'),'utf8'),ctx);
  async function request(action,body={},auth=''){
   const req={method:action?'POST':'GET',query:{code:body.code},headers:{'content-type':'application/json',...(auth?{authorization:'Bearer '+auth}:{})},body:{...body,...(action?{action}:{})}};

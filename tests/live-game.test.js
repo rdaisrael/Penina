@@ -166,9 +166,35 @@ test('Concurrent classroom reads share storage work, while answers invalidate th
 test('Polling stops for finished or hidden games and backs off on storage errors',async()=>{
  const source=client.slice(client.indexOf(' async function poll(){'),client.indexOf(' async function act('));
  let calls=0;const scheduled=[];
- const context={clearTimeout(){},timer:null,stopped:false,auth:'token',document:{hidden:false},pollId:0,snapshot:null,failures:0,online:true,status:{},host:false,showError(){},draw(){},updateClock(){},present(data){context.snapshot=data;},request:async()=>{calls++;return {phase:'ended',version:2};},setTimeout(fn,ms){scheduled.push(ms);}};
+ const context={inFlight:false,connectRealtime(){},disconnectRealtime(){},nextPollDelay(){return Math.min(30000,2000*2**Math.min(context.failures,4));},clearTimeout(){},timer:null,stopped:false,auth:'token',document:{hidden:false},pollId:0,snapshot:null,failures:0,online:true,status:{},host:false,showError(){},draw(){},updateClock(){},present(data){context.snapshot=data;},request:async()=>{calls++;return {phase:'ended',version:2};},setTimeout(fn,ms){scheduled.push(ms);}};
  vm.createContext(context);vm.runInContext(source,context);
  await context.poll();assert.equal(context.stopped,true);assert.equal(scheduled.length,0);await context.poll();assert.equal(calls,1);
  context.stopped=false;context.snapshot=null;context.document.hidden=true;await context.poll();assert.equal(calls,1);
  context.document.hidden=false;context.request=async()=>{throw new Error('Storage unavailable');};await context.poll();await context.poll();assert.deepEqual(scheduled,[4000,8000]);
+});
+
+test('Supabase classroom game uses zero Blob operations after loading vocabulary, preserves first answers and scores',async()=>{
+ const h=harness({database:true}),created=await h.create({seconds:5}),{code,hostToken}=created.body;
+ const before={...h.operations};const students=[];
+ for(let i=0;i<26;i++)students.push((await h.join(code,'A'+String.fromCharCode(65+i))).body.studentToken);
+ await h.request('start',{code,version:0},hostToken);
+ for(let index=0;index<5;index++){
+  const view=(await h.request(null,{code},hostToken)).body;
+  assert.equal(view.realtime.key,'publishable-test');assert.match(view.realtime.topic,/^penina-[a-f0-9]{64}$/);
+  assert.equal(view.question.correct,undefined);
+  const correct=view.question.options.indexOf(h.cards.find(c=>c.term===view.question.term).english);
+  const responses=await Promise.all(students.map(student=>h.request('answer',{code,index,choice:correct},student)));assert(responses.every(r=>r.code===200));
+  await h.request('answer',{code,index,choice:(correct+1)%4},students[0]);
+  h.advance(5000);const reveal=(await h.request(null,{code},students[0])).body;assert.equal(reveal.phase,'reveal');assert.equal(reveal.me.score,100*(index+1));assert.equal(reveal.scores.length,3);
+  h.advance(2000);await h.request(null,{code},hostToken);
+ }
+ const end=(await h.request(null,{code},students[0])).body;assert.equal(end.phase,'ended');assert.equal(end.me.score,500);
+ assert.equal(h.operations.lists,before.lists);assert.equal(h.operations.writes,before.writes);assert(h.operations.dbWrites>130);
+});
+test('Realtime scheduling uses a quiet fallback and local deadlines rather than constant polling',()=>{
+ const context={failures:0,realtimeReady:true,snapshot:{phase:'question',deadline:null},revealUntil:0,clockOffset:0,Date:{now:()=>1000}};
+ vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function nextPollDelay(){'),client.indexOf(' async function poll(){')),context);
+ assert.equal(context.nextPollDelay(),15000);context.snapshot.deadline=6000;assert.equal(context.nextPollDelay(),5100);
+ context.snapshot={phase:'reveal',deadline:3000};context.revealUntil=2500;assert.equal(context.nextPollDelay(),1520);
+ context.failures=4;assert.equal(context.nextPollDelay(),30000);
 });

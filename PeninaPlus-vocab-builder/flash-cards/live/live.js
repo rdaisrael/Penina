@@ -6,6 +6,7 @@
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let clockOffset=0;const celebrated=new Set();
  const revealSeen=new Set();let revealUntil=0;
+ let realtimeClient=null,realtimeChannel=null,realtimeReady=false,refreshHint=null,inFlight=false;
  const letters=['A','B','C','D'];
  function stored(key,value){try{if(value===undefined)return sessionStorage.getItem(key);sessionStorage.setItem(key,value);}catch(_){}return null;}
  function showError(message){error.textContent=message||'';error.hidden=!message;}
@@ -22,7 +23,7 @@
    event.preventDefault();if(busy)return;const form=event.currentTarget;code=form.elements.code.value.trim();const name=form.elements.name.value.normalize('NFKC').trim().toUpperCase();if(!/^\d{6}$/.test(code))return;if(!/^\p{L}{1,3}$/u.test(name)){showError('Enter 1–3 letters for your initials.');return;}
    busy=true;form.querySelector('button').disabled=true;showError('');
    let joinKey=stored('penina-live-join-key-'+code);if(!joinKey){joinKey=crypto.randomUUID();stored('penina-live-join-key-'+code,joinKey);}
-   try{const result=await request('join',{name,joinKey});auth=result.studentToken;stored(storageKey(),auth);history.replaceState(null,'','?code='+code);busy=false;await poll();}
+   try{const result=await request('join',{name,joinKey});auth=result.studentToken;stored(storageKey(),auth);history.replaceState(null,'','?code='+code);busy=false;if(inFlight)timer=setTimeout(poll,300);else await poll();}
    catch(e){showError(e.message);busy=false;form.querySelector('button').disabled=false;}
   };
  }
@@ -81,19 +82,45 @@
   }).join('');
   stage.innerHTML=meta+`<section><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span>${data.answeredCount} / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div>${data.deadline?'<p class="countdown" data-clock role="timer"></p>':''}${data.paused?'<p class="notice">Paused by teacher</p>':''}${revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}<h1 class="question" dir="auto">${esc(q.term)}</h1><div class="answers">${answerMarkup}</div>${!host?`<p class="notice ${revealed&&choice===q.correct?'success':''}" role="status">${revealed?(choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'):(choice!==null?'Answer '+letters[choice]+' saved. Waiting for the answer reveal.':'Choose the matching definition. Your first answer is final.')}</p>`:''}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>${revealed?`<div class="reveal-grid"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after 2 seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></div>`:`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${p.answered?'✓ ':''}${esc(p.name)}</li>`).join('')}</ul>`}`:''}</section>`;
  }
+ function disconnectRealtime(){
+  clearTimeout(refreshHint);refreshHint=null;realtimeReady=false;
+  if(realtimeClient)realtimeClient.removeAllChannels();realtimeClient=null;realtimeChannel=null;
+ }
+ function connectRealtime(data){
+  if(!data.realtime||!window.supabase||realtimeChannel||document.hidden||data.phase==='ended')return;
+  const {url,key,topic}=data.realtime;
+  realtimeClient=window.supabase.createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  const refresh=()=>{
+   if(stopped||document.hidden||refreshHint)return;
+   refreshHint=setTimeout(()=>{refreshHint=null;if(!busy)poll();},250);
+  };
+  realtimeChannel=realtimeClient.channel(topic,{config:{private:false}}).on('broadcast',{event:'changed'},refresh).subscribe(state=>{
+   realtimeReady=state==='SUBSCRIBED';
+   if(realtimeReady)refresh();
+  });
+ }
+ function nextPollDelay(){
+  if(failures)return Math.min(30000,2000*2**Math.min(failures,4));
+  let delay=realtimeReady?15000:snapshot?.phase==='lobby'||snapshot?.paused?3000:1000;
+  // Clock ticks stay local. A single scheduled fetch advances each timed phase.
+  if(snapshot?.deadline)delay=Math.min(delay,Math.max(250,snapshot.deadline-Date.now()-clockOffset+100));
+  if(snapshot?.phase==='reveal'&&revealUntil>Date.now())delay=Math.min(delay,revealUntil-Date.now()+20);
+  return delay;
+ }
  async function poll(){
-  clearTimeout(timer);if(stopped||!auth||document.hidden)return;const currentPoll=++pollId;
-  try{const data=await request();if(currentPoll!==pollId||stopped)return;if(snapshot&&data.version<snapshot.version)return;failures=0;online=true;status.textContent=host?'Teacher screen · Connected':'Connected';showError('');present(data);}
+  clearTimeout(timer);if(stopped||!auth||document.hidden)return;if(inFlight){timer=setTimeout(poll,250);return;}inFlight=true;const currentPoll=++pollId;
+  try{const data=await request();if(currentPoll!==pollId||stopped)return;if(snapshot&&data.version<snapshot.version)return;failures=0;online=true;status.textContent=host?'Teacher screen · Connected':'Connected';showError('');connectRealtime(data);present(data);}
   catch(e){if(currentPoll!==pollId||stopped)return;failures++;online=false;status.textContent='Reconnecting…';showError(e.message);if(snapshot)draw(snapshot);if([401,404,410].includes(e.status)){stopped=true;status.textContent='Game unavailable';return;}}
-  if(snapshot?.phase==='ended'){stopped=true;return;}
+  finally{inFlight=false;}
+  if(snapshot?.phase==='ended'){stopped=true;disconnectRealtime();return;}
   if(!stopped&&!document.hidden){
-   const delay=failures?Math.min(30000,2000*2**Math.min(failures,4)):snapshot?.phase==='lobby'||snapshot?.paused?3000:1000;
+   const delay=nextPollDelay();
    timer=setTimeout(poll,delay);
   }
  }
  async function act(action,extra={}){
   if(busy||!snapshot)return;++pollId;clearTimeout(timer);busy=true;if(snapshot)draw(snapshot);showError('');
-  try{await request(action,{version:snapshot.version,index:snapshot.index,...extra});busy=false;await poll();}
+  try{await request(action,{version:snapshot.version,index:snapshot.index,...extra});busy=false;if(inFlight)timer=setTimeout(poll,300);else await poll();}
   catch(e){busy=false;showError(e.message);if(snapshot)draw(snapshot);timer=setTimeout(poll,1800);}
  }
  stage.addEventListener('click',async event=>{
@@ -106,9 +133,9 @@
   if(button.dataset.choice!==undefined)await act('answer',{choice:Number(button.dataset.choice)});
  });
  setInterval(updateClock,100);
- window.addEventListener('pagehide',()=>{stopped=true;clearTimeout(timer);});
+ window.addEventListener('pagehide',()=>{stopped=true;clearTimeout(timer);disconnectRealtime();});
  window.addEventListener('pageshow',()=>{if(auth&&stopped&&snapshot?.phase!=='ended'){stopped=false;poll();}});
- document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);return;}if(auth&&!busy&&!stopped)poll();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);disconnectRealtime();return;}if(auth&&!busy&&!stopped)poll();});
  auth=stored(storageKey())||'';
  if(host&&!auth){stage.innerHTML='<section class="panel waiting"><h1>Open Teacher tools first.</h1><p>Start a live game from your class webpage using its editing code.</p><a class="button primary" href="../">Back to classes</a></section>';}
  else if(auth){status.textContent='Connecting…';poll();}else joinForm();

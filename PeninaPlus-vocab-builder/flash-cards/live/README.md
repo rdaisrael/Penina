@@ -8,13 +8,23 @@ Students join the lobby by QR/link or six-digit code. Students enter 1–3 lette
 
 Run `node scripts/preview-live.cjs` from the repository, then open http://localhost:4318. The demo editing code is `demo`. It uses sample Hebrew vocabulary and in-memory storage, with no production reads or writes. Use separate teacher/student tabs on this computer. The localhost QR is not an iPad-accessible public link; production QR links use the site's public origin. Restarting the demo clears its rooms.
 
-## Server
+## Server and Supabase setup
 
-`/api/game-scores?game=live` dispatches to `lib/live-game.js`, avoiding an additional serverless function. Existing Vercel Blob credentials and `VOCABULARY_PAGE_SECRET` (or the existing Blob token as fallback) provide storage and encryption. Rooms expire after four hours; encrypted blobs are not automatically deleted in this version. Keep the secret stable for active rooms.
+`/api/game-scores?game=live` dispatches to `lib/live-game.js`. Apply `supabase/live-game.sql` to the Supabase project, then set these Vercel production environment variables before deployment:
 
-Questions, student names, answers, and teacher state are AES-GCM encrypted in Blob storage. Browser role tokens are HMAC-signed, room-scoped, expire with the room, and live in session storage; the class editing code is not placed in URLs or browser storage. Immutable state versions prevent two teacher actions advancing simultaneously. Immutable per-student/per-question answers preserve the first choice, including retries and reconnects. The student API omits answer keys until reveal. API reads reconstruct state from storage, not a long-running server process. Active clients poll about once a second (three seconds in the lobby or while paused); hidden and finished screens stop polling, so a small synchronization delay is expected. Failed requests use exponential backoff up to 30 seconds. Refresh keeps a participant connected within that browser tab.
+- `PENINA_SUPABASE_URL`: the HTTPS project URL.
+- `PENINA_SUPABASE_SECRET_KEY`: a server-only secret API key; never put it in source or browser code.
+- `PENINA_SUPABASE_PUBLISHABLE_KEY`: the browser-safe publishable key.
 
-The first version supports a classroom-sized lobby (100 participants), individual play, and teacher pacing. It has not been production load-tested. The local demo and tests use an in-memory adapter.
+When configured, all live room records, participants, answers and state transitions use Supabase through `lib/live-store.js`. Blob is used only to load published vocabulary and class information when opening a new room. Existing Blob restrictions can still affect those initial loads and other class features. Without Supabase configuration, the old Blob storage path remains available for local demos and rollback; this path is unsuitable for regular classroom use under the free Blob allowance. Start new rooms after switching backends; old active rooms are not migrated.
+
+Questions, initials, answers, and state stay AES-GCM encrypted using `VOCABULARY_PAGE_SECRET` (or the existing Blob token fallback). Keep the encryption secret stable. The database table enables RLS and grants no client read or write access. Only the server credential accesses records. Immutable primary keys preserve the first answer and prevent concurrent teacher actions from advancing twice. Rooms expire after four hours; creating a new room also deletes expired database records. Existing Blob records are left intact.
+
+A database insert broadcasts only an empty refresh hint on a room-specific, unguessable topic. No names, answers, access tokens, or answer keys enter notifications. The authenticated Penina API still controls what each user can see. Notifications cause a debounced fetch; timers run locally with one scheduled fetch at each question/reveal deadline. A 15-second fallback refresh recovers missed notifications. If the realtime connection fails, the client falls back to periodic refreshes against the database, never live Blob reads. Hidden and finished screens disconnect and stop refreshing. Failed requests back off up to 30 seconds.
+
+Browser role tokens remain signed, scoped to one room, and stored only in session storage. Refresh retains identity in that tab. Teachers can pause/resume; paused questions reject answers and preserve time. Correct answers are shown for two seconds, including on screens that miss the original reveal notification. Standings show only three places; each student also sees their own score.
+
+The tests simulate a 26-student game with zero additional Blob operations after vocabulary is loaded, along with scoring, timing, immutable writes, and access control. This is not a production load test.
 
 ## Validation
 
@@ -22,6 +32,4 @@ The first version supports a classroom-sized lobby (100 participants), individua
 
 QR rendering uses vendored qrcode-generator 1.4.4 by Kazuhiko Arase, MIT-licensed, from https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js.
 
-The teacher can pause/resume questions and reveals. Paused questions reject answers and preserve remaining time. Screens recover a missed answer reveal and hold it for two seconds. Public standings show only the top three; each student still sees their own score.
-
-Room reads share a 750ms cache within each server instance. Writes invalidate that cache, and actions always load fresh state. This is an interim reduction in Blob usage, not a replacement for a live-game database: different server instances have independent caches and every submitted answer still writes a Blob. Regular classroom usage can still exceed the Hobby operations allowance. Existing Blob restrictions are not reset by deployment.
+Realtime client: vendored @supabase/supabase-js 2.99.2 (MIT), https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.2/dist/umd/supabase.js.

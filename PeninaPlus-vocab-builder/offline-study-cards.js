@@ -424,7 +424,7 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
 const root=board.querySelector('#fv-demo'),el=id=>root.querySelector('#fv-'+id);
 const ROUND_COUNT=3,WORDS_PER_ROUND=5;
 const words=Array.from({length:ROUND_COUNT*WORDS_PER_ROUND},(_,i)=>{const row=rows[i%rows.length];return {word:row.definition,clue:row.term,example:row.term+' — '+row.definition,answers:row.answers};});
-let destroyed=false,runId='',submitting=false;
+let destroyed=false,runId='',submitting=false,roundTimer=null;
 const abort=new AbortController();
 const config=document.getElementById('peninaClassConfig');
 const settings=config?JSON.parse(config.textContent):{};
@@ -440,7 +440,7 @@ try{const saved=JSON.parse(localStorage.getItem('penina-flappy-preferences')||'{
 
 function speedUI(){root.querySelectorAll('[data-speed]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.speed)===speed)));el('bonus').textContent='Correct: +'+100*(state==='flight'||state==='paused'?rewardSpeed:speed);}
 function stats(){el('score').textContent=score;el('lives').textContent='♥'.repeat(lives)+'♡'.repeat(3-lives);el('lives').setAttribute('aria-label',lives+' lives remaining');el('lives-label').textContent=lives+' '+(lives===1?'LIFE':'LIVES');el('progress').style.width=(index/words.length*100)+'%';el('round').textContent='ROUND '+Math.min(Math.floor(index/WORDS_PER_ROUND)+1,ROUND_COUNT)+' / '+ROUND_COUNT+' · WORD '+(Math.min(index,words.length-1)%WORDS_PER_ROUND+1)+' / '+WORDS_PER_ROUND;speedUI();}
-function stop(){cancelAnimationFrame(raf);root.classList.remove('active');el('bird').classList.remove('flying');el('flap').disabled=true;el('pause').disabled=true;}
+function stop(){clearTimeout(roundTimer);roundTimer=null;cancelAnimationFrame(raf);root.classList.remove('active');el('bird').classList.remove('flying');el('flap').disabled=true;el('pause').disabled=true;}
 function draw(){el('bird').style.top=y+'px';el('bird').style.transform='rotate('+Math.max(-13,Math.min(18,vy/14))+'deg) scale(.65)';el('gate').style.left=x+'px';}
 function question(keepFlying=false){cancelAnimationFrame(raf);state='flight';rewardSpeed=speed;const q=words[index];answers=[q.word,...q.answers.slice().sort(()=>Math.random()-.5).slice(0,2)].sort(()=>Math.random()-.5);['a','b','c'].forEach((id,i)=>{const node=el(id);node.textContent=answers[i];node.dir='auto';node.classList.toggle('long',answers[i].length>40);node.classList.toggle('very-long',answers[i].length>100);});el('clue').textContent=q.clue;el('clue').dir='auto';el('overlay').hidden=true;el('gate').hidden=false;if(!keepFlying){y=191;vy=0;}x=el('world').clientWidth-el('gate').offsetWidth-12;readTime=keepFlying?0:.7;el('flap').disabled=false;el('pause').disabled=false;el('pause').textContent='Pause';el('bird').classList.add('flying');stats();draw();el('flap').focus({preventScroll:true});last=performance.now();raf=requestAnimationFrame(tick);}
 // With gravity 270, a 140px/s flap rises about 36px for finer control.
@@ -455,8 +455,8 @@ function resolve(lane){
   score+=100*rewardSpeed;correct++;index++;
   el('feedback').textContent='Correct! +'+100*rewardSpeed+' points at '+rewardSpeed+'x. '+q.example;
   stats();save();
-  if(index>=words.length){end('Flight complete','All 3 rounds complete! '+correct+'/'+words.length+' vocabulary choices correct.');return;}
-  if(index%WORDS_PER_ROUND===0)el('feedback').textContent+=' Round '+(index/WORDS_PER_ROUND+1)+' of '+ROUND_COUNT+'!';
+  if(index>=words.length){end('Congratulations!','All 3 rounds complete! '+correct+'/'+words.length+' vocabulary choices correct.');return;}
+  if(index%WORDS_PER_ROUND===0){roundComplete();return;}
   // Keep the bird's height and momentum; the next question enters without a modal.
   question(true);
   return;
@@ -468,6 +468,26 @@ function resolve(lane){
  stats();el('feedback').textContent=message;save();
  if(lives===0){end('Out of lives','Three mistakes ended this run. Start over with 3 lives and 0 points.');return;}
  panel(lane<0?'You hit the green pipe':'That was the wrong word',message,'Try this word again →',()=>question());
+}
+function roundComplete(){
+ stop();state='countdown';
+ const finished=index/WORDS_PER_ROUND,nextRound=finished+1,token=runId;
+ const overlay=el('overlay');overlay.hidden=false;overlay.replaceChildren();
+ const heading=document.createElement('h2');heading.textContent='Congratulations! You finished round '+finished+'!';
+ const detail=document.createElement('p');detail.textContent='Round '+nextRound+' starts in';
+ const count=document.createElement('div');count.className='big';count.setAttribute('role','status');count.setAttribute('aria-live','polite');count.setAttribute('aria-atomic','true');
+ const recap=document.createElement('p');recap.textContent=score+' points · '+lives+' '+(lives===1?'life':'lives')+' remaining';
+ overlay.append(heading,detail,count,recap);
+ el('round').textContent='ROUND '+finished+' / '+ROUND_COUNT+' COMPLETE';
+ el('feedback').textContent='Get ready for round '+nextRound+'!';
+ let remaining=3;count.textContent=String(remaining);
+ function countdown(){
+  if(destroyed||state!=='countdown'||token!==runId)return;
+  remaining--;
+  if(remaining===0){roundTimer=null;question();el('feedback').textContent='Round '+nextRound+' — aim at the bullseye!';return;}
+  count.textContent=String(remaining);roundTimer=setTimeout(countdown,1000);
+ }
+ roundTimer=setTimeout(countdown,1000);
 }
 function end(title,message){stop();state='over';el('round').textContent='RUN FINISHED';panel(title,score+' points. '+message,'Start over →',start);el('feedback').textContent='Submit score to record this run on the class board, or start over.';el('submit').disabled=submitted;save();}
 function start(){stop();el('picker').open=false;runId=crypto.randomUUID();index=0;score=0;lives=3;correct=0;missed=[];recallCorrect=0;submitted=false;el('submit').disabled=false;el('feedback').textContent='Tap or press Space for a small wingbeat. Aim at the bullseye; wings can overlap the edges.';question();save();el('flap').focus({preventScroll:true});}

@@ -4,6 +4,7 @@
  const host=params.get('host')==='1';let code=params.get('code')||'',auth='',snapshot=null,stamp='',timer=null,busy=false,stopped=false,online=true,pollId=0;
  const storageKey=()=>`penina-live-${host?'host':'student'}-${code}`;
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ let clockOffset=0;const celebrated=new Set();
  const letters=['A','B','C','D'];
  function stored(key,value){try{if(value===undefined)return sessionStorage.getItem(key);sessionStorage.setItem(key,value);}catch(_){}return null;}
  function showError(message){error.textContent=message||'';error.hidden=!message;}
@@ -25,11 +26,30 @@
   };
  }
  function leaderboard(scores){return `<ol class="scores">${scores.slice(0,10).map((p,i)=>`<li><span>${i+1}. ${esc(p.name)}</span><strong>${p.score} pts</strong></li>`).join('')}</ol>`;}
+ function updateClock(){
+  const clock=stage.querySelector('[data-clock]');if(!clock||!snapshot)return;
+  const remaining=Math.max(0,Math.ceil((snapshot.deadline-Date.now()-clockOffset)/1000));
+  clock.textContent=(snapshot.phase==='reveal'?'Next question in ':'Time left: ')+remaining+'s';
+  if(!remaining&&snapshot.phase==='question')stage.querySelectorAll('[data-choice]').forEach(button=>button.disabled=true);
+ }
+ function fireworks(data){
+  if(host||data.phase!=='reveal'||data.me?.choice!==data.question.correct||celebrated.has(data.index))return;
+  celebrated.add(data.index);
+  if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  const burst=document.createElement('div');burst.className='fireworks';burst.setAttribute('aria-hidden','true');
+  for(let group=0;group<3;group++)for(let i=0;i<16;i++){
+   const spark=document.createElement('i'),angle=i*Math.PI/8;
+   spark.style.cssText=`left:${25+group*25}%;top:${30+(group%2)*15}%;--dx:${Math.cos(angle)*110}px;--dy:${Math.sin(angle)*110}px;--delay:${group*0.12}s;background:${['#fbbf24','#38bdf8','#fb7185','#a78bfa'][i%4]}`;burst.append(spark);
+  }
+  document.body.append(burst);setTimeout(()=>burst.remove(),1400);
+ }
  function draw(data){
+  if(data.serverNow)clockOffset=data.serverNow-Date.now();
+  fireworks(data);
   const signature=JSON.stringify(data)+busy+online;if(signature===stamp)return;stamp=signature;snapshot=data;
   const meta=`<div class="question-meta"><span>${esc(data.className)}</span><span>Game <b>${code}</b> · ${data.playerCount} joined</span></div>`;
   if(data.phase==='lobby'){
-   if(host){const url=new URL('?code='+code,location.href);stage.innerHTML=meta+`<div class="lobby"><section class="panel"><p class="eyebrow">Project this screen</p><h1>Let’s play vocabulary.</h1><div class="join-code">${code}</div><div class="qr-row"><div id="qr" aria-label="QR code to join this game"></div><div><p>Scan on your iPad or open:</p><a class="join-link" href="${esc(url.href)}" target="_blank" rel="noopener">Student join page ↗</a><p class="muted">${esc(url.host+url.pathname)}</p><button data-copy="${esc(url.href)}">Copy join link</button></div></div><div class="actions"><button class="primary" data-action="start" ${!data.playerCount||busy||!online?'disabled':''}>Start game →</button><button class="danger" data-end>End game</button></div></section><section class="panel"><p class="eyebrow">The lobby</p><h2>${data.playerCount} student${data.playerCount===1?'':'s'} ready</h2><p class="muted">${data.total} questions · 100 points per correct answer.<br>You control when answers are revealed.</p><ul class="students">${data.players.map(p=>`<li>${esc(p.name)}</li>`).join('')}</ul>${!data.playerCount?'<p class="muted">Students appear here as they join.</p>':''}</section></div>`;
+   if(host){const url=new URL('?code='+code,location.href);stage.innerHTML=meta+`<div class="lobby"><section class="panel"><p class="eyebrow">Project this screen</p><h1>Let’s play vocabulary.</h1><div class="join-code">${code}</div><div class="qr-row"><div id="qr" aria-label="QR code to join this game"></div><div><p>Scan on your iPad or open:</p><a class="join-link" href="${esc(url.href)}" target="_blank" rel="noopener">Student join page ↗</a><p class="muted">${esc(url.host+url.pathname)}</p><button data-copy="${esc(url.href)}">Copy join link</button></div></div><div class="actions"><button class="primary" data-action="start" ${!data.playerCount||busy||!online?'disabled':''}>Start game →</button><button class="danger" data-end>End game</button></div></section><section class="panel"><p class="eyebrow">The lobby</p><h2>${data.playerCount} student${data.playerCount===1?'':'s'} ready</h2><p class="muted">${data.total} questions · 100 points per correct answer.<br>${data.seconds?data.seconds+' seconds per question · automatic advancement after a 3-second answer reveal.':'Manual pacing · you reveal answers and advance.'}</p><ul class="students">${data.players.map(p=>`<li>${esc(p.name)}</li>`).join('')}</ul>${!data.playerCount?'<p class="muted">Students appear here as they join.</p>':''}</section></div>`;
     if(window.qrcode){const qr=qrcode(0,'M');qr.addData(url.href);qr.make();document.getElementById('qr').innerHTML=qr.createSvgTag({cellSize:4,margin:4,scalable:true});}
    }else stage.innerHTML=meta+`<section class="panel waiting"><div class="orb">✓</div><h1>You’re in, ${esc(data.me.name)}.</h1><p>Keep this page open. Your teacher will start the game.</p><p class="muted">${data.playerCount} student${data.playerCount===1?'':'s'} joined · ${data.total} questions</p></section>`;
    return;
@@ -41,13 +61,13 @@
    const content=`<span class="letter">${letters[i]}</span><span class="text" dir="auto">${esc(text)}${revealed?`<span class="count">${i===q.correct?'✓ Correct · ':''}${data.distribution[i]} chose this</span>`:''}</span>`;
    return host?`<div class="${className}">${content}</div>`:`<button class="${className}" data-choice="${i}" ${revealed||choice!==null||busy||!online?'disabled':''} aria-pressed="${choice===i}">${content}</button>`;
   }).join('');
-  stage.innerHTML=meta+`<section><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span>${data.answeredCount} / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div><h1 class="question" dir="auto">${esc(q.term)}</h1><div class="answers">${answerMarkup}</div>${!host?`<p class="notice ${revealed&&choice===q.correct?'success':''}" role="status">${revealed?(choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'):(choice!==null?'Answer '+letters[choice]+' saved. Waiting for your teacher.':'Choose the matching definition. Your first answer is final.')}</p>`:''}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button class="danger" data-end>End game</button></div>${revealed?`<div class="reveal-grid"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>Discuss the correct definition, then move on when the class is ready.</p></section></div>`:`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${p.answered?'✓ ':''}${esc(p.name)}</li>`).join('')}</ul>`}`:''}</section>`;
+  stage.innerHTML=meta+`<section><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span>${data.answeredCount} / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div>${data.deadline?'<p class="countdown" data-clock role="timer"></p>':''}<h1 class="question" dir="auto">${esc(q.term)}</h1><div class="answers">${answerMarkup}</div>${!host?`<p class="notice ${revealed&&choice===q.correct?'success':''}" role="status">${revealed?(choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'):(choice!==null?'Answer '+letters[choice]+' saved. Waiting for the answer reveal.':'Choose the matching definition. Your first answer is final.')}</p>`:''}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button class="danger" data-end>End game</button></div>${revealed?`<div class="reveal-grid"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after 3 seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></div>`:`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${p.answered?'✓ ':''}${esc(p.name)}</li>`).join('')}</ul>`}`:''}</section>`;
  }
  async function poll(){
   clearTimeout(timer);if(stopped||!auth)return;const currentPoll=++pollId;
-  try{const data=await request();if(currentPoll!==pollId||stopped)return;if(snapshot&&data.version<snapshot.version)return;online=true;status.textContent=host?'Teacher screen · Connected':'Connected';showError('');draw(data);}
+  try{const data=await request();if(currentPoll!==pollId||stopped)return;if(snapshot&&data.version<snapshot.version)return;online=true;status.textContent=host?'Teacher screen · Connected':'Connected';showError('');draw(data);updateClock();}
   catch(e){if(currentPoll!==pollId||stopped)return;online=false;status.textContent='Reconnecting…';showError(e.message);if(snapshot)draw(snapshot);if([401,404,410].includes(e.status)){stopped=true;status.textContent='Game unavailable';return;}}
-  if(!stopped)timer=setTimeout(poll,document.hidden?5000:2000);
+  if(!stopped)timer=setTimeout(poll,document.hidden?2000:snapshot?.seconds?500:2000);
  }
  async function act(action,extra={}){
   if(busy||!snapshot)return;++pollId;clearTimeout(timer);busy=true;if(snapshot)draw(snapshot);showError('');
@@ -63,6 +83,7 @@
   if(button.dataset.action)await act(button.dataset.action);
   if(button.dataset.choice!==undefined)await act('answer',{choice:Number(button.dataset.choice)});
  });
+ setInterval(updateClock,100);
  window.addEventListener('pagehide',()=>{stopped=true;clearTimeout(timer);});
  window.addEventListener('pageshow',()=>{if(auth&&stopped){stopped=false;poll();}});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&auth&&!busy&&!stopped)poll();});

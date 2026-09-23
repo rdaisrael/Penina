@@ -63,3 +63,55 @@ test('Students use at most three letter initials, normalized to uppercase',async
  const lobby=await h.request(null,{code},created.body.hostToken);
  assert.deepEqual(lobby.body.players.map(p=>p.name),['A','AB','ABC','אבג']);
 });
+
+test('Timed pacing enforces each deadline, reveals for three seconds, advances once and finishes',async()=>{
+ for(const seconds of [5,7,10]){
+  const h=harness(),created=await h.create({seconds}),{code,hostToken}=created.body,joined=await h.join(code),student=joined.body.studentToken;
+  await h.request('start',{code,version:0},hostToken);
+  for(let index=0;index<5;index++){
+   let view=(await h.request(null,{code},student)).body;
+   assert.equal(view.index,index);assert.equal(view.phase,'question');assert.equal(view.deadline-view.serverNow,seconds*1000);
+   const choice=view.question.options.indexOf(h.cards.find(c=>c.term===view.question.term).english);
+   await h.request('answer',{code,index,choice},student);
+   h.advance(seconds*1000-1);assert.equal((await h.request(null,{code},student)).body.phase,'question');
+   h.advance(1);assert.equal((await h.request('answer',{code,index,choice},student)).code,409);
+   view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'reveal');assert.equal(view.me.score,(index+1)*100);
+   h.advance(2999);assert.equal((await h.request(null,{code},student)).body.phase,'reveal');h.advance(1);
+   const views=await Promise.all([h.request(null,{code},student),h.request(null,{code},hostToken)]);
+   assert.equal(views[0].body.version,3+index*2);assert.equal(views[1].body.version,3+index*2);
+  }
+  assert.equal((await h.request(null,{code},student)).body.phase,'ended');
+ }
+});
+test('Manual pacing never advances on its own and unsupported timers are rejected',async()=>{
+ const h=await setup();await h.request('start',{code:h.code,version:0},h.hostToken);h.advance(60000);
+ const view=(await h.request(null,{code:h.code},h.hostToken)).body;assert.equal(view.phase,'question');assert.equal(view.deadline,null);
+ for(const seconds of [1,6,15,'5',-1])assert.equal((await h.create({seconds})).code,400);
+});
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const client=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/flash-cards/live/live.js'),'utf8');
+test('Correct-answer fireworks run only after reveal, only once, and honor reduced motion',()=>{
+ const start=client.indexOf(' function fireworks(data){'),end=client.indexOf(' function draw(data){');
+ function run(host=false,reduced=false){
+  const bursts=[],timers=[];
+  const element=()=>({style:{},children:[],setAttribute(){},append(child){this.children.push(child);},remove(){this.removed=true;}});
+  const context={host,celebrated:new Set(),window:{matchMedia:()=>({matches:reduced})},document:{createElement:element,body:{append:el=>bursts.push(el)}},setTimeout:fn=>timers.push(fn)};
+  vm.createContext(context);vm.runInContext(client.slice(start,end),context);
+  const data={index:0,phase:'question',me:{choice:1},question:{correct:1}};
+  context.fireworks(data);assert.equal(bursts.length,0);
+  data.phase='reveal';context.fireworks(data);context.fireworks(data);
+  assert.equal(bursts.length,host||reduced?0:1);
+  if(bursts.length){assert.equal(bursts[0].children.length,48);timers[0]();assert.equal(bursts[0].removed,true);}
+  context.fireworks({...data,index:1,me:{choice:2}});context.fireworks({...data,index:2,me:{choice:null}});
+  assert.equal(bursts.length,host||reduced?0:1);
+ }
+ run();run(true);run(false,true);
+});
+test('Countdown shows remaining seconds and disables student choices at zero',()=>{
+ const clock={textContent:''},button={disabled:false};
+ const context={snapshot:{deadline:10000,phase:'question'},clockOffset:0,Date:{now:()=>5100},stage:{querySelector:()=>clock,querySelectorAll:()=>[button]}};
+ vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function updateClock(){'),client.indexOf(' function fireworks(data){')),context);
+ context.updateClock();assert.equal(clock.textContent,'Time left: 5s');assert.equal(button.disabled,false);
+ context.Date.now=()=>10000;context.updateClock();assert.equal(clock.textContent,'Time left: 0s');assert.equal(button.disabled,true);
+ context.snapshot.phase='reveal';context.snapshot.deadline=13000;context.updateClock();assert.equal(clock.textContent,'Next question in 3s');
+});

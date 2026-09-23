@@ -16,7 +16,7 @@ module.exports=function liveHarness(){
   const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.code=n;return this;},json(data){this.body=JSON.parse(JSON.stringify(data));return this;}};
   await ctx.module.exports(req,res);return res;
  }
- const create=()=>request('create',{grade:'sixth',password:'demo',pathnames:[setPath],language:'english',count:5});
+ const create=(options={})=>request('create',{grade:'sixth',password:'demo',pathnames:[setPath],language:'english',count:5,...options});
  const join=(code,name='AB',joinKey=crypto.randomUUID())=>request('join',{code,name,joinKey});
  return {request,create,join,storage,setPath,page,cards,handler:ctx.module.exports,advance:ms=>{now+=ms;}};
 };

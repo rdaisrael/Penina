@@ -64,7 +64,7 @@ test('Students use at most three letter initials, normalized to uppercase',async
  assert.deepEqual(lobby.body.players.map(p=>p.name),['A','AB','ABC','אבג']);
 });
 
-test('Timed pacing enforces each deadline, reveals for three seconds, advances once and finishes',async()=>{
+test('Timed pacing enforces each deadline, reveals for two seconds, advances once and finishes',async()=>{
  for(const seconds of [5,7,10]){
   const h=harness(),created=await h.create({seconds}),{code,hostToken}=created.body,joined=await h.join(code),student=joined.body.studentToken;
   await h.request('start',{code,version:0},hostToken);
@@ -76,7 +76,7 @@ test('Timed pacing enforces each deadline, reveals for three seconds, advances o
    h.advance(seconds*1000-1);assert.equal((await h.request(null,{code},student)).body.phase,'question');
    h.advance(1);assert.equal((await h.request('answer',{code,index,choice},student)).code,409);
    view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'reveal');assert.equal(view.me.score,(index+1)*100);
-   h.advance(2999);assert.equal((await h.request(null,{code},student)).body.phase,'reveal');h.advance(1);
+   h.advance(1999);assert.equal((await h.request(null,{code},student)).body.phase,'reveal');h.advance(1);
    const views=await Promise.all([h.request(null,{code},student),h.request(null,{code},hostToken)]);
    assert.equal(views[0].body.version,3+index*2);assert.equal(views[1].body.version,3+index*2);
   }
@@ -114,4 +114,29 @@ test('Countdown shows remaining seconds and disables student choices at zero',()
  context.updateClock();assert.equal(clock.textContent,'Time left: 5s');assert.equal(button.disabled,false);
  context.Date.now=()=>10000;context.updateClock();assert.equal(clock.textContent,'Time left: 0s');assert.equal(button.disabled,true);
  context.snapshot.phase='reveal';context.snapshot.deadline=13000;context.updateClock();assert.equal(clock.textContent,'Next question in 3s');
+});
+
+test('Teacher pause freezes timing and student answers; resume preserves remaining time',async()=>{
+ const h=harness(),created=await h.create({seconds:5}),{code,hostToken}=created.body,student=(await h.join(code)).body.studentToken;
+ await h.request('start',{code,version:0},hostToken);h.advance(2000);
+ assert.equal((await h.request('pause',{code,version:1},student)).code,403);
+ assert.equal((await h.request('pause',{code,version:1},hostToken)).code,200);
+ h.advance(30000);let view=(await h.request(null,{code},student)).body;assert.equal(view.paused,true);assert.equal(view.phase,'question');assert.equal(view.deadline,null);
+ assert.equal((await h.request('answer',{code,index:0,choice:0},student)).code,409);
+ await h.request('resume',{code,version:2},hostToken);view=(await h.request(null,{code},student)).body;assert.equal(view.deadline-view.serverNow,3000);
+ h.advance(3000);view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'reveal');
+ await h.request('pause',{code,version:view.version},hostToken);h.advance(10000);view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'reveal');assert.equal(view.paused,true);
+ await h.request('resume',{code,version:view.version},hostToken);h.advance(2000);view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'question');assert.equal(view.lastReveal.question.correct>=0,true);
+});
+test('Live standings expose only three places while preserving each personal score',async()=>{
+ const h=await setup();for(const name of ['CD','EF','GH','IJ'])await h.join(h.code,name);
+ await h.request('start',{code:h.code,version:0},h.hostToken);await h.request('reveal',{code:h.code,version:1},h.hostToken);
+ const view=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(view.scores.length,3);assert.equal(view.me.score,0);
+});
+test('A screen that misses the server reveal still displays the answer for two seconds',()=>{
+ let now=1000;const drawn=[];
+ const context={Date:{now:()=>now},revealSeen:new Set(),revealUntil:0,snapshot:null,clockOffset:0,draw:data=>{context.snapshot=data;drawn.push(data.phase);},updateClock(){}};
+ vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' function draw(data){')),context);
+ const data={phase:'question',index:1,lastReveal:{phase:'reveal',index:0}};
+ context.present(data);assert.deepEqual(drawn,['reveal']);now=2999;context.present(data);assert.deepEqual(drawn,['reveal']);now=3000;context.present(data);assert.deepEqual(drawn,['reveal','question']);
 });

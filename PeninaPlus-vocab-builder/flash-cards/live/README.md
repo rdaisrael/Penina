@@ -2,7 +2,7 @@
 
 Open Teacher tools on a class webpage using its existing editing code. Start Live Game lets the teacher select published sets, English or Hebrew answer choices, and up to 20 questions. Only current teacher-approved alternatives are eligible.
 
-Students join the lobby by QR/link or six-digit code. Students enter 1–3 letter initials (English or Hebrew supported). Latin letters are displayed in uppercase. The first submitted choice is final. Answers, answer counts by choice, and updated standings are revealed only when the teacher clicks Reveal answer. Each correct answer earns 100 points. Next question advances; End game closes the session. Teachers choose manual pacing or 5, 7, or 10 seconds per question. Timed games display a countdown, reveal the answer for three seconds, then advance automatically. Correct student answers receive a brief fireworks animation after reveal (disabled for reduced motion). There are no teams or time bonuses.
+Students join the lobby by QR/link or six-digit code. Students enter 1–3 letter initials (English or Hebrew supported). Latin letters are displayed in uppercase. The first submitted choice is final. Answers, answer counts by choice, and updated standings are revealed only when the teacher clicks Reveal answer. Each correct answer earns 100 points. Next question advances; End game closes the session. Teachers choose manual pacing or 5, 7, or 10 seconds per question. Timed games display a countdown, reveal the answer for two seconds, then advance automatically. Correct student answers receive a brief fireworks animation after reveal (disabled for reduced motion). There are no teams or time bonuses.
 
 ## Local demo
 
@@ -21,3 +21,5 @@ The first version supports a classroom-sized lobby (100 participants), individua
 `node --test tests/live-game.test.js tests/game-scores.test.js tests/student-games.test.js tests/class-games.test.js tests/study-cards.test.js tests/vocabulary-pages.test.js`
 
 QR rendering uses vendored qrcode-generator 1.4.4 by Kazuhiko Arase, MIT-licensed, from https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js.
+
+The teacher can pause/resume questions and reveals. Paused questions reject answers and preserve remaining time. Screens recover a missed answer reveal and hold it for two seconds. Public standings show only the top three; each student still sees their own score.

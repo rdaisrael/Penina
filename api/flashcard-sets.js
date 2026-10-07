@@ -5,6 +5,18 @@ const { makeApp, makeClassGames, practiceRows } = require('../PeninaPlus-vocab-b
 const { makeSheet } = require('../PeninaPlus-vocab-builder/vocabulary-sheets');
 
 const MAX_HTML_LENGTH = 4_000_000;
+const GAME_IDS = ['quiz', 'lines', 'cards', 'asteroids', 'flappy', 'chomp'];
+async function readGameSettings(grade) {
+    const pathname = `vocabulary-game-settings/${grade}.json`;
+    const result = await list({ prefix: pathname, limit: 1 });
+    const blob = result.blobs.find(item => item.pathname === pathname);
+    if (!blob) return [];
+    const response = await fetch(blob.url, { cache: 'no-store' });
+    if (!response.ok) throw new Error('Game settings could not be loaded.');
+    const data = await response.json();
+    return Array.isArray(data.disabledGames) ? data.disabledGames.filter(id => GAME_IDS.includes(id)) : [];
+}
+
 
 function send(res, status, payload) {
     res.status(status).json(payload);
@@ -75,6 +87,7 @@ module.exports = async function (req, res) {
         const page = await getPage(grade);
         if (!page) return send(res, 400, { error: 'Choose an existing vocabulary webpage.' });
         if (req.method === 'GET') {
+            const disabledGames = await readGameSettings(grade);
             const blobs = await listAll(`vocabulary-cards/${grade}/`);
             if (req.query.games === '1') {
                 const dateFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -87,7 +100,7 @@ module.exports = async function (req, res) {
                 }));
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Cache-Control', 'no-store');
-                return res.status(200).send(makeClassGames(page.name, groups.flat(), { homeUrl: page.url, leaderboardUrl: `/api/game-scores?game=asteroids&grade=${encodeURIComponent(grade)}` }));
+                return res.status(200).send(makeClassGames(page.name, groups.flat(), { disabledGames, homeUrl: page.url, leaderboardUrl: `/api/game-scores?game=asteroids&grade=${encodeURIComponent(grade)}` }));
             }
             const requestedView = String((req.query && req.query.view) || '');
             if (requestedView) {
@@ -124,7 +137,7 @@ module.exports = async function (req, res) {
             }
             sets.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
             res.setHeader('Cache-Control', 'no-store');
-            return send(res, 200, { grade, page: publicPage(page), sets });
+            return send(res, 200, { grade, page: publicPage(page), sets, disabledGames });
         }
 
         if (!['POST', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method Not Allowed' });
@@ -151,8 +164,21 @@ module.exports = async function (req, res) {
             return send(res, 200, { grade, removed: pathnames });
         }
 
+        if (req.body && req.body.action === 'game-settings') {
+            const disabledGames = req.body.disabledGames;
+            if (!Array.isArray(disabledGames) || disabledGames.length > GAME_IDS.length || disabledGames.some(id => !GAME_IDS.includes(id))) {
+                return send(res, 400, { error: 'Choose valid games to remove.' });
+            }
+            const selected = [...new Set(disabledGames)];
+            await put(`vocabulary-game-settings/${grade}.json`, JSON.stringify({ disabledGames: selected }), {
+                access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 0
+            });
+            res.setHeader('Cache-Control', 'no-store');
+            return send(res, 200, { disabledGames: selected });
+        }
+
         if (req.body && req.body.action === 'authenticate') {
-            return send(res, 200, { authenticated: true });
+            return send(res, 200, { authenticated: true, disabledGames: await readGameSettings(grade) });
         }
 
         const title = String(req.body && req.body.title || '').replace(/\s+/g, ' ').trim().slice(0, 120);

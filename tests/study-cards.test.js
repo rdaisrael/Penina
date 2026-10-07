@@ -139,31 +139,28 @@ test('Every published set exposes sheets and preserves publication settings',asy
 test('Existing sets gain sheet access without being republished',async()=>{
     const {handler,pathname,operations,res}=publishingApi(app.makeApp(title,cards));
     const sheet=res();await handler({method:'GET',query:{grade:'sixth',view:pathname,sheet:'1'}},sheet);
-    assert.equal(sheet.code,200);assert(sheet.body.includes('Download Sheets (PDF)'));
+    assert.equal(sheet.code,200);assert(sheet.body.includes('Download Sheets (HTML)'));
     assert.equal(operations.length,0);
 });
 
-test('Sheet pagination retains all text, including a row taller than one page',()=>{
-    const {renderPages}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');
-    const drawings=[];
-    const document={createElement:()=>({setAttribute(){},getContext:()=>({scale(){},fillRect(){},strokeRect(){},measureText:text=>({width:text.length*7}),fillText:(text,x,y)=>{assert(y<780);drawings.push(text)}})})};
+test('Sheets use flowing HTML text and retain long rows and publication choices',()=>{
+    const {makeSheet,renderTable}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');
     const long=Array.from({length:900},(_,i)=>'word'+i).join(' ');
-    const pages=renderPages(document,{title:'Review',cards:[{term:'Term',english:'Definition',englishTranslation:long}],options:{}});
-    assert(pages.length>1);
-    const rendered=drawings.join(' ');
-    for(let i=0;i<900;i++)assert(rendered.includes('word'+i));
-    drawings.length=0;
-    renderPages(document,{title:'Review',cards:[{term:'Term',english:'HiddenEnglish',hebrew:'VisibleHebrew',contextQuote:'HiddenContext'}],options:{english:false,context:false}});
-    assert(drawings.includes('VisibleHebrew'));assert(!drawings.includes('HiddenEnglish'));assert(!drawings.includes('HiddenContext'));
+    const html=makeSheet('Review',[{term:'Term',english:'Definition',englishTranslation:long}]);
+    assert(html.includes(long));
+    assert(html.includes('<table>'));assert(html.includes('window.print()'));
+    assert(!/canvas|PDFLib|application\/pdf|pdf-lib|<iframe|<object/.test(html));
+    assert(!/<script src=/.test(html), 'Downloaded sheets must print without network scripts');
+    const filtered=renderTable([{term:'Term',english:'HiddenEnglish',hebrew:'VisibleHebrew',contextQuote:'HiddenContext'}],{english:false,context:false});
+    assert(filtered.includes('VisibleHebrew'));assert(!filtered.includes('HiddenEnglish'));assert(!filtered.includes('HiddenContext'));
+    assert(!filtered.includes('>Context<'));
+    assert(renderTable([{term:'<script>alert(1)</script>'}]).includes('&lt;script&gt;'));
 });
 
 test('Sheets omit N markers from every optional field',()=>{
-    const {renderPages}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');
-    const drawings=[];
-    const document={createElement:()=>({setAttribute(){},getContext:()=>({scale(){},fillRect(){},strokeRect(){},measureText:text=>({width:text.length*7}),fillText:text=>drawings.push(text)})})};
-    const pages=renderPages(document,{title:'Review',cards:[{term:'Term',hebrew:'N',english:'n',contextQuote:'N',sourceHebrew:'n',hebrewTranslation:'N',englishTranslation:'n',sourceEnglish:'N'}],options:{}});
-    assert.equal(pages.length,1);
-    assert(!drawings.includes('N')&&!drawings.includes('n'));
+    const {renderTable}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');
+    const html=renderTable([{term:'Term',hebrew:'N',english:'n',contextQuote:'N',sourceHebrew:'n',hebrewTranslation:'N',englishTranslation:'n',sourceEnglish:'N'}]);
+    assert(!/>[Nn]</.test(html));assert(html.includes('Term'));
 });
 
 test('Manual context edits sync immediately, and regeneration still operates only on checked rows',async()=>{

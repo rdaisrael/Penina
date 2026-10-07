@@ -51,24 +51,22 @@ function server() {
         await load(file)({ method, body, query, headers }, response);
         return response;
     }
-    const create = body => request('api/vocabulary-pages.js', 'POST', { creationPassword: 'test-admin-password', ...body });
+    const create = body => request('api/vocabulary-pages.js', 'POST', { creationPassword: '123-aw', ...body });
     return { request, create, blobs, env };
 }
 
-test('Default creation credential works and environment overrides replace it', async () => {
-    const { request, env, blobs } = server();
-    delete env.VOCABULARY_PAGE_CREATE_PASSWORD;
-    const body = { name: 'New Class', password: 'page-password', creationPassword: '1-wc' };
-    for (const creationPassword of ['1234', 'wrong', '1-WC']) {
+test('Creation accepts digits followed by -aw even with a legacy environment override', async () => {
+    const { request, blobs } = server();
+    const body = { name: 'New Class', password: 'page-password' };
+    for (const creationPassword of ['1234', 'wrong', '1-wc', '1-AW', '-aw', 'a-aw', '-1-aw', '1.5-aw', ' 1-aw', '1-aw ', '1-aw\n', '1-aw\r', 'test-admin-password', '1'.repeat(254) + '-aw']) {
         assert.equal((await request('api/vocabulary-pages.js', 'POST', { ...body, creationPassword })).code, 401);
         assert.equal(blobs.size, 0);
     }
-    assert.equal((await request('api/vocabulary-pages.js', 'POST', body)).code, 201);
-    env.VOCABULARY_PAGE_CREATE_PASSWORD = 'test-admin-password';
-    assert.equal((await request('api/vocabulary-pages.js', 'POST', { ...body, name: 'Other Class' })).code, 401);
-    assert.equal((await request('api/vocabulary-pages.js', 'POST', {
-        ...body, name: 'Other Class', creationPassword: 'test-admin-password'
-    })).code, 201);
+    for (const creationPassword of ['0-aw', '1-aw', '123-aw', '00123-aw']) {
+        assert.equal((await request('api/vocabulary-pages.js', 'POST', {
+            ...body, name: 'Class ' + creationPassword, creationPassword
+        })).code, 201);
+    }
 });
 
 test('Created pages persist across requests, list alongside grades, and expose no credentials', async () => {
@@ -100,6 +98,20 @@ test('Duplicate and concurrent creates cannot overwrite another page password', 
     const originalPassword = results[0].code === 201 ? 'first' : 'second';
     assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'my-class', action: 'authenticate', password: originalPassword })).code, 200);
     assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'my-class', action: 'authenticate', password: 'replacement' })).code, 401);
+});
+
+test('Duplicate names ignore capitalization, extra whitespace, and Unicode variants', async () => {
+    const { create, blobs } = server();
+    assert.equal((await create({ name: 'My Class', password: 'original' })).code, 201);
+    for (const name of ['My Class', 'MY CLASS', '  my   class  ', 'Ｍｙ Ｃｌａｓｓ']) {
+        const result = await create({ name, password: 'replacement' });
+        assert.equal(result.code, 409);
+        assert.match(result.body.error, /already exists/);
+        assert.equal(blobs.size, 1);
+    }
+    assert.equal((await create({ name: 'מילים', password: 'original' })).code, 201);
+    assert.equal((await create({ name: '  מילים  ', password: 'replacement' })).code, 409);
+    assert.equal(blobs.size, 2);
 });
 
 test('A custom page supports empty view, publishing, viewing, authentication, and deletion with its own password', async () => {
@@ -156,7 +168,7 @@ test('Storage failures report errors without creating a successful page response
 });
 
 
-test('Page creation requires the administrator password before any page is saved', async () => {
+test('Page creation requires the creation password pattern before any page is saved', async () => {
     const { request, blobs } = server();
     for (const creationPassword of [undefined, '', 'wrong!', '1235', 1234, ['test-admin-password']]) {
         const result = await request('api/vocabulary-pages.js', 'POST', {
@@ -167,7 +179,7 @@ test('Page creation requires the administrator password before any page is saved
         assert(!JSON.stringify(result.body).includes('test-admin-password'));
     }
     const created = await request('api/vocabulary-pages.js', 'POST', {
-        name: 'Protected Page', password: 'page-publishing-password', creationPassword: 'test-admin-password'
+        name: 'Protected Page', password: 'page-publishing-password', creationPassword: '123-aw'
     });
     assert.equal(created.code, 201);
     assert.equal(blobs.size, 1);
@@ -182,4 +194,28 @@ test('Page creation requires the administrator password before any page is saved
     assert.equal((await request('api/flashcard-sets.js', 'POST', {
         grade: 'protected-page', action: 'authenticate', password: 'page-publishing-password'
     })).code, 200);
+});
+
+test('Game choices require the class password, persist, and remain isolated by class', async () => {
+    const { request, create } = server();
+    await create({ name: 'Game Class', password: 'editing-code' });
+    await create({ name: 'Other Class', password: 'other-code' });
+    const body = { grade: 'game-class', action: 'game-settings', password: 'editing-code', disabledGames: ['quiz', 'chomp'] };
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { ...body, password: 'wrong' })).code, 401);
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { ...body, disabledGames: ['unknown'] })).code, 400);
+    assert.equal((await request('api/flashcard-sets.js', 'POST', body)).code, 200);
+    const listing = await request('api/flashcard-sets.js', 'GET', {}, { grade: 'game-class' });
+    assert.deepEqual(listing.body.disabledGames, ['quiz', 'chomp']);
+    const other = await request('api/flashcard-sets.js', 'GET', {}, { grade: 'other-class' });
+    assert.deepEqual(other.body.disabledGames, []);
+    const cards = [{ term: 'סוס', english: 'horse', alternativeAnswers: { english: { term: 'סוס', definition: 'horse', answers: ['cow','dog','cat','bird'] } } }];
+    const html = require('../PeninaPlus-vocab-builder/offline-study-cards').makeApp('Review', cards);
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'game-class', password: 'editing-code', title: 'Review', html })).code, 201);
+    const games = await request('api/flashcard-sets.js', 'GET', {}, { grade: 'game-class', games: '1' });
+    assert.equal(games.code, 200);
+    assert(!games.body.includes('data-game="quiz"')); assert(!games.body.includes('data-game="chomp"'));
+    assert(games.body.includes('data-game="asteroids"'));
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { ...body, disabledGames: [] })).code, 200);
+    const restored = await request('api/flashcard-sets.js', 'GET', {}, { grade: 'game-class', games: '1' });
+    assert(restored.body.includes('data-game="quiz"')); assert(restored.body.includes('data-game="chomp"'));
 });

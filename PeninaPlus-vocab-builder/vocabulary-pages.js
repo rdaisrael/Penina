@@ -13,6 +13,12 @@
     const pageLinks = document.getElementById('published-page-links');
     const selectedLink = document.getElementById('selected-page-link');
     function updateLinks() {
+        const selectedPageId = dropdown.value;
+        const sortedOptions = Array.from(dropdown.options).sort((a, b) =>
+            a.textContent.localeCompare(b.textContent, undefined, { sensitivity: 'base', numeric: true })
+        );
+        sortedOptions.forEach(option => dropdown.appendChild(option));
+        dropdown.value = selectedPageId;
         pageLinks.replaceChildren();
         Array.from(dropdown.options).forEach(option => {
             if (!option.dataset.url) return;
@@ -89,6 +95,15 @@
         createButton.textContent = 'Creating…';
         try {
             await loadingPages;
+            const normalizePageName = value => value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+            const duplicate = Array.from(dropdown.options).some(option =>
+                normalizePageName(option.textContent) === normalizePageName(name)
+            );
+            if (duplicate) {
+                showStatus('A page with that name already exists. Choose another name.', true);
+                nameInput.focus();
+                return;
+            }
             showStatus('Creating your webpage…');
             const response = await fetch('/api/vocabulary-pages', {
                 method: 'POST',

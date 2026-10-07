@@ -200,8 +200,9 @@ test('failed later batch leaves all answers unchanged and restores controls for 
     assert(ui.dialog.querySelectorAll('textarea').every(input => input.value));
 });
 
-test('HTML integrates the purple button immediately before offline cards and loads valid scripts', () => {
-    assert.match(html, /id="create-practice-exercises-btn"[^>]*>Generate alternate answers<\/button>\s*<button[^>]*id="download-offline-study-cards-btn"/);
+test('HTML integrates the renamed purple button, keeps offline cards hidden, and loads valid scripts', () => {
+    assert.match(html, /id="create-practice-exercises-btn"[^>]*>Gamify and Generate Alternate Answers<\/button>/);
+    assert.match(html, /id="download-offline-study-cards-btn"[^>]* hidden/);
     assert.match(html, /<link rel="stylesheet" href="practice-exercises.css">/);
     assert(html.indexOf('src="practice-exercises.js"') < html.indexOf('PeninaPracticeExercises.mount'));
     assert.match(fs.readFileSync(require.resolve('../PeninaPlus-vocab-builder/practice-exercises.css'), 'utf8'), /#create-practice-exercises-btn\s*\{[^}]*background: #7a3df0/);

@@ -33,3 +33,15 @@ test('Class games embed a self-contained scheduler and have no per-set flashcard
  for(const match of html.matchAll(/<script>([\s\S]*?)<\/script>/g))assert.doesNotThrow(()=>new vm.Script(match[1]));
  assert(html.includes('scheduleClassTerms'));
 });
+
+test('Disabled game types are omitted and disabling every game has a safe empty state',()=>{
+ const card={term:'סוס',english:'horse',alternativeAnswers:{english:{term:'סוס',definition:'horse',answers:['cow','dog','cat','bird']}}};
+ const all=['quiz','lines','cards','asteroids','flappy','chomp'];
+ for(const id of all){
+  const html=makeClassGames('Class',[card],{disabledGames:[id]});
+  assert(!html.includes(`data-game="${id}"`));
+  for(const other of all.filter(other=>other!==id))assert(html.includes(`data-game="${other}"`));
+ }
+ const html=makeClassGames('Class',[card],{disabledGames:all});
+ assert(!html.includes('id="gamify"'));assert(!html.includes('id="gamesDialog"'));
+});

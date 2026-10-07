@@ -11,6 +11,49 @@
     const manageTrigger = document.getElementById('manage-trigger');
     const management = document.getElementById('management');
     const removeButton = document.getElementById('remove-sets');
+    const teacherDialog = document.createElement('dialog');
+    teacherDialog.className = 'input-dialog teacher-dialog';
+    teacherDialog.setAttribute('aria-labelledby', 'teacher-tools-title');
+    teacherDialog.innerHTML = '<div class="teacher-dialog-heading"><h2 id="teacher-tools-title">Teacher tools</h2><button type="button" class="combine-action" id="close-teacher-tools">Close</button></div>';
+    document.body.appendChild(teacherDialog);
+    teacherDialog.appendChild(management);
+    const setChoices = document.createElement('fieldset');
+    setChoices.className = 'teacher-choices';
+    management.querySelector('span').remove();
+    management.appendChild(setChoices);
+    management.appendChild(removeButton);
+    removeButton.textContent = 'Remove selected sets';
+    const gameChoices = document.createElement('fieldset');
+    gameChoices.className = 'teacher-choices';
+    const gameCatalog = [['quiz','Quick Quiz'],['lines','Connect the Words'],['cards','Match the Cards'],['asteroids','Vocabulary Asteroids'],['flappy','Flappy Vocab'],['chomp','Chomp & Charge']];
+    gameChoices.innerHTML = '<legend>Games to hide from students</legend><p>Check games to remove from this class’s Gamify menu. Uncheck a game to restore it, then save.</p>' + gameCatalog.map(([id,name]) => `<label><input type="checkbox" value="${id}" class="game-remove-select"><span>${name}</span></label>`).join('');
+    management.appendChild(gameChoices);
+    const saveGames = document.createElement('button');
+    saveGames.type = 'button'; saveGames.className = 'combine-action primary'; saveGames.textContent = 'Save game choices';
+    management.appendChild(saveGames);
+    const gameStatus = document.createElement('p'); gameStatus.setAttribute('role','status'); management.appendChild(gameStatus);
+    let disabledGames = [];
+    function renderTeacherChoices() {
+        setChoices.innerHTML = '<legend>Vocabulary sets to remove</legend>' + sets.map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}"><span>${escapeHtml(set.title)}</span></label>`).join('');
+        gameChoices.querySelectorAll('input').forEach(input => { input.checked = disabledGames.includes(input.value); });
+        classGamify.hidden = !sets.some(set => set.hasGames) || disabledGames.length === gameCatalog.length;
+    }
+    saveGames.addEventListener('click', async () => {
+        saveGames.disabled = true; gameStatus.textContent = 'Saving…';
+        try {
+            const selected = Array.from(gameChoices.querySelectorAll('input:checked'), input => input.value);
+            const response = await fetch('/api/flashcard-sets', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({grade, action:'game-settings', password:managementPassword, disabledGames:selected}) });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Game choices could not be saved.');
+            disabledGames = data.disabledGames;
+            renderTeacherChoices(); gameStatus.textContent = 'Game choices saved. Students will see the updated menu when they open Gamify.';
+        } catch(error) { gameStatus.textContent = error.message || 'Game choices could not be saved.'; }
+        finally { saveGames.disabled = false; }
+    });
+    document.getElementById('close-teacher-tools').onclick = () => teacherDialog.close();
+    teacherDialog.addEventListener('close', () => {
+        managementMode = false; managementPassword = ''; management.hidden = true; manageTrigger.hidden = false; gameStatus.textContent = ''; render();
+    });
     manageTrigger.textContent = '●';
     manageTrigger.setAttribute('aria-label', 'Open teacher tools');
     const joinLive = document.createElement('a');
@@ -22,7 +65,7 @@
     startLive.type = 'button';startLive.className = 'combine-action primary';startLive.textContent = 'Start Live Game';
     startLive.addEventListener('click', openLiveSetup);management.prepend(startLive);
     const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';
-    lockTools.onclick = () => { managementMode = false;managementPassword = '';management.hidden = true;manageTrigger.hidden = false;render(); };
+    lockTools.onclick = () => teacherDialog.close();
     management.append(lockTools);
     const classGamify = document.createElement('a');
     classGamify.className = 'set-action gamify-action';
@@ -111,8 +154,8 @@
                 year: 'numeric', month: 'long', day: 'numeric'
             });
             const combineChecked = selectedForCombination.has(set.pathname) ? ' checked' : '';
-            const combineCheckbox = managementMode ? '' : `<input class="combine-select" type="checkbox" value="${escapeHtml(set.pathname)}"${combineChecked} aria-label="Include ${escapeHtml(set.title)} in a combined set">`;
-            const removeCheckbox = managementMode ? `<input class="remove-select" type="checkbox" value="${escapeHtml(set.pathname)}" aria-label="Select ${escapeHtml(set.title)} for removal">` : '';
+            const combineCheckbox = `<input class="combine-select" type="checkbox" value="${escapeHtml(set.pathname)}"${combineChecked} aria-label="Include ${escapeHtml(set.title)} in a combined set">`;
+            const removeCheckbox = '';
             return `<article class="set"><div class="set-heading">${combineCheckbox}${removeCheckbox}<h2>${escapeHtml(set.title)}</h2></div><time>${escapeHtml(readableDate)}</time>
                 <div class="set-actions">
                     <section class="set-action-group" aria-label="Flashcards">
@@ -124,7 +167,7 @@
                     ${set.sheetUrl ? `<section class="set-action-group" aria-label="Sheets">
                         <h3>Sheets</h3>
                         <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetUrl)}" aria-label="View Sheets">View</a>
-                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (PDF)">Download PDF</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (HTML)">Download HTML</a>
                         <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetPrintUrl)}" aria-label="Print Sheets">Print</a>
                     </section>` : ''}
                 </div></article>`;
@@ -134,6 +177,7 @@
             status.hidden = false;
         }
         updateCombineControls();
+        renderTeacherChoices();
     }
 
     async function load() {
@@ -146,6 +190,7 @@
                 document.querySelector('h1').textContent = data.page.name;
             }
             sets = Array.isArray(data.sets) ? data.sets : [];
+            disabledGames = data.disabledGames || [];
             classGamify.hidden = !sets.some(set => set.hasGames);
             render();
         } catch (error) {
@@ -280,12 +325,14 @@
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'The password could not be verified.');
+            disabledGames = data.disabledGames || [];
             managementPassword = password;
             managementMode = true;
             selectedForCombination.clear();
             manageTrigger.hidden = true;
             management.hidden = false;
             render();
+            teacherDialog.showModal();
         } catch (error) {
             await showMessage('Unable to unlock teacher tools', error && error.message ? error.message : 'The password could not be verified.');
         } finally {
@@ -325,7 +372,7 @@
             await showMessage('Unable to remove sets', error && error.message ? error.message : 'The selected sets could not be removed.');
         } finally {
             removeButton.disabled = false;
-            removeButton.textContent = 'Remove';
+            removeButton.textContent = 'Remove selected sets';
         }
     }
 

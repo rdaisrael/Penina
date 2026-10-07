@@ -117,14 +117,14 @@
         dialog.setAttribute('aria-describedby', 'practice-help');
         dialog.innerHTML = `
             <h2 id="practice-title">Generate alternate answers</h2>
-            <p id="practice-help">Choose a language to generate alternative answers immediately. Review the answers, then Submit to save them. Use Submit or Cancel before choosing another language.</p>
+            <p id="practice-help">Choose a language to generate alternative answers immediately. Review the answers, then Save to keep them. Use Save or Cancel before choosing another language.</p>
             <div class="practice-choices" role="group" aria-label="Alternate answer language">
                 <button type="button" data-language="english" aria-pressed="false">Generate Alternative English Answers</button>
                 <button type="button" data-language="hebrew" aria-pressed="false">Generate Alternative Hebrew Answers</button>
             </div>
             <p id="practice-lock" role="status"></p>
             <form id="practice-form" hidden>
-                <p>Review the correct definition and the four generated incorrect answers. You can edit any answer in English, Hebrew, or a mix of both. The language button above fills any empty cells, including when retrying failed generation. Check individual cells to replace them with Regenerate. Review AI suggestions before submitting.</p>
+                <p>Review the correct definition and the four generated incorrect answers. You can edit any answer in English, Hebrew, or a mix of both. The language button above fills any empty cells, including when retrying failed generation. Check individual cells to replace them with Regenerate. Review AI suggestions before saving.</p>
                 <div class="practice-table-scroll" role="region" aria-label="Alternate answers table; scroll horizontally for all four answers" tabindex="0">
                     <table dir="ltr"><caption id="practice-caption"></caption><thead><tr>
                         <th scope="col">Term</th><th scope="col">Definition</th>
@@ -134,7 +134,7 @@
                 </div>
                 <div class="practice-actions">
                     <button type="button" id="practice-regenerate">Regenerate</button>
-                    <button type="submit" id="practice-submit">Submit</button>
+                    <button type="submit" id="practice-submit">Save</button>
                 </div>
             </form>
             <p id="practice-status" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -153,7 +153,7 @@
                 choice.setAttribute('aria-pressed', String(session.language === choice.dataset.language));
             });
             find('#practice-lock').textContent = session.locked
-                ? `${languages[session.language]} is locked for this session. Submit to keep your answers or Cancel to discard changes.`
+                ? `${languages[session.language]} is locked for this session. Save to keep your answers or Cancel to discard changes.`
                 : 'Language choice is unlocked.';
             form.hidden = !session.language;
             form.setAttribute('aria-busy', String(busy));
@@ -224,7 +224,7 @@
                 }
                 session.rows = mergeGeneration(session.rows, requests, results, session.language);
                 renderRows();
-                status(`${requests.reduce((count, row) => count + row.slots.length, 0)} answers generated. Review and edit them, then Submit. Checked cells stay selected for another regeneration.`);
+                status(`${requests.reduce((count, row) => count + row.slots.length, 0)} answers generated. Review and edit them, then Save. Checked cells stay selected for another regeneration.`);
             } catch (err) {
                 if (currentRun !== run) return;
                 status('Your existing answers are unchanged.');

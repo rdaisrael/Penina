@@ -212,6 +212,11 @@
         .publish-card-controls label { font-size: 16px; line-height: 1.25; }
         .publish-card-controls select, .publish-card-controls input { height: 42px; }
         .publish-card-controls button { grid-column: 1 / -1; justify-self: center; }
+        .password-label-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .password-label-row label { margin-bottom: 0; }
+        .password-label-row .password-visibility-toggle { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 5px; background: transparent; color: #6936c9; }
+        .password-visibility-toggle:focus-visible { outline: 2px solid #6936c9; outline-offset: 2px; }
+        .password-visibility-toggle[aria-pressed="false"] .eye-slash { display: none; }
         .add-webpage { margin-top: 16px; text-align: left; border-top: 1px solid #dcd3c6; padding-top: 12px; }
         .add-webpage summary { cursor: pointer; color: #6936c9; font-weight: bold; }
         .add-webpage form { margin-top: 14px; }
@@ -786,8 +791,10 @@
                 <button onclick="window.print()" style="background-color: #28a745; width: auto; padding: 10px 40px;">Print Vocabulary Sheet</button>
                 <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Export Filled Spreadsheet</button>
                 <button type="button" id="save-draft-btn" style="background-color: #b58900; width: auto; padding: 10px 40px;">Save JSON Draft</button>
-                <button type="button" id="create-practice-exercises-btn" disabled>Generate alternate answers</button>
-                <button type="button" id="download-offline-study-cards-btn" style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
+                <button type="button" id="download-offline-study-cards-btn" class="temporarily-hidden-feature" hidden style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
+            </div>
+            <div style="text-align: center; margin-top: 10px;">
+                <button type="button" id="create-practice-exercises-btn" style="background-color: #7024b5; width: auto; max-width: 100%; padding: 12px 25px;" disabled>Gamify and Generate Alternate Answers</button>
             </div>
             <p id="practice-saved-status" role="status" style="text-align: center;"></p>
             <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
@@ -824,7 +831,12 @@
                             <input id="new-page-name" type="text" maxlength="120" required placeholder="e.g. Ninth Grade Vocabulary">
                         </div>
                         <div class="form-group">
-                            <label for="new-page-password">Choose a publishing password:</label>
+                            <div class="password-label-row">
+                                <label for="new-page-password">Choose a publishing password:</label>
+                                <button type="button" id="toggle-new-page-password" class="password-visibility-toggle" aria-label="Show publishing password" title="Show publishing password" aria-controls="new-page-password" aria-pressed="false">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg>
+                                </button>
+                            </div>
                             <input id="new-page-password" type="password" maxlength="256" autocomplete="new-password" required>
                         </div>
                         <button type="submit" id="create-webpage-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;">Create webpage</button>
@@ -978,6 +990,21 @@
         const publishCardGrade = document.getElementById('publish-card-grade');
         const publishCardPassword = document.getElementById('publish-card-password');
         const publishStudyCardsStatus = document.getElementById('publish-study-cards-status');
+        const newPagePassword = document.getElementById('new-page-password');
+        const toggleNewPagePassword = document.getElementById('toggle-new-page-password');
+        function setNewPagePasswordVisibility(visible) {
+            newPagePassword.type = visible ? 'text' : 'password';
+            const label = visible ? 'Hide publishing password' : 'Show publishing password';
+            toggleNewPagePassword.setAttribute('aria-label', label);
+            toggleNewPagePassword.setAttribute('aria-pressed', String(visible));
+            toggleNewPagePassword.title = label;
+        }
+        toggleNewPagePassword.addEventListener('click', () => {
+            setNewPagePasswordVisibility(newPagePassword.type === 'password');
+        });
+        document.getElementById('add-webpage-form').addEventListener('reset', () => {
+            setNewPagePasswordVisibility(false);
+        });
         let importedVocabularyRows = [];
         ['english-translation', 'hebrew-translation', 'context-quotes'].forEach(id => {
             document.getElementById(id).addEventListener('change', updateViewModeLock);

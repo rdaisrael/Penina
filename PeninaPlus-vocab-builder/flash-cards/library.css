@@ -68,3 +68,13 @@ h1{margin:0;font-size:clamp(34px,6vw,64px);line-height:1.02;letter-spacing:-.045
 .live-setup input[type=checkbox]{width:20px;height:20px;flex-shrink:0}
 .live-setup select{font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;background:white}
 .live-setup .live-setup-error{color:#a32635}
+
+.teacher-dialog{width:min(520px,calc(100% - 32px));max-height:85vh;overflow:auto;padding:24px}
+.teacher-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.teacher-dialog .management{display:flex;flex-direction:column;align-items:stretch;margin:0;gap:16px;font-size:14px}
+.teacher-dialog .management[hidden]{display:none}
+.teacher-choices{display:grid;gap:10px;margin:0;border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.teacher-choices legend{font-weight:800;color:var(--ink)}
+.teacher-choices label{display:flex;align-items:center;gap:10px;font-weight:500;overflow-wrap:anywhere}
+.teacher-choices input[type=checkbox]{width:18px;height:18px;flex:0 0 18px;padding:0;accent-color:var(--accent)}
+.teacher-choices p{font-size:13px}

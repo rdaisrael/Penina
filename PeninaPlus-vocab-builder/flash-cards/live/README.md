@@ -33,3 +33,31 @@ The tests simulate a 26-student game with zero additional Blob operations after 
 QR rendering uses vendored qrcode-generator 1.4.4 by Kazuhiko Arase, MIT-licensed, from https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js.
 
 Realtime client: vendored @supabase/supabase-js 2.99.2 (MIT), https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.2/dist/umd/supabase.js.
+
+## Optional automatic score emails
+
+Teacher tools includes **Send scores to teacher** under **Start Live Game**. It is
+unchecked by default. Checking it requires a valid teacher email address. The
+recipient is saved only in the encrypted room configuration and is never returned
+to student clients. Final reports contain every student's initials and score;
+unrevealed questions do not count. Reports are submitted automatically after a
+manual ending or when polling advances a timed game through its final reveal.
+
+One-time setup:
+
+1. Create a Resend account and verify a domain you own by adding the DNS records
+   shown at https://resend.com/domains. See
+   https://resend.com/docs/dashboard/domains/introduction.
+2. Create a sending API key in Resend. In the Penina project's Vercel environment
+   settings, add `RESEND_API_KEY` with that key and `LIVE_SCORE_EMAIL_FROM` with a
+   sender on the verified domain, for example `Penina <scores@your-domain.com>`.
+   Do not put the API key in source control or browser code.
+3. Redeploy Penina after adding those server environment variables. Run a test
+   game with your own recipient address and verify receipt before relying on it.
+
+With either variable missing, a game requesting email is rejected with a clear
+setup message; games with the checkbox unchecked continue normally. No live email
+has been sent during automated testing. Resend's idempotency key and an encrypted
+sent marker prevent duplicate reports on retries. A failed submission leaves the
+final scores available and gives the teacher a Retry score email button. Provider
+acceptance is shown as submitted for delivery, not proof of inbox delivery.

@@ -198,3 +198,58 @@ test('Realtime scheduling uses a quiet fallback and local deadlines rather than 
  context.snapshot={phase:'reveal',deadline:3000};context.revealUntil=2500;assert.equal(context.nextPollDelay(),1520);
  context.failures=4;assert.equal(context.nextPollDelay(),30000);
 });
+
+test('Score email is opt-in, validates recipient, and requires configured sending service',async()=>{
+ const h=harness();
+ assert.equal((await h.create({sendScoresToTeacher:true,teacherEmail:'invalid'})).code,400);
+ assert.equal((await h.create({sendScoresToTeacher:true,teacherEmail:'teacher@example.com'})).code,503);
+ assert.equal((await h.create({sendScoresToTeacher:false,teacherEmail:'ignored@example.com'})).code,201);
+ assert.equal(h.emails.length,0);
+});
+
+test('Final score email includes every student, stays private, and is not resent after refresh',async()=>{
+ const h=harness({env:{RESEND_API_KEY:'test-key',LIVE_SCORE_EMAIL_FROM:'Penina <scores@example.com>'}});
+ const created=await h.create({sendScoresToTeacher:true,teacherEmail:' teacher@example.com '}),{code,hostToken}=created.body;
+ assert.equal(created.code,201);
+ const students=await Promise.all(['AA','BB','CC','DD'].map(name=>h.join(code,name)));
+ await h.request('start',{code,version:0},hostToken);
+ const question=(await h.request(null,{code},hostToken)).body.question;
+ const correct=question.options.indexOf(h.cards.find(card=>card.term===question.term).english);
+ await h.request('answer',{code,index:0,choice:correct},students[3].body.studentToken);
+ assert.equal(h.emails.length,0);
+ await h.request('reveal',{code,version:1},hostToken);
+ await h.request('end',{code,version:2},hostToken);
+ assert.equal(h.emails.length,1);
+ assert.deepEqual(h.emails[0].body.to,['teacher@example.com']);
+ for(const name of ['AA','BB','CC','DD'])assert(h.emails[0].body.text.includes(name+':'));
+ assert(h.emails[0].body.text.includes('DD: 100 points'));
+ assert(h.emails[0].body.text.includes('Questions scored: 1'));
+ assert(h.emails[0].headers['Idempotency-Key']);
+ const host=await h.request(null,{code},hostToken),student=await h.request(null,{code},students[0].body.studentToken);
+ assert.equal(host.body.scoreEmail.status,'sent');assert.equal(host.body.finalScores.length,4);
+ assert.equal(student.body.finalScores,undefined);assert.equal(student.body.scoreEmail,undefined);
+ assert(!JSON.stringify(student.body).includes('teacher@example.com'));
+ assert.equal(h.emails.length,1);
+ for(const [pathname,entry]of h.storage)if(pathname.startsWith('live-vocab/'))assert(!entry.body.includes('teacher@example.com'));
+});
+
+test('Email provider failures do not stop final scores and retries use the same idempotency key',async()=>{
+ const options={env:{RESEND_API_KEY:'test-key',LIVE_SCORE_EMAIL_FROM:'scores@example.com'},emailFailure:true};
+ const h=harness(options),created=await h.create({sendScoresToTeacher:true,teacherEmail:'teacher@example.com'}),{code,hostToken}=created.body;
+ await h.join(code);await h.request('end',{code,version:0},hostToken);
+ const failed=await h.request(null,{code},hostToken);
+ assert.equal(failed.code,200);assert.equal(failed.body.phase,'ended');assert.equal(failed.body.scoreEmail.status,'failed');
+ options.emailFailure=false;
+ const success=await h.request(null,{code},hostToken);assert.equal(success.body.scoreEmail.status,'sent');
+ assert.equal(new Set(h.emails.map(email=>email.headers['Idempotency-Key'])).size,1);
+ assert.deepEqual(h.emails[0].body,h.emails[h.emails.length-1].body);
+});
+
+test('Timed games send scores automatically after their final reveal',async()=>{
+ const h=harness({env:{RESEND_API_KEY:'test-key',LIVE_SCORE_EMAIL_FROM:'scores@example.com'}});
+ const {code,hostToken}=(await h.create({seconds:5,sendScoresToTeacher:true,teacherEmail:'teacher@example.com'})).body;
+ const student=(await h.join(code)).body.studentToken;
+ await h.request('start',{code,version:0},hostToken);
+ for(let i=0;i<5;i++){h.advance(5000);await h.request(null,{code},student);h.advance(2000);await h.request(null,{code},student);}
+ assert.equal(h.emails.length,1);assert(h.emails[0].body.text.includes('Questions scored: 5'));
+});

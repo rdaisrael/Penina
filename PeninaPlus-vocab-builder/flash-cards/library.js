@@ -22,19 +22,19 @@
     management.querySelector('span').remove();
     management.appendChild(setChoices);
     management.appendChild(removeButton);
-    removeButton.textContent = 'Remove selected sets';
+    removeButton.textContent = 'Remove selected wordlists';
     const gameChoices = document.createElement('fieldset');
     gameChoices.className = 'teacher-choices';
     const gameCatalog = [['quiz','Quick Quiz'],['lines','Connect the Words'],['cards','Match the Cards'],['asteroids','Vocabulary Asteroids'],['flappy','Flappy Vocab'],['chomp','Chomp & Charge']];
     gameChoices.innerHTML = '<legend>Games to hide from students</legend><p>Check games to remove from this class’s Gamify menu. Uncheck a game to restore it, then save.</p>' + gameCatalog.map(([id,name]) => `<label><input type="checkbox" value="${id}" class="game-remove-select"><span>${name}</span></label>`).join('');
     management.appendChild(gameChoices);
     const saveGames = document.createElement('button');
-    saveGames.type = 'button'; saveGames.className = 'combine-action primary'; saveGames.textContent = 'Save game choices';
+    saveGames.type = 'button'; saveGames.className = 'combine-action primary'; saveGames.textContent = 'Hide selected games';
     management.appendChild(saveGames);
     const gameStatus = document.createElement('p'); gameStatus.setAttribute('role','status'); management.appendChild(gameStatus);
     let disabledGames = [];
     function renderTeacherChoices() {
-        setChoices.innerHTML = '<legend>Vocabulary sets to remove</legend>' + sets.map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}"><span>${escapeHtml(set.title)}</span></label>`).join('');
+        setChoices.innerHTML = '<legend>Choose wordlists to remove</legend>' + sets.map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}"><span>${escapeHtml(set.title)}</span></label>`).join('');
         gameChoices.querySelectorAll('input').forEach(input => { input.checked = disabledGames.includes(input.value); });
         classGamify.hidden = !sets.some(set => set.hasGames) || disabledGames.length === gameCatalog.length;
     }
@@ -64,6 +64,32 @@
     const startLive = document.createElement('button');
     startLive.type = 'button';startLive.className = 'combine-action primary';startLive.textContent = 'Start Live Game';
     startLive.addEventListener('click', openLiveSetup);management.prepend(startLive);
+    const scoreEmailControls = document.createElement('div');
+    scoreEmailControls.className = 'score-email-controls';
+    scoreEmailControls.innerHTML = '<label class="score-email-choice"><input type="checkbox" id="send-scores-to-teacher"><span>Send scores to teacher (coming soon)</span></label><input type="email" id="teacher-score-email" placeholder="Enter teacher email" aria-label="Teacher email for scores" autocomplete="email" maxlength="254" disabled>';
+    startLive.after(scoreEmailControls);
+    const sendScoresToTeacher = scoreEmailControls.querySelector('#send-scores-to-teacher');
+    const teacherScoreEmail = scoreEmailControls.querySelector('#teacher-score-email');
+    sendScoresToTeacher.addEventListener('change', () => {
+        teacherScoreEmail.disabled = !sendScoresToTeacher.checked;
+        teacherScoreEmail.required = sendScoresToTeacher.checked;
+        if (sendScoresToTeacher.checked) teacherScoreEmail.focus();
+    });
+    function teacherSection(id, title, controls) {
+        const section = document.createElement('section');
+        section.className = 'teacher-tool-section';
+        section.setAttribute('aria-labelledby', id);
+        const heading = document.createElement('h3');
+        heading.id = id;
+        heading.textContent = title;
+        section.append(heading, ...controls);
+        return section;
+    }
+    management.append(
+        teacherSection('teacher-live-heading', 'Start Live Game', [startLive, scoreEmailControls]),
+        teacherSection('teacher-wordlists-heading', 'Remove Wordlists', [setChoices, removeButton]),
+        teacherSection('teacher-games-heading', 'Hide Specific Games', [gameChoices, saveGames, gameStatus])
+    );
     const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';
     lockTools.onclick = () => teacherDialog.close();
     management.append(lockTools);
@@ -167,7 +193,7 @@
                     ${set.sheetUrl ? `<section class="set-action-group" aria-label="Sheets">
                         <h3>Sheets</h3>
                         <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetUrl)}" aria-label="View Sheets">View</a>
-                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (HTML)">Download HTML</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (PDF)">Download PDF</a>
                         <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetPrintUrl)}" aria-label="Print Sheets">Print</a>
                     </section>` : ''}
                 </div></article>`;
@@ -281,12 +307,14 @@
     }
 
     async function openLiveSetup() {
+        if (sendScoresToTeacher.checked && !teacherScoreEmail.reportValidity()) return;
+        const scoreEmail = sendScoresToTeacher.checked ? teacherScoreEmail.value.trim() : '';
         const eligible = sets.filter(set => set.hasGames);
         if (!eligible.length) { await showMessage('No game-ready sets', 'Publish a set with teacher-approved answer choices first.'); return; }
         const selected = new Set(selectedPathnames());
         const dialog = document.createElement('dialog');
         dialog.className = 'input-dialog live-setup';
-        dialog.innerHTML = `<form class="input-dialog-form"><h2>Start Live Game</h2><p>Students join with a game code. You reveal each answer and control the pace.</p><fieldset><legend>Vocabulary sets</legend>${eligible.map(set => `<label class="live-set"><input type="checkbox" name="sets" value="${escapeHtml(set.pathname)}" ${!selected.size || selected.has(set.pathname) ? 'checked' : ''}><span>${escapeHtml(set.title)}</span></label>`).join('')}</fieldset><label>Answer language<select name="language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><label>Questions<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label>Question pacing<select name="seconds"><option value="0">Manual — teacher advances</option><option value="5">5 seconds</option><option value="7">7 seconds</option><option value="10">10 seconds</option></select></label><p>Timed games reveal the answer for 2 seconds, then advance automatically.</p><p>100 points per correct answer. Fewer questions are used if the selected sets have fewer approved terms.</p><p class="live-setup-error" role="alert"></p><div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Open lobby →</button></div></form>`;
+        dialog.innerHTML = `<form class="input-dialog-form"><h2>Start Live Game</h2><p>Students join with a game code.</p><fieldset><legend>Vocabulary sets</legend>${eligible.map(set => `<label class="live-set"><input type="checkbox" name="sets" value="${escapeHtml(set.pathname)}" ${!selected.size || selected.has(set.pathname) ? 'checked' : ''}><span>${escapeHtml(set.title)}</span></label>`).join('')}</fieldset><label>Answer language<select name="language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><label>Questions<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label>Question pacing<select name="seconds"><option value="0">Manual — teacher advances</option><option value="5">5 seconds</option><option value="7">7 seconds</option><option value="10" selected>10 seconds</option></select></label><p>Timed games reveal the answer for 2 seconds, then advance automatically.</p><p>100 points per correct answer.</p><p class="live-setup-error" role="alert"></p><div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Open lobby →</button></div></form>`;
         document.body.appendChild(dialog);dialog.showModal();
         let creating = false;
         dialog.addEventListener('cancel', event => { if (creating) event.preventDefault(); });
@@ -299,7 +327,7 @@
             if (!pathnames.length) { note.textContent = 'Choose at least one vocabulary set.'; return; }
             creating = true;note.textContent = 'Opening the lobby…';form.querySelectorAll('button').forEach(button => { button.disabled = true; });
             try {
-                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, password: managementPassword, pathnames, language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value) }) });
+                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, password: managementPassword, pathnames, language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), sendScoresToTeacher: !!scoreEmail, teacherEmail: scoreEmail }) });
                 const data = await response.json();if (!response.ok) throw new Error(data.error || 'Unable to open a lobby.');
                 sessionStorage.setItem('penina-live-host-' + data.code, data.hostToken);
                 window.location.assign('/PeninaPlus-vocab-builder/flash-cards/live/?host=1&code=' + data.code);
@@ -372,7 +400,7 @@
             await showMessage('Unable to remove sets', error && error.message ? error.message : 'The selected sets could not be removed.');
         } finally {
             removeButton.disabled = false;
-            removeButton.textContent = 'Remove selected sets';
+            removeButton.textContent = 'Remove selected wordlists';
         }
     }
 

@@ -139,7 +139,7 @@ test('Every published set exposes sheets and preserves publication settings',asy
 test('Existing sets gain sheet access without being republished',async()=>{
     const {handler,pathname,operations,res}=publishingApi(app.makeApp(title,cards));
     const sheet=res();await handler({method:'GET',query:{grade:'sixth',view:pathname,sheet:'1'}},sheet);
-    assert.equal(sheet.code,200);assert(sheet.body.includes('Download Sheets (HTML)'));
+    assert.equal(sheet.code,200);assert(sheet.body.includes('Download Sheets (PDF)'));
     assert.equal(operations.length,0);
 });
 
@@ -149,8 +149,10 @@ test('Sheets use flowing HTML text and retain long rows and publication choices'
     const html=makeSheet('Review',[{term:'Term',english:'Definition',englishTranslation:long}]);
     assert(html.includes(long));
     assert(html.includes('<table>'));assert(html.includes('window.print()'));
-    assert(!/canvas|PDFLib|application\/pdf|pdf-lib|<iframe|<object/.test(html));
-    assert(!/<script src=/.test(html), 'Downloaded sheets must print without network scripts');
+    assert(!/<canvas|<iframe|<object/.test(html));
+    assert(html.includes('application/pdf'));assert(html.includes(' - Sheets.pdf'));
+    assert(html.includes('Print Sheets for scalable printing'));
+    assert(!/<script src=/.test(html), 'Print view must not require the PDF library');
     const filtered=renderTable([{term:'Term',english:'HiddenEnglish',hebrew:'VisibleHebrew',contextQuote:'HiddenContext'}],{english:false,context:false});
     assert(filtered.includes('VisibleHebrew'));assert(!filtered.includes('HiddenEnglish'));assert(!filtered.includes('HiddenContext'));
     assert(!filtered.includes('>Context<'));
@@ -252,4 +254,22 @@ test('Teacher publication choices survive cards, downloads, sheets and game rebu
         assert(!app.makeApp('Combined', published).includes('id="publish-english-translation"'));
         assert.equal(JSON.stringify(original), before);
     }
+});
+
+test('Sheet print opens browser printing without PDF tools; download creates a PDF only',async()=>{
+    const {makeSheet}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');
+    const html=makeSheet('Review',[{term:'מילה',english:'word'}]);
+    const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+    let prints=0,canvases=0,pdfPages=0,downloadName='',blobType='';
+    const nodes={status:{},print:{},download:{},peninaSheetData:{textContent:JSON.stringify({title:'Review',cards:[{term:'מילה',english:'word'}],options:{}})}};
+    const ctx={scale(){},fillRect(){},strokeRect(){},measureText:text=>({width:text.length*7}),fillText(){}};
+    const window={location:{search:'?action=print'},print(){prints++}};
+    const context={window,URLSearchParams,Blob,URL:{createObjectURL(blob){blobType=blob.type;return 'blob:test'},revokeObjectURL(){}},setTimeout(){},document:{fonts:{ready:Promise.resolve()},getElementById:id=>nodes[id],body:{appendChild(node){assert.notEqual(node.tagName,'CANVAS')}},createElement(tag){if(tag==='canvas'){canvases++;return{tagName:'CANVAS',setAttribute(){},getContext:()=>ctx,toDataURL:()=> 'data:image/png;base64,test'}}if(tag==='a')return{click(){downloadName=this.download},remove(){}};throw new Error('Unexpected element '+tag)}}};
+    await vm.runInNewContext(script,context);
+    assert.equal(prints,1);assert.equal(canvases,0);
+    window.PDFLib={PDFDocument:{create:async()=>({setTitle(){},setCreator(){},embedPng:async()=>({}),addPage(){pdfPages++;return{drawImage(){}}},save:async()=>new Uint8Array([37,80,68,70])})}};
+    await nodes.download.onclick();
+    assert.equal(prints,1);assert(canvases>0);assert(pdfPages>0);
+    assert.equal(blobType,'application/pdf');assert.equal(downloadName,'Review - Sheets.pdf');
+    assert.equal(nodes.download.disabled,false);
 });

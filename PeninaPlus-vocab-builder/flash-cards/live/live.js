@@ -73,7 +73,7 @@
    }else stage.innerHTML=meta+`<section class="panel waiting"><div class="orb">✓</div><h1>You’re in, ${esc(data.me.name)}.</h1><p>Keep this page open. Your teacher will start the game.</p><p class="muted">${data.playerCount} student${data.playerCount===1?'':'s'} joined · ${data.total} questions</p></section>`;
    return;
   }
-  if(data.phase==='ended'){stage.innerHTML=meta+`<section class="panel waiting"><p class="eyebrow">Game complete</p><h1>Well played, everyone.</h1>${!host?`<p class="notice success">${esc(data.me.name)} · ${data.me.score} points</p>`:''}${leaderboard(data.scores)}<div class="actions"><a class="button" href="${esc(data.classUrl||'../')}">Back to class</a>${!host?'<a class="button primary" href="./">Join another game</a>':''}</div></section>`;return;}
+  if(data.phase==='ended'){stage.innerHTML=meta+`<section class="panel waiting"><p class="eyebrow">Game complete</p><h1>Well played, everyone.</h1>${!host?`<p class="notice success">${esc(data.me.name)} · ${data.me.score} points</p>`:''}${leaderboard(data.scores)}${host&&data.scoreEmail?`<p role="status">${data.scoreEmail.status==='sent'?'Scores submitted for email delivery to your teacher address.':'The score email could not be sent. Please retry.'}</p>${data.scoreEmail.status==='failed'?'<button data-email-retry>Retry score email</button>':''}`:''}<div class="actions"><a class="button" href="${esc(data.classUrl||'../')}">Back to class</a>${!host?'<a class="button primary" href="./">Join another game</a>':''}</div></section>`;return;}
   const revealed=data.phase==='reveal',q=data.question,choice=data.me?.choice;
   const answerMarkup=q.options.map((text,i)=>{
    const className='answer'+(revealed&&i===q.correct?' correct':'')+(!host&&choice===i?' selected':'')+(revealed&&!host&&choice===i&&i!==q.correct?' wrong':'');
@@ -125,6 +125,7 @@
  }
  stage.addEventListener('click',async event=>{
   const button=event.target.closest('button');if(!button||button.disabled)return;
+  if(button.hasAttribute('data-email-retry')){button.disabled=true;stopped=false;await poll();return;}
   if(button.dataset.copy){try{await navigator.clipboard.writeText(button.dataset.copy);button.textContent='Copied!';}catch(_){showError('Copy the student join page link shown above.');}return;}
   if(button.hasAttribute('data-end')){
    const dialog=document.createElement('dialog');dialog.className='live-confirm';dialog.innerHTML='<h2>End this game?</h2><p>Students will see the final scores. An unrevealed question will not count.</p><div class="actions"><button data-cancel>Keep playing</button><button class="danger" data-confirm>End game</button></div>';document.body.append(dialog);dialog.showModal();dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();dialog.querySelector('[data-confirm]').onclick=()=>{dialog.close();act('end');};return;

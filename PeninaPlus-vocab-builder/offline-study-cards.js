@@ -534,7 +534,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             return result;
         };
         let mode = '', rows = [], offset = 0, score = 0, attempts = 0, selected = null, matched = new Set(), drag = null;
-        let stopAsteroids = null, matchingCount = 0, cardRound = 1;
+        let stopAsteroids = null, matchingCount = 0, cardRound = 1, matchingActive = false, matchingMistakes = 0;
         let matchingRunId='',totalTerms=0, mastered=new Set(), pending=new Set(), locked=false, timer=null, startedAt=0, finishedMs=0, runToken=0;
         function later(callback,ms){const token=runToken;const id=setTimeout(()=>{pending.delete(id);if(token===runToken)callback();},ms);pending.add(id);}
         function stopPending(){runToken++;pending.forEach(clearTimeout);pending.clear();clearInterval(timer);timer=null;locked=false;doc.getElementById('gameMistake')?.remove();}
@@ -563,6 +563,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             selected = null;
         }
         function summary() {
+            matchingActive = false; byId('gameAgain').hidden = false;
             clearInterval(timer);timer=null;
             board.replaceChildren(element('h3', 'Well done! Practice complete.'));
             if(mode==='cards'){board.append(element('p',`Time: ${(finishedMs/1000).toFixed(1)} seconds`));submitMatching();}
@@ -578,8 +579,16 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(result)}).then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not save time.');if(token!==runToken)return;status.textContent='Only the top three times appear on the class board.';}).catch(error=>{if(token===runToken)status.textContent=error.message;});
         }
 
+        function endMatchingAfterMistakes() {
+            finishedMs = Math.max(1, Math.round(performance.now() - startedAt));
+            stopPending(); matchingActive = false; clearSelection();
+            board.replaceChildren(element('h3', 'Game over — three incorrect matches.'), element('p', 'Choose Play again when you are ready for a new game.'));
+            next.hidden = true; byId('gameAgain').hidden = false;
+            updateProgress(); message('Your game has ended. It will not restart automatically.');
+        }
+
         function updateProgress() {
-            progress.textContent = mode === 'quiz' ? `${mastered.size} of ${totalTerms} terms mastered · ${attempts} attempts` : `${Math.min(rows.length,offset + matched.size)} of ${rows.length} pairs matched · ${attempts} attempts`+(mode==='cards'?` · Round ${cardRound} of 2 · ${((finishedMs||performance.now()-startedAt)/1000).toFixed(1)} seconds`:'');
+            progress.textContent = mode === 'quiz' ? `${mastered.size} of ${totalTerms} terms mastered · ${attempts} attempts` : `${Math.min(rows.length,offset + matched.size)} of ${rows.length} pairs matched · ${attempts} attempts`+(mode==='cards'?` · Round ${cardRound} · ${Math.max(0,3-matchingMistakes)} attempts remaining · ${((finishedMs||performance.now()-startedAt)/1000).toFixed(1)} seconds`:'');
         }
         function quiz() {
             const row = rows[offset];
@@ -610,7 +619,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         }
 
         function match(first, second) {
-            if (locked || first.node.disabled || second.node.disabled || first.side === second.side) return;
+            if (locked || (mode === 'cards' && !matchingActive) || first.node.disabled || second.node.disabled || first.side === second.side) return;
             attempts++;
             // Identical definitions are interchangeable, including repeated vocabulary terms.
             if (first.row.definition === second.row.definition) {
@@ -625,10 +634,13 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
                 }
                 if(mode==='cards')[first.node,second.node].forEach(node=>{node.classList.add('popping');later(()=>{node.classList.add('popped');node.setAttribute('aria-hidden','true');},320);});
                 message('Correct match!');
-            } else {mistake();message('✕ Try again — those do not match.');}
+            } else {
+                if (mode === 'cards' && ++matchingMistakes >= 3) { endMatchingAfterMistakes(); return; }
+                mistake();message('✕ Try again — those do not match.');
+            }
             clearSelection(); updateProgress();
             if (matched.size === matchingCount) {
-                board.querySelectorAll('.game-tile').forEach(node => {node.disabled=true;}); message('All terms matched! The extra definitions were distractors.'); if(mode==='cards'){if(cardRound===2&&offset+matchingCount===rows.length)finishedMs=Math.max(1,Math.round(performance.now()-startedAt));later(()=>{offset+=matchingCount;render();},450);}else{next.hidden = false; next.focus();}
+                board.querySelectorAll('.game-tile').forEach(node => {node.disabled=true;}); message('All terms matched! The extra definitions were distractors.'); if(mode==='cards'){if(offset+matchingCount===rows.length)finishedMs=Math.max(1,Math.round(performance.now()-startedAt));later(()=>{offset+=matchingCount;if(offset<rows.length)cardRound++;render();},450);}else{next.hidden = false; next.focus();}
             }
         }
         function choose(item) {
@@ -735,17 +747,17 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         function render() {
             clearSelection(); matched = new Set(); drag = null;
             board.replaceChildren(); message(''); next.hidden = true;
-            if (offset >= rows.length && mode === 'cards' && cardRound === 1) { cardRound = 2; offset = 0; rows = scheduleClassTerms(groups[language.value]); }
             if (offset >= rows.length) { summary(); return; }
             updateProgress(); mode === 'quiz' ? quiz() : matching();
             title.focus();
         }
         async function prepare(value) {
+            if (matchingActive) return;
             stopPending();stopAsteroids?.();stopAsteroids=null;clearSelection();mode=value;
             byId('gameBack').hidden=false;
             byId('gameMenu').hidden=true;byId('gamePlay').hidden=true;byId('gameLobby').hidden=false;
             const heading=byId('lobbyTitle'),scores=byId('lobbyScores'),note=byId('lobbyNote');
-            byId('lobbyHelp').textContent=value==='cards'?'There are 2 rounds. Click on a term, then click on its definition. Match every term in each round.':value==='asteroids'?'There are 3 rounds: asteroids, pursuing Martians, then enemy ships.':value==='flappy'?'Choose a bird, flap through the correct answers, and earn a place in the top three. Three rounds of five words, with three lives total.':value==='chomp'?'Clear the maze, dodge ghosts, and power up with your vocabulary.':'';
+            byId('lobbyHelp').textContent=value==='cards'?'Each round shows up to six terms. Match each term with its definition. Continue until every word is matched once. Three incorrect matches end the game.':value==='asteroids'?'There are 3 rounds: asteroids, pursuing Martians, then enemy ships.':value==='flappy'?'Choose a bird, flap through the correct answers, and earn a place in the top three. Three rounds of five words, with three lives total.':value==='chomp'?'Clear the maze, dodge ghosts, and power up with your vocabulary.':'';
             heading.textContent=labels[value];scores.replaceChildren();
             const ranked=value==='cards'||value==='asteroids'||value==='flappy';
             byId('lobbyRankingTitle').hidden=!ranked;
@@ -771,10 +783,12 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             }catch(_error){if(token===runToken)note.textContent='Scores are temporarily unavailable. You can still launch the game.';}
         }
         function start(value) {
+            if (matchingActive) return;
             stopPending();stopAsteroids?.(); stopAsteroids = null;
             matchingRunId=typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
             mastered=new Set();startedAt=performance.now();finishedMs=0;totalTerms=groups[language.value].length;
-            cardRound = 1; mode = value; rows = scheduleClassTerms(groups[language.value]);totalTerms=rows.length; offset = score = attempts = 0;
+            matchingActive = value === 'cards'; matchingMistakes = 0; byId('gameAgain').hidden = matchingActive;
+            cardRound = 1; mode = value; rows = mode === 'cards' ? shuffle(groups[language.value]) : scheduleClassTerms(groups[language.value]);totalTerms=rows.length; offset = score = attempts = 0;
             byId('gameMenu').hidden = true; byId('gamePlay').hidden = false;
             title.textContent = labels[mode];
             if (mode === 'flappy') {
@@ -795,11 +809,12 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             }
             byId('gameHelp').textContent = mode === 'quiz' ? 'You have two chances. Miss twice and the term returns later.' : mode === 'lines'
                 ? 'Match every term; extra definitions will remain unused. Drag from the dot inside a term oval to the dot inside its definition oval. You can also click or use Tab and Enter to select each pair.'
-                : 'There are 2 rounds. Click on a term, then click on its definition. Match every term in each round; correct pairs pop away. Extra definitions will remain unused. Race the clock!';
+                : 'Each round shows up to six terms. Match every word once across the rounds; correct pairs pop away. Three incorrect matches across the entire game end the game. Extra definitions will remain unused. Race the clock!';
             if(mode==='cards')timer=setInterval(updateProgress,100);
             render();
         }
         function menu() {
+            matchingActive = false;
             stopAsteroids?.(); stopAsteroids = null;
             stopPending();mode = ''; clearSelection(); board.replaceChildren(); drag = null;
             byId('gameBack').hidden = true;

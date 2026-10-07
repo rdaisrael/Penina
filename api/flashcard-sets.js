@@ -100,7 +100,7 @@ module.exports = async function (req, res) {
                 }));
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Cache-Control', 'no-store');
-                return res.status(200).send(makeClassGames(page.name, groups.flat(), { disabledGames, homeUrl: page.url, leaderboardUrl: `/api/game-scores?game=asteroids&grade=${encodeURIComponent(grade)}` }));
+                return res.status(200).send(makeClassGames(page.name, groups.flat(), { disabledGames, matchingUrl: `/api/game-scores?game=matching&grade=${encodeURIComponent(grade)}&set=class`, homeUrl: page.url, leaderboardUrl: `/api/game-scores?game=asteroids&grade=${encodeURIComponent(grade)}` }));
             }
             const requestedView = String((req.query && req.query.view) || '');
             if (requestedView) {

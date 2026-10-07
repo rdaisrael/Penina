@@ -45,3 +45,10 @@ test('Disabled game types are omitted and disabling every game has a safe empty 
  const html=makeClassGames('Class',[card],{disabledGames:all});
  assert(!html.includes('id="gamify"'));assert(!html.includes('id="gamesDialog"'));
 });
+
+test('Class matching embeds its own leaderboard endpoint',()=>{
+ const matchingUrl='/api/game-scores?game=matching&grade=sixth&set=class';
+ const html=makeClassGames('Class',[],{matchingUrl});
+ const config=JSON.parse(html.match(/<script id="peninaClassConfig" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+ assert.equal(config.matchingUrl,matchingUrl);
+});

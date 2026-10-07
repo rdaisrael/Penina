@@ -71,6 +71,7 @@ test('Student library detects teacher-created games from published data, hides l
     assert(games.body.includes('id="gamesDialog"'));
     assert(games.body.includes('2026-09-13')); // midnight UTC is the prior New York date
     assert(games.body.includes(pathname));
+    assert(games.body.includes('game=matching&grade=sixth&set=class'));
     html = app.makeApp('Review',[card]);
     assert.equal((await request({})).body.sets[0].hasGames,false);
     html = 'invalid stored data';

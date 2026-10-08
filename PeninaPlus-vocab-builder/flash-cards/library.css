@@ -9,7 +9,10 @@ h1{margin:0;font-size:clamp(34px,6vw,64px);line-height:1.02;letter-spacing:-.045
 .search{width:100%;padding:14px 16px;border:1px solid var(--line);border-radius:15px;background:var(--paper);font:inherit;box-shadow:0 8px 25px rgba(21,28,43,.06);outline:none}
 .search:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(67,83,255,.12)}
 .combine-bar{display:flex;align-items:center;gap:9px;margin:0 0 22px;padding:12px 14px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.8)}
-.combine-count{margin-right:auto;color:var(--muted);font-size:14px;font-weight:750}
+.combine-copy{display:grid;gap:5px;margin-right:auto}
+.combine-instructions{font-size:14px;font-weight:750;line-height:1.4}
+.combine-count{color:var(--muted);font-size:14px;font-weight:750}
+#view-combined{flex-shrink:0}
 .combine-action{padding:9px 12px;border:1px solid var(--accent);border-radius:11px;background:#fff;color:var(--accent);font:inherit;font-size:13px;font-weight:800;cursor:pointer}
 .combine-action.primary{background:var(--accent);color:#fff}
 .combine-action:disabled{cursor:not-allowed;filter:none;opacity:.42}

@@ -646,22 +646,10 @@
         </details>
 
         <div class="control-panel">
-            <div class="form-group title-draft-row">
-                <div class="title-draft-title">
-                    <label for="list-title">Title for this list:</label>
-                    <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
-                </div>
-                <div class="title-draft-buttons temporarily-hidden-feature" aria-label="Draft controls">
-                    <button type="button" id="upload-draft-btn" class="draft-yellow-btn">Upload Previous Draft</button>
-                    <button type="button" id="clear-form-btn" class="draft-yellow-btn">Clear Form</button>
-                    <input type="file" id="upload-draft-input" accept="application/json,.json" style="display: none;">
-                </div>
-            </div>
-
             <div class="form-group">
                 <label>Vocabulary Spreadsheet:</label>
                 <div class="template-workflow">
-                    <p class="template-instructions"><strong>Only the Term column is required.</strong> Download the template, enter one term per row, and optionally complete any translation, context quote, or citation fields. Any optional field you provide will override the corresponding AI-generated or Sefaria-provided content. Blank optional fields will be completed by Penina when applicable. Enter <strong>N</strong> in an optional field to leave it blank without generating it; the N will not appear on sheets or flashcards.</p>
+                    <p class="template-instructions"><strong>Only the Term column is required.</strong> Download the template and enter one Hebrew term per row. Two Hebrew words may be separated by <strong>/</strong> or <strong> / </strong>, using either the Hebrew or English keyboard. Do not use commas or tabs in the Term field; put definitions in the separate translation columns. Upload the spreadsheet, then enter the list title below. Optionally complete any translation, context quote, or citation fields. Any optional field you provide will override the corresponding AI-generated or Sefaria-provided content. Blank optional fields will be completed by Penina when applicable. Enter <strong>N</strong> in an optional field to leave it blank without generating it; the N will not appear on sheets or flashcards.</p>
                     <div class="template-actions">
                         <a class="template-button" href="Penina-Vocabulary-Template.xlsx" download="Penina-Vocabulary-Template.xlsx">Download Spreadsheet Template</a>
                         <label class="template-button secondary" for="vocabulary-workbook-input" style="margin: 0; color: #fff;">Upload Completed Template or JSON Draft</label>
@@ -671,8 +659,20 @@
                 </div>
                 <div class="temporarily-hidden-feature">
                     <label class="manual-entry-label" for="word-list">Or Enter a Vocabulary List Manually:</label>
-                    <textarea id="word-list" rows="5" dir="auto" placeholder="Hebrew term required. An optional English translation may follow a comma or tab.&#10;אגרא, reward&#10;איכא	there is&#10;חתול, cat&#10;אגרא"></textarea>
-                    <div id="vocab-input-warning" class="vocab-input-warning" style="display: none;">Vocabulary words must be in Hebrew. The vocabulary word may then be followed by tab or comma and a definition in English, Hebrew, or both.</div>
+                    <textarea id="word-list" rows="5" dir="auto" placeholder="Hebrew terms only; no commas or tabs.&#10;אגרא&#10;ספר/ספרים&#10;בית / בתים"></textarea>
+                    <div id="vocab-input-warning" class="vocab-input-warning" style="display: none;">Terms must be in Hebrew. You may separate two Hebrew words with / or spaced /, using either the Hebrew or English keyboard. Do not use commas or tabs in the Term field. Put definitions in the separate translation columns.</div>
+                </div>
+            </div>
+
+            <div class="form-group title-draft-row">
+                <div class="title-draft-title">
+                    <label for="list-title">Title for this list:</label>
+                    <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
+                </div>
+                <div class="title-draft-buttons temporarily-hidden-feature" aria-label="Draft controls">
+                    <button type="button" id="upload-draft-btn" class="draft-yellow-btn">Upload Previous Draft</button>
+                    <button type="button" id="clear-form-btn" class="draft-yellow-btn">Clear Form</button>
+                    <input type="file" id="upload-draft-input" accept="application/json,.json" style="display: none;">
                 </div>
             </div>
 
@@ -2168,7 +2168,7 @@ function updateTalmudModeVisibility() {
             return containsHebrew(value) && !containsLatin(value);
         }
 
-        const VOCAB_INPUT_WARNING_TEXT = "Vocabulary words must be in Hebrew. The vocabulary word may then be followed by tab or comma and a definition in English, Hebrew, or both.";
+        const VOCAB_INPUT_WARNING_TEXT = "Terms must be in Hebrew. You may separate two Hebrew words with / or spaced /, using either the Hebrew or English keyboard. Do not use commas or tabs in the Term field. Put definitions in the separate translation columns.";
 
         function normalizeVocabularyInputLine(line) {
             return String(line || '')
@@ -2177,43 +2177,14 @@ function updateTalmudModeVisibility() {
                 .trim();
         }
 
-        function getFirstVocabularyDelimiterIndex(line) {
-            const commaIndex = line.indexOf(',');
-            const tabIndex = line.indexOf('\t');
-            if (commaIndex === -1) return tabIndex;
-            if (tabIndex === -1) return commaIndex;
-            return Math.min(commaIndex, tabIndex);
-        }
-
-        function extractLeadingHebrewVocabularyChunk(text) {
-            const value = normalizeVocabularyInputLine(text);
-            const match = value.match(/^\s*([\u0590-\u05FF\uFB1D-\uFB4F][\u0590-\u05FF\uFB1D-\uFB4F\s"'׳״`.-]*?)(?=\s*[,\t]|\s+-\s+|\s*$)/);
-            return match ? match[1].trim() : '';
-        }
-
         function parseVocabularyLine(line) {
-            const raw = normalizeVocabularyInputLine(line);
-            const delimiterIndex = getFirstVocabularyDelimiterIndex(raw);
-            if (delimiterIndex === -1) {
-                return { hebrew: raw.trim(), english: null };
-            }
-
-            let hebrew = raw.slice(0, delimiterIndex).trim();
-            let english = raw.slice(delimiterIndex + 1).trim();
-
-            const leadingHebrew = extractLeadingHebrewVocabularyChunk(raw);
-            if (leadingHebrew && (!isValidHebrewVocabularyWord(hebrew) || leadingHebrew.length < hebrew.length)) {
-                hebrew = leadingHebrew;
-                const afterHebrew = raw.slice(raw.indexOf(leadingHebrew) + leadingHebrew.length);
-                english = afterHebrew.replace(/^\s*[,\t-]+\s*/, '').trim();
-            }
-
-            return { hebrew, english: english.length > 0 ? english : null };
+            return { hebrew: normalizeVocabularyInputLine(line), english: null };
         }
 
         function isValidHebrewVocabularyWord(value) {
             const text = String(value || '').trim();
-            return !!text && containsHebrew(text) && !containsLatin(text);
+            if (!text || /[,\t]/.test(text)) return false;
+            return text.split('/').every(part => containsHebrew(part) && !containsLatin(part));
         }
 
         function isValidDefinition(value) {
@@ -2228,6 +2199,10 @@ function updateTalmudModeVisibility() {
 
             lines.forEach((line, index) => {
                 if (!line.trim()) return;
+                if (/[,\t]/.test(line)) {
+                    problems.push({ line: index + 1, reason: 'invalid-separator' });
+                    return;
+                }
                 const firstNonSpace = line.trimStart().charAt(0);
                 const parsed = parseVocabularyLine(line);
 
@@ -2270,9 +2245,8 @@ function updateTalmudModeVisibility() {
                 const leadingSpaceMatch = line.match(/^\s*/);
                 const leading = leadingSpaceMatch ? leadingSpaceMatch[0] : '';
                 const rest = line.slice(leading.length);
-                const delimiterIndex = getFirstVocabularyDelimiterIndex(rest);
-                const beforeDelimiter = delimiterIndex === -1 ? rest : rest.slice(0, delimiterIndex);
-                const afterDelimiter = delimiterIndex === -1 ? '' : rest.slice(delimiterIndex);
+                const beforeDelimiter = rest;
+                const afterDelimiter = '';
                 let seenFirstEnglish = false;
                 let cleanedBefore = '';
 
@@ -2307,8 +2281,7 @@ function updateTalmudModeVisibility() {
             const relativePos = pos - lineStart;
             const candidateLine = line.slice(0, relativePos) + insertedText + line.slice(relativePos);
             if (!lineStartsWithEnglishProblem(candidateLine)) return false;
-            const delimiterIndex = getFirstVocabularyDelimiterIndex(candidateLine);
-            const beforeDelimiter = delimiterIndex === -1 ? candidateLine : candidateLine.slice(0, delimiterIndex);
+            const beforeDelimiter = candidateLine;
             const englishLetters = (beforeDelimiter.match(/[A-Za-z]/g) || []).length;
             return englishLetters > 1;
         }

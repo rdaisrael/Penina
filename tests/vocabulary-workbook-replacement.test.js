@@ -47,14 +47,16 @@ test('a successful spreadsheet replaces all previous form content and generated 
     assert.equal(c.vocabularyWorkbookInput.value, '');
     assert.match(c.status, /new.xlsx loaded: 1 term/);
 });
-test('failed or empty uploads preserve the current draft consistently', async () => {
+test('failed or empty replacement uploads cannot leave the previous list active', async () => {
     for (const response of [{ ok: false, json: async () => ({ error: 'Bad file' }) }, { ok: true, json: async () => ({ rows: [] }) }]) {
         const { c, element } = harness();
         c.fetch = async () => response;
         await c.importVocabularyWorkbookFile({ name: 'bad.xlsx' });
-        assert.equal(c.importedVocabularyRows[0].term, 'ישן');
-        assert.equal(c.generatedRows.length, 1);
-        assert.equal(element('list-title').value, 'old');
+        assert.equal(c.importedVocabularyRows.length, 0);
+        assert.equal(c.generatedRows.length, 0);
+        assert.equal(element('list-title').value, '');
+        assert.equal(element('word-list').value, '');
+        assert.equal(c.generateBtn.disabled, false);
         assert.match(c.status, /Bad file|no vocabulary/);
     }
 });
@@ -94,4 +96,25 @@ test('clearing while generation is paused prevents old output from reappearing',
     assert.equal(c.vocabTbody.innerHTML, '');
     assert.equal(c.pageContainer.style.display, 'none');
     assert.equal(c.generateBtn.disabled, false);
+});
+
+ test('replacement clears the previous line-5 problem before reading and blocks generation while loading', async () => {
+    const { c, element } = harness();
+    element('word-list').value = 'ספר\nבית\nסוס\nחדש\ninvalid';
+    element('vocab-input-warning').style.display = 'block';
+    let finish;
+    c.readFileAsBase64 = () => new Promise(resolve => { finish = resolve; });
+    const pending = c.importVocabularyWorkbookFile({ name: 'replacement.xlsx' });
+    assert.equal(element('word-list').value, '');
+    assert.equal(element('vocab-input-warning').style.display, 'none');
+    assert.equal(c.importedVocabularyRows.length, 0);
+    assert.equal(c.generateBtn.disabled, true);
+    vm.runInContext(section('        async function handleGenerateVocabularyClick()', '        // --- SEARCH LOGIC:'), c);
+    // No validation dependencies are installed: a pending upload must return before validation.
+    await c.handleGenerateVocabularyClick();
+    finish('replacement.xlsx');
+    await pending;
+    assert.equal(element('word-list').value, 'חדש');
+    assert.equal(c.generateBtn.disabled, false);
+    assert.equal(c.generateBtn.vocabularyUploadPending, false);
 });

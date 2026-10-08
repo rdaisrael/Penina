@@ -1073,8 +1073,11 @@
 
         async function importVocabularyWorkbookFile(file) {
             if (!file) return;
-            const uploadVersion = ++vocabularyUploadVersion;
-            setVocabularyWorkbookStatus('Reading spreadsheet...');
+            clearVocabularyForm();
+            const uploadVersion = vocabularyUploadVersion;
+            generateBtn.vocabularyUploadPending = true;
+            generateBtn.disabled = true;
+            setVocabularyWorkbookStatus(`Reading ${file.name}...`);
             try {
                 const fileBase64 = await readFileAsBase64(file);
                 const response = await fetch('/api/vocabulary-workbook', {
@@ -1086,16 +1089,19 @@
                 if (uploadVersion !== vocabularyUploadVersion) return;
                 if (!response.ok) throw new Error(data.error || 'The spreadsheet could not be imported.');
                 if (!Array.isArray(data.rows) || !data.rows.length) throw new Error('The spreadsheet contains no vocabulary terms.');
-                clearVocabularyForm();
-                importedVocabularyRows = Array.isArray(data.rows) ? data.rows : [];
+                importedVocabularyRows = data.rows;
                 document.getElementById('word-list').value = importedVocabularyRows.map(row => row.term).join('\n');
                 updateVocabInputWarning();
                 setVocabularyWorkbookStatus(`${file.name} loaded: ${importedVocabularyRows.length} term${importedVocabularyRows.length === 1 ? '' : 's'}. Optional completed cells will override generated content.`);
             } catch (error) {
                 if (uploadVersion !== vocabularyUploadVersion) return;
-                setVocabularyWorkbookStatus(error && error.message ? error.message : 'The spreadsheet could not be imported.', true);
+                setVocabularyWorkbookStatus(`${file.name}: ${error && error.message ? error.message : 'The spreadsheet could not be imported.'}`, true);
             } finally {
-                if (uploadVersion === vocabularyUploadVersion && vocabularyWorkbookInput) vocabularyWorkbookInput.value = '';
+                if (uploadVersion === vocabularyUploadVersion) {
+                    generateBtn.vocabularyUploadPending = false;
+                    generateBtn.disabled = false;
+                    if (vocabularyWorkbookInput) vocabularyWorkbookInput.value = '';
+                }
             }
         }
 
@@ -1494,6 +1500,7 @@
 
         function clearVocabularyForm() {
             vocabularyUploadVersion++;
+            generateBtn.vocabularyUploadPending = false;
             generateBtn.vocabularyGeneration = null;
             generateBtn.disabled = false;
             generateBtn.textContent = 'Generate Vocabulary Table';
@@ -2940,6 +2947,7 @@ function updateTalmudModeVisibility() {
         });
 
         async function handleGenerateVocabularyClick() {
+            if (generateBtn.vocabularyUploadPending) return;
             const title = document.getElementById('list-title').value.trim();
             const rawInput = document.getElementById('word-list').value.trim();
             const sourceType = document.getElementById('source-type').value;

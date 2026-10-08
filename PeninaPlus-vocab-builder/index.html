@@ -1006,6 +1006,7 @@
             setNewPagePasswordVisibility(false);
         });
         let importedVocabularyRows = [];
+        let vocabularyUploadVersion = 0;
         ['english-translation', 'hebrew-translation', 'context-quotes'].forEach(id => {
             document.getElementById(id).addEventListener('change', updateViewModeLock);
         });
@@ -1072,6 +1073,7 @@
 
         async function importVocabularyWorkbookFile(file) {
             if (!file) return;
+            const uploadVersion = ++vocabularyUploadVersion;
             setVocabularyWorkbookStatus('Reading spreadsheet...');
             try {
                 const fileBase64 = await readFileAsBase64(file);
@@ -1081,16 +1083,19 @@
                     body: JSON.stringify({ action: 'import', fileBase64 })
                 });
                 const data = await response.json();
+                if (uploadVersion !== vocabularyUploadVersion) return;
                 if (!response.ok) throw new Error(data.error || 'The spreadsheet could not be imported.');
+                if (!Array.isArray(data.rows) || !data.rows.length) throw new Error('The spreadsheet contains no vocabulary terms.');
+                clearVocabularyForm();
                 importedVocabularyRows = Array.isArray(data.rows) ? data.rows : [];
                 document.getElementById('word-list').value = importedVocabularyRows.map(row => row.term).join('\n');
                 updateVocabInputWarning();
                 setVocabularyWorkbookStatus(`${file.name} loaded: ${importedVocabularyRows.length} term${importedVocabularyRows.length === 1 ? '' : 's'}. Optional completed cells will override generated content.`);
             } catch (error) {
-                importedVocabularyRows = [];
+                if (uploadVersion !== vocabularyUploadVersion) return;
                 setVocabularyWorkbookStatus(error && error.message ? error.message : 'The spreadsheet could not be imported.', true);
             } finally {
-                if (vocabularyWorkbookInput) vocabularyWorkbookInput.value = '';
+                if (uploadVersion === vocabularyUploadVersion && vocabularyWorkbookInput) vocabularyWorkbookInput.value = '';
             }
         }
 
@@ -1488,6 +1493,11 @@
         }
 
         function clearVocabularyForm() {
+            vocabularyUploadVersion++;
+            generateBtn.vocabularyGeneration = null;
+            generateBtn.disabled = false;
+            generateBtn.textContent = 'Generate Vocabulary Table';
+            setPublishStudyCardsStatus('');
             setControlValue('list-title', '');
             setControlValue('source-type', 'Tanakh');
             sourceTypeSelect.dispatchEvent(new Event('change'));
@@ -2969,11 +2979,14 @@ function updateTalmudModeVisibility() {
                 return;
             }
 
+            const generation = {};
+            generateBtn.vocabularyGeneration = generation;
             generateBtn.disabled = true;
             generateBtn.textContent = 'Generating...';
             generatedRows = [];
             updateWorkbookExportAvailability();
             await yieldToBrowser();
+            if (generateBtn.vocabularyGeneration !== generation) return;
             vocabTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px;">Processing workflow...</td></tr>';
             pageContainer.style.display = 'block';
             const draftContextTools = document.getElementById('draft-context-tools');
@@ -3451,6 +3464,7 @@ function updateTalmudModeVisibility() {
                     }
                 }
 
+                if (generateBtn.vocabularyGeneration !== generation) return;
                 const generationSelectedTargets = getSelectedSourceTargets();
                 generatedRows = preparedItems.map((row, index) => {
                     row.rowIndex = index;
@@ -3471,10 +3485,13 @@ function updateTalmudModeVisibility() {
                     offerBackup();
                 }
             } catch (e) {
+                if (generateBtn.vocabularyGeneration !== generation) return;
                 vocabTbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Error: ${escapeVocabularyHtml(e.message)}</td></tr>`;
             } finally {
-                generateBtn.disabled = false;
-                generateBtn.textContent = 'Generate Vocabulary Table';
+                if (generateBtn.vocabularyGeneration === generation) {
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = 'Generate Vocabulary Table';
+                }
             }
 
         }

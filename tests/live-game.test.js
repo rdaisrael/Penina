@@ -163,12 +163,12 @@ test('Concurrent classroom reads share storage work, while answers invalidate th
  const unauth=h.operations.lists;assert.equal((await h.request(null,{code:h.code})).code,401);assert.equal(h.operations.lists,unauth);
 });
 
-test('Polling stops for finished or hidden games and backs off on storage errors',async()=>{
+test('Finished games keep listening for replay; hidden games stop polling and failures back off',async()=>{
  const source=client.slice(client.indexOf(' async function poll(){'),client.indexOf(' async function act('));
  let calls=0;const scheduled=[];
  const context={inFlight:false,connectRealtime(){},disconnectRealtime(){},nextPollDelay(){return Math.min(30000,2000*2**Math.min(context.failures,4));},clearTimeout(){},timer:null,stopped:false,auth:'token',document:{hidden:false},pollId:0,snapshot:null,failures:0,online:true,status:{},host:false,showError(){},draw(){},updateClock(){},present(data){context.snapshot=data;},request:async()=>{calls++;return {phase:'ended',version:2};},setTimeout(fn,ms){scheduled.push(ms);}};
  vm.createContext(context);vm.runInContext(source,context);
- await context.poll();assert.equal(context.stopped,true);assert.equal(scheduled.length,0);await context.poll();assert.equal(calls,1);
+ await context.poll();assert.equal(context.stopped,false);assert.equal(scheduled.length,1);scheduled.length=0;
  context.stopped=false;context.snapshot=null;context.document.hidden=true;await context.poll();assert.equal(calls,1);
  context.document.hidden=false;context.request=async()=>{throw new Error('Storage unavailable');};await context.poll();await context.poll();assert.deepEqual(scheduled,[4000,8000]);
 });
@@ -252,4 +252,94 @@ test('Timed games send scores automatically after their final reveal',async()=>{
  await h.request('start',{code,version:0},hostToken);
  for(let i=0;i<5;i++){h.advance(5000);await h.request(null,{code},student);h.advance(2000);await h.request(null,{code},student);}
  assert.equal(h.emails.length,1);assert(h.emails[0].body.text.includes('Questions scored: 5'));
+});
+
+
+test('Replay retains every student and code, resets scores, rejects stale answers, and supports repeated rounds',async()=>{
+ for(const database of [false,true]){
+  const h=harness({database}),created=await h.create(),{code,hostToken}=created.body;
+  const students=await Promise.all(['AB','CD'].map(name=>h.join(code,name)));
+  let version=0;
+  for(let round=0;round<3;round++){
+   let view=(await h.request(null,{code},students[0].body.studentToken)).body;
+   assert.equal(view.phase,'lobby');assert.equal(view.round,round);assert.equal(view.playerCount,2);
+   assert.equal(view.me.score,0);assert.equal(view.me.choice,null);assert.equal(view.lastReveal,undefined);
+   assert.equal(view.settings,undefined);
+   assert.equal((await h.request('start',{code,version},hostToken)).code,200);version++;
+   view=(await h.request(null,{code},students[0].body.studentToken)).body;
+   const choice=view.question.options.indexOf(h.cards.find(card=>card.term===view.question.term).english);
+   if(round)assert.equal((await h.request('answer',{code,index:0,round:round-1,choice},students[0].body.studentToken)).code,409);
+   assert.equal((await h.request('answer',{code,index:0,round,choice},students[0].body.studentToken)).code,200);
+   await h.request('reveal',{code,version},hostToken);version++;
+   view=(await h.request(null,{code},students[0].body.studentToken)).body;
+   assert.equal(view.me.score,100);assert.equal(view.answeredCount,1);
+   await h.request('end',{code,version},hostToken);version++;
+   const results=await Promise.all([h.request('restart',{code,version},hostToken),h.request('restart',{code,version},hostToken)]);
+   assert.deepEqual(results.map(r=>r.code).sort(),[200,409]);version++;
+  }
+ }
+});
+
+test('Teacher can configure replay timing, question count and excluded wordlists without losing the lobby',async()=>{
+ const h=harness({database:true});
+ const second='vocabulary-cards/sixth/second--'+Buffer.from('Second list').toString('base64url')+'.html';
+ const term='חדש בלבד',definition='second list only';
+ const extra={term,english:definition,alternativeAnswers:{english:{term,definition,answers:['a','b','c','d']}}};
+ h.storage.set(second,{body:'<script id="peninaCardData" type="application/json">'+JSON.stringify([extra])+'</script>'});
+ const created=await h.create({pathnames:[h.setPath,second]}),{code,hostToken}=created.body;
+ const student=(await h.join(code)).body.studentToken;
+ await h.request('end',{code,version:0},hostToken);
+ assert.equal((await h.request('restart',{code,version:1},student)).code,403);
+ await h.request('restart',{code,version:1},hostToken);
+ let view=(await h.request(null,{code},hostToken)).body;
+ assert.deepEqual(view.settings.wordlists.map(s=>s.title),['Class vocabulary','Second list']);
+ assert(!JSON.stringify(view.settings).includes('correct'));assert(!JSON.stringify(view.settings).includes('horse'));
+ for(const invalid of [{count:1},{seconds:6},{revealSeconds:1},{pathnames:[]},{pathnames:[second,second]},{pathnames:['vocabulary-cards/other/a.html']}]){
+  assert.equal((await h.request('configure',{code,version:2,...invalid},hostToken)).code,400);
+ }
+ assert.equal((await h.request('configure',{code,version:2,count:10,seconds:7,revealSeconds:10,pathnames:[h.setPath]},student)).code,403);
+ assert.equal((await h.request('configure',{code,version:2,count:10,seconds:7,revealSeconds:10,pathnames:[h.setPath]},hostToken)).code,200);
+ view=(await h.request(null,{code},hostToken)).body;
+ assert.equal(view.total,10);assert.equal(view.seconds,7);assert.equal(view.revealSeconds,10);assert.equal(view.playerCount,1);
+ assert.deepEqual(view.settings.pathnames,[h.setPath]);
+ await h.request('start',{code,version:3},hostToken);
+ for(let index=0;index<10;index++){
+  view=(await h.request(null,{code},student)).body;
+  assert.equal(view.phase,'question');assert.notEqual(view.question.term,term);
+  h.advance(7000);view=(await h.request(null,{code},student)).body;
+  assert.equal(view.phase,'reveal');assert.equal(view.deadline-view.serverNow,10000);
+  h.advance(9999);assert.equal((await h.request(null,{code},student)).body.phase,'reveal');
+  h.advance(1);await h.request(null,{code},student);
+ }
+ view=(await h.request(null,{code},hostToken)).body;
+ assert.equal(view.phase,'ended');
+ await h.request('restart',{code,version:view.version,pathnames:[second],count:20},hostToken);
+ view=(await h.request(null,{code},hostToken)).body;
+ assert.equal(view.total,1);assert.deepEqual(view.settings.pathnames,[second]);
+ await h.request('start',{code,version:view.version},hostToken);
+ assert.equal((await h.request(null,{code},student)).body.question.term,term);
+ assert.equal((await h.request('configure',{code,version:view.version+1},hostToken)).code,409);
+});
+
+test('Each replay sends its own final report with fresh scores and a distinct idempotency key',async()=>{
+ const h=harness({env:{RESEND_API_KEY:'test',LIVE_SCORE_EMAIL_FROM:'scores@example.com'}});
+ const created=await h.create({sendScoresToTeacher:true,teacherEmail:'teacher@example.com'}),{code,hostToken}=created.body;
+ await h.join(code);
+ await h.request('end',{code,version:0},hostToken);
+ await h.request('restart',{code,version:1},hostToken);
+ await h.request('end',{code,version:2},hostToken);
+ await h.request(null,{code},hostToken);
+ assert.equal(h.emails.length,2);
+ assert.notEqual(h.emails[0].headers['Idempotency-Key'],h.emails[1].headers['Idempotency-Key']);
+ assert(h.emails.every(email=>email.body.text.includes('AB: 0 points')));
+});
+
+test('New-round question zero receives feedback and bypasses any previous reveal delay',()=>{
+ let now=1000;const drawn=[];
+ const context={Date:{now:()=>now},revealSeen:new Set(),revealUntil:0,snapshot:null,clockOffset:0,draw:data=>{context.snapshot=data;drawn.push([data.phase,data.round]);},updateClock(){}};
+ vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' function gameSettings(){')),context);
+ context.present({phase:'reveal',round:0,index:0});
+ context.present({phase:'lobby',round:1,index:-1});
+ context.present({phase:'reveal',round:1,index:0});
+ assert.deepEqual(drawn,[['reveal',0],['lobby',1],['reveal',1]]);
 });

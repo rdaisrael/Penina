@@ -88,6 +88,10 @@
                 this.locked = true;
                 this.rows.find(row => row.id === id).answers[slot] = value;
             },
+            editDefinition(id, value) {
+                this.locked = true;
+                this.rows.find(row => row.id === id).definition = value.trim();
+            },
             select(id, slot, checked) {
                 this.locked = true;
                 const key = `${id}:${slot}`;
@@ -101,7 +105,7 @@
             submit() {
                 if (!this.language || !this.rows.length) throw new Error('Choose a language first.');
                 this.rows.forEach(row => {
-                    if (!row.term || !row.definition) throw new Error('Each term needs a correct definition in the vocabulary table first.');
+                    if (!row.term || !clean(row.definition) || !normalize(row.definition) || row.definition.length > 2000) throw new Error('Enter a correct definition of 1–2000 characters for each term.');
                     validateAnswers(row, row.answers, this.language);
                 });
                 return this.rows.map(row => ({ version: 1, term: row.term, definition: row.definition,
@@ -124,7 +128,7 @@
             </div>
             <p id="practice-lock" role="status"></p>
             <form id="practice-form" hidden>
-                <p>Review the correct definition and the four generated incorrect answers. You can edit any answer in English, Hebrew, or a mix of both. The language button above fills any empty cells, including when retrying failed generation. Check individual cells to replace them with Regenerate. Review AI suggestions before saving.</p>
+                <p>Review the correct definition and the four generated incorrect answers. You can edit the correct definition as well as any alternate answer in English, Hebrew, or a mix of both. Saving also updates the translation in your vocabulary list and games. The language button above fills any empty cells, including when retrying failed generation. Check individual cells to replace them with Regenerate. Review AI suggestions before saving.</p>
                 <div class="practice-table-scroll" role="region" aria-label="Alternate answers table; scroll horizontally for all four answers" tabindex="0">
                     <table dir="ltr"><caption id="practice-caption"></caption><thead><tr>
                         <th scope="col">Term</th><th scope="col">Definition</th>
@@ -164,11 +168,19 @@
             find('#practice-caption').textContent = `${languages[session.language]} alternate answers — ${session.rows.length} terms`;
             session.rows.forEach(row => {
                 const tr = doc.createElement('tr');
-                [row.term, row.definition || 'Missing definition — Cancel and add a definition to the vocabulary table.'].forEach((text, index) => {
-                    const cell = doc.createElement(index ? 'td' : 'th');
-                    if (!index) cell.scope = 'row';
-                    cell.dir = 'auto'; cell.textContent = text; tr.appendChild(cell);
+                const termCell = doc.createElement('th');
+                termCell.scope = 'row'; termCell.dir = 'auto'; termCell.textContent = row.term;
+                tr.appendChild(termCell);
+                const definitionCell = doc.createElement('td');
+                const definitionInput = doc.createElement('input');
+                definitionInput.type = 'text'; definitionInput.value = row.definition;
+                definitionInput.maxLength = 2000; definitionInput.dir = 'auto';
+                definitionInput.lang = session.language === 'hebrew' ? 'he' : 'en';
+                definitionInput.setAttribute('aria-label', `Correct definition for ${row.term}, row ${row.id + 1}`);
+                definitionInput.addEventListener('input', () => {
+                    session.editDefinition(row.id, definitionInput.value); error(''); refresh();
                 });
+                definitionCell.appendChild(definitionInput); tr.appendChild(definitionCell);
                 row.answers.forEach((answer, slot) => {
                     const td = doc.createElement('td');
                     const label = doc.createElement('label');
@@ -197,8 +209,8 @@
             error('');
             const requests = session.requests(emptyOnly);
             if (!requests.length) { status(emptyOnly ? 'All cells are filled.' : 'Check at least one alternate-answer cell to regenerate.'); return; }
-            if (requests.some(row => !row.term || !row.definition)) {
-                error('Cancel and add a correct definition for each term in the vocabulary table first.'); return;
+            if (requests.some(row => !row.term || !clean(row.definition) || !normalize(row.definition) || row.definition.length > 2000)) {
+                error('Enter a correct definition of 1–2000 characters for each term before generating answers.'); return;
             }
             session.locked = true; busy = true; controller = new AbortController();
             const requestController = controller;

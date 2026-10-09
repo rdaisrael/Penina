@@ -408,7 +408,7 @@
         .col-english { direction: ltr; text-align: left; font-size: var(--base-font-size, 14pt); min-width: 0; padding: 4pt 6pt; line-height: 1.12; overflow-wrap: anywhere; word-break: break-word; }
         .term-english-translation { padding: 0; line-height: 1.5; }
         .modern-hebrew-term-translation { direction: rtl; text-align: right; font-size: var(--base-font-size, 14pt); margin-bottom: var(--translation-block-gap, 10pt); line-height: 1.5; }
-        .col-context { vertical-align: bottom; min-width: 0; padding: 3pt 5pt; font-size: var(--context-font-size, 12pt); line-height: 1.08; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+        .col-context { vertical-align: top; min-width: 0; padding: 3pt 5pt; font-size: var(--context-font-size, 12pt); line-height: 1.08; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
         
         .hebrew-word, .hebrew-text, .modern-hebrew-term-translation, .modern-hebrew-context, .hebrew-citation { font-family: var(--hebrew-font, Arial, sans-serif) !important; letter-spacing: var(--global-letter-spacing, 1px); }
         .hebrew-word, .hebrew-text { direction: rtl; unicode-bidi: plaintext; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.08; }
@@ -2379,7 +2379,15 @@ function updateTalmudModeVisibility() {
             onSubmit(language, answers) {
                 answers.forEach((data, index) => {
                     const row = generatedRows[index];
+                    if (language === 'english') {
+                        row.item.english = data.definition;
+                        row.suppressEnglishTermTranslation = false;
+                    } else {
+                        row.modernHebrewTranslation = data.definition;
+                        row.suppressHebrewTermTranslation = false;
+                    }
                     row.alternativeAnswers = { ...row.alternativeAnswers, [language]: data };
+                    replaceRenderedRow(index);
                 });
                 document.getElementById('practice-saved-status').textContent =
                     `${language === 'hebrew' ? 'Hebrew' : 'English'} alternate answers saved to this vocabulary list. Use Save JSON Draft to keep them after leaving this page.`;

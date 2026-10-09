@@ -28,3 +28,6 @@
     #practice-exercises-dialog .practice-choices button { width: 100%; }
 }
 @media print { #practice-exercises-dialog { display: none !important; } }
+
+#practice-exercises-dialog input[type="text"] { box-sizing: border-box; width: 100%; padding: 8px; border: 1px solid #82776c; border-radius: 5px; font: 16px Arial, sans-serif; color: #332c24; background: white; }
+#practice-exercises-dialog input[type="text"][lang="he"] { font-family: var(--hebrew-font, Arial), sans-serif; font-size: 20px; }

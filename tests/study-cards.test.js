@@ -239,6 +239,8 @@ test('Teacher publication choices survive cards, downloads, sheets and game rebu
             if (!options[lang]) assert(!html.includes(original[lang]));
         }
         assert.equal(published[0].contextQuote, options.context ? original.contextQuote : '');
+        assert.equal(published[0].sourceHebrew, options.context ? original.sourceHebrew : '');
+        assert.equal(published[0].sourceEnglish, options.context && options.english ? original.sourceEnglish : '');
         if (!options.context) assert(!html.includes(original.contextQuote));
         const { handler, pathname, res } = publishingApi(html);
         for (const extra of [{}, { download: '1' }, { sheet: '1' }]) {

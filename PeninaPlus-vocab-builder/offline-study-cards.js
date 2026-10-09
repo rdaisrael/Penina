@@ -856,7 +856,8 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
                 result[language] = '';
                 result[language + 'Translation'] = '';
                 result[language + 'TranslationRuns'] = [];
-                result[language === 'english' ? 'sourceEnglish' : 'sourceHebrew'] = '';
+                // The Hebrew source identifies the original quote independently of translations.
+                if (language === 'english') result.sourceEnglish = '';
                 if (result.alternativeAnswers) delete result.alternativeAnswers[language];
             }
             if (options.context === false) {

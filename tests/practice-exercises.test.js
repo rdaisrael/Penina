@@ -224,7 +224,7 @@ test('real HTML submit integration survives JSON draft export and import with bo
     };
     let mounted;
     const context = vm.createContext({ PeninaPracticeExercises: { mount: options => { mounted = options; } },
-        offerBackup() {}, createPracticeExercisesButton: {}, syncGeneratedRowFromDom() {}, document: { getElementById: element, documentElement: { style: { setProperty() {} } }, body: {} },
+        replaceRenderedRow() {}, offerBackup() {}, createPracticeExercisesButton: {}, syncGeneratedRowFromDom() {}, document: { getElementById: element, documentElement: { style: { setProperty() {} } }, body: {} },
         getControlValue: () => '', getSelectedSourceTargets: () => [], importedVocabularyRows: [], pageContainer: element('page'), docTitle: element('title'), vocabTbody: element('tbody'),
         setControlValue() {}, sourceTypeSelect: { dispatchEvent() {} }, Event: class {}, renderChips() {}, updateFontSizeVariables() {}, updateMargin() {}, updateViewModeLock() {},
         applyTitleText() {}, setVocabularyWorkbookStatus() {}, updateWorkbookExportAvailability() {}, renderVocabularyRow: () => '<tr></tr>', refreshOriginalHebrewDatasets() {}, updateTextDisplay() {}, updateVocabInputWarning() {}
@@ -233,6 +233,7 @@ test('real HTML submit integration survives JSON draft export and import with bo
     context.rows = source(); vm.runInContext('generatedRows = rows', context);
     for (const language of ['english', 'hebrew']) {
         const session = practice.createSession(mounted.getRows()); session.choose(language);
+        session.editDefinition(0, language === 'english' ? 'a horse' : 'בעל חיים לרכיבה');
         session.rows[0].answers = language === 'english' ? alternatives.slice() : ['חמור', 'גמל', 'עז', 'כבש'];
         mounted.onSubmit(language, session.submit());
     }
@@ -241,6 +242,14 @@ test('real HTML submit integration survives JSON draft export and import with bo
     assert.equal(exported.generatedRows[0].alternativeAnswers.hebrew.answers[0], 'חמור');
     vm.runInContext(html.slice(html.indexOf('        function applyDraftPayload('), html.indexOf('        function clearVocabularyForm()')), context);
     context.applyDraftPayload(exported);
+    assert.equal(mounted.getRows()[0].item.english, 'a horse');
+    assert.equal(mounted.getRows()[0].modernHebrewTranslation, 'בעל חיים לרכיבה');
+    const cards = require('../PeninaPlus-vocab-builder/offline-study-cards');
+    context.highlightHebrewContextRuns = context.highlightModernHebrewContextRuns = context.highlightEnglishContextRuns = () => [];
+    vm.runInContext(html.slice(html.indexOf('        function getWorkbookExportRows()'), html.indexOf('        function isNoGenerationMarker(')), context);
+    for (const language of ['english', 'hebrew']) {
+        assert.equal(cards.practiceRows(cards.toCards(context.getWorkbookExportRows()), language)[0].definition, language === 'english' ? 'a horse' : 'בעל חיים לרכיבה');
+    }
     assert.deepEqual(practice.sourceRows(mounted.getRows(), 'english')[0].answers, alternatives);
     assert.deepEqual(practice.sourceRows(mounted.getRows(), 'hebrew')[0].answers, ['חמור', 'גמל', 'עז', 'כבש']);
 });
@@ -275,4 +284,32 @@ test('backup prompt downloads only when accepted', () => {
     vm.createContext(context); vm.runInContext(code, context);
     context.offerBackup(); assert.equal(downloads, 0);
     accepted = true; context.offerBackup(); assert.equal(downloads, 1);
+});
+
+
+test('definition edits drive regeneration and validation without changing the lesson before Save', async () => {
+    const rows = source(), requests = [];
+    const ui = modal(async (url, options) => {
+        const body = JSON.parse(options.body); requests.push(body);
+        return { ok: true, json: async () => ({ rows: body.rows.map(row => ({ id: row.id,
+            cells: row.slots.map(slot => ({ slot, answer: requests.length === 1 ? alternatives[slot] : 'cow' })) })) }) };
+    }, rows);
+    await ui.dialog.querySelectorAll('[data-language]')[0].fire('click');
+    const definition = ui.dialog.querySelectorAll('input').find(input => input.type === 'text');
+    assert.equal(definition.value, 'horse');
+    definition.value = ' a riding horse '; definition.fire('input');
+    const checkbox = ui.dialog.querySelectorAll('input').find(input => input.type === 'checkbox');
+    checkbox.checked = true; checkbox.fire('change');
+    await ui.find('#practice-regenerate').fire('click');
+    assert.equal(requests[1].rows[0].definition, 'a riding horse');
+    assert.equal(rows[0].item.english, 'horse');
+    ui.find('form').fire('submit');
+    assert.equal(ui.saved[0][1][0].definition, 'a riding horse');
+    const session = practice.createSession(rows); session.choose('english');
+    session.rows[0].answers = alternatives.slice();
+    for (const value of ['', '  ', 'N', '!!!', 'x'.repeat(2001), 'donkey']) {
+        session.editDefinition(0, value);
+        assert.throws(() => session.submit());
+    }
+    assert.equal(rows[0].item.english, 'horse');
 });

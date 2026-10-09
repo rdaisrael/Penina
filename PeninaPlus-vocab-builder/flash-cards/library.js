@@ -327,7 +327,7 @@
             if (!pathnames.length) { note.textContent = 'Choose at least one vocabulary set.'; return; }
             creating = true;note.textContent = 'Opening the lobby…';form.querySelectorAll('button').forEach(button => { button.disabled = true; });
             try {
-                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, password: managementPassword, pathnames, language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), sendScoresToTeacher: !!scoreEmail, teacherEmail: scoreEmail }) });
+                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, password: managementPassword, pathnames, language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), sendScoresToTeacher: !!scoreEmail, teacherEmail: scoreEmail, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
                 const data = await response.json();if (!response.ok) throw new Error(data.error || 'Unable to open a lobby.');
                 sessionStorage.setItem('penina-live-host-' + data.code, data.hostToken);
                 window.location.assign('/PeninaPlus-vocab-builder/flash-cards/live/?host=1&code=' + data.code);

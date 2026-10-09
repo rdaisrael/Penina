@@ -343,3 +343,75 @@ test('New-round question zero receives feedback and bypasses any previous reveal
  context.present({phase:'reveal',round:1,index:0});
  assert.deepEqual(drawn,[['reveal',0],['lobby',1],['reveal',1]]);
 });
+
+
+test('Score emails identify the wordlist page and each round’s start and end in the teacher time zone',async()=>{
+ const h=harness({now:Date.parse('2026-10-09T14:00:00Z'),env:{RESEND_API_KEY:'test',LIVE_SCORE_EMAIL_FROM:'scores@example.com'}});
+ h.page.name='Gemara 6';
+ const {code,hostToken}=(await h.create({sendScoresToTeacher:true,teacherEmail:'teacher@example.com',timeZone:'America/Los_Angeles'})).body;
+ await h.join(code);
+ await h.request('start',{code,version:0},hostToken);
+ h.advance(120000);
+ await h.request('end',{code,version:1},hostToken);
+ const first=h.emails[0].body;
+ assert.equal(first.subject,'Penina live game scores — Gemara 6');
+ assert(first.text.includes('Wordlist page: Gemara 6'));
+ assert(first.text.includes('Game started: October 9, 2026 at 7:00 AM PDT'));
+ assert(first.text.includes('Game ended: October 9, 2026 at 7:02 AM PDT'));
+ assert(first.text.includes('Time zone: America/Los_Angeles'));
+ await h.request('restart',{code,version:2},hostToken);
+ h.advance(60000);await h.request('start',{code,version:3},hostToken);
+ h.advance(60000);await h.request('end',{code,version:4},hostToken);
+ assert(h.emails[1].body.text.includes('Game started: October 9, 2026 at 7:03 AM PDT'));
+ assert(h.emails[1].body.text.includes('Game ended: October 9, 2026 at 7:04 AM PDT'));
+ assert.equal((await h.create({timeZone:'invalid/timezone'})).code,400);
+});
+
+test('Ending in the lobby reports no start time and a stable end time on email retry',async()=>{
+ const options={now:Date.parse('2026-10-09T14:00:00Z'),emailFailure:true,env:{RESEND_API_KEY:'test',LIVE_SCORE_EMAIL_FROM:'scores@example.com'}};
+ const h=harness(options),{code,hostToken}=(await h.create({sendScoresToTeacher:true,teacherEmail:'teacher@example.com'})).body;
+ await h.request('end',{code,version:0},hostToken);
+ assert(h.emails[0].body.text.includes('Game started: Not started — ended in lobby'));
+ assert(h.emails[0].body.text.includes('Game ended: October 9, 2026 at 10:00 AM EDT'));
+ h.advance(60000);options.emailFailure=false;await h.request(null,{code},hostToken);
+ assert.deepEqual(h.emails[1].body,h.emails[0].body);
+});
+
+test('Joining requires a school email; addresses stay private and match initials in each teacher report',async()=>{
+ const h=harness({env:{RESEND_API_KEY:'test',LIVE_SCORE_EMAIL_FROM:'scores@example.com'}});
+ const {code,hostToken}=(await h.create({sendScoresToTeacher:true,teacherEmail:'teacher@example.com'})).body;
+ for(const schoolEmail of [undefined,'','not-an-email','ab@school','ab @school.org','ab@school.org\nBcc: bad@example.com','x'.repeat(250)+'@school.org']){
+  const result=await h.request('join',{code,name:'AB',joinKey:crypto.randomUUID(),schoolEmail});
+  assert.equal(result.code,400);
+ }
+ const joinKey=crypto.randomUUID();
+ const first=(await h.join(code,'AB',joinKey,' first@school.org ')).body.studentToken;
+ const second=(await h.join(code,'AB',crypto.randomUUID(),'second@school.org')).body.studentToken;
+ await h.join(code,'AB',joinKey,'changed@school.org');
+ let version=0;
+ for(let round=0;round<2;round++){
+  for(const auth of [hostToken,first,second]){
+   const view=await h.request(null,{code},auth);
+   assert.equal(view.body.playerCount,2);
+   assert(!JSON.stringify(view.body).includes('@school.org'));
+  }
+  await h.request('start',{code,version},hostToken);version++;
+  const view=(await h.request(null,{code},first)).body;
+  const correct=view.question.options.indexOf(h.cards.find(card=>card.term===view.question.term).english);
+  await h.request('answer',{code,index:0,round,choice:correct},first);
+  await h.request('reveal',{code,version},hostToken);version++;
+  const reveal=(await h.request(null,{code},second)).body;
+  assert(reveal.scores.every(entry=>entry.name==='AB'));
+  assert(!JSON.stringify(reveal).includes('@school.org'));
+  await h.request('end',{code,version},hostToken);version++;
+  const report=h.emails[round].body.text;
+  assert(report.includes('AB: 100 points — School email: first@school.org'));
+  assert(report.includes('AB: 0 points — School email: second@school.org'));
+  assert(!report.includes('changed@school.org'));
+  for(const auth of [hostToken,first,second])assert(!JSON.stringify((await h.request(null,{code},auth)).body).includes('@school.org'));
+  await h.request('restart',{code,version},hostToken);version++;
+ }
+ for(const [pathname,entry]of h.storage)if(pathname.startsWith('live-vocab/'))assert(!entry.body.includes('@school.org'));
+ assert.match(client, /School email address<input type="email" name="schoolEmail"[^>]*required/);
+ assert.match(client, /request\('join',\{name,joinKey,schoolEmail\}\)/);
+});

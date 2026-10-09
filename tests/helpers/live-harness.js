@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),crypto=require('node:crypto');
 const app=require('../../PeninaPlus-vocab-builder/offline-study-cards');
 module.exports=function liveHarness(options={}){
- const emails=[];const storage=new Map();const operations={lists:0,writes:0,dbLists:0,dbWrites:0};let now=Date.now();
+ const emails=[];const storage=new Map();const operations={lists:0,writes:0,dbLists:0,dbWrites:0};let now=options.now ?? Date.now();
  const sample=[['סוס','horse',['donkey','camel','goat','sheep']],['בית','house',['garden','street','bridge','store']],['מים','water',['bread','milk','wine','salt']],['ספר','book',['table','chair','door','window']],['אור','light',['darkness','sound','wind','rain']],['דרך','path',['wall','roof','floor','field']],['זמן','time',['place','reason','number','name']],['קול','voice',['color','shape','taste','smell']],['גדול','large',['small','short','narrow','thin']],['חדש','new',['old','broken','empty','heavy']]];
  const cards=sample.map(([term,english,answers])=>({term,english,alternativeAnswers:{english:{term,definition:english,answers}}}));
  const setPath='vocabulary-cards/sixth/demo--'+Buffer.from('Class vocabulary').toString('base64url')+'.html';
@@ -22,6 +22,6 @@ module.exports=function liveHarness(options={}){
   await ctx.module.exports(req,res);return res;
  }
  const create=(options={})=>request('create',{grade:'sixth',password:'demo',pathnames:[setPath],language:'english',count:5,...options});
- const join=(code,name='AB',joinKey=crypto.randomUUID())=>request('join',{code,name,joinKey});
+ const join=(code,name='AB',joinKey=crypto.randomUUID(),schoolEmail=joinKey+'@school.example')=>request('join',{code,name,joinKey,schoolEmail});
  return {request,create,join,storage,operations,emails,setPath,page,cards,handler:ctx.module.exports,advance:ms=>{now+=ms;}};
 };

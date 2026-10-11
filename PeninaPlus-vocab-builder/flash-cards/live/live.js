@@ -93,6 +93,7 @@
   };
  }
  function draw(data){
+  if(host)window.PeninaMusic?.update(data);
   fireworks(data);wrongAnswer(data);
   const signature=JSON.stringify(data)+busy+online;if(signature===stamp)return;stamp=signature;snapshot=data;
   const meta=`<div class="question-meta"><span>${esc(data.className)}</span><span>Game <b>${code}</b> · ${data.playerCount} joined</span></div>`;

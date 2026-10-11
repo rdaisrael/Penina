@@ -67,3 +67,7 @@ acceptance is shown as submitted for delivery, not proof of inbox delivery.
 In the lobby, **Game settings** lets the teacher select 5, 10, 15, or 20 questions; manual pacing or 5, 7, or 10 seconds per question; and a 2, 5, 7, 10, 15, 20, or 30-second pause between questions. The pause shows the correct answer and standings. Manual pacing remains teacher-controlled. Uncheck wordlists to exclude them; originally selected lists remain available to include again. If fewer eligible terms remain than requested, all eligible terms are used.
 
 Each round has separate answers, reveal cutoffs, scores, and score-email delivery. Old student submissions cannot count toward a new round. The teacher’s versioned restart is atomic, and student access tokens and the roster stay valid. Game settings and wordlist pools remain server-side; only the teacher receives wordlist names and settings. Replay is available for rooms created with this version; older rooms need to be recreated once.
+
+## Classroom music
+
+The authenticated teacher screen includes music controls above the game. Choose Playlist, add and reorder Kol Haderech and Schar Mitzvah, and press Play music. Playback stays on the teacher device across lobby/question/reveal updates. Teachers can pause, skip, adjust volume, choose play once or repeat, and select No Music to stop. Music stops at game completion and page exit; playlist settings stay available for Play again. A page refresh resets to No Music. Students do not load or play audio. The shared MP3 files are in `music/`.

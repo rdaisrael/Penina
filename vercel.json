@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
+    { "src": "^/lib/quiz-grading(?:\\.js)?$", "status": 404 },
+    { "src": "^/tests/quiz-submissions\\.test\\.js$", "status": 404 },
+    { "handle": "filesystem" }
+  ]
+}

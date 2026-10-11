@@ -66,7 +66,7 @@
     startLive.addEventListener('click', openLiveSetup);management.prepend(startLive);
     const scoreEmailControls = document.createElement('div');
     scoreEmailControls.className = 'score-email-controls';
-    scoreEmailControls.innerHTML = '<label class="score-email-choice"><input type="checkbox" id="send-scores-to-teacher"><span>Send scores to teacher (coming soon)</span></label><input type="email" id="teacher-score-email" placeholder="Enter teacher email" aria-label="Teacher email for scores" autocomplete="email" maxlength="254" disabled>';
+    scoreEmailControls.innerHTML = '<label class="score-email-choice"><input type="checkbox" id="send-scores-to-teacher"><span>Send scores to teacher</span></label><input type="email" id="teacher-score-email" placeholder="Enter teacher email" aria-label="Teacher email for scores" autocomplete="email" maxlength="254" disabled>';
     startLive.after(scoreEmailControls);
     const sendScoresToTeacher = scoreEmailControls.querySelector('#send-scores-to-teacher');
     const teacherScoreEmail = scoreEmailControls.querySelector('#teacher-score-email');

@@ -4,7 +4,12 @@ const form = document.getElementById('login'), status = document.getElementById(
 function esc(s) { return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 const quizURL = new URL('./', location.href).href;
 document.getElementById('studentLink').value = quizURL;
-document.getElementById('classroom').href = 'https://classroom.google.com/share?url=' + encodeURIComponent(quizURL);
+const classroomShareURL = new URL('https://classroom.google.com/share');
+classroomShareURL.searchParams.set('url', quizURL);
+classroomShareURL.searchParams.set('itemtype', 'assignment');
+const accountChooserURL = new URL('https://accounts.google.com/AccountChooser');
+accountChooserURL.searchParams.set('continue', classroomShareURL.href);
+document.getElementById('classroom').href = accountChooserURL.href;
 function scoreText(g) {
     return g.pending ? `Multiple choice: ${g.automaticScore}/10 · ${g.pending} question${g.pending===1?'':'s'} awaiting correction` : `Final: ${g.total}/12 (includes extra credit) · Multiple choice: ${g.automaticScore}/10`;
 }

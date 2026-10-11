@@ -64,7 +64,7 @@ test('Students use at most three letter initials, normalized to uppercase',async
  assert.deepEqual(lobby.body.players.map(p=>p.name),['A','AB','ABC','אבג']);
 });
 
-test('Timed pacing enforces each deadline, reveals for two seconds, advances once and finishes',async()=>{
+test('Timed pacing enforces each deadline, reveals for five seconds, advances once and finishes',async()=>{
  for(const seconds of [5,7,10]){
   const h=harness(),created=await h.create({seconds}),{code,hostToken}=created.body,joined=await h.join(code),student=joined.body.studentToken;
   await h.request('start',{code,version:0},hostToken);
@@ -76,7 +76,7 @@ test('Timed pacing enforces each deadline, reveals for two seconds, advances onc
    h.advance(seconds*1000-1);assert.equal((await h.request(null,{code},student)).body.phase,'question');
    h.advance(1);assert.equal((await h.request('answer',{code,index,choice},student)).code,409);
    view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'reveal');assert.equal(view.me.score,(index+1)*100);
-   h.advance(1999);assert.equal((await h.request(null,{code},student)).body.phase,'reveal');h.advance(1);
+   h.advance(4999);assert.equal((await h.request(null,{code},student)).body.phase,'reveal');h.advance(1);
    const views=await Promise.all([h.request(null,{code},student),h.request(null,{code},hostToken)]);
    assert.equal(views[0].body.version,3+index*2);assert.equal(views[1].body.version,3+index*2);
   }
@@ -126,19 +126,19 @@ test('Teacher pause freezes timing and student answers; resume preserves remaini
  await h.request('resume',{code,version:2},hostToken);view=(await h.request(null,{code},student)).body;assert.equal(view.deadline-view.serverNow,3000);
  h.advance(3000);view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'reveal');
  await h.request('pause',{code,version:view.version},hostToken);h.advance(10000);view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'reveal');assert.equal(view.paused,true);
- await h.request('resume',{code,version:view.version},hostToken);h.advance(2000);view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'question');assert.equal(view.lastReveal.question.correct>=0,true);
+ await h.request('resume',{code,version:view.version},hostToken);h.advance(5000);view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'question');assert.equal(view.lastReveal.question.correct>=0,true);
 });
 test('Live standings expose only three places while preserving each personal score',async()=>{
  const h=await setup();for(const name of ['CD','EF','GH','IJ'])await h.join(h.code,name);
  await h.request('start',{code:h.code,version:0},h.hostToken);await h.request('reveal',{code:h.code,version:1},h.hostToken);
  const view=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(view.scores.length,3);assert.equal(view.me.score,0);
 });
-test('A screen that misses the server reveal still displays the answer for two seconds',()=>{
+test('A screen that misses the server reveal still displays the answer for five seconds',()=>{
  let now=1000;const drawn=[];
  const context={Date:{now:()=>now},revealSeen:new Set(),revealUntil:0,snapshot:null,clockOffset:0,draw:data=>{context.snapshot=data;drawn.push(data.phase);},updateClock(){}};
  vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' function draw(data){')),context);
  const data={phase:'question',index:1,lastReveal:{phase:'reveal',index:0}};
- context.present(data);assert.deepEqual(drawn,['reveal']);now=2999;context.present(data);assert.deepEqual(drawn,['reveal']);now=3000;context.present(data);assert.deepEqual(drawn,['reveal','question']);
+ context.present(data);assert.deepEqual(drawn,['reveal']);now=5999;context.present(data);assert.deepEqual(drawn,['reveal']);now=6000;context.present(data);assert.deepEqual(drawn,['reveal','question']);
 });
 
 test('Wrong answers show a brief X only to that student after reveal, once per question',()=>{
@@ -186,7 +186,7 @@ test('Supabase classroom game uses zero Blob operations after loading vocabulary
   const responses=await Promise.all(students.map(student=>h.request('answer',{code,index,choice:correct},student)));assert(responses.every(r=>r.code===200));
   await h.request('answer',{code,index,choice:(correct+1)%4},students[0]);
   h.advance(5000);const reveal=(await h.request(null,{code},students[0])).body;assert.equal(reveal.phase,'reveal');assert.equal(reveal.me.score,100*(index+1));assert.equal(reveal.scores.length,3);
-  h.advance(2000);await h.request(null,{code},hostToken);
+  h.advance(5000);await h.request(null,{code},hostToken);
  }
  const end=(await h.request(null,{code},students[0])).body;assert.equal(end.phase,'ended');assert.equal(end.me.score,500);
  assert.equal(h.operations.lists,before.lists);assert.equal(h.operations.writes,before.writes);assert(h.operations.dbWrites>130);
@@ -250,7 +250,7 @@ test('Timed games send scores automatically after their final reveal',async()=>{
  const {code,hostToken}=(await h.create({seconds:5,sendScoresToTeacher:true,teacherEmail:'teacher@example.com'})).body;
  const student=(await h.join(code)).body.studentToken;
  await h.request('start',{code,version:0},hostToken);
- for(let i=0;i<5;i++){h.advance(5000);await h.request(null,{code},student);h.advance(2000);await h.request(null,{code},student);}
+ for(let i=0;i<5;i++){h.advance(5000);await h.request(null,{code},student);h.advance(5000);await h.request(null,{code},student);}
  assert.equal(h.emails.length,1);assert(h.emails[0].body.text.includes('Questions scored: 5'));
 });
 
@@ -414,4 +414,21 @@ test('Joining requires a school email; addresses stay private and match initials
  for(const [pathname,entry]of h.storage)if(pathname.startsWith('live-vocab/'))assert(!entry.body.includes('@school.org'));
  assert.match(client, /School email address<input type="email" name="schoolEmail"[^>]*required/);
  assert.match(client, /request\('join',\{name,joinKey,schoolEmail\}\)/);
+});
+
+test('Live games emphasize the latest date and honor the chosen reveal duration',async()=>{
+ const h=harness(),recent=h.cards.slice(0,3),older=h.cards.slice(3),oldPath='vocabulary-cards/sixth/old.html';
+ const pack=cards=>'<script id="peninaCardData" type="application/json">'+JSON.stringify(cards)+'</script>';
+ h.storage.set(h.setPath,{body:pack(recent),uploadedAt:'2026-10-10T16:00:00Z'});
+ h.storage.set(oldPath,{body:pack(older),uploadedAt:'2026-10-09T16:00:00Z'});
+ const created=await h.create({pathnames:[h.setPath,oldPath],count:5,seconds:5,revealSeconds:7});assert.equal(created.code,201,JSON.stringify(created.body));const {code,hostToken}=created.body;await h.join(code);
+ await h.request('start',{code,version:0},hostToken);
+ for(let index=0;index<5;index++){
+  const view=(await h.request(null,{code},hostToken)).body;
+  assert.equal(recent.some(row=>row.term===view.question.term),index!==3);
+  h.advance(5000);assert.equal((await h.request(null,{code},hostToken)).body.phase,'reveal');
+  h.advance(6999);assert.equal((await h.request(null,{code},hostToken)).body.phase,'reveal');
+  h.advance(1);await h.request(null,{code},hostToken);
+ }
+ assert.equal((await h.request(null,{code},hostToken)).body.phase,'ended');
 });

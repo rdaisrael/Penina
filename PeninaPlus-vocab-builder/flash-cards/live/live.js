@@ -58,7 +58,7 @@
   if(data.serverNow)clockOffset=data.serverNow-Date.now();
   const reveal=data.phase==='reveal'?data:data.lastReveal;
   if(reveal&&!revealSeen.has(`${reveal.round||0}:${reveal.index}`)){
-   revealSeen.add(`${reveal.round||0}:${reveal.index}`);revealUntil=Date.now()+2000;
+   revealSeen.add(`${reveal.round||0}:${reveal.index}`);revealUntil=Date.now()+(reveal.revealSeconds??5)*1000;
    draw(reveal);updateClock();return;
   }
   if((snapshot?.round||0)===(data.round||0) && Date.now()<revealUntil && snapshot?.phase==='reveal' && data.phase!=='reveal')return;

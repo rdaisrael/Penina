@@ -10,11 +10,11 @@ async function readGameSettings(grade) {
     const pathname = `vocabulary-game-settings/${grade}.json`;
     const result = await list({ prefix: pathname, limit: 1 });
     const blob = result.blobs.find(item => item.pathname === pathname);
-    if (!blob) return [];
+    if (!blob) return { disabledGames: [], excludedWordlists: [] };
     const response = await fetch(blob.url, { cache: 'no-store' });
     if (!response.ok) throw new Error('Game settings could not be loaded.');
     const data = await response.json();
-    return Array.isArray(data.disabledGames) ? data.disabledGames.filter(id => GAME_IDS.includes(id)) : [];
+    return { disabledGames: Array.isArray(data.disabledGames) ? data.disabledGames.filter(id => GAME_IDS.includes(id)) : [], excludedWordlists: Array.isArray(data.excludedWordlists) ? data.excludedWordlists.filter(p => typeof p === 'string') : [] };
 }
 
 
@@ -87,11 +87,11 @@ module.exports = async function (req, res) {
         const page = await getPage(grade);
         if (!page) return send(res, 400, { error: 'Choose an existing vocabulary webpage.' });
         if (req.method === 'GET') {
-            const disabledGames = await readGameSettings(grade);
+            const { disabledGames, excludedWordlists } = await readGameSettings(grade);
             const blobs = await listAll(`vocabulary-cards/${grade}/`);
             if (req.query.games === '1') {
                 const dateFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
-                const groups = await Promise.all(blobs.map(async blob => {
+                const groups = await Promise.all(blobs.filter(blob => !excludedWordlists.includes(blob.pathname)).map(async blob => {
                     const response = await fetch(blob.url);
                     if (!response.ok) throw new Error('A class set could not be loaded.');
                     const parts = Object.fromEntries(dateFormat.formatToParts(new Date(blob.uploadedAt)).map(part => [part.type, part.value]));
@@ -137,7 +137,7 @@ module.exports = async function (req, res) {
             }
             sets.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
             res.setHeader('Cache-Control', 'no-store');
-            return send(res, 200, { grade, page: publicPage(page), sets, disabledGames });
+            return send(res, 200, { grade, page: publicPage(page), sets, disabledGames, excludedWordlists });
         }
 
         if (!['POST', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method Not Allowed' });
@@ -164,13 +164,23 @@ module.exports = async function (req, res) {
             return send(res, 200, { grade, removed: pathnames });
         }
 
+        if (req.body && req.body.action === 'wordlist-settings') {
+            const excludedWordlists = req.body.excludedWordlists;
+            const existing = await listAll(`vocabulary-cards/${grade}/`);
+            if (!Array.isArray(excludedWordlists) || excludedWordlists.some(p => !existing.some(b => b.pathname === p))) return send(res, 400, { error: 'Choose valid wordlists.' });
+            await put(`vocabulary-game-settings/${grade}.json`, JSON.stringify({ ...(await readGameSettings(grade)), excludedWordlists: [...new Set(excludedWordlists)] }), {
+                access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 0
+            });
+            return send(res, 200, { excludedWordlists });
+        }
+
         if (req.body && req.body.action === 'game-settings') {
             const disabledGames = req.body.disabledGames;
             if (!Array.isArray(disabledGames) || disabledGames.length > GAME_IDS.length || disabledGames.some(id => !GAME_IDS.includes(id))) {
                 return send(res, 400, { error: 'Choose valid games to remove.' });
             }
             const selected = [...new Set(disabledGames)];
-            await put(`vocabulary-game-settings/${grade}.json`, JSON.stringify({ disabledGames: selected }), {
+            await put(`vocabulary-game-settings/${grade}.json`, JSON.stringify({ ...(await readGameSettings(grade)), disabledGames: selected }), {
                 access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 0
             });
             res.setHeader('Cache-Control', 'no-store');
@@ -178,7 +188,7 @@ module.exports = async function (req, res) {
         }
 
         if (req.body && req.body.action === 'authenticate') {
-            return send(res, 200, { authenticated: true, disabledGames: await readGameSettings(grade) });
+            return send(res, 200, { authenticated: true, ...(await readGameSettings(grade)) });
         }
 
         const title = String(req.body && req.body.title || '').replace(/\s+/g, ' ').trim().slice(0, 120);

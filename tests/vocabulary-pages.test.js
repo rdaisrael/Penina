@@ -219,3 +219,24 @@ test('Game choices require the class password, persist, and remain isolated by c
     const restored = await request('api/flashcard-sets.js', 'GET', {}, { grade: 'game-class', games: '1' });
     assert(restored.body.includes('data-game="quiz"')); assert(restored.body.includes('data-game="chomp"'));
 });
+
+test('Wordlist inclusion persists without deleting sets and preserves exercise choices', async () => {
+ const {request,create}=server();await create({name:'Included Class',password:'code'});
+ const base={grade:'included-class',password:'code'};
+ const html=require('../PeninaPlus-vocab-builder/offline-study-cards').makeApp('Review',[{term:'סוס',english:'horse',alternativeAnswers:{english:{term:'סוס',definition:'horse',answers:['cow','dog','cat','bird']}}}]);
+ await request('api/flashcard-sets.js','POST',{...base,title:'Review',html});
+ let listing=await request('api/flashcard-sets.js','GET',{},base);const pathname=listing.body.sets[0].pathname;
+ assert.deepEqual(listing.body.excludedWordlists,[]);
+ const settings={...base,action:'wordlist-settings',excludedWordlists:[pathname]};
+ assert.equal((await request('api/flashcard-sets.js','POST',{...settings,password:'wrong'})).code,401);
+ assert.equal((await request('api/flashcard-sets.js','POST',{...settings,excludedWordlists:['other/class.html']})).code,400);
+ await request('api/flashcard-sets.js','POST',{...base,action:'game-settings',disabledGames:['quiz']});
+ assert.equal((await request('api/flashcard-sets.js','POST',settings)).code,200);
+ listing=await request('api/flashcard-sets.js','GET',{},base);
+ assert.equal(listing.body.sets.length,1);assert.deepEqual(listing.body.disabledGames,['quiz']);assert.deepEqual(listing.body.excludedWordlists,[pathname]);
+ assert.match((await request('api/flashcard-sets.js','GET',{}, {...base,games:'1'})).body,/No games are currently available/);
+ await request('api/flashcard-sets.js','POST',{...base,action:'game-settings',disabledGames:[]});
+ assert.deepEqual((await request('api/flashcard-sets.js','GET',{},base)).body.excludedWordlists,[pathname]);
+ await request('api/flashcard-sets.js','POST',{...settings,excludedWordlists:[]});
+ assert.match((await request('api/flashcard-sets.js','GET',{}, {...base,games:'1'})).body,/data-game="quiz"/);
+});

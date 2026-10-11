@@ -1,0 +1,16 @@
+[
+{"prompt":"תַּנָּא","choices":["Until","Rabbi from the time of the Gemara","Rabbi from the time of the Mishnah","Sunset"]},
+{"prompt":"הָכָא","choices":["No Where","Here","There","Anywhere"]},
+{"prompt":"Which prefix in Aramaic means \"that\" or \"of\""},
+{"prompt":"נֵץ הַחַמָּה","choices":["Flower Blossoms","Rays of the sun","Sunrise","Sunset"]},
+{"prompt":"חֲצוֹת","choices":["Morning","Mid-day","Set time","Half"]},
+{"prompt":"Define: בָּרָיְתָא"},
+{"prompt":"עַד","choices":["Until","Sunset","Last part","Sunrise"]},
+{"prompt":"שְׁקִיעָה","choices":["Mid-day","Sunrise","Sunset","Another way to say \"Yasher Koach!\""]},
+{"prompt":"רֵישָׁא","choices":["First part","Middle part","Last part","headphones"]},
+{"prompt":"There","choices":["נֵץ הַחַמָּה","הַתָּם","סֵיפָא","הָכָא"]},
+{"prompt":"Last part","choices":["שְׁקִיעָה","הַתָּם","חֲצוֹת","סֵיפָא"]},
+{"prompt":"Set time","choices":["שְׁקִיעָה","קְבַע","בָּרָיְיתָא","חֲצוֹת"]},
+{"prompt":"Extra credit (2 points): Write the name of the commentator in each marked area.","image":true,"fields":["Commentator A","Commentator B"]},
+{"prompt":"Extra credit (2 points): Identify the page and its position in an open Talmud.","image":true,"fields":["A. Write completely what page this is in English.","B. Which side would this page be on in an open Talmud?"]}
+]

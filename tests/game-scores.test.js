@@ -1,11 +1,11 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 test('Shared leaderboard route dispatches each game and rejects unknown games',async()=>{
- const calls=[],ctx={module:{exports:{}},require:name=>(req,res)=>{calls.push(name);res.status(200).json({grade:req.query.grade});}};
+ const calls=[],ctx={module:{exports:{}},require:name=>{const handler=(req,res)=>{calls.push(name);res.status(200).json({grade:req.query.grade});};return name==='../lib/quiz-account'?{handle:handler}:handler;}};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../api/game-scores.js'),'utf8'),ctx);
- for(const game of ['asteroids','matching','flappy','live','assessment','unknown',undefined]){
+ for(const game of ['asteroids','matching','flappy','live','assessment','quiz-account','unknown',undefined]){
   const res={setHeader(){},status(code){this.code=code;return this;},json(data){this.body=data;}};
   await ctx.module.exports({query:{game,grade:'sixth'}},res);
-  assert.equal(res.code,['asteroids','matching','flappy','live','assessment'].includes(game)?200:400);
+  assert.equal(res.code,['asteroids','matching','flappy','live','assessment','quiz-account'].includes(game)?200:400);
  }
- assert.deepEqual(calls,['../lib/asteroids-scores','../lib/matching-scores','../lib/flappy-scores','../lib/live-game','../lib/quiz-submissions']);
+ assert.deepEqual(calls,['../lib/asteroids-scores','../lib/matching-scores','../lib/flappy-scores','../lib/live-game','../lib/quiz-submissions','../lib/quiz-account']);
 });

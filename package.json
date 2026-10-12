@@ -5,6 +5,7 @@
     "@google/generative-ai": "^0.21.0",
     "@vercel/blob": "^2.8.0",
     "exceljs": "^4.4.0",
+    "google-auth-library": "^10.9.1",
     "jszip": "^3.10.1"
   },
   "overrides": {

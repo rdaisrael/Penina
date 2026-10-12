@@ -2,8 +2,11 @@ const test = require('node:test'), assert = require('node:assert/strict'), vm = 
 const questions = require('../Penina-Quizzes/gemara-6-wl-2/questions.json');
 function harness() {
     const blobs = new Map(); let writes = 0, now = Date.now();
+    let gradeError=false;const sentGrades=[];
+    let identity={sub:'student-id',classId:'c'.repeat(32),className:'Test class',name:'Student <one>',email:'student@school.org'};
     class TestDate extends Date {constructor(...args){super(...(args.length?args:[now]));} static now(){return now;}}
     const ctx = {Date:TestDate,module:{exports:{}},Buffer,console:{error(){}},process:{env:{BLOB_READ_WRITE_TOKEN:'test-server-secret'}},fetch:async url=>({ok:true,text:async()=>blobs.get(url)}),require:n=>{
+        if(n==='./quiz-account') return {requireStudent:async()=>{if(!identity)throw Object.assign(new Error('Not enrolled'),{status:403});return identity;},sendGrade:async(req,record,grading)=>{if(gradeError)throw Object.assign(Error('Google unavailable'),{status:503});sentGrades.push({record,grading});return {score:grading.total};}};
         if(n==='./quiz-grading') return require('../lib/quiz-grading');
         if(n==='crypto') return require('crypto');
         if(n.endsWith('questions.json')) return questions;
@@ -25,7 +28,7 @@ function harness() {
         }
         return run(body);
     };
-    return {run:autoRun,rawRun:run,advance:ms=>now+=ms,blobs,writes:()=>writes,handler:ctx.module.exports};
+    return {sentGrades,setGradeError:value=>gradeError=value,setUser:user=>identity=user,run:autoRun,rawRun:run,advance:ms=>now+=ms,blobs,writes:()=>writes,handler:ctx.module.exports};
 }
 function submission() {return {action:'submit',id:'a'.repeat(32),name:'Student <one>',email:'student@school.org',answers:questions.map((q,i)=>Array(q.fields?.length||1).fill(q.choices?.[0] || (i<12?'answer':'')))};}
 test('Students can submit but cannot retrieve reports; stored names and answers are encrypted',async()=>{
@@ -39,7 +42,7 @@ test('Retrying the same receipt does not overwrite or duplicate the submission',
     assert.equal((await h.run({action:'report',password:'teacher-secret'})).data.submissions[0].name,'Student <one>');
 });
 test('Invalid choices, missing required answers, and oversized input are rejected',async()=>{
-    for(const mutate of [b=>b.answers[0]=['made up'],b=>b.answers[2]=[''],b=>b.answers.pop(),b=>b.name='x'.repeat(121),b=>b.id='../record',b=>b.email='invalid',b=>b.answers[13]=['x'.repeat(2001),'']]){
+    for(const mutate of [b=>b.answers[0]=['made up'],b=>b.answers[2]=[''],b=>b.answers.pop(),b=>b.id='../record',b=>b.answers[13]=['x'.repeat(2001),'']]){
         const h=harness(),body=submission();mutate(body);assert.equal((await h.run(body)).code,400);assert.equal(h.writes(),0);
     }
 });
@@ -104,6 +107,50 @@ test('Expired attempts accept unanswered questions for automatic submission and 
 test('Unsigned, tampered and mismatched-email attempt tokens are rejected',async()=>{
     const h=harness(),body=submission();assert.equal((await h.rawRun(body)).code,400);
     const first=await h.rawRun({action:'start',id:body.id,email:body.email});
-    body.token=first.data.token;body.email='another@school.org';assert.equal((await h.rawRun(body)).code,400);
+    body.token=first.data.token;h.setUser({sub:'other-student',classId:'c'.repeat(32),name:'Other',email:'student@school.org'});assert.equal((await h.rawRun(body)).code,400);
     body.email='student@school.org';body.token=body.token.replace('data','broken');assert.equal((await h.rawRun(body)).code,400);
+});
+
+test('Student identity comes from verified Google account; enrollment is checked again on submission',async()=>{
+    const h=harness(),body=submission();const started=await h.rawRun({action:'start',id:body.id});
+    body.token=started.data.token;body.name='Impersonated';body.email='another@school.org';
+    h.setUser(null);assert.equal((await h.rawRun(body)).code,403);
+    h.setUser({sub:'student-id',classId:'c'.repeat(32),className:'Test class',name:'Verified Student',email:'student@school.org'});
+    assert.equal((await h.rawRun(body)).code,200);
+    const r=(await h.run({action:'report',password:'teacher-secret'})).data.submissions[0];
+    assert.equal(r.name,'Verified Student');assert.equal(r.email,'student@school.org');assert.equal(r.sub,'student-id');
+});
+test('Attempt tokens are bound to class as well as Google account',async()=>{
+    const h=harness(),body=submission();const started=await h.rawRun({action:'start',id:body.id});body.token=started.data.token;
+    h.setUser({sub:'student-id',classId:'d'.repeat(32),name:'Student <one>',email:'student@school.org'});
+    assert.equal((await h.rawRun(body)).code,400);
+});
+
+test('Class teachers can repeat practice with fresh timers; practice stays out of student reports',async()=>{
+    const h=harness();h.setUser({sub:'teacher-id',classId:'c'.repeat(32),className:'Gemara',name:'Teacher',email:'disrael@saracademy.org',isClassTeacher:true});
+    const first=await h.rawRun({action:'start',id:'a'.repeat(32)});
+    const body={...submission(),token:first.data.token};
+    assert.equal((await h.rawRun(body)).code,200);
+    assert.equal((await h.rawRun(body)).code,200);
+    h.advance(60000);
+    const next=await h.rawRun({action:'start',id:'b'.repeat(32)});
+    assert.equal(next.code,200);assert.equal(next.data.id,'b'.repeat(32));assert(next.data.deadline>first.data.deadline);
+    assert.equal((await h.rawRun({...submission(),id:next.data.id,token:next.data.token})).code,200);
+    assert.equal((await h.run({action:'report',password:'teacher-secret'})).data.submissions.length,0);
+    assert.equal([...h.blobs.keys()].filter(p=>p.startsWith('quiz-practice/')).length,2);
+    h.setUser({sub:'teacher-id',classId:'c'.repeat(32),name:'Teacher',email:'disrael@saracademy.org',isClassTeacher:false});
+    assert.equal((await h.rawRun(body)).code,400);
+});
+test('Client-supplied teacher flags cannot let a student repeat the quiz',async()=>{
+    const h=harness();await h.run({...submission(),isClassTeacher:true,role:'teacher'});
+    assert.equal((await h.rawRun({action:'start',id:'b'.repeat(32),isClassTeacher:true,role:'teacher'})).code,409);
+});
+
+test('Sending corrections uses server-calculated grades; Google failures preserve saved corrections and allow retry',async()=>{
+    const h=harness();await h.run(submission());
+    const body={action:'correct',id:'a'.repeat(32),password:'teacher-secret',scores:[1,0.5,2,1],feedback:'Reviewed',sendToClassroom:true,total:100,sub:'attacker',courseWorkId:'wrong'};
+    h.setGradeError(true);const failed=await h.run(body);assert.equal(failed.code,200);assert.equal(failed.data.classroomError,'Google unavailable');
+    assert.equal((await h.run({action:'report',password:'teacher-secret'})).data.submissions[0].grading.feedback,'Reviewed');
+    h.setGradeError(false);const sent=await h.run(body);assert.equal(sent.data.classroom.score,sent.data.grading.total);
+    assert.equal(h.sentGrades[0].record.sub,'student-id');assert.notEqual(h.sentGrades[0].grading.total,100);
 });

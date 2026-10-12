@@ -1,6 +1,8 @@
 'use strict';
 const API = '/api/game-scores?game=assessment';
-const DRAFT = 'penina-gemara6-wl2-v1';
+const ACCOUNT_API='/api/game-scores?game=quiz-account';
+const classId=new URLSearchParams(location.search).get('class') || '';
+let DRAFT, isClassTeacher = false;
 let questions, saved = {}, submission, page = 0, expired = false, sending = false, clock;
 const form = document.getElementById('quiz'), status = document.getElementById('status');
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -9,11 +11,11 @@ function snapshot() { saved.values = {}; for(const [name,value] of new FormData(
 function answer(q, i) { return Array.from({length:q.fields?.length || 1}, (_, j) => form.elements.namedItem(`q${i}-${j}`)?.value || ''); }
 function diagram(i) {
     const marks = i === 12 ? '<circle cx="750" cy="85" r="25"/><text x="750" y="93">A</text><circle cx="330" cy="277" r="25"/><text x="330" y="285">B</text>' : '<circle cx="842" cy="34" r="29"/><text x="842" y="42">A</text>';
-    return `<div class="diagram"><img src="talmud-page.png" alt="Talmud page used for the extra-credit question. Use the marked areas to answer." width="999" height="531"><svg aria-hidden="true" viewBox="0 0 999 531">${marks}</svg></div>`;
+    return `<div class="diagram"><img src="${ACCOUNT_API}&amp;action=image&amp;classId=${encodeURIComponent(classId)}" alt="Talmud page used for the extra-credit question. Use the marked areas to answer." width="999" height="531"><svg aria-hidden="true" viewBox="0 0 999 531">${marks}</svg></div>`;
 }
 async function request(record) {
-    const response = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
-    const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Your quiz could not be saved.'); return result;
+    const response = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,classId})});
+    const result = await response.json(); if(response.status===401)document.getElementById('googleLogin').hidden=false; if (!response.ok) throw new Error(result.error || 'Your quiz could not be saved.'); return result;
 }
 function navigate(value) {
     page = Math.max(0,Math.min(questions.length,value)); saved.page=page; store();
@@ -27,6 +29,10 @@ function navigate(value) {
 function showReceipt() {
     clearInterval(clock); form.hidden = true; status.textContent = '';
     document.getElementById('receipt').hidden = false;
+    if(isClassTeacher) {
+        document.getElementById('receiptMessage').textContent='Teacher practice complete. You can take the quiz again. These answers are kept separate from student submissions.';
+        document.getElementById('repeatQuiz').hidden=false;
+    }
     document.getElementById('receiptId').textContent = `Receipt: ${submission.id}`;
     const automatic = new Map((submission.automatic || []).map(q=>[q.index,q]));
     document.getElementById('answerFeedback').innerHTML=questions.map((q,i)=>{
@@ -55,14 +61,27 @@ function enterQuiz() {
 }
 (async () => {
     try {
-        const response = await fetch('questions.json'); if (!response.ok) throw new Error('Quiz questions could not be loaded.'); questions = await response.json();
+        if(!/^[a-f0-9]{32}$/.test(classId)) {
+            document.getElementById('googleSignIn').hidden=true;
+            throw new Error('Open the class-specific quiz link your teacher posted in Google Classroom.');
+        }
+        const response = await fetch(ACCOUNT_API+'&action=student&classId='+encodeURIComponent(classId));
+        const identity=await response.json();
+        if(!response.ok)throw new Error(identity.error || 'Sign in with Google to continue.');
+        questions=identity.questions;
+        isClassTeacher=identity.isClassTeacher===true;
+        if(isClassTeacher)document.getElementById('attemptRule').textContent='Teacher practice: you may take this quiz as many times as you want.';
+        DRAFT='penina-gemara6-wl2-google:'+identity.sub+':'+classId;
+        document.getElementById('googleLogin').hidden=true;
+        document.getElementById('studentIdentity').textContent=identity.name+' · '+identity.email+' · '+identity.className;
+        form.elements.studentName.value=identity.name;form.elements.studentEmail.value=identity.email;
         try { saved = JSON.parse(localStorage.getItem(DRAFT)) || {}; } catch (_) {}
         document.getElementById('questions').innerHTML = questions.map((q,i)=>`<section class="card" hidden><p class="number">Question ${i+1} · ${i<12?'1 point':'2 extra-credit points'}</p><h2 class="prompt" dir="auto">${esc(q.prompt)}</h2>${q.image ? diagram(i) : ''}${q.choices ? `<fieldset style="border:0;padding:0;margin:0"><legend class="muted">Choose one answer</legend>${q.choices.map(c=>`<label class="choice"><input type="radio" name="q${i}-0" value="${esc(c)}" required><span dir="auto">${esc(c)}</span></label>`).join('')}</fieldset>` : (q.fields || ['Your answer']).map((label,j)=>`<label>${esc(label)}<textarea name="q${i}-${j}" dir="auto" spellcheck="true" maxlength="2000" ${i<12?'required':''}></textarea></label>`).join('')}</section>`).join('');
-        for (const [name,value] of Object.entries(saved.values || {})) { const control = form.elements.namedItem(name); if (control) control.value = value; }
+        for (const [name,value] of Object.entries(saved.values || {})) { const control = form.elements.namedItem(name); if (control && !['studentName','studentEmail'].includes(name)) control.value = value; }
         form.hidden = false; status.textContent = 'Your work is saved on this browser as you go.';
         if (saved.submission) { submission = saved.submission; showReceipt(); }
         else if(saved.attempt) enterQuiz();
-    } catch (error) { status.textContent = error.message + ' Reload the page to try again.'; }
+    } catch (error) { status.textContent = error.message; }
 })();
 form.addEventListener('input',snapshot);
 document.getElementById('start').addEventListener('click',async()=>{
@@ -97,4 +116,19 @@ async function submitQuiz() {
 form.addEventListener('submit',event=>{event.preventDefault();submitQuiz();});
 document.getElementById('previous').addEventListener('click',()=>navigate(page-1));
 document.getElementById('next').addEventListener('click',()=>navigate(page+1));
-document.getElementById('newStudent').addEventListener('click', () => { saved = {}; try { localStorage.removeItem(DRAFT); } catch (_) {} location.reload(); });
+document.getElementById('newStudent').addEventListener('click',async()=>{
+    await fetch(ACCOUNT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})});location.reload();
+});
+document.getElementById('googleSignIn').addEventListener('click',async()=>{
+    const button=document.getElementById('googleSignIn');button.disabled=true;
+    try {
+        const response=await fetch(ACCOUNT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',role:'student',classId})});
+        const result=await response.json();if(!response.ok)throw new Error(result.error);
+        location.assign(result.url);
+    }catch(error){status.textContent=error.message;button.disabled=false;}
+});
+
+document.getElementById('repeatQuiz').addEventListener('click',()=>{
+    if(!isClassTeacher)return;
+    localStorage.removeItem(DRAFT);location.reload();
+});

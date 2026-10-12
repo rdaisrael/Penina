@@ -1,8 +1,29 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
-    { "src": "^/lib/quiz-grading(?:\\.js)?$", "status": 404 },
-    { "src": "^/tests/quiz-submissions\\.test\\.js$", "status": 404 },
-    { "handle": "filesystem" }
-  ]
+    {
+      "src": "^/(lib|tests)/quiz[^/]*$",
+      "status": 404
+    },
+    {
+      "src": "^/Penina-Quizzes/gemara-6-wl-2/(questions(?:\\.json)?|talmud-page(?:\\.png)?)$",
+      "status": 404
+    },
+    {
+      "src": "^/lib/quiz-grading(?:\\.js)?$",
+      "status": 404
+    },
+    {
+      "src": "^/tests/quiz-submissions\\.test\\.js$",
+      "status": 404
+    },
+    {
+      "handle": "filesystem"
+    }
+  ],
+  "functions": {
+    "api/game-scores.js": {
+      "includeFiles": "Penina-Quizzes/gemara-6-wl-2/{questions.json,talmud-page.png}"
+    }
+  }
 }

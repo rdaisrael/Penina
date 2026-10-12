@@ -7,8 +7,8 @@ function harness() {
         generateAuthUrl(options){state.options=options;return 'https://accounts.google.com/o/oauth2/v2/auth?state='+options.state;}
         async getToken(options){state.exchange=options;return {tokens:{id_token:'verified-by-library',refresh_token:'refresh-secret',scope:[...state.options.scope].join(' ')}};}
         async verifyIdToken(options){state.verification=options;if(state.invalidToken)throw Error('Invalid signature or audience');return {getPayload:()=>({sub:'student-id',email:'student@school.org',name:'Student',email_verified:true,nonce:state.wrongNonce?'wrong':state.options.nonce})};}
-        async request({url,params,method='GET',data}) {
-            requests.push({url,params,method,data});
+        async request({url,params,paramsSerializer,method='GET',data}) {
+            requests.push({url,params,method,data,query:paramsSerializer(params)});
             if(url.endsWith(':return')) {if(state.returnFailure)throw {response:{status:503}};return {data:{}};}
             if(method==='PATCH')return {data:{...data,id:'submission-1'}};
             if(url.endsWith('/studentSubmissions'))return {data:{studentSubmissions:[{id:'submission-1',userId:state.wrongStudent?'other':'student-id',courseId:'course-1',courseWorkId:'work-1',associatedWithDeveloper:!state.foreignWork,state:state.submissionState || 'TURNED_IN'}]}};
@@ -23,7 +23,7 @@ function harness() {
             return {data:{id:'course-1',name:'Gemara',courseState:state.active?'ACTIVE':'ARCHIVED'}};
         }
     }
-    const ctx={__dirname:path.join(__dirname,'../lib'),module:{exports:{}},URL,Buffer,process:{env},fetch:async url=>({ok:true,text:async()=>blobs.get(url)}),require:n=>{
+    const ctx={__dirname:path.join(__dirname,'../lib'),module:{exports:{}},URL,URLSearchParams,Buffer,process:{env},fetch:async url=>({ok:true,text:async()=>blobs.get(url)}),require:n=>{
         if(n==='crypto')return require('crypto');
         if(n==='google-auth-library')return {OAuth2Client};
         if(n==='@vercel/blob')return {del:async p=>blobs.delete(p),list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,options)=>{if(options?.allowOverwrite===false && blobs.has(p))throw Error('Already exists');blobs.set(p,s);}};
@@ -163,4 +163,12 @@ test('A rejected Classroom creation can retry after permission is fixed',async()
     const req=h.request({method:'POST',query:{},headers:{cookie:h.cookie({sub:'teacher-id',role:'teacher'}),origin:'https://www.penina-hebrew.org'},body:{action:'assign',courseId:'course-1'}});
     assert.equal((await h.run(req)).code,503);h.state.createDenied=false;
     assert.equal((await h.run(req)).code,200);
+});
+
+test('Classroom assignment filters are sent as repeated parameters rather than a comma-separated enum',async()=>{
+    const h=harness();
+    await h.run(h.request({method:'POST',query:{},headers:{cookie:h.cookie({sub:'teacher-id',role:'teacher'}),origin:'https://www.penina-hebrew.org'},body:{action:'assign',courseId:'course-1'}}));
+    const request=h.requests.find(r=>r.url.endsWith('/courseWork') && r.method==='GET');
+    assert.deepEqual(new URLSearchParams(request.query).getAll('courseWorkStates'),['DRAFT','PUBLISHED']);
+    assert(!request.query.includes('DRAFT%2CPUBLISHED'));
 });

@@ -6,6 +6,7 @@ const matching = require('../lib/matching-scores');
 module.exports = function (req, res) {
     const game = req.query?.game;
     if (game === 'quiz-account') return require('../lib/quiz-account').handle(req, res);
+    if (game === 'assessment-retake') return require('../lib/quiz-retake-submissions')(req, res);
     if (game === 'assessment') return require('../lib/quiz-submissions')(req, res);
     if (game === 'live') return require('../lib/live-game')(req, res);
     if (game === 'asteroids') return asteroids(req, res);

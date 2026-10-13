@@ -12,7 +12,7 @@ function harness() {
             if(url.endsWith(':return')) {if(state.returnFailure)throw {response:{status:503}};return {data:{}};}
             if(method==='PATCH')return {data:{...data,id:'submission-1'}};
             if(url.endsWith('/studentSubmissions'))return {data:{studentSubmissions:[{id:'submission-1',userId:state.wrongStudent?'other':'student-id',courseId:'course-1',courseWorkId:'work-1',associatedWithDeveloper:!state.foreignWork,state:state.submissionState || 'TURNED_IN'}]}};
-            if(url.endsWith('/courseWork/work-1'))return {data:{id:'work-1',associatedWithDeveloper:!state.foreignWork,state:state.draft?'DRAFT':'PUBLISHED',maxPoints:state.changedMax?20:12}};
+            if(url.endsWith('/courseWork/work-1'))return {data:{id:'work-1',associatedWithDeveloper:!state.foreignWork,state:state.draft?'DRAFT':'PUBLISHED',maxPoints:state.changedMax?20:(state.maxPoints || 12)}};
             if(url.endsWith('/courseWork')) {
                 if(method==='POST') {if(state.createDenied)throw {response:{status:403}};state.created={id:'work-1',associatedWithDeveloper:true,state:'DRAFT',alternateLink:'https://classroom.google.com/test',materials:data.materials};return {data:state.created};}
                 return {data:{courseWork:state.created?[state.created]:[]}};
@@ -28,7 +28,7 @@ function harness() {
         if(n==='google-auth-library')return {OAuth2Client};
         if(n==='@vercel/blob')return {del:async p=>blobs.delete(p),list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,options)=>{if(options?.allowOverwrite===false && blobs.has(p))throw Error('Already exists');blobs.set(p,s);}};
         if(n==='./vocabulary-pages')return {getPage:async()=>({}),authenticatePage:(_,p)=>p==='teacher-secret'?null:{status:401,error:'Incorrect password'}};
-        if(n.endsWith('questions.json'))return require('../Penina-Quizzes/gemara-6-wl-2/questions.json');
+        if(n.endsWith('questions.json'))return require(n);
         return require(n);
     }};
     vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../lib/quiz-account.js'),'utf8'),ctx);
@@ -171,4 +171,31 @@ test('Classroom assignment filters are sent as repeated parameters rather than a
     const request=h.requests.find(r=>r.url.endsWith('/courseWork') && r.method==='GET');
     assert.deepEqual(new URLSearchParams(request.query).getAll('courseWorkStates'),['DRAFT','PUBLISHED']);
     assert(!request.query.includes('DRAFT%2CPUBLISHED'));
+});
+
+test('Retake assignment has a separate class link and eight-point Classroom draft',async()=>{
+    const h=harness(),req=h.request({method:'POST',query:{},body:{action:'assign',courseId:'course-1',quiz:'gemara-6-intro-retake'},headers:{cookie:h.cookie({sub:'teacher-id',role:'teacher'}),origin:'https://www.penina-hebrew.org'}});
+    const result=await h.run(req);assert.equal(result.code,200);assert(result.data.url.includes('/gemara-6-intro-retake/'));
+    const created=h.requests.find(r=>r.method==='POST');assert.equal(created.data.maxPoints,8);assert.equal(created.data.state,'DRAFT');
+    const id=new URL(result.data.url).searchParams.get('class');
+    assert.equal(h.api.unseal(h.blobs.get('quiz-google/classes/'+id+'.txt')).quiz,'gemara-6-intro-retake');
+    const student=h.request({query:{action:'student',classId:id,quiz:'gemara-6-intro-retake'}});
+    assert.equal((await h.run(student)).data.questions.length,6);
+    student.query.quiz='gemara-6-wl-2';assert.equal((await h.run(student)).code,403);
+    await assert.rejects(h.api.requireStudent(h.request(),'c'.repeat(32),'gemara-6-intro-retake'),/not been assigned/);
+});
+test('Retake sign-in returns to the retake, and unknown quiz IDs cannot redirect',async()=>{
+    const h=harness(),login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'student',quiz:'gemara-6-intro-retake',classId:'c'.repeat(32)}}));
+    const result=await h.run(h.request({query:{action:'callback',code:'code',state:h.state.options.state},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));
+    assert.equal(result.code,303);assert(result.headers.Location.startsWith('/Penina-Quizzes/gemara-6-intro-retake/'));
+    assert.equal((await h.run(h.request({query:{action:'config',quiz:'../../external'}}))).code,400);
+});
+test('Retake grades use its eight-point assignment and cannot target the original quiz',async()=>{
+    const h=harness(),classId='c'.repeat(32),record={classId,sub:'student-id'},grading={pending:0,total:7.5};
+    h.blobs.set('quiz-google/classes/'+classId+'.txt',h.api.seal({quiz:'gemara-6-intro-retake',owner:'teacher-id',courseId:'course-1',courseWorkId:'work-1'}));
+    const req=h.request({headers:{cookie:h.cookie({sub:'teacher-id',role:'teacher'}),origin:'https://www.penina-hebrew.org'}});
+    await assert.rejects(h.api.sendGrade(req,record,grading),/assigned this quiz/);
+    await assert.rejects(h.api.sendGrade(req,record,grading,'gemara-6-intro-retake'),/8 points/);
+    h.state.maxPoints=8;const sent=await h.api.sendGrade(req,record,grading,'gemara-6-intro-retake');
+    assert.equal(sent.maxPoints,8);assert.equal(sent.score,7.5);assert.equal(sent.returned,true);
 });

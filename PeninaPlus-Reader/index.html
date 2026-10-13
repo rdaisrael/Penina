@@ -578,22 +578,27 @@
                     </div>
                     
                     <div id="vocab-upload-a" style=" background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
-                        <p style="margin-top: 0; font-size: 14px; color: #4a4238;">
-                            <strong>Instructions:</strong> Download the template below. For each binyan (e.g., פעל שלם, פיעל ע"ו), mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save as an Excel Workbook (.xlsx) and upload your completed file. Roots go in column A; mark X beside the verb categories in column B. Each word belongs in its own cell.
-                        </p>
+                        <div style="margin-top: 0; font-size: 14px; color: #4a4238;">
+                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate Verbs, Nouns, and Adjectives sheets, plus an Instructions sheet.</p>
+                            <ul style="padding-left: 22px; line-height: 1.6;">
+                                <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Mark X in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
+                                <li><strong>Nouns:</strong> Use row 1 for category names, such as Clothing, Body parts, and Animals. Rename these headings or add your own category columns. Enter one mastered singular Hebrew noun per cell below its category. Columns may have different numbers of words.</li>
+                                <li><strong>Adjectives:</strong> Enter one mastered masculine singular Hebrew adjective per cell below the heading.</li>
+                            </ul>
+                            <p>Keep the sheet names Verbs, Nouns, and Adjectives. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
+                            <p>Save as an Excel Workbook (.xlsx), then upload it below. If you keep the sheets in separate workbooks, select those files together. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
+                        </div>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                            <a href="./Name_of_Student_Mastered_Vocabulary.xlsx" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Excel Template
-                            </a>
-                            <a href="./David_Mastered_Vocabulary.xlsx" download style="display: inline-block; background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Sample Excel Template
+                            <a href="./Vocabulary_By_Category.xlsx" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                                📥 Download Vocabulary Workbook (Multiple Sheets)
                             </a>
                         </div>
                         
-                        <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Completed Template:</label>
-                        <input type="file" id="vocab-file-a" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbooks:</label>
+                        <input type="file" id="vocab-file-a" accept=".xlsx" multiple style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-a" role="status" aria-live="polite"></p>
+                        <fieldset id="noun-categories-a" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
                     </div>
                 </div>
 
@@ -607,7 +612,7 @@
                         </select>
                     </div>
                     <div style="flex: 1;">
-                        <label for="length">d. Story Length:</label>
+                        <label for="length">Story Length:</label>
                         <select id="length">
                             <option value="3-paragraph">Short (3 Paragraphs)</option>
                             <option value="1-page">Medium (1 Page)</option>
@@ -625,6 +630,11 @@
                     <textarea id="supplied-text" class="hebrew-input" rows="4" placeholder="Paste pre-written Hebrew text here"></textarea>
                 </div>
                 
+                <div class="form-group">
+                    <label for="supplied-title">כותרת (Supply a title for the supplied text):</label>
+                    <input type="text" id="supplied-title" class="hebrew-input" placeholder="Enter a title for your story">
+                </div>
+
                 <div class="form-group panel-secondary">
                     <label for="dicta-genre" class="panel-secondary-label">b. Choose guidance for Nikkud:</label>
                     <select id="dicta-genre" class="layout-control" style="width: 100%; max-width: 300px;">
@@ -635,13 +645,10 @@
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="supplied-title">c. כותרת (Supply a title for the supplied text):</label>
-                    <input type="text" id="supplied-title" class="hebrew-input" placeholder="Enter a title for your story">
-                </div>
+
 
                 <div class="form-group panel-secondary">
-                    <label class="panel-secondary-label">d. Upload Spreadsheet:</label>
+                    <label class="panel-secondary-label">c. Upload Spreadsheet:</label>
                     <div style="display: none; margin-bottom: 15px;">
                         <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-b" value="complete"> Complete Mastered Vocabulary List</label>
                         <label style="margin-right: 15px;"><input type="radio" name="vocab-mode-b" value="pos"> Mastered Vocabulary by Parts of Speech</label>
@@ -685,23 +692,46 @@
                     </div>
                     
                     <div id="vocab-upload-b" style=" background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
-                        <p style="margin-top: 0; font-size: 14px; color: #4a4238;">
-                            <strong>Instructions:</strong> Download the template below. For each binyan, mark the tenses the student has mastered by placing an "X" in the corresponding columns. Add mastered singular Nouns and male singular Adjectives in their respective columns. Do not alter the column headers. Save as an Excel Workbook (.xlsx) and upload your completed file. Roots go in column A; mark X beside the verb categories in column B. Each word belongs in its own cell.
-                        </p>
+                        <div style="margin-top: 0; font-size: 14px; color: #4a4238;">
+                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate Verbs, Nouns, and Adjectives sheets, plus an Instructions sheet.</p>
+                            <ul style="padding-left: 22px; line-height: 1.6;">
+                                <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Mark X in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
+                                <li><strong>Nouns:</strong> Use row 1 for category names, such as Clothing, Body parts, and Animals. Rename these headings or add your own category columns. Enter one mastered singular Hebrew noun per cell below its category. Columns may have different numbers of words.</li>
+                                <li><strong>Adjectives:</strong> Enter one mastered masculine singular Hebrew adjective per cell below the heading.</li>
+                            </ul>
+                            <p>Keep the sheet names Verbs, Nouns, and Adjectives. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
+                            <p>Save as an Excel Workbook (.xlsx), then upload it below. If you keep the sheets in separate workbooks, select those files together. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
+                        </div>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                            <a href="./Name_of_Student_Mastered_Vocabulary.xlsx" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Excel Template
-                            </a>
-                            <a href="./David_Mastered_Vocabulary.xlsx" download style="display: inline-block; background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Sample Excel Template
+                            <a href="./Vocabulary_By_Category.xlsx" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
+                                📥 Download Vocabulary Workbook (Multiple Sheets)
                             </a>
                         </div>
                         
-                        <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Completed Template:</label>
-                        <input type="file" id="vocab-file-b" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbooks:</label>
+                        <input type="file" id="vocab-file-b" accept=".xlsx" multiple style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-b" role="status" aria-live="polite"></p>
+                        <fieldset id="noun-categories-b" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
                     </div>
+                </div>
+            </div>
+
+            <div id="comprehension-section" class="form-group panel-secondary">
+                <label class="panel-secondary-label" for="include-worksheet" style="font-size: 18px;"><input type="checkbox" id="include-worksheet"> d. Generate Worksheet</label>
+                <p>Select this option to create comprehension questions with your reading. You can regenerate the worksheet after the reading is ready.</p>
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <select id="questions-lang" aria-label="Worksheet language" style="flex: 1; margin-bottom: 0;">
+                        <option value="Hebrew">Hebrew Questions</option>
+                        <option value="English">English Questions</option>
+                    </select>
+                    <select id="question-count" aria-label="Number of questions" style="flex: 1; margin-bottom: 0;">
+                        <option value="2">2 Questions</option>
+                        <option value="5" selected>5 Questions</option>
+                        <option value="10">10 Questions</option>
+                        <option value="15">15 Questions</option>
+                    </select>
+                    <button id="generate-questions-btn" type="button" disabled style="background-color: #17a2b8; margin: 0; flex: 1;">Regenerate Worksheet</button>
                 </div>
             </div>
 
@@ -862,22 +892,7 @@
                 <button id="print-story-worksheet-btn" type="button" style="background-color: #6f42c1; margin: 0; display: none;">Print Story and Worksheet</button>
             </div>
 
-            <div id="comprehension-section" style="display: none; margin-top: 25px;" class="panel-secondary">
-                <label class="panel-secondary-label" style="font-size: 18px;">📝 Reading Comprehension Worksheet</label>
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <select id="questions-lang" style="flex: 1; margin-bottom: 0;">
-                        <option value="Hebrew">Hebrew Questions</option>
-                        <option value="English">English Questions</option>
-                    </select>
-                    <select id="question-count" style="flex: 1; margin-bottom: 0;">
-                        <option value="2">2 Questions</option>
-                        <option value="5" selected>5 Questions</option>
-                        <option value="10">10 Questions</option>
-                        <option value="15">15 Questions</option>
-                    </select>
-                    <button id="generate-questions-btn" style="background-color: #17a2b8; margin: 0; flex: 1;">Generate Worksheet</button>
-                </div>
-            </div>
+
             
         </div>
     </div> 
@@ -969,24 +984,59 @@
         });
 
         const uploadVersions = {A:0, B:0};
+        function showNounCategories(result, targetPathway) {
+            const box = document.getElementById(`noun-categories-${targetPathway.toLowerCase()}`);
+            if (!box) return;
+            const options = box.querySelector('.category-options');
+            options.replaceChildren();
+            const entries = Object.entries(result?.nounCategories || {});
+            box.hidden = !entries.length;
+            for (const [name, words] of entries) {
+                const label = document.createElement('label');
+                label.style.cssText = 'display:block; margin:8px 0;';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox'; checkbox.checked = true; checkbox.value = name;
+                checkbox.addEventListener('change', () => {
+                    const selected = Array.from(options.querySelectorAll('input:checked'), input => input.value);
+                    const filtered = VocabularyUpload.selectNouns(result, selected);
+                    if (targetPathway === 'A') uploadedVocabA = filtered;
+                    else uploadedVocabB = filtered;
+                });
+                label.append(checkbox, document.createTextNode(` ${name} (${words.length})`));
+                options.append(label);
+                const preview = document.createElement('details');
+                const summary = document.createElement('summary'); summary.textContent = `View ${name} words`;
+                const text = document.createElement('p'); text.dir = 'rtl'; text.textContent = words.join(' · ');
+                preview.append(summary, text); options.append(preview);
+            }
+        }
         async function validateExcelUpload(inputElement, targetPathway) {
             const version = ++uploadVersions[targetPathway];
             const status = document.getElementById(`vocab-upload-status-${targetPathway.toLowerCase()}`);
             if (targetPathway === 'A') uploadedVocabA = null;
             else uploadedVocabB = null;
-            const file = inputElement.files[0];
+            showNounCategories(null, targetPathway);
+            const files = Array.from(inputElement.files);
             status.textContent = '';
-            if (!file) return;
+            if (!files.length) return;
             status.textContent = 'Reading Excel workbook…';
             try {
-                if (!file.name.toLowerCase().endsWith('.xlsx')) throw new Error('Please upload an Excel Workbook (.xlsx). In Excel, use Save As → Excel Workbook.');
-                if (file.size > 5 * 1024 * 1024) throw new Error('Please upload a vocabulary workbook smaller than 5 MB.');
+                if (files.length > 10) throw new Error('Please select up to 10 workbooks at a time.');
+                if (files.reduce((sum,file)=>sum+file.size,0) > 10*1024*1024) throw new Error('Please select workbooks totaling less than 10 MB.');
                 if (typeof ExcelJS === 'undefined') throw new Error('The Excel reader did not load. Refresh the page and try again.');
-                const result = await VocabularyUpload.readExcel(await file.arrayBuffer(), ExcelJS);
+                const parts = [];
+                for (const file of files) {
+                    if (!file.name.toLowerCase().endsWith('.xlsx')) throw new Error('Please upload Excel Workbooks (.xlsx).');
+                    if (file.size > 5*1024*1024) throw new Error('Please upload workbooks smaller than 5 MB each.');
+                    try { parts.push(await VocabularyUpload.readExcel(await file.arrayBuffer(), ExcelJS)); }
+                    catch (error) { throw new Error(`${file.name}: ${error.message}`); }
+                }
+                const result = parts.length === 1 ? parts[0] : VocabularyUpload.merge(parts);
                 if (version !== uploadVersions[targetPathway]) return;
                 if (targetPathway === 'A') uploadedVocabA = result;
                 else uploadedVocabB = result;
-                status.textContent = `Loaded ${file.name}: ${result.verbs.length} roots, ${result.nouns.length} nouns, ${result.adjs.length} adjectives, and ${result.binyanim.length} selected verb forms.`;
+                status.textContent = `Loaded ${files.map(file=>file.name).join(", ")}: ${result.verbs.length} roots, ${result.nouns.length} nouns, ${result.adjs.length} adjectives, and ${result.binyanim.length} selected verb forms.`;
+                showNounCategories(result, targetPathway);
                 if (result.verbs.length && !result.binyanim.length) status.textContent += ' No verb tenses are selected; derived verb forms will not count as mastered. Mark X in the template to select them.';
             } catch (error) {
                 if (version !== uploadVersions[targetPathway]) return;
@@ -1127,9 +1177,11 @@
             if (worksheetAbort) worksheetAbort.abort();
             btn.disabled = true;
             document.getElementById('generate-questions-btn').disabled = true;
-            document.getElementById('generate-questions-btn').innerText = 'Generate Worksheet';
+            document.getElementById('generate-questions-btn').innerText = 'Regenerate Worksheet';
             const status = document.getElementById('reader-status');
             status.textContent = 'Generating and checking your reading…';
+            const includeWorksheet = document.getElementById('include-worksheet').checked;
+            let readingReady = false;
 
             try {
                 const vocabData = getVocabularyPromptInstructions(isPathwayA);
@@ -1211,6 +1263,7 @@
                     parseAndRenderOutput(data);
                     status.textContent = 'Reading ready. Vocabulary edits apply when you Generate again.' + (data.readerResult.spellingChanges.length ? ` Dicta used standard pointed spelling in ${data.readerResult.spellingChanges.length} word(s), adjusting vowel letters.` : '');
                 }
+                readingReady = true;
             } catch (error) {
                 console.error(error);
                 if (requests.isStory(requestId)) status.textContent = 'Error: ' + error.message;
@@ -1219,7 +1272,8 @@
                     storyPending = false;
                     btn.innerText = "Generate";
                     btn.disabled = false;
-                    document.getElementById('generate-questions-btn').disabled = false;
+                    document.getElementById('generate-questions-btn').disabled = !currentRawStory;
+                    if (readingReady && includeWorksheet) document.getElementById('generate-questions-btn').click();
                 }
             }
         });
@@ -1234,7 +1288,7 @@
             document.getElementById('questions-output').textContent = '';
             document.getElementById('questions-viewport').style.display = 'none';
             renderStoryToScreen();
-            document.getElementById('comprehension-section').style.display = 'block';
+
         }
 
         // ==========================================
@@ -1704,7 +1758,7 @@
             } finally {
                 if (requests.isWorksheet(requestId)) {
                     btn.disabled = storyPending;
-                    btn.innerText = "Generate Worksheet";
+                    btn.innerText = "Regenerate Worksheet";
                 }
             }
         });

@@ -71,7 +71,7 @@ test('upload handler clears old vocabulary on replacement and ignores an older u
     const html=fs.readFileSync(require.resolve('../PeninaPlus-Reader/index.html'),'utf8');
     const fields={};
     const context=vm.createContext({uploadedVocabA:{old:true},uploadedVocabB:null,ExcelJS:{},
-        VocabularyUpload:{readExcel:async buffer=>buffer},document:{getElementById(id){return fields[id] ||= {textContent:'',addEventListener(){}};}}});
+        VocabularyUpload:{readExcel:async buffer=>buffer},document:{getElementById(id){if(id.startsWith('noun-categories'))return null;return fields[id] ||= {textContent:'',addEventListener(){}};}}});
     vm.runInContext(html.slice(html.indexOf('        const uploadVersions'),html.indexOf('        async function readApiResponse')),context);
     let finish;
     const oldInput={files:[{name:'old.xlsx',size:10,arrayBuffer:()=>new Promise(resolve=>{finish=resolve;})}],value:'old.xlsx'};
@@ -92,4 +92,54 @@ test('non-JSON gateway errors become readable messages instead of JSON syntax er
     const context=vm.createContext({});
     vm.runInContext(html.slice(html.indexOf('        async function readApiResponse'),html.indexOf('        document.querySelectorAll(\'input[name="vocab-mode-a"]\')')),context);
     await assert.rejects(context.readApiResponse({status:504,json:async()=>{throw new Error('Unexpected token');}}),/took too long/);
+});
+
+async function workbookWith(sheets) {
+    const workbook = new ExcelJS.Workbook();
+    for (const [name, rows] of Object.entries(sheets)) workbook.addWorksheet(name).addRows(rows);
+    return workbook.xlsx.writeBuffer();
+}
+test('multiple sheets retain custom categories, uneven columns and deduplicate words',async()=>{
+    const bytes=await workbookWith({Instructions:[['Ignore these notes']],Nouns:[['Clothing','Body parts','Animals'],['חולצה','יד','כלב'],['חולצה',null,'חתול'],[null,'ראש']],Verbs:[headers.slice(0,8),['כתב','פעל שלם','x']],Adjectives:[['שם תואר'],['גדול']]});
+    const result=await upload.readExcel(bytes,ExcelJS);
+    assert.deepEqual(result.verbs,['כתב']);
+    assert.deepEqual(result.adjs,['גדול']);
+    assert.deepEqual(result.binyanim,['פעל שלם|עבר']);
+    assert.deepEqual(result.nounCategories,{'Clothing':['חולצה'],'Body parts':['יד','ראש'],'Animals':['כלב','חתול']});
+    assert.deepEqual(upload.selectNouns(result,['Animals']).nouns,['כלב','חתול']);
+    assert.deepEqual(upload.selectNouns(result,[]).nouns,[]);
+    assert.equal(result.nouns.length,5,'selection never mutates the original');
+});
+test('separate workbooks combine and preserve both categorized and legacy nouns',async()=>{
+    const nouns=await upload.readExcel(await workbookWith({Nouns:[['Animals'],['כלב']]}),ExcelJS);
+    const legacy=upload.parseRows([headers,['כתב','פעל שלם','X','','','','','','','ספר']]);
+    const merged=upload.merge([nouns,nouns,legacy]);
+    assert.deepEqual(merged.nouns,['כלב','ספר']);
+    assert.deepEqual(merged.nounCategories,{Animals:['כלב'],General:['ספר']});
+    assert.deepEqual(upload.selectNouns(merged,['General']).nouns,['ספר']);
+});
+test('category sheets reject missing headings, non-Hebrew entries and formulas',async()=>{
+    for (const [rows, message] of [
+        [[['Animals',null],['כלב','חתול']],/heading/],
+        [[['Animals'],['dog']],/Hebrew/],
+        [[['Animals'],[{formula:'A3',result:'כלב'}]],/plain text/]
+    ]) await assert.rejects(upload.readExcel(await workbookWith({Nouns:rows}),ExcelJS),message);
+});
+test('empty companion sheets are accepted but an entirely blank workbook is rejected',async()=>{
+    const sheets={Verbs:[headers.slice(0,8),['','פעל שלם']],Nouns:[['Animals']],Adjectives:[['שם תואר']]};
+    await assert.rejects(upload.readExcel(await workbookWith(sheets),ExcelJS),/empty/);
+    sheets.Nouns.push(['כלב']);
+    assert.deepEqual((await upload.readExcel(await workbookWith(sheets),ExcelJS)).nouns,['כלב']);
+});
+test('duplicate category headings combine safely, including object property names',async()=>{
+    const result=await upload.readExcel(await workbookWith({Nouns:[['Animals','Animals','__proto__'],['כלב','חתול','ספר']]}),ExcelJS);
+    assert.deepEqual(result.nounCategories.Animals,['כלב','חתול']);
+    assert.deepEqual(upload.selectNouns(result,['__proto__']).nouns,['ספר']);
+});
+test('new downloadable template becomes importable when a noun is entered',async()=>{
+    const workbook=new ExcelJS.Workbook();
+    await workbook.xlsx.load(fs.readFileSync(require.resolve('../PeninaPlus-Reader/Vocabulary_By_Category.xlsx')));
+    assert.deepEqual(workbook.worksheets.map(sheet=>sheet.name),['Verbs','Nouns','Adjectives','Instructions']);
+    workbook.getWorksheet('Nouns').getCell('C2').value='כלב';
+    assert.deepEqual((await upload.readExcel(await workbook.xlsx.writeBuffer(),ExcelJS)).nounCategories,{Animals:['כלב']});
 });

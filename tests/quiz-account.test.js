@@ -199,3 +199,30 @@ test('Retake grades use its eight-point assignment and cannot target the origina
     h.state.maxPoints=8;const sent=await h.api.sendGrade(req,record,grading,'gemara-6-intro-retake');
     assert.equal(sent.maxPoints,8);assert.equal(sent.score,7.5);assert.equal(sent.returned,true);
 });
+
+test('Grade 8 retake assignment has a separate class link and eight-point Classroom draft',async()=>{
+    const h=harness(),req=h.request({method:'POST',query:{},body:{action:'assign',courseId:'course-1',quiz:'gemara-8-intro-retake'},headers:{cookie:h.cookie({sub:'teacher-id',role:'teacher'}),origin:'https://www.penina-hebrew.org'}});
+    const result=await h.run(req);assert.equal(result.code,200);assert(result.data.url.includes('/gemara-8-intro-retake/'));
+    const created=h.requests.find(r=>r.method==='POST');assert.equal(created.data.maxPoints,8);assert.equal(created.data.state,'DRAFT');
+    const id=new URL(result.data.url).searchParams.get('class');
+    assert.equal(h.api.unseal(h.blobs.get('quiz-google/classes/'+id+'.txt')).quiz,'gemara-8-intro-retake');
+    const student=h.request({query:{action:'student',classId:id,quiz:'gemara-8-intro-retake'}});
+    assert.equal((await h.run(student)).data.questions.length,6);
+    student.query.quiz='gemara-6-wl-2';assert.equal((await h.run(student)).code,403);
+    await assert.rejects(h.api.requireStudent(h.request(),'c'.repeat(32),'gemara-8-intro-retake'),/not been assigned/);
+});
+test('Grade 8 retake sign-in returns to the retake, and unknown quiz IDs cannot redirect',async()=>{
+    const h=harness(),login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'student',quiz:'gemara-8-intro-retake',classId:'c'.repeat(32)}}));
+    const result=await h.run(h.request({query:{action:'callback',code:'code',state:h.state.options.state},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));
+    assert.equal(result.code,303);assert(result.headers.Location.startsWith('/Penina-Quizzes/gemara-8-intro-retake/'));
+    assert.equal((await h.run(h.request({query:{action:'config',quiz:'../../external'}}))).code,400);
+});
+test('Grade 8 retake grades use its eight-point assignment and cannot target the original quiz',async()=>{
+    const h=harness(),classId='c'.repeat(32),record={classId,sub:'student-id'},grading={pending:0,total:7.5};
+    h.blobs.set('quiz-google/classes/'+classId+'.txt',h.api.seal({quiz:'gemara-8-intro-retake',owner:'teacher-id',courseId:'course-1',courseWorkId:'work-1'}));
+    const req=h.request({headers:{cookie:h.cookie({sub:'teacher-id',role:'teacher'}),origin:'https://www.penina-hebrew.org'}});
+    await assert.rejects(h.api.sendGrade(req,record,grading),/assigned this quiz/);
+    await assert.rejects(h.api.sendGrade(req,record,grading,'gemara-8-intro-retake'),/8 points/);
+    h.state.maxPoints=8;const sent=await h.api.sendGrade(req,record,grading,'gemara-8-intro-retake');
+    assert.equal(sent.maxPoints,8);assert.equal(sent.score,7.5);assert.equal(sent.returned,true);
+});

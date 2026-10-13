@@ -6,6 +6,10 @@
       "status": 404
     },
     {
+      "src": "^/Penina-Quizzes/gemara-8-intro-retake/questions(?:\\.json)?$",
+      "status": 404
+    },
+    {
       "src": "^/Penina-Quizzes/gemara-6-intro-retake/questions(?:\\.json)?$",
       "status": 404
     },
@@ -27,7 +31,7 @@
   ],
   "functions": {
     "api/game-scores.js": {
-      "includeFiles": "Penina-Quizzes/{gemara-6-wl-2,gemara-6-intro-retake}/{questions.json,talmud-page.png}"
+      "includeFiles": "Penina-Quizzes/{gemara-6-wl-2,gemara-6-intro-retake,gemara-8-intro-retake}/{questions.json,talmud-page.png}"
     }
   }
 }

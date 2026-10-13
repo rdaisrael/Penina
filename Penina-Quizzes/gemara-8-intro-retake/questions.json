@@ -1,0 +1,68 @@
+[
+  {
+    "type": "text",
+    "points": 2,
+    "prompt": "A) Write out the words of the following Roshei Teivot: תושב׳׳ע\nB) What is it's English definition?"
+  },
+  {
+    "type": "multi",
+    "points": 1,
+    "prompt": "The following are examples of תושב׳׳׳ע. Check all that apply!",
+    "choices": [
+      "בָּרָיְתָא",
+      "מִשְׁנָה",
+      "תנ''ךְ",
+      "גְּמָרָא",
+      "תְּהִלִּים",
+      "חֻמַּשׁ"
+    ]
+  },
+  {
+    "type": "gaps",
+    "points": 2,
+    "prompt": "Drag the correct words into the sentence",
+    "parts": [
+      "Lighting Shabbat Candles is a Mitzvah ",
+      " and is not mentioned in the Torah. On the other hand, lighting a fire on Shabbat is one of the 613 Mitzvot and is forbidden ",
+      "."
+    ],
+    "note": "There will be 3 extra words when you are finished! These are called distractors.",
+    "choices": [
+      "דְמִצְוָה",
+      "דְּתַנְיָא",
+      "דְּרַבָּנַן",
+      "דְּגָמָרָא",
+      "דְּאוֹרָיְתָא"
+    ]
+  },
+  {
+    "type": "order",
+    "points": 1,
+    "prompt": "Put in the correct HEBREW order (right to left).\nEarliest should be on the right side!!!!!!!!!!!",
+    "choices": [
+      "נְבִיאִים",
+      "מֹשֶׁה",
+      "אַנְשֵׁי כְּנֶסֶת הַגְּדוֹלָה",
+      "יְהוֹשֻׁעַ",
+      "זְקֵנִים"
+    ]
+  },
+  {
+    "type": "order",
+    "points": 1,
+    "prompt": "Put in the correct HEBREW order (right to left).\nThe first Seder should be on the right!!!!!!!",
+    "choices": [
+      "נָשִׁים",
+      "טְהֹרוֹת",
+      "זְרָעִים",
+      "נְזִיקִין",
+      "מוֹעֵד",
+      "קַדְּשִׁים"
+    ]
+  },
+  {
+    "type": "text",
+    "points": 1,
+    "prompt": "A Mishna or Baraita is said by this kind of Rabbi:"
+  }
+]

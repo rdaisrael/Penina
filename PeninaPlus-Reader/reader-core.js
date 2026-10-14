@@ -10,6 +10,7 @@
     const words = text => [...String(text).matchAll(new RegExp(wordPattern.source, 'g'))];
     const normalizePhrase = text => words(text).map(token => normalizeWord(token[0])).join(' ');
     const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    // את covers both the personal pronoun and the understood direct-object marker.
     const pronouns = new Set('אני אתה את הוא היא אנחנו אנו אתם אתן הם הן שלי שלך שלו שלה שלנו שלכם שלכן שלהם שלהן'.split(' '));
     function normalizeVocabulary(profile) {
         if (!profile || !['complete','pos','upload'].includes(profile.mode)) throw new Error('Invalid vocabulary mode.');
@@ -48,7 +49,7 @@
                     (match === surface && normalized.forms.includes(item.form))));
             return {...item, prefix, isName: item.isName === true,
                 match: directMatch ? surface : item.match,
-                mastered: directMatch || (item.mastered && known && verbAllowed)};
+                mastered: pronouns.has(surface) || directMatch || (item.mastered && known && verbAllowed)};
         });
         // Older saved analyses have no phrase list. New spans use zero-based word
         // indexes, with end exclusive; punctuation and line boundaries cannot be crossed.

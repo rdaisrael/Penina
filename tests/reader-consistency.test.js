@@ -397,3 +397,12 @@ test('name metadata is strictly boolean, required for new generation, and option
     const result=core.buildResult(sample.text,core.validateAnalysis(sample,profile));
     assert.equal(result.notes.length,1);
 });
+
+test('personal and possessive pronouns and את are understood without model approval', () => {
+    const text='אני\nאֶת אַתְּ שלי שלך שלהם ספר.';
+    const data={text,words:core.words(text).map(([word])=>entry(word,false,'meaning'))};
+    const result=core.buildResult(text,core.validateAnalysis(data,{...profile,words:[]}));
+    assert.deepEqual(result.words.map(w=>w.mastered),[true,true,true,true,true,true,false]);
+    assert.equal(result.notes.length,1);
+    assert.equal(result.notes[0].word,'ספר');
+});

@@ -792,9 +792,9 @@
                 <h3 class="formatting-header" style="display: none;">Word Styling and Formatting</h3>
                 
                 <div class="form-group checkbox-group" style="margin-bottom: 25px;">
-                    <label><input type="checkbox" id="bold-words"> Bold Mastered Words</label>
+                    <label><input type="checkbox" id="bold-words" checked> Bold Mastered Words</label>
                     <label>
-                        <input type="checkbox" id="highlight-words"> Color Mastered Words:
+                        <input type="checkbox" id="highlight-words" checked> Color Mastered Words:
                         <input type="color" id="target-color" value="#1e90ff" style="border:none; width:30px; height:25px; cursor:pointer; padding:0; margin-left:5px;">
                     </label>
                     <label><input type="checkbox" id="use-hashem" checked> Use ה׳</label>
@@ -1532,6 +1532,7 @@
             if (document.querySelector('input[name="footnote-placement"]:checked').value === 'page') {
                 clearLineNumbers();
                 ReaderPagination.paginate(outputDiv, currentResult.notes, document.getElementById('en-font-choice').value);
+                if (currentWorksheet?.placement === 'sections') ReaderPagination.paginate(document.getElementById('questions-output'), currentResult.notes, document.getElementById('en-font-choice').value);
                 if (document.getElementById('toggle-line-numbers').checked) applyLineNumbers();
             }
         }
@@ -1689,7 +1690,7 @@
             let bodyRaw = lines.length > 1 ? lines.slice(1).join('\n').trim() : "";
 
             let finalOutput = "";
-            finalOutput += `<div class="story-title" style="background-color: black; padding: 15px; margin-bottom: 10px; border-radius: 8px; font-size: calc(1em + 15px); text-align: center; color: white;">`;
+            finalOutput += `<div class="story-title" dir="rtl" style="background-color: black; padding: 15px; margin-bottom: 10px; border-radius: 8px; font-size: calc(1em + 15px); text-align: center; color: white;">`;
             finalOutput += renderPart(titleRaw, true);
             finalOutput += `</div>`;
 
@@ -1732,6 +1733,8 @@
             
             if (questionsOutput) {
                 questionsOutput.style.fontFamily = (questionsLang === 'English') ? enFont : font;
+                questionsOutput.style.setProperty('--reader-page-width', margin === 'normal' || margin === 'none' ? '7in' : '6.5in');
+                questionsOutput.style.letterSpacing = kerning + 'px';
             }
             
             const storyBody = outputDiv.querySelector('.story-body');
@@ -1770,6 +1773,7 @@
             if (!currentWorksheet) return;
             const {worksheet, lang, placement} = currentWorksheet;
             const output = document.getElementById('questions-output');
+            output.classList.remove('paginated');
             const direction = lang === 'English' ? 'ltr' : 'rtl';
             const font = document.getElementById(lang === 'English' ? 'en-font-choice' : 'font-choice').value;
             const renderQuestions = questions => questions.length ? `<div class="section-questions" dir="${direction}" style="text-align:${direction === 'ltr' ? 'left' : 'right'};font-family:${ReaderCore.escapeHtml(font)}">` + questions.map(q => `<div class="worksheet-question">${ReaderCore.escapeHtml(q.number + '. ' + q.text)}<br>` + '<div class="write-in-line"></div>'.repeat(q.lines) + '</div><div class="worksheet-question-gap"></div>').join('') + '</div>' : '';
@@ -1779,8 +1783,8 @@
             output.style.textAlign = direction === 'ltr' ? 'left' : 'right';
             if (integrated) {
                 output.style.setProperty('--paragraph-spacing', document.getElementById('paragraph-spacing').value + 'em');
-                output.innerHTML = formatStory(currentRawStory, currentResult.words, section => renderQuestions(worksheet.questions.filter(q => q.section === section)))
-                    + renderQuestions(worksheet.questions.filter(q => q.section === 0));
+                output.innerHTML = formatStory(currentRawStory, currentResult.words, section => renderQuestions(worksheet.questions.filter(q => q.section === section)));
+                output.querySelector('.story-body').insertAdjacentHTML('beforeend', renderQuestions(worksheet.questions.filter(q => q.section === 0)));
                 output.querySelectorAll('.story-title, .story-body').forEach(node => {
                     node.style.fontFamily = document.getElementById('font-choice').value;
                     node.style.fontSize = document.getElementById('font-size').value + 'pt';
@@ -1836,6 +1840,7 @@
             [LINE]
             [LINE]
             7. Format as plain text without markdown symbols (no ** or ##).
+            8. Before returning, check that every question has an answer supported by the supplied text. Do not ask why a character acted or felt something unless the text provides a reason. For example, "He likes his new ball" supports "What does he like?", not "Why does he like the ball?" Clearly label inference questions and require evidence from the text; never assume an unstated motive.
 
             ${placementRules}
 
@@ -1861,8 +1866,7 @@
                 const worksheet = ReaderCore.validateWorksheet(data.text, questionCount, placement === 'sections' ? plan.targets : undefined);
                 currentWorksheet = {worksheet, lang, placement};
                 showWorksheetPrintControls();
-                renderWorksheet();
-                applyFootnoteSettings();
+                renderStoryToScreen();
                 status.textContent = 'Worksheet ready.';
                 qViewport.scrollIntoView({ behavior: 'smooth' });
 

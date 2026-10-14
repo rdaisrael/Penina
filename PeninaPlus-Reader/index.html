@@ -319,8 +319,8 @@
         .worksheet-question { break-inside: avoid; }
         .worksheet-reading-section { margin: 0 0 var(--paragraph-spacing, 2em); }
         @media print {
-            body.integrated-worksheet.print-story-worksheet #story-viewport { display: none !important; }
-            body.integrated-worksheet.print-story-worksheet .worksheet-paper { page-break-before: auto !important; }
+            body.integrated-worksheet:not(.print-story-only) #story-viewport { display: none !important; }
+            body.integrated-worksheet:not(.print-story-only) .worksheet-paper { page-break-before: auto !important; }
         }
         .worksheet-question-gap {
             height: 32px;
@@ -333,6 +333,8 @@
             .control-panel-wrapper { display: none; } 
             
             .paper-viewport { overflow: visible; padding: 0; }
+            #story-output, .worksheet-paper { min-height: 0 !important; }
+            .story-title { break-inside: avoid; break-after: avoid; }
             
             #story-output {
                 width: 100% !important;
@@ -1438,7 +1440,7 @@
             };
             window.addEventListener('afterprint', cleanupPrintMode);
             window.print();
-            setTimeout(cleanupPrintMode, 1000);
+            // Keep the selected output for the entire print dialog, until afterprint.
         }
 
         document.getElementById('download-pdf-btn').addEventListener('click', () => {

@@ -67,7 +67,17 @@ const outputDir=fs.mkdtempSync(path.join(require('os').tmpdir(),'reader-layout-'
  await page.locator('#footnote-display').selectOption('first');await check('first references');
  await page.locator('#footnote-display').selectOption('none');await check('no notes');
  await page.locator('#footnote-display').selectOption('all');
+ // Native print must show only the combined reading, even without a button mode.
  await page.emulateMedia({media:'print'});
+ assert.equal(await page.locator('#story-viewport').isVisible(),false);
+ assert.equal(await page.locator('#questions-output .story-title').isVisible(),true);
+ assert.equal(await page.locator('#questions-output').evaluate(el=>getComputedStyle(el).breakBefore),'auto');
+ await page.evaluate(()=>{window.print=()=>{};printWithMode('worksheet-only');});
+ await page.waitForTimeout(1100);
+ assert.equal(await page.evaluate(()=>document.body.classList.contains('print-worksheet-only')),true,'print selection persists until dialog closes');
+ await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
+ assert.equal(await page.evaluate(()=>document.body.classList.contains('print-worksheet-only')),false);
+
  await page.evaluate(()=>{document.body.classList.add('print-story-worksheet');renderStoryToScreen();});
  await check('print');
  await page.pdf({path:path.join(outputDir,'integrated.pdf'),preferCSSPageSize:true,printBackground:true});

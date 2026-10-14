@@ -275,3 +275,29 @@ test('Sheet print opens browser printing without PDF tools; download creates a P
     assert.equal(blobType,'application/pdf');assert.equal(downloadName,'Review - Sheets.pdf');
     assert.equal(nodes.download.disabled,false);
 });
+
+
+test('Navigation starts on the selected side even when a flip is still pending',()=>{
+    for(const mode of ['termFirst','translationFirst']) {
+        for(const finishFlip of [false,true]) {
+            const {nodes,context}=runtime();
+            const timers=[];
+            context.setTimeout=callback=>timers.push(callback);
+            nodes.get(mode).onclick();
+            nodes.get('flip').onclick();
+            if(finishFlip)timers.shift()();
+            nodes.get('next').onclick();
+            while(timers.length)timers.shift()();
+            assert.equal(nodes.get('cardNumber').textContent,'Card #2');
+            assert.equal(nodes.get('sideLabel').textContent,mode==='termFirst'?'Term':'Definition');
+            assert.equal(nodes.get('sideNumber').textContent,'1 / 2');
+            assert.equal(nodes.get('cardContext').hidden,true);
+            nodes.get('flip').onclick();
+            while(timers.length)timers.shift()();
+            assert.equal(nodes.get('sideNumber').textContent,'2 / 2');
+            nodes.get('previous').onclick();
+            assert.equal(nodes.get('cardNumber').textContent,'Card #1');
+            assert.equal(nodes.get('sideNumber').textContent,'1 / 2');
+        }
+    }
+});

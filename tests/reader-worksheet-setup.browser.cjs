@@ -16,12 +16,14 @@ const repo=path.resolve(__dirname,'..');
     const request=route.request().postDataJSON();calls.push(request);
     let data;
     if(request.readerVocabulary) {
-     const text='ספר\nספר';
-     const analysis=core.validateAnalysis({text,words:[0,1].map(()=>({word:'ספר',mastered:true,translation:'book',match:'ספר',form:''}))},request.readerVocabulary);
+     const text='ספר\nספר\n\nספר\n\nספר';
+     const analysis=core.validateAnalysis({text,words:[0,1,2,3].map(()=>({word:'ספר',mastered:true,translation:'book',match:'ספר',form:''}))},request.readerVocabulary);
      data=failStory?{error:'Test reading failure'}:{text,readerResult:core.buildResult(text,analysis)};
     } else {
      const count=Number(request.prompt.match(/exactly (\d+) questions/)[1]);
-     data={text:'Book\n'+Array.from({length:count},(_,i)=>`${i+1}. What is the story about?\n[LINE]\n[LINE]`).join('\n')};
+     const targets=request.prompt.match(/question-number order: (\[[0-9,]+\])/);
+     const sections=targets?JSON.parse(targets[1]):null;
+     data={text:'Book\n'+Array.from({length:count},(_,i)=>`${i+1}. ${sections ? '[SECTION '+sections[i]+'] ' : ''}What is the story about?\n[LINE]\n[LINE]`).join('\n')};
     }
     return route.fulfill({json:data});
    }
@@ -43,16 +45,34 @@ const repo=path.resolve(__dirname,'..');
   assert.equal(calls.length,2);
   assert.match(calls[1].prompt,/in English with exactly 2 questions/);
   assert.equal(await page.locator('.worksheet-question-gap').count(),2);
+  assert.equal(await page.locator('#questions-output .worksheet-reading-section').count(),3);
+  assert.equal(await page.locator('#questions-output .section-questions').count(),2);
+  assert.equal(await page.locator('#story-output .section-questions').count(),0);
+  assert.equal(await page.locator('#print-worksheet-btn').textContent(),'Print Reading with Questions');
+  assert.equal(await page.locator('#print-story-worksheet-btn').isVisible(),false);
+  assert.ok(!(await page.locator('#questions-output').innerText()).includes('[SECTION'));
+  await page.emulateMedia({media:'print'});
+  await page.evaluate(()=>document.body.classList.add('print-worksheet-only'));
+  assert.equal(await page.locator('#story-viewport').isVisible(),false);
+  assert.equal(await page.locator('#questions-viewport').isVisible(),true);
+  await page.evaluate(()=>document.body.classList.remove('print-worksheet-only'));
+  await page.emulateMedia({media:'screen'});
+  await page.locator('#questions-output').screenshot({path:'/tmp/reader-section-questions.png'});
+  await page.locator('#question-placement').selectOption('end');
+  await page.locator('#generate-questions-btn').click();
+  await page.waitForFunction(()=>!document.getElementById('generate-questions-btn').disabled);
+  assert.equal(await page.locator('#questions-output .worksheet-reading-section').count(),0);
+  assert.equal(await page.locator('#print-story-worksheet-btn').isVisible(),true);
   await page.locator('#include-worksheet').uncheck();
   await page.locator('#generate-btn').click();
   await page.waitForFunction(()=>document.getElementById('reader-status').textContent.startsWith('Reading ready.'));
-  assert.equal(calls.length,3,'unchecked option generates only the reading');
+  assert.equal(calls.length,4,'unchecked option generates only the reading');
   assert.equal(await page.locator('#questions-viewport').isVisible(),false);
   failStory=true;
   await page.locator('#include-worksheet').check();
   await page.locator('#generate-btn').click();
   await page.waitForFunction(()=>document.getElementById('reader-status').textContent.startsWith('Error:'));
-  assert.equal(calls.length,4,'failed reading never starts a worksheet');
+  assert.equal(calls.length,5,'failed reading never starts a worksheet');
   assert.deepEqual(errors,[]);
   console.log('Worksheet setup checks passed: visible before generation, selected count/language, automatic generation, unchecked option, and reading failure.');
  } finally {await browser.close();}

@@ -305,6 +305,13 @@
             margin-bottom: 25px;
         }
 
+        .section-questions { font-size: 14pt; line-height: 1.8; letter-spacing: normal; color: #333; margin: 24px 0; }
+        .worksheet-question { break-inside: avoid; }
+        .worksheet-reading-section { margin: 18px 0; }
+        @media print {
+            body.integrated-worksheet.print-story-worksheet #story-viewport { display: none !important; }
+            body.integrated-worksheet.print-story-worksheet .worksheet-paper { page-break-before: auto !important; }
+        }
         .worksheet-question-gap {
             height: 32px;
             display: block;
@@ -719,11 +726,15 @@
 
             <div id="comprehension-section" class="form-group panel-secondary">
                 <label class="panel-secondary-label" for="include-worksheet" style="font-size: 18px;"><input type="checkbox" id="include-worksheet"> d. Generate Worksheet</label>
-                <p>Select this option to create comprehension questions with your reading. You can regenerate the worksheet after the reading is ready.</p>
+                <p>Select this option to create comprehension questions with your reading. Choose questions after reading sections or a separate worksheet. Regenerate the worksheet to apply changes to these options.</p>
                 <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
                     <select id="questions-lang" aria-label="Worksheet language" style="flex: 1; margin-bottom: 0;">
                         <option value="Hebrew">Hebrew Questions</option>
                         <option value="English">English Questions</option>
+                    </select>
+                    <select id="question-placement" aria-label="Question placement" style="flex: 1; margin-bottom: 0;">
+                        <option value="sections" selected>Questions after each section</option>
+                        <option value="end">Separate worksheet at the end</option>
                     </select>
                     <select id="question-count" aria-label="Number of questions" style="flex: 1; margin-bottom: 0;">
                         <option value="2">2 Questions</option>
@@ -925,6 +936,7 @@
         let currentRawStory = ""; 
         let currentFootnotes = "";
         let currentResult = null;
+        let currentWorksheet = null;
         let storyPending = false;
         const requests = ReaderCore.createRequestTracker();
         let worksheetAbort = null;
@@ -1357,6 +1369,8 @@
         }
 
         function hideWorksheetPrintControls() {
+            currentWorksheet = null;
+            document.body.classList.remove('integrated-worksheet');
             document.getElementById('print-worksheet-btn').style.display = 'none';
             document.getElementById('print-story-worksheet-btn').style.display = 'none';
             document.getElementById('questions-viewport').style.display = 'none';
@@ -1409,8 +1423,11 @@
             } else if (setting === 'all') {
                 markers.forEach(m => m.style.display = 'inline-flex');
             } else if (setting === 'first') {
-                const seen = new Set();
+                const seenByPaper = new Map();
                 markers.forEach(m => {
+                    const paper = m.closest('#story-output, #questions-output');
+                    if (!seenByPaper.has(paper)) seenByPaper.set(paper, new Set());
+                    const seen = seenByPaper.get(paper);
                     const fn = m.getAttribute('data-fn');
                     if (seen.has(fn)) {
                         m.style.display = 'none';
@@ -1445,6 +1462,7 @@
 
             outputDiv.innerHTML += `<div class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>`;
 
+            if (typeof currentWorksheet !== 'undefined' && currentWorksheet) renderWorksheet();
             applyStyles();
             applyFootnoteSettings();
             if (document.querySelector('input[name="footnote-placement"]:checked').value === 'page') {
@@ -1584,7 +1602,7 @@
             return outputHtml;
         }
 
-        function formatStory(text, targetWords) {
+        function formatStory(text, targetWords, afterSection) {
             if (document.getElementById('use-hashem').checked) { text = text.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, "ה׳"); }
             if (document.getElementById('use-elokim').checked) { text = text.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*?(?:ו|[\u05B9\u05BA])[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, "$1ק$2"); }
 
@@ -1612,7 +1630,13 @@
             finalOutput += `</div>`;
 
             finalOutput += `<div class="story-body" dir="rtl">`;
-            finalOutput += renderPart(bodyRaw, false);
+            if (afterSection) {
+                let section = 0;
+                finalOutput += bodyRaw.split(/(\n+)/).map(part => {
+                    if (!part.trim()) return ''; // Block sections already provide paragraph spacing.
+                    return `<div class="worksheet-reading-section">${renderPart(part, false)}</div>` + afterSection(++section);
+                }).join('');
+            } else finalOutput += renderPart(bodyRaw, false);
             finalOutput += `</div>`;
 
             return finalOutput;
@@ -1677,9 +1701,38 @@
         }
 
         // --- READING COMPREHENSION GENERATOR ---
+        function renderWorksheet() {
+            if (!currentWorksheet) return;
+            const {worksheet, lang, placement} = currentWorksheet;
+            const output = document.getElementById('questions-output');
+            const direction = lang === 'English' ? 'ltr' : 'rtl';
+            const font = document.getElementById(lang === 'English' ? 'en-font-choice' : 'font-choice').value;
+            const renderQuestions = questions => questions.length ? `<div class="section-questions" dir="${direction}" style="text-align:${direction === 'ltr' ? 'left' : 'right'};font-family:${ReaderCore.escapeHtml(font)}">` + questions.map(q => `<div class="worksheet-question">${ReaderCore.escapeHtml(q.number + '. ' + q.text)}<br>` + '<div class="write-in-line"></div>'.repeat(q.lines) + '</div><div class="worksheet-question-gap"></div>').join('') + '</div>' : '';
+            const integrated = placement === 'sections';
+            document.body.classList.toggle('integrated-worksheet', integrated);
+            output.dir = direction;
+            output.style.textAlign = direction === 'ltr' ? 'left' : 'right';
+            if (integrated) {
+                output.innerHTML = formatStory(currentRawStory, currentResult.words, section => renderQuestions(worksheet.questions.filter(q => q.section === section)))
+                    + renderQuestions(worksheet.questions.filter(q => q.section === 0));
+                output.querySelectorAll('.story-title, .story-body').forEach(node => {
+                    node.style.fontFamily = document.getElementById('font-choice').value;
+                    node.style.fontSize = document.getElementById('font-size').value + 'px';
+                    node.style.lineHeight = document.getElementById('line-spacing').value;
+                });
+                if (currentFootnotes && document.getElementById('footnote-display').value !== 'none') output.innerHTML += `<div class="generated-footnotes"><strong>Footnotes:</strong><div class="footnote-columns">${ReaderCore.escapeHtml(currentFootnotes).replace(/\n/g, '<br>')}</div></div>`;
+            } else {
+                output.innerHTML = `<h2 style="text-align:center">${ReaderCore.escapeHtml(worksheet.title)}</h2>` + renderQuestions(worksheet.questions);
+            }
+            output.innerHTML += '<div class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>';
+            document.getElementById('print-worksheet-btn').textContent = integrated ? 'Print Reading with Questions' : 'Print Worksheet Only';
+            document.getElementById('print-story-worksheet-btn').style.display = integrated ? 'none' : 'inline-block';
+        }
+
         document.getElementById('generate-questions-btn').addEventListener('click', async () => {
             const lang = document.getElementById('questions-lang').value;
             const questionCount = document.getElementById('question-count').value;
+            const placement = document.getElementById('question-placement').value;
             const btn = document.getElementById('generate-questions-btn');
             const qOutput = document.getElementById('questions-output');
             const qViewport = document.getElementById('questions-viewport');
@@ -1693,6 +1746,8 @@
             const requestId = requests.beginWorksheet();
             worksheetAbort = new AbortController();
             const storyText = currentRawStory;
+            const plan = ReaderCore.worksheetPlan(storyText, questionCount);
+            const placementRules = placement === 'sections' ? `Place questions through the reading. These are the numbered reading sections: ${JSON.stringify(plan.sections.map((text, i) => ({section:i+1,text})))}. For each question, use these required section assignments in question-number order: ${JSON.stringify(plan.targets)}. A positive section number means a comprehension question about that section, answerable using only that section and earlier text. Section 0 means a whole-story review question (main idea, sequence, or inference) at the end. Begin each question after its number with the exact tag [SECTION n], e.g. 1. [SECTION 1] What happened? Do not include any other section headings. For a single-section story, all questions go at the end.` : '';
             const status = document.getElementById('reader-status');
             status.textContent = 'Generating and checking your worksheet…';
             btn.disabled = true;
@@ -1716,6 +1771,8 @@
             [LINE]
             7. Format as plain text without markdown symbols (no ** or ##).
 
+            ${placementRules}
+
             Text:
             ${storyText}`;
             
@@ -1735,20 +1792,11 @@
                 if (data.error) throw new Error(data.error);
                 
                 if (!requests.isWorksheet(requestId) || storyPending) return;
-                const worksheet = ReaderCore.validateWorksheet(data.text, questionCount);
-                const title = ReaderCore.escapeHtml(worksheet.title);
-                const restOfText = worksheet.questions.map(q => `${ReaderCore.escapeHtml(q.number + '. ' + q.text)}<br>` + '<div class="write-in-line"></div>'.repeat(q.lines) + '<div class="worksheet-question-gap"></div>').join('');
-
-                qOutput.dir = lang === 'English' ? 'ltr' : 'rtl';
-                qOutput.style.textAlign = lang === 'English' ? 'left' : 'right';
-
-                qOutput.innerHTML = `
-                    <h2 style="text-align: center; font-weight: bold; font-size: 1.8em; margin-bottom: 25px; color: #333;">${title}</h2>
-                    <div style="font-size: 14pt; line-height: 1.8; color: #333;">${restOfText}</div>
-                    <div class="penina-footer" style="margin-top: 60px;">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>
-                `;
-                
+                const worksheet = ReaderCore.validateWorksheet(data.text, questionCount, placement === 'sections' ? plan.targets : undefined);
+                currentWorksheet = {worksheet, lang, placement};
                 showWorksheetPrintControls();
+                renderWorksheet();
+                applyFootnoteSettings();
                 status.textContent = 'Worksheet ready.';
                 qViewport.scrollIntoView({ behavior: 'smooth' });
 

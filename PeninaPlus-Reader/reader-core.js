@@ -113,7 +113,15 @@
         });
         return {text, sourceText:analysis.text, spellingChanges, words: tokenAnalysis, notes, vocabulary: analysis.vocabulary};
     }
-    function validateWorksheet(text, count) {
+    function worksheetPlan(text, count) {
+        const sections = String(text).split('\n').slice(1).map(s => s.trim()).filter(Boolean);
+        const total = Number(count);
+        const reviewCount = sections.length > 1 ? (total >= 4 ? 2 : 1) : total;
+        const localCount = total - reviewCount;
+        const targets = Array.from({length: localCount}, (_, i) => Math.ceil((i + 1) * sections.length / (localCount + 1)));
+        return {sections, targets: targets.concat(Array(reviewCount).fill(0))};
+    }
+    function validateWorksheet(text, count, targets) {
         if (typeof text !== 'string') throw new Error('The worksheet response is missing.');
         const lines = text.trim().split('\n');
         const title = lines.shift();
@@ -127,6 +135,15 @@
             else throw new Error('Worksheet formatting was incomplete. Please generate it again.');
         }
         if (!title || questions.length !== Number(count) || questions.some((q,i) => q.number !== i+1 || q.lines < 2 || q.lines > 4)) throw new Error('Worksheet question count or answer lines did not match the request. Please generate it again.');
+        if (targets) {
+            if (targets.length !== questions.length) throw new Error('Worksheet section count did not match. Please generate it again.');
+            questions.forEach((question, i) => {
+                const tag = question.text.match(/^\[SECTION (\d+)\]\s+(.+)$/);
+                if (!tag || Number(tag[1]) !== targets[i]) throw new Error('Worksheet question placement did not match. Please generate it again.');
+                question.section = Number(tag[1]);
+                question.text = tag[2];
+            });
+        }
         return {title,questions};
     }
     function createRequestTracker() {
@@ -138,5 +155,5 @@
             isWorksheet(id) { return id.story === story && id.worksheet === worksheet; }
         };
     }
-    return {normalizeWord, normalizePhrase, skeleton, words, escapeHtml, normalizeVocabulary, validateAnalysis, buildResult, validateWorksheet, createRequestTracker};
+    return {normalizeWord, normalizePhrase, skeleton, words, escapeHtml, normalizeVocabulary, validateAnalysis, buildResult, worksheetPlan, validateWorksheet, createRequestTracker};
 });

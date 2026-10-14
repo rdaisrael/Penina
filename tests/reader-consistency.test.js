@@ -293,3 +293,26 @@ test('phrase verbs respect selected forms, and generation requires explicit cons
     assert.ok(prompt.includes('leave uncertain expressions ungrouped'));
     assert.ok(prompt.includes('counting title words'));
 });
+
+test('section questions are distributed through paragraphs with whole-story review at the end', () => {
+    const plan=core.worksheetPlan('כותרת\nאחד\n\nשניים\n\nשלושה',5);
+    assert.deepEqual(plan.sections,['אחד','שניים','שלושה']);
+    assert.deepEqual(plan.targets,[1,2,3,0,0]);
+    assert.deepEqual(core.worksheetPlan('כותרת\nאחד\nשניים\nשלושה',2).targets,[2,0]);
+    assert.deepEqual(core.worksheetPlan('כותרת\nפסקה אחת',5).targets,[0,0,0,0,0]);
+    const text='Title\n'+plan.targets.map((n,i)=>`${i+1}. [SECTION ${n}] Question?\n[LINE]\n[LINE]`).join('\n');
+    const worksheet=core.validateWorksheet(text,5,plan.targets);
+    assert.deepEqual(worksheet.questions.map(q=>q.section),plan.targets);
+    assert.equal(worksheet.questions[0].text,'Question?');
+    assert.throws(()=>core.validateWorksheet(text.replace('[SECTION 1]','[SECTION 2]'),5,plan.targets),/placement/);
+    assert.throws(()=>core.validateWorksheet(text.replace('[SECTION 1] ',''),5,plan.targets),/placement/);
+});
+
+test('interleaved rendering preserves token analysis and inserts questions after the relevant section', () => {
+    const data={text:'ספר\nספר\n\nילד',words:[entry('ספר',false,'book'),entry('ספר',false,'book'),entry('ילד',true,'child','ילד')]};
+    const result=core.buildResult(data.text,core.validateAnalysis(data,profile));
+    const output=renderer().formatStory(result.text,result.words,n=>`<aside>QUESTION ${n}</aside>`);
+    assert.equal((output.match(/footnote-marker/g)||[]).length,2);
+    assert.equal((output.match(/worksheet-reading-section/g)||[]).length,2);
+    assert.ok(output.indexOf('QUESTION 1') < output.indexOf('QUESTION 2'));
+});

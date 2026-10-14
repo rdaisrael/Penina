@@ -139,7 +139,80 @@ test('duplicate category headings combine safely, including object property name
 test('new downloadable template becomes importable when a noun is entered',async()=>{
     const workbook=new ExcelJS.Workbook();
     await workbook.xlsx.load(fs.readFileSync(require.resolve('../PeninaPlus-Reader/Vocabulary_By_Category.xlsx')));
-    assert.deepEqual(workbook.worksheets.map(sheet=>sheet.name),['Verbs','Nouns','Adjectives','Instructions']);
+    assert.deepEqual(workbook.worksheets.map(sheet=>sheet.name),['Verbs','Nouns','Adjectives','Instructions','Prepositions','Adverbs','Conjunctions','Question Words','Phrases & Expressions']);
     workbook.getWorksheet('Nouns').getCell('C2').value='כלב';
     assert.deepEqual((await upload.readExcel(await workbook.xlsx.writeBuffer(),ExcelJS)).nounCategories,{Animals:['כלב']});
+});
+
+test('download template has no dropdowns and accepts prepositions alone',async()=>{
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(fs.readFileSync(require.resolve('../PeninaPlus-Reader/Vocabulary_By_Category.xlsx')));
+    for (const sheet of workbook.worksheets) assert.deepEqual(sheet.dataValidations.model, {});
+    workbook.getWorksheet('Prepositions').getCell('A2').value = 'על';
+    const result = await upload.readExcel(await workbook.xlsx.writeBuffer(), ExcelJS);
+    assert.deepEqual(result.preps, ['על']);
+    const merged = upload.merge([result, upload.parseRows([headers,['כתב','פעל שלם','X']]), result]);
+    assert.deepEqual(merged.preps, ['על']);
+    assert.deepEqual(merged.verbs, ['כתב']);
+});
+
+test('prepositions are validated and recognized in Reader analysis',async()=>{
+    await assert.rejects(upload.readExcel(await workbookWith({Prepositions:[['מילות יחס'],['on']]}),ExcelJS),/Hebrew/);
+    const core = require('../PeninaPlus-Reader/reader-core');
+    const prepProfile = {...profile, preps:['עַל']};
+    assert.deepEqual(core.normalizeVocabulary(prepProfile).preps, ['על']);
+    const data = {text:'ספר\nעל',words:[
+        {word:'ספר',mastered:true,translation:'book',match:'ספר',form:''},
+        {word:'על',mastered:true,translation:'on',match:'על',form:''}
+    ]};
+    assert.equal(core.validateAnalysis(data,prepProfile).words[1].mastered,true);
+    assert.equal(core.validateAnalysis(data,profile).words[1].mastered,false);
+});
+
+test('each new template sheet imports alone, merges, and reaches the Reader profile',async()=>{
+    const core = require('../PeninaPlus-Reader/reader-core');
+    const parts = [];
+    for (const [sheet,key,word] of [
+        ['Adverbs','adverbs','תמיד'], ['Conjunctions','conjunctions','אבל'],
+        ['Question Words','questionWords','איפה'], ['Phrases & Expressions','expressions','בית ספר']
+    ]) {
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(fs.readFileSync(require.resolve('../PeninaPlus-Reader/Vocabulary_By_Category.xlsx')));
+        workbook.getWorksheet(sheet).getCell('A2').value = word;
+        workbook.getWorksheet(sheet).getCell('A3').value = word;
+        const result = await upload.readExcel(await workbook.xlsx.writeBuffer(),ExcelJS);
+        assert.deepEqual(result[key],[word]);
+        parts.push(result);
+        assert.deepEqual(core.normalizeVocabulary({...profile,...result})[key],[word]);
+        await assert.rejects(upload.readExcel(await workbookWith({[sheet]:[['Heading'],['invalid']]}),ExcelJS),/Hebrew/);
+    }
+    const merged = upload.merge(parts);
+    assert.deepEqual(merged.expressions,['בית ספר']);
+    assert.deepEqual(merged.questionWords,['איפה']);
+    assert.deepEqual(upload.selectNouns({...merged,nounCategories:{Animals:['כלב']}},[]).expressions,['בית ספר']);
+    const data = {text:'בית\nבית ספר',words:[
+        {word:'בית',mastered:true,translation:'house',match:'בית ספר',form:''},
+        {word:'בית',mastered:false,translation:'school',match:'',form:''},
+        {word:'ספר',mastered:false,translation:'school',match:'',form:''}
+    ],phrases:[{start:1,end:3,word:'בית ספר',mastered:true,translation:'school',match:'בית ספר',form:''}]};
+    const checked = core.validateAnalysis(data,{...profile,...merged});
+    assert.equal(checked.phrases[0].mastered,true);
+    assert.equal(checked.words[0].mastered,false);
+});
+
+test('both Reader upload pathways carry the new categories into generation',()=>{
+    const html=fs.readFileSync(require.resolve('../PeninaPlus-Reader/index.html'),'utf8');
+    const data={verbs:[],nouns:[],adjs:[],binyanim:[],adverbs:['תמיד'],conjunctions:['אבל'],questionWords:['איפה'],expressions:['בית ספר']};
+    const context=vm.createContext({uploadedVocabA:data,uploadedVocabB:data,
+        ReaderCore:require('../PeninaPlus-Reader/reader-core'),
+        document:{querySelector:()=>({value:'upload'})}});
+    const start=html.indexOf('        function getVocabularyPromptInstructions(');
+    const end=html.indexOf('return { vocabPrompt, rulePrompt, masterWordsList, profile };',start);
+    vm.runInContext(html.slice(start,html.indexOf('\n        }',end)+10),context);
+    for (const pathway of [true,false]) {
+        const result=context.getVocabularyPromptInstructions(pathway);
+        assert.deepEqual([...result.profile.expressions],['בית ספר']);
+        assert.deepEqual([...result.masterWordsList],['תמיד','אבל','איפה','בית ספר']);
+        assert.match(result.vocabPrompt, /questionWords/);
+    }
 });

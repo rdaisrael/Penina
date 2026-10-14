@@ -40,14 +40,17 @@
         for(const key of Object.keys(result)) result[key]=[...new Set(result[key])];
         const vocabulary=[...result.verbs,...result.nouns,...result.adjs];
         if(!allowEmpty && !vocabulary.length) throw new Error('The template is empty. Add mastered roots, nouns, or adjectives, save it, then upload again.');
-        if(vocabulary.some(word=>!/[\u05D0-\u05EA]/.test(word) || /[a-zA-Z]/.test(word))) throw new Error('Vocabulary entries must be Hebrew words. Put one word in each cell.');
+        if(vocabulary.some(word=>!/[\u05D0-\u05EA]/.test(word) || /[a-zA-Z]/.test(word))) throw new Error('Vocabulary entries must be Hebrew words. Put one Hebrew word or expression in each cell.');
         return result;
     }
     function merge(results) {
         const result = {verbs:[], nouns:[], adjs:[], binyanim:[]};
+        for (const key of ['preps','adverbs','conjunctions','questionWords','expressions']) {
+            if (results.some(part => part[key])) result[key] = [];
+        }
         const categories = new Map();
         for (const part of results) {
-            for (const key of Object.keys(result)) result[key].push(...part[key]);
+            for (const key of Object.keys(result)) result[key].push(...(part[key] || []));
             for (const [name, words] of Object.entries(part.nounCategories || {})) {
                 categories.set(name, [...new Set([...(categories.get(name) || []), ...words])]);
             }
@@ -73,7 +76,12 @@
             const name = sheet.name.trim().toLowerCase();
             const kind = ['verbs','verb','פעלים','שורשים'].includes(name) ? 'verbs'
                 : ['nouns','noun','שמות עצם','שם עצם'].includes(name) ? 'nouns'
-                : ['adjectives','adjective','שמות תואר','שם תואר'].includes(name) ? 'adjs' : null;
+                : ['adjectives','adjective','שמות תואר','שם תואר'].includes(name) ? 'adjs'
+                : ['prepositions','preposition','מילות יחס','מילת יחס'].includes(name) ? 'preps'
+                : ['adverbs','adverb','תוארי פועל'].includes(name) ? 'adverbs'
+                : ['conjunctions','conjunction','מילות קישור'].includes(name) ? 'conjunctions'
+                : ['question words','מילות שאלה'].includes(name) ? 'questionWords'
+                : ['phrases & expressions','phrases','expressions','ביטויים'].includes(name) ? 'expressions' : null;
             const legacy = cellText(sheet.getCell('A1').value) === 'שורשים' && cellText(sheet.getCell('J1').value) === 'שם עצם';
             if (!kind && !legacy) continue;
             if(sheet.rowCount>5000 || sheet.columnCount>100) throw new Error(`Sheet "${sheet.name}" is too large. Use up to 5,000 rows and 100 columns.`);
@@ -89,12 +97,13 @@
                     parts.push(parseRows(verbRows, true));
                 } else {
                     const part = {verbs:[], nouns:[], adjs:[], binyanim:[]};
+                    if (!part[kind]) part[kind] = [];
                     const categories = new Map();
                     for (let col=0; col<sheet.columnCount; col++) {
                         const heading = cellText((rows[0] || [])[col]);
                         const words = [...new Set(rows.slice(1).map(row=>cellText(row[col])).filter(Boolean))];
                         if (!heading && words.length) throw new Error(`Column ${col+1} needs a heading in row 1.`);
-                        if (words.some(word=>!/[\u05D0-\u05EA]/.test(word) || /[a-zA-Z]/.test(word))) throw new Error('Vocabulary entries must be Hebrew words. Put one word in each cell.');
+                        if (words.some(word=>!/[\u05D0-\u05EA]/.test(word) || /[a-zA-Z]/.test(word))) throw new Error('Vocabulary entries must be Hebrew words. Put one Hebrew word or expression in each cell.');
                         part[kind].push(...words);
                         if (kind === 'nouns' && words.length) categories.set(heading, [...new Set([...(categories.get(heading)||[]), ...words])]);
                     }
@@ -103,9 +112,9 @@
                 }
             } catch (error) { throw new Error(`Sheet "${sheet.name}": ${error.message}`); }
         }
-        if (!parts.length) throw new Error('No vocabulary sheets found. Name your sheets Verbs, Nouns, or Adjectives, or use the original Reader template.');
+        if (!parts.length) throw new Error('No vocabulary sheets found. Name your sheets Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, or Phrases & Expressions, or use the original Reader template.');
         const result = merge(parts);
-        if (![...result.verbs,...result.nouns,...result.adjs].length) throw new Error('The workbook is empty. Add mastered Hebrew words, save it, then upload again.');
+        if (!['verbs','nouns','adjs','preps','adverbs','conjunctions','questionWords','expressions'].some(key => result[key]?.length)) throw new Error('The workbook is empty. Add mastered Hebrew words, save it, then upload again.');
         return result;
     }
     return {parseRows,readExcel,merge,selectNouns};

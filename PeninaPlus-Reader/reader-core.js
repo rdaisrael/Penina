@@ -14,7 +14,8 @@
     function normalizeVocabulary(profile) {
         if (!profile || !['complete','pos','upload'].includes(profile.mode)) throw new Error('Invalid vocabulary mode.');
         const result = {mode: profile.mode};
-        for (const key of ['words','verbs','nouns','adjs','forms']) {
+        profile = {preps:[], adverbs:[], conjunctions:[], questionWords:[], expressions:[], ...profile};
+        for (const key of ['words','verbs','nouns','adjs','preps','adverbs','conjunctions','questionWords','expressions','forms']) {
             if (!Array.isArray(profile[key]) || profile[key].some(x => typeof x !== 'string')) throw new Error('Invalid vocabulary list.');
             result[key] = [...new Set(profile[key].map(x => key === 'forms' ? x.trim() : normalizePhrase(x)).filter(Boolean))];
         }
@@ -28,7 +29,7 @@
         const tokens = words(text);
         if (!tokens.length || tokens.length !== data.words.length) throw new Error('Word analysis does not match the story. Please generate again.');
         const normalized = normalizeVocabulary(profile);
-        const entries = normalized.mode === 'complete' ? normalized.words : [...normalized.verbs,...normalized.nouns,...normalized.adjs];
+        const entries = normalized.mode === 'complete' ? normalized.words : [...normalized.verbs,...normalized.nouns,...normalized.adjs,...normalized.preps,...normalized.adverbs,...normalized.conjunctions,...normalized.questionWords,...normalized.expressions];
         const analysis = data.words.map((item, i) => {
             if (!item || normalizeWord(item.word) !== normalizeWord(tokens[i][0]) || typeof item.mastered !== 'boolean' || typeof item.translation !== 'string' || !item.translation.trim() || typeof item.match !== 'string' || typeof item.form !== 'string') throw new Error('Invalid word analysis. Please generate again.');
             // Older saved analyses have no prefix metadata; retain their exact-word grouping.

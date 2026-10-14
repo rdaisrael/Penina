@@ -586,13 +586,16 @@
                     
                     <div id="vocab-upload-a" style=" background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
                         <div style="margin-top: 0; font-size: 14px; color: #4a4238;">
-                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate Verbs, Nouns, and Adjectives sheets, plus an Instructions sheet.</p>
+                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions sheets, plus an Instructions sheet.</p>
                             <ul style="padding-left: 22px; line-height: 1.6;">
-                                <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Mark X in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
+                                <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Type X directly in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
                                 <li><strong>Nouns:</strong> Use row 1 for category names, such as Clothing, Body parts, and Animals. Rename these headings or add your own category columns. Enter one mastered singular Hebrew noun per cell below its category. Columns may have different numbers of words.</li>
                                 <li><strong>Adjectives:</strong> Enter one mastered masculine singular Hebrew adjective per cell below the heading.</li>
+                                <li><strong>Prepositions:</strong> Enter one mastered Hebrew preposition per cell below the heading.</li>
+                                <li><strong>Adverbs, Conjunctions, and Question Words:</strong> Enter one mastered Hebrew word per cell on the appropriate sheet.</li>
+                                <li><strong>Phrases &amp; Expressions:</strong> Enter one complete mastered Hebrew phrase or expression per cell, with spaces between its words.</li>
                             </ul>
-                            <p>Keep the sheet names Verbs, Nouns, and Adjectives. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
+                            <p>Keep the sheet names Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
                             <p>Save as an Excel Workbook (.xlsx), then upload it below. If you keep the sheets in separate workbooks, select those files together. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
                         </div>
                         
@@ -700,13 +703,16 @@
                     
                     <div id="vocab-upload-b" style=" background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
                         <div style="margin-top: 0; font-size: 14px; color: #4a4238;">
-                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate Verbs, Nouns, and Adjectives sheets, plus an Instructions sheet.</p>
+                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions sheets, plus an Instructions sheet.</p>
                             <ul style="padding-left: 22px; line-height: 1.6;">
-                                <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Mark X in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
+                                <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Type X directly in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
                                 <li><strong>Nouns:</strong> Use row 1 for category names, such as Clothing, Body parts, and Animals. Rename these headings or add your own category columns. Enter one mastered singular Hebrew noun per cell below its category. Columns may have different numbers of words.</li>
                                 <li><strong>Adjectives:</strong> Enter one mastered masculine singular Hebrew adjective per cell below the heading.</li>
+                                <li><strong>Prepositions:</strong> Enter one mastered Hebrew preposition per cell below the heading.</li>
+                                <li><strong>Adverbs, Conjunctions, and Question Words:</strong> Enter one mastered Hebrew word per cell on the appropriate sheet.</li>
+                                <li><strong>Phrases &amp; Expressions:</strong> Enter one complete mastered Hebrew phrase or expression per cell, with spaces between its words.</li>
                             </ul>
-                            <p>Keep the sheet names Verbs, Nouns, and Adjectives. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
+                            <p>Keep the sheet names Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
                             <p>Save as an Excel Workbook (.xlsx), then upload it below. If you keep the sheets in separate workbooks, select those files together. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
                         </div>
                         
@@ -1047,7 +1053,7 @@
                 if (version !== uploadVersions[targetPathway]) return;
                 if (targetPathway === 'A') uploadedVocabA = result;
                 else uploadedVocabB = result;
-                status.textContent = `Loaded ${files.map(file=>file.name).join(", ")}: ${result.verbs.length} roots, ${result.nouns.length} nouns, ${result.adjs.length} adjectives, and ${result.binyanim.length} selected verb forms.`;
+                status.textContent = `Loaded ${files.map(file=>file.name).join(", ")}: ${result.verbs.length} roots, ${result.nouns.length} nouns, ${result.adjs.length} adjectives, ${(result.preps || []).length} prepositions, ${(result.adverbs || []).length} adverbs, ${(result.conjunctions || []).length} conjunctions, ${(result.questionWords || []).length} question words, ${(result.expressions || []).length} phrases/expressions, and ${result.binyanim.length} selected verb forms.`;
                 showNounCategories(result, targetPathway);
                 if (result.verbs.length && !result.binyanim.length) status.textContent += ' No verb tenses are selected; derived verb forms will not count as mastered. Mark X in the template to select them.';
             } catch (error) {
@@ -1154,8 +1160,8 @@
                 vocabPrompt = `Mastered Verbs (Shorashim): ${uData.verbs.join(', ')}. (Allowed Binyanim: ${uData.binyanim.join(', ')}).\n`;
                 vocabPrompt += `Mastered Nouns (singular): ${uData.nouns.join(', ')}.\n`;
                 vocabPrompt += `Mastered Adjectives (male singular): ${uData.adjs.join(', ')}.\n`;
-                masterWordsList = [...uData.verbs, ...uData.nouns, ...uData.adjs];
-                Object.assign(profile, {verbs:uData.verbs, nouns:uData.nouns, adjs:uData.adjs, forms:uData.binyanim});
+                masterWordsList = [...uData.verbs, ...uData.nouns, ...uData.adjs, ...(uData.preps || []), ...(uData.adverbs || []), ...(uData.conjunctions || []), ...(uData.questionWords || []), ...(uData.expressions || [])];
+                Object.assign(profile, {verbs:uData.verbs, nouns:uData.nouns, adjs:uData.adjs, preps:uData.preps || [], adverbs:uData.adverbs || [], conjunctions:uData.conjunctions || [], questionWords:uData.questionWords || [], expressions:uData.expressions || [], forms:uData.binyanim});
             }
 
             profile = ReaderCore.normalizeVocabulary(profile);

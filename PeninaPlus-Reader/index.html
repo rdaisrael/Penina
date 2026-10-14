@@ -172,6 +172,16 @@
         .print-checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 16px; cursor: pointer; color: #2e7d32; margin: 0;}
         .print-checkbox-label input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
 
+        #theme { text-align: left; }
+        .question-options { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .question-options select { flex: 1; min-width: 170px; margin: 0; }
+        .question-placement { border: 0; margin: 0; padding: 0; flex: 2; min-width: 240px; }
+        .question-placement label { display: inline-flex; align-items: center; gap: 6px; margin: 5px 14px 0 0; }
+        .print-controls-container { flex-direction: column; align-items: stretch; }
+        .print-actions, .download-actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .download-actions { border-top: 1px solid #b8d8ba; padding-top: 15px; }
+        .download-actions span { flex-basis: 100%; text-align: center; font-size: 13px; color: #426248; }
+        .paragraph-break { display: block; height: var(--paragraph-spacing, 2em); }
         /* --- THE STACK & GRID CSS --- */
         .heb-word {
             display: inline-flex;
@@ -307,7 +317,7 @@
 
         .section-questions { font-size: 14pt; line-height: 1.8; letter-spacing: normal; color: #333; margin: 24px 0; }
         .worksheet-question { break-inside: avoid; }
-        .worksheet-reading-section { margin: 18px 0; }
+        .worksheet-reading-section { margin: 0 0 var(--paragraph-spacing, 2em); }
         @media print {
             body.integrated-worksheet.print-story-worksheet #story-viewport { display: none !important; }
             body.integrated-worksheet.print-story-worksheet .worksheet-paper { page-break-before: auto !important; }
@@ -536,7 +546,7 @@
             <div id="pathway-a-section">
                 <div class="form-group">
                     <label for="theme">a. נושא הסיפור (Story Prompt/Topic):</label>
-                    <textarea id="theme" rows="2" placeholder="What should the story be about? (English or Hebrew)"></textarea>
+                    <textarea id="theme" rows="2" dir="auto" style="text-align: left; direction: ltr;" placeholder="What should the story be about? (English or Hebrew)"></textarea>
                 </div>
                 
                 <div class="form-group panel-secondary">
@@ -586,7 +596,7 @@
                     
                     <div id="vocab-upload-a" style=" background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
                         <div style="margin-top: 0; font-size: 14px; color: #4a4238;">
-                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions sheets, plus an Instructions sheet.</p>
+                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate sheets for Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions, with Instructions at the end.</p>
                             <ul style="padding-left: 22px; line-height: 1.6;">
                                 <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Type X directly in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
                                 <li><strong>Nouns:</strong> Use row 1 for category names, such as Clothing, Body parts, and Animals. Rename these headings or add your own category columns. Enter one mastered singular Hebrew noun per cell below its category. Columns may have different numbers of words.</li>
@@ -596,17 +606,17 @@
                                 <li><strong>Phrases &amp; Expressions:</strong> Enter one complete mastered Hebrew phrase or expression per cell, with spaces between its words.</li>
                             </ul>
                             <p>Keep the sheet names Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
-                            <p>Save as an Excel Workbook (.xlsx), then upload it below. If you keep the sheets in separate workbooks, select those files together. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
+                            <p>Save as an Excel Workbook (.xlsx), then upload it below. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
                         </div>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                             <a href="./Vocabulary_By_Category.xlsx" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Vocabulary Workbook (Multiple Sheets)
+                                Download Workbook Template
                             </a>
                         </div>
                         
-                        <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbooks:</label>
-                        <input type="file" id="vocab-file-a" accept=".xlsx" multiple style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbook:</label>
+                        <input type="file" id="vocab-file-a" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-a" role="status" aria-live="polite"></p>
                         <fieldset id="noun-categories-a" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
                     </div>
@@ -703,7 +713,7 @@
                     
                     <div id="vocab-upload-b" style=" background: #fdfbf7; border: 1px solid #dcd3c6; padding: 15px; border-radius: 5px;">
                         <div style="margin-top: 0; font-size: 14px; color: #4a4238;">
-                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions sheets, plus an Instructions sheet.</p>
+                            <p style="margin-top: 0;"><strong>Instructions:</strong> Download the vocabulary workbook below. It has separate sheets for Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions, with Instructions at the end.</p>
                             <ul style="padding-left: 22px; line-height: 1.6;">
                                 <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Type X directly in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
                                 <li><strong>Nouns:</strong> Use row 1 for category names, such as Clothing, Body parts, and Animals. Rename these headings or add your own category columns. Enter one mastered singular Hebrew noun per cell below its category. Columns may have different numbers of words.</li>
@@ -713,17 +723,17 @@
                                 <li><strong>Phrases &amp; Expressions:</strong> Enter one complete mastered Hebrew phrase or expression per cell, with spaces between its words.</li>
                             </ul>
                             <p>Keep the sheet names Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
-                            <p>Save as an Excel Workbook (.xlsx), then upload it below. If you keep the sheets in separate workbooks, select those files together. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
+                            <p>Save as an Excel Workbook (.xlsx), then upload it below. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
                         </div>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                             <a href="./Vocabulary_By_Category.xlsx" download style="display: inline-block; background-color: #fdfdfa; color: #0056b3; border: 1px solid #dcd3c6; padding: 8px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">
-                                📥 Download Vocabulary Workbook (Multiple Sheets)
+                                Download Workbook Template
                             </a>
                         </div>
                         
-                        <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbooks:</label>
-                        <input type="file" id="vocab-file-b" accept=".xlsx" multiple style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbook:</label>
+                        <input type="file" id="vocab-file-b" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-b" role="status" aria-live="polite"></p>
                         <fieldset id="noun-categories-b" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
                     </div>
@@ -732,24 +742,25 @@
 
             <div id="comprehension-section" class="form-group panel-secondary">
                 <label class="panel-secondary-label" for="include-worksheet" style="font-size: 18px;"><input type="checkbox" id="include-worksheet"> d. Generate Worksheet</label>
-                <p>Select this option to create comprehension questions with your reading. Choose questions after reading sections or a separate worksheet. Regenerate the worksheet to apply changes to these options.</p>
-                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                    <select id="questions-lang" aria-label="Worksheet language" style="flex: 1; margin-bottom: 0;">
+                <p>Select this option to create comprehension questions with your reading. Choose questions after reading sections or a separate worksheet. Regenerate questions to apply changes to these options.</p>
+                <div class="question-options">
+                    <select id="questions-lang" aria-label="Question language">
+                        <option value="English" selected>English Questions</option>
                         <option value="Hebrew">Hebrew Questions</option>
-                        <option value="English">English Questions</option>
                     </select>
-                    <select id="question-placement" aria-label="Question placement" style="flex: 1; margin-bottom: 0;">
-                        <option value="sections" selected>Questions after each section</option>
-                        <option value="end">Separate worksheet at the end</option>
-                    </select>
-                    <select id="question-count" aria-label="Number of questions" style="flex: 1; margin-bottom: 0;">
+                    <select id="question-count" aria-label="Number of questions">
                         <option value="2">2 Questions</option>
-                        <option value="5" selected>5 Questions</option>
-                        <option value="10">10 Questions</option>
+                        <option value="5">5 Questions</option>
+                        <option value="10" selected>10 Questions</option>
                         <option value="15">15 Questions</option>
                     </select>
-                    <button id="generate-questions-btn" type="button" disabled style="background-color: #17a2b8; margin: 0; flex: 1;">Regenerate Worksheet</button>
+                    <fieldset id="question-placement" class="question-placement">
+                        <legend>Question placement</legend>
+                        <label><input type="radio" name="question-placement" value="end"> All at the end</label>
+                        <label><input type="radio" name="question-placement" value="sections" checked> Dispersed through the reading</label>
+                    </fieldset>
                 </div>
+                <button id="generate-questions-btn" type="button" disabled style="background-color: #17a2b8; margin-top: 12px;">Regenerate Questions</button>
             </div>
 
             <div class="form-group panel-secondary footnote-settings" style="margin-top: 25px;">
@@ -790,16 +801,20 @@
 
                 <div class="slider-group">
                     <div class="slider-container">
-                        <label for="font-size">Font Size: <span id="font-size-val">38px</span></label>
-                        <input type="range" id="font-size" min="10" max="60" value="38" class="layout-control">
+                        <label for="font-size">Font Size: <span id="font-size-val">16pt</span></label>
+                        <input type="range" id="font-size" min="10" max="60" value="16" class="layout-control">
                     </div>
                     <div class="slider-container">
-                        <label for="kerning">Letter Spacing (Kerning): <span id="kerning-val">0px</span></label>
-                        <input type="range" id="kerning" min="0" max="20" value="0" class="layout-control">
+                        <label for="kerning">Letter Spacing (Kerning): <span id="kerning-val">1px</span></label>
+                        <input type="range" id="kerning" min="0" max="20" value="1" class="layout-control">
                     </div>
                     <div class="slider-container">
-                        <label for="line-spacing">Line Spacing: <span id="line-spacing-val">2.5</span></label>
-                        <input type="range" id="line-spacing" min="1" max="5" step="0.1" value="2.5" class="layout-control">
+                        <label for="line-spacing">Line Spacing: <span id="line-spacing-val">1.5</span></label>
+                        <input type="range" id="line-spacing" min="1" max="5" step="0.1" value="1.5" class="layout-control">
+                    </div>
+                    <div class="slider-container">
+                        <label for="paragraph-spacing">Space Between Paragraphs: <span id="paragraph-spacing-val">2</span></label>
+                        <input type="range" id="paragraph-spacing" min="0" max="5" step="0.5" value="2" class="layout-control">
                     </div>
                 </div>
 
@@ -900,6 +915,7 @@
             </div>
 
             <div class="print-controls-container" id="print-controls-container">
+              <div class="print-actions">
                 <label class="print-checkbox-label" title="Checking this will lock the layout sliders above to ensure numbers align perfectly.">
                     <input type="checkbox" id="toggle-line-numbers"> 
                     Print Story with Line Numbers
@@ -907,6 +923,12 @@
                 <button id="print-story-btn" type="button" style="background-color: #28a745; margin: 0;">Print Story</button>
                 <button id="print-worksheet-btn" type="button" style="background-color: #17a2b8; margin: 0; display: none;">Print Worksheet</button>
                 <button id="print-story-worksheet-btn" type="button" style="background-color: #6f42c1; margin: 0; display: none;">Print Story and Worksheet</button>
+              </div>
+              <div class="download-actions">
+                <button id="download-pdf-btn" type="button" disabled style="background-color: #287b38;">Download PDF</button>
+                <button id="save-json-btn" type="button" disabled style="background-color: #43694b;">Save JSON Backup</button>
+                <span>For PDF, choose “Save as PDF” in the print dialog.</span>
+              </div>
             </div>
 
 
@@ -1039,13 +1061,12 @@
             if (!files.length) return;
             status.textContent = 'Reading Excel workbook…';
             try {
-                if (files.length > 10) throw new Error('Please select up to 10 workbooks at a time.');
-                if (files.reduce((sum,file)=>sum+file.size,0) > 10*1024*1024) throw new Error('Please select workbooks totaling less than 10 MB.');
+                if (files.length !== 1) throw new Error('Please upload one workbook containing all your vocabulary sheets.');
                 if (typeof ExcelJS === 'undefined') throw new Error('The Excel reader did not load. Refresh the page and try again.');
                 const parts = [];
                 for (const file of files) {
                     if (!file.name.toLowerCase().endsWith('.xlsx')) throw new Error('Please upload Excel Workbooks (.xlsx).');
-                    if (file.size > 5*1024*1024) throw new Error('Please upload workbooks smaller than 5 MB each.');
+                    if (file.size > 5*1024*1024) throw new Error('Please upload a workbook smaller than 5 MB.');
                     try { parts.push(await VocabularyUpload.readExcel(await file.arrayBuffer(), ExcelJS)); }
                     catch (error) { throw new Error(`${file.name}: ${error.message}`); }
                 }
@@ -1195,7 +1216,7 @@
             if (worksheetAbort) worksheetAbort.abort();
             btn.disabled = true;
             document.getElementById('generate-questions-btn').disabled = true;
-            document.getElementById('generate-questions-btn').innerText = 'Regenerate Worksheet';
+            document.getElementById('generate-questions-btn').innerText = 'Regenerate Questions';
             const status = document.getElementById('reader-status');
             status.textContent = 'Generating and checking your reading…';
             const includeWorksheet = document.getElementById('include-worksheet').checked;
@@ -1300,6 +1321,8 @@
             const result = data.readerResult;
             if (!result || result.text !== data.text || !Array.isArray(result.words) || !Array.isArray(result.notes)) throw new Error('The reader analysis is missing. Please generate again.');
             currentResult = result;
+            document.getElementById('download-pdf-btn').disabled = false;
+            document.getElementById('save-json-btn').disabled = false;
             currentRawStory = result.text;
             currentFootnotes = result.notes.map(note => `${note.id}. ${note.word} — ${note.translation}`).join('\n');
             hideWorksheetPrintControls();
@@ -1318,9 +1341,10 @@
             if (el.id !== 'toggle-line-numbers') {
                 el.addEventListener('change', () => { renderStoryToScreen(); });
                 el.addEventListener('input', () => { 
-                    if(el.id === 'font-size') document.getElementById('font-size-val').innerText = el.value + 'px';
+                    if(el.id === 'font-size') document.getElementById('font-size-val').innerText = el.value + 'pt';
                     if(el.id === 'kerning') document.getElementById('kerning-val').innerText = el.value + 'px';
                     if(el.id === 'line-spacing') document.getElementById('line-spacing-val').innerText = el.value;
+                    if(el.id === 'paragraph-spacing') document.getElementById('paragraph-spacing-val').innerText = el.value;
                     renderStoryToScreen();
                 });
             }
@@ -1337,7 +1361,7 @@
             const words = Array.from(bodyDiv.querySelectorAll('.heb-word')).filter(w => w.style.display !== 'none');
             if (words.length === 0) continue;
 
-            let baseFontSize = parseInt(document.getElementById('font-size').value);
+            let baseFontSize = parseFloat(document.getElementById('font-size').value) * 96 / 72;
             let wrapThreshold = baseFontSize * 0.5; 
             let currentLineAnchor = words[0].offsetTop; 
 
@@ -1401,6 +1425,25 @@
             window.print();
             setTimeout(cleanupPrintMode, 1000);
         }
+
+        document.getElementById('download-pdf-btn').addEventListener('click', () => {
+            if (!currentResult) return;
+            printWithMode(currentWorksheet ? (currentWorksheet.placement === 'sections' ? 'worksheet-only' : 'story-worksheet') : 'story-only');
+        });
+        document.getElementById('save-json-btn').addEventListener('click', () => {
+            if (!currentResult) return;
+            const settings = Array.from(document.querySelectorAll('input:not([type="file"]), select, textarea')).map(control => ({
+                id: control.id, name: control.name, type: control.type, value: control.value,
+                ...(['checkbox','radio'].includes(control.type) ? {checked:control.checked} : {})
+            }));
+            const backup = {format:'penina-reader-backup', version:1, savedAt:new Date().toISOString(),
+                readerResult:currentResult, worksheet:currentWorksheet, vocabulary:{A:uploadedVocabA,B:uploadedVocabB}, settings};
+            const url = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
+            const link = document.createElement('a');
+            link.href = url; link.download = 'Penina-Reader-Backup.json';
+            document.body.append(link); link.click(); link.remove();
+            setTimeout(() => URL.revokeObjectURL(url),1000);
+        });
 
         document.getElementById('print-story-btn').addEventListener('click', () => printWithMode('story-only'));
         document.getElementById('print-worksheet-btn').addEventListener('click', () => printWithMode('worksheet-only'));
@@ -1490,7 +1533,7 @@
             let outputHtml = "";
             tokens.forEach(token => {
                 if (!token) return;
-                if (/^[\s\n]+$/.test(token)) { outputHtml += token.replace(/\n/g, '<br>'); return; }
+                if (/^[\s\n]+$/.test(token)) { outputHtml += token.replace(/\n+/g, '<span class="paragraph-break"></span>'); return; }
                 
                 // Allow footnotes to pass through cleanly as left-to-right numbers
                 if (/^\[\d+\]$/.test(token)) {
@@ -1616,7 +1659,7 @@
             const renderPart = (part, isTitle) => {
                 let html = '', offset = 0;
                 for (const token of ReaderCore.words(part)) {
-                    html += ReaderCore.escapeHtml(part.slice(offset, token.index)).replace(/\n/g, '<br>');
+                    html += ReaderCore.escapeHtml(part.slice(offset, token.index)).replace(/\n+/g, '<span class="paragraph-break"></span>');
                     const item = targetWords[analysisIndex++];
                     const mastered = item && typeof item === 'object' ? item.mastered : targetWords.some(w => typeof w === 'string' && ReaderCore.normalizeWord(w) === ReaderCore.normalizeWord(token[0]));
                     html += '<span class="reader-token">' + processTextChunk(token[0], mastered ? [token[0]] : [], isTitle);
@@ -1624,7 +1667,7 @@
                     html += '</span>';
                     offset = token.index + token[0].length;
                 }
-                return html + ReaderCore.escapeHtml(part.slice(offset)).replace(/\n/g, '<br>');
+                return html + ReaderCore.escapeHtml(part.slice(offset)).replace(/\n+/g, '<span class="paragraph-break"></span>');
             };
             let lines = text.split('\n');
             let titleRaw = lines.length > 0 ? lines[0] : "סיפור";
@@ -1660,7 +1703,8 @@
             // Apply Hebrew Font
             outputDiv.style.setProperty('--reader-page-width', margin === 'normal' || margin === 'none' ? '7in' : '6.5in');
             outputDiv.style.fontFamily = font;
-            outputDiv.style.fontSize = fontSize + 'px';
+            outputDiv.style.fontSize = fontSize + 'pt';
+            outputDiv.style.setProperty('--paragraph-spacing', document.getElementById('paragraph-spacing').value + 'em');
             outputDiv.style.letterSpacing = kerning + 'px';
             
             // Apply English Font to Footnotes
@@ -1669,7 +1713,7 @@
             
             // Dynamically Apply Font to Questions based on Language Selection
             const questionsOutput = document.getElementById('questions-output');
-            const questionsLang = document.getElementById('questions-lang') ? document.getElementById('questions-lang').value : 'Hebrew';
+            const questionsLang = document.getElementById('questions-lang') ? document.getElementById('questions-lang').value : 'English';
             
             if (questionsOutput) {
                 questionsOutput.style.fontFamily = (questionsLang === 'English') ? enFont : font;
@@ -1719,11 +1763,12 @@
             output.dir = direction;
             output.style.textAlign = direction === 'ltr' ? 'left' : 'right';
             if (integrated) {
+                output.style.setProperty('--paragraph-spacing', document.getElementById('paragraph-spacing').value + 'em');
                 output.innerHTML = formatStory(currentRawStory, currentResult.words, section => renderQuestions(worksheet.questions.filter(q => q.section === section)))
                     + renderQuestions(worksheet.questions.filter(q => q.section === 0));
                 output.querySelectorAll('.story-title, .story-body').forEach(node => {
                     node.style.fontFamily = document.getElementById('font-choice').value;
-                    node.style.fontSize = document.getElementById('font-size').value + 'px';
+                    node.style.fontSize = document.getElementById('font-size').value + 'pt';
                     node.style.lineHeight = document.getElementById('line-spacing').value;
                 });
                 if (currentFootnotes && document.getElementById('footnote-display').value !== 'none') output.innerHTML += `<div class="generated-footnotes"><strong>Footnotes:</strong><div class="footnote-columns">${ReaderCore.escapeHtml(currentFootnotes).replace(/\n/g, '<br>')}</div></div>`;
@@ -1738,7 +1783,7 @@
         document.getElementById('generate-questions-btn').addEventListener('click', async () => {
             const lang = document.getElementById('questions-lang').value;
             const questionCount = document.getElementById('question-count').value;
-            const placement = document.getElementById('question-placement').value;
+            const placement = document.querySelector('input[name="question-placement"]:checked').value;
             const btn = document.getElementById('generate-questions-btn');
             const qOutput = document.getElementById('questions-output');
             const qViewport = document.getElementById('questions-viewport');
@@ -1812,7 +1857,7 @@
             } finally {
                 if (requests.isWorksheet(requestId)) {
                     btn.disabled = storyPending;
-                    btn.innerText = "Regenerate Worksheet";
+                    btn.innerText = "Regenerate Questions";
                 }
             }
         });

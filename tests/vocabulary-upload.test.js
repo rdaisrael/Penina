@@ -139,7 +139,12 @@ test('duplicate category headings combine safely, including object property name
 test('new downloadable template becomes importable when a noun is entered',async()=>{
     const workbook=new ExcelJS.Workbook();
     await workbook.xlsx.load(fs.readFileSync(require.resolve('../PeninaPlus-Reader/Vocabulary_By_Category.xlsx')));
-    assert.deepEqual(workbook.worksheets.map(sheet=>sheet.name),['Verbs','Nouns','Adjectives','Instructions','Prepositions','Adverbs','Conjunctions','Question Words','Phrases & Expressions']);
+    assert.deepEqual(workbook.worksheets.map(sheet=>sheet.name),['Verbs','Nouns','Adjectives','Prepositions','Adverbs','Conjunctions','Question Words','Phrases & Expressions','Instructions']);
+    for (const sheet of workbook.worksheets) {
+        sheet.getRow(1).eachCell(cell => assert.equal(cell.alignment.horizontal,'center'));
+        assert.equal(sheet.getCell('A2').border.bottom.color.argb,'FFD9DEE3');
+    }
+    assert.match(workbook.getWorksheet('Instructions').getCell('A7').value,/single workbook/);
     workbook.getWorksheet('Nouns').getCell('C2').value='כלב';
     assert.deepEqual((await upload.readExcel(await workbook.xlsx.writeBuffer(),ExcelJS)).nounCategories,{Animals:['כלב']});
 });

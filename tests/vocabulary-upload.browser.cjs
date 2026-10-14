@@ -20,7 +20,14 @@ async function fixture(name,rows){
   await page.goto('http://reader.test/PeninaPlus-Reader/index.html');
   const nouns=await fixture('Nouns',[['Clothing','Animals'],['חולצה','כלב'],[null,'חתול']]);
   const adjs=await fixture('Adjectives',[['שם תואר'],['גדול']]);
-  await page.locator('#vocab-file-a').setInputFiles([nouns,adjs]);
+  const combined=new ExcelJS.Workbook();
+  await combined.xlsx.load(nouns.buffer);
+  combined.addWorksheet('Adjectives').addRows([['שם תואר'],['גדול']]);
+  assert.equal(await page.locator('#vocab-file-a').getAttribute('multiple'),null);
+  assert.equal(await page.locator('#vocab-file-b').getAttribute('multiple'),null);
+  await page.evaluate(async()=>validateExcelUpload({files:[{name:'one.xlsx'},{name:'two.xlsx'}],value:''},'A'));
+  assert.match(await page.locator('#vocab-upload-status-a').textContent(),/one workbook/);
+  await page.locator('#vocab-file-a').setInputFiles({name:'Combined.xlsx',mimeType:nouns.mimeType,buffer:Buffer.from(await combined.xlsx.writeBuffer())});
   await page.waitForFunction(()=>document.getElementById('vocab-upload-status-a').textContent.includes('3 nouns'));
   assert.equal(await page.locator('#noun-categories-a input:checked').count(),2);
   await page.locator('#noun-categories-a input[value="Clothing"]').uncheck();
@@ -28,7 +35,7 @@ async function fixture(name,rows){
   assert.deepEqual(await page.evaluate(()=>uploadedVocabA.adjs),['גדול']);
   await page.locator('#noun-categories-a summary').last().click();
   assert.ok((await page.locator('#noun-categories-a').innerText()).includes('כלב · חתול'));
-  await page.locator('#noun-categories-a').screenshot({path:'/private/tmp/penina-workbook-template/category-controls.png'});
+  await page.locator('#noun-categories-a').screenshot({path:'/private/tmp/reader-category-controls.png'});
   await page.locator('#pathway-b-radio').check();
   await page.locator('#vocab-file-b').setInputFiles(nouns);
   await page.waitForFunction(()=>document.getElementById('vocab-upload-status-b').textContent.includes('3 nouns'));
@@ -44,6 +51,6 @@ async function fixture(name,rows){
   assert.equal(await page.evaluate(()=>uploadedVocabB),null);
   assert.equal(await page.locator('#noun-categories-b').isVisible(),false);
   assert.deepEqual(errors,[]);
-  console.log('Browser checks passed: batch uploads, category selection, previews, independent pathways, legacy replacement and error clearing.');
+  console.log('Browser checks passed: single-workbook enforcement, category selection, previews, independent pathways, legacy replacement and error clearing.');
  } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

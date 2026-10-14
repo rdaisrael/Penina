@@ -8,6 +8,7 @@
     const normalizeWord = text => String(text).normalize('NFD').replace(marks, '').replace(/[^\u05D0-\u05EA]/g, '');
     const skeleton = text => String(text).normalize('NFD').replace(marks, '').replace(/\r\n/g, '\n').trim();
     const words = text => [...String(text).matchAll(new RegExp(wordPattern.source, 'g'))];
+    const normalizePhrase = text => words(text).map(token => normalizeWord(token[0])).join(' ');
     const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const pronouns = new Set('אני אתה את הוא היא אנחנו אנו אתם אתן הם הן שלי שלך שלו שלה שלנו שלכם שלכן שלהם שלהן'.split(' '));
     function normalizeVocabulary(profile) {
@@ -15,7 +16,7 @@
         const result = {mode: profile.mode};
         for (const key of ['words','verbs','nouns','adjs','forms']) {
             if (!Array.isArray(profile[key]) || profile[key].some(x => typeof x !== 'string')) throw new Error('Invalid vocabulary list.');
-            result[key] = [...new Set(profile[key].map(x => key === 'forms' ? x.trim() : normalizeWord(x)).filter(Boolean))];
+            result[key] = [...new Set(profile[key].map(x => key === 'forms' ? x.trim() : normalizePhrase(x)).filter(Boolean))];
         }
         return result;
     }
@@ -34,12 +35,31 @@
             const prefix = item.prefix === undefined ? '' : item.prefix;
             const surface = normalizeWord(item.word);
             if (typeof prefix !== 'string' || !/^[לבשה]*$/.test(prefix) || !surface.startsWith(prefix) || prefix.length >= surface.length) throw new Error('Invalid word prefix analysis. Please generate again.');
-            const match = normalizeWord(item.match);
-            const known = entries.includes(match) || (item.match === '__pronoun__' && pronouns.has(normalizeWord(item.word)));
+            const match = normalizePhrase(item.match);
+            const known = (!match.includes(' ') && entries.includes(match)) || (item.match === '__pronoun__' && pronouns.has(normalizeWord(item.word)));
             const verbAllowed = normalized.mode === 'complete' || !normalized.verbs.includes(match) || normalized.forms.includes(item.form);
             return {...item, prefix, mastered: item.mastered && known && verbAllowed};
         });
-        return {text: sourceText === undefined ? text : sourceText.trim(), words: analysis, vocabulary: normalized};
+        // Older saved analyses have no phrase list. New spans use zero-based word
+        // indexes, with end exclusive; punctuation and line boundaries cannot be crossed.
+        const phrases = data.phrases === undefined ? [] : data.phrases;
+        if (!Array.isArray(phrases)) throw new Error('Invalid phrase analysis. Please generate again.');
+        const occupied = new Set();
+        const validatedPhrases = phrases.map(phrase => {
+            if (!phrase || !Number.isInteger(phrase.start) || !Number.isInteger(phrase.end) || phrase.start < 0 || phrase.end > tokens.length || phrase.end - phrase.start < 2 || typeof phrase.word !== 'string' || typeof phrase.mastered !== 'boolean' || typeof phrase.translation !== 'string' || !phrase.translation.trim() || typeof phrase.match !== 'string' || typeof phrase.form !== 'string') throw new Error('Invalid phrase analysis. Please generate again.');
+            const span = tokens.slice(phrase.start, phrase.end);
+            if (normalizePhrase(phrase.word) !== span.map(token => normalizeWord(token[0])).join(' ')) throw new Error('Phrase analysis does not match the story. Please generate again.');
+            for (let i = phrase.start; i < phrase.end; i++) {
+                if (occupied.has(i)) throw new Error('Overlapping phrase analysis. Please generate again.');
+                occupied.add(i);
+                if (i > phrase.start && !/^[ \t\u05BE-]+$/.test(text.slice(tokens[i-1].index + tokens[i-1][0].length, tokens[i].index))) throw new Error('Phrase crosses a punctuation or line boundary. Please generate again.');
+            }
+            const match = normalizePhrase(phrase.match);
+            const known = match.includes(' ') && entries.includes(match);
+            const verbAllowed = normalized.mode === 'complete' || !normalized.verbs.includes(match) || normalized.forms.includes(phrase.form);
+            return {...phrase, mastered: phrase.mastered && known && verbAllowed};
+        });
+        return {text: sourceText === undefined ? text : sourceText.trim(), words: analysis, phrases: validatedPhrases, vocabulary: normalized};
     }
     function buildResult(text, analysis, dictaTokens = []) {
         const vocalized = words(text);
@@ -68,15 +88,26 @@
         text = analysis.text.replace(new RegExp(wordPattern.source, 'g'), () => vocalized[wordIndex++][0]);
         const tokens = words(text);
         const notes = [], ids = new Map();
-        const tokenAnalysis = analysis.words.map((item, i) => {
+        const phraseByWord = new Map();
+        for (const phrase of analysis.phrases || []) {
+            for (let i = phrase.start; i < phrase.end; i++) phraseByWord.set(i, phrase);
+        }
+        const tokenAnalysis = analysis.words.map((originalItem, i) => {
+            const phrase = phraseByWord.get(i);
+            const item = phrase ? {...originalItem, mastered: phrase.mastered} : originalItem;
+            if (phrase && i !== phrase.end - 1) return {...item, word: tokens[i][0], start: tokens[i].index, noteId: null};
             // Group by the same word form after removing contextually identified prefixes.
-            const key = normalizeWord(item.word).slice((item.prefix || '').length);
+            const key = phrase
+                ? 'phrase:' + analysis.words.slice(phrase.start, phrase.end).map(word => normalizeWord(word.word).slice((word.prefix || '').length)).join(' ')
+                : 'word:' + normalizeWord(item.word).slice((item.prefix || '').length);
+            const noteWord = phrase ? text.slice(tokens[phrase.start].index, tokens[i].index + tokens[i][0].length) : tokens[i][0];
+            const translation = (phrase || item).translation.trim();
             let noteId = null;
             if (!item.mastered) {
-                if (!ids.has(key)) { ids.set(key, notes.length + 1); notes.push({id: notes.length + 1, word: tokens[i][0], translation: item.translation.trim()}); }
+                if (!ids.has(key)) { ids.set(key, notes.length + 1); notes.push({id: notes.length + 1, word: noteWord, translation}); }
                 noteId = ids.get(key);
                 const note = notes[noteId - 1];
-                if (!note.translation.toLowerCase().split('; ').includes(item.translation.trim().toLowerCase())) note.translation += '; ' + item.translation.trim();
+                if (!note.translation.toLowerCase().split('; ').includes(translation.toLowerCase())) note.translation += '; ' + translation;
             }
             return {...item, word: tokens[i][0], start: tokens[i].index, noteId};
         });
@@ -107,5 +138,5 @@
             isWorksheet(id) { return id.story === story && id.worksheet === worksheet; }
         };
     }
-    return {normalizeWord, skeleton, words, escapeHtml, normalizeVocabulary, validateAnalysis, buildResult, validateWorksheet, createRequestTracker};
+    return {normalizeWord, normalizePhrase, skeleton, words, escapeHtml, normalizeVocabulary, validateAnalysis, buildResult, validateWorksheet, createRequestTracker};
 });

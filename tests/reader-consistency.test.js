@@ -216,3 +216,80 @@ test('prefix validation rejects malformed or nonmatching prefixes', () => {
     assert.ok(readerFormat.schema.properties.words.items.required.includes('prefix'));
     assert.ok(readerPrompt('Read',profile).includes('never letters belonging to the lexical word'));
 });
+
+const phraseEntry = (start,end,word,translation,mastered=false,match='',form='') => ({start,end,word,translation,mastered,match,form});
+function phraseSample() {
+    return {text:'טיול\nגן החיות בגן החיות גן',words:[
+        entry('טיול',true,'trip','טיול'),entry('גן',true,'garden','גן'),
+        {...entry('החיות',true,'the animals','חיות'),prefix:'ה'},
+        {...entry('בגן',true,'in the garden','גן'),prefix:'ב'},
+        {...entry('החיות',true,'the animals','חיות'),prefix:'ה'},entry('גן',false,'garden')
+    ],phrases:[phraseEntry(1,3,'גן החיות','zoo'),phraseEntry(3,5,'בגן החיות','at the zoo')]};
+}
+const phraseProfile={mode:'complete',words:['טיול','גן','חיות'],verbs:[],nouns:[],adjs:[],forms:[]};
+
+test('vocabulary preserves phrase boundaries, niqqud normalization and maqaf equivalents', () => {
+    const p=core.normalizeVocabulary({...phraseProfile,words:['גַּן הַחַיּוֹת','גן   החיות','בית־ספר','בית ספר','גןהחיות']});
+    assert.deepEqual(p.words,['גן החיות','בית ספר','גןהחיות']);
+    assert.deepEqual(core.normalizeVocabulary(p),p);
+});
+
+test('repeated prefix variants get one phrase note, a final-word marker and independent standalone notes', () => {
+    const data=phraseSample();
+    const pointed='טִיּוּל\nגַּן הַחַיּוֹת בְּגַן הַחַיּוֹת גַּן';
+    const result=core.buildResult(pointed,core.validateAnalysis(data,phraseProfile));
+    assert.deepEqual(result.words.map(w=>w.noteId),[null,null,1,null,1,2]);
+    assert.deepEqual(result.words.map(w=>w.mastered),[true,false,false,false,false,false]);
+    assert.equal(result.notes[0].word,'גַּן הַחַיּוֹת');
+    assert.equal(result.notes[0].translation,'zoo; at the zoo');
+    assert.equal(result.notes[1].translation,'garden');
+    const rendered=renderer().formatStory(result.text,result.words);
+    assert.equal((rendered.match(/footnote-marker/g)||[]).length,3);
+});
+
+test('whole-phrase mastery requires a listed phrase and cannot leak into individual words', () => {
+    const data=phraseSample();
+    data.phrases=data.phrases.map(p=>({...p,mastered:true,match:'גן החיות'}));
+    assert.equal(core.validateAnalysis(data,phraseProfile).phrases[0].mastered,false);
+    const known={...phraseProfile,words:[...phraseProfile.words,'גן החיות']};
+    const result=core.buildResult(data.text,core.validateAnalysis(data,known));
+    assert.deepEqual(result.words.map(w=>w.mastered),[true,true,true,true,true,false]);
+    assert.equal(result.notes.length,1);
+    const single={text:'גן\nחיות',words:[entry('גן',true,'garden','גן החיות'),entry('חיות',true,'animals','גן החיות')]};
+    assert.deepEqual(core.validateAnalysis(single,known).words.map(w=>w.mastered),[false,false]);
+});
+
+test('phrase validation rejects fabricated spans, overlaps and punctuation or paragraph crossings', () => {
+    for (const patch of [{start:-1},{start:1.5},{end:99},{end:2},{word:'בית ספר'},{translation:''},{mastered:'yes'}]) {
+        const data=phraseSample();data.phrases=[{...data.phrases[0],...patch}];
+        assert.throws(()=>core.validateAnalysis(data,phraseProfile),/phrase|Phrase/);
+    }
+    const overlap=phraseSample();overlap.phrases.push(overlap.phrases[0]);
+    assert.throws(()=>core.validateAnalysis(overlap,phraseProfile),/Overlapping/);
+    for(const separator of [', ','. ','\n','\n\n','! ']) {
+        const data=phraseSample();data.text=data.text.replace('גן החיות','גן'+separator+'החיות');
+        assert.throws(()=>core.validateAnalysis(data,phraseProfile),/boundary/);
+    }
+    const title=phraseSample();title.phrases=[phraseEntry(0,2,'טיול גן','trip garden')];
+    assert.throws(()=>core.validateAnalysis(title,phraseProfile),/boundary/);
+});
+
+test('ordinary combinations remain individual words and legacy analyses still render', () => {
+    const data={text:'בית\nבית גדול',words:[entry('בית',false,'house'),entry('בית',false,'house'),entry('גדול',false,'big')],phrases:[]};
+    const result=core.buildResult(data.text,core.validateAnalysis(data,phraseProfile));
+    assert.deepEqual(result.words.map(w=>w.noteId),[1,1,2]);
+    delete data.phrases;
+    assert.deepEqual(core.buildResult(data.text,core.validateAnalysis(data,phraseProfile)),result);
+});
+
+test('phrase verbs respect selected forms, and generation requires explicit conservative phrase analysis', () => {
+    const data=phraseSample();data.phrases=[{...data.phrases[0],mastered:true,match:'גן החיות',form:'allowed'}];
+    const p={...phraseProfile,mode:'pos',verbs:['גן החיות'],forms:[]};
+    assert.equal(core.validateAnalysis(data,p).phrases[0].mastered,false);
+    assert.equal(core.validateAnalysis(data,{...p,forms:['allowed']}).phrases[0].mastered,true);
+    const {readerFormat,readerPrompt}=require('../lib/reader-response');
+    assert.ok(readerFormat.schema.required.includes('phrases'));
+    const prompt=readerPrompt('Read',phraseProfile);
+    assert.ok(prompt.includes('leave uncertain expressions ungrouped'));
+    assert.ok(prompt.includes('counting title words'));
+});

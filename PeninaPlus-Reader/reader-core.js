@@ -35,10 +35,11 @@
             const prefix = item.prefix === undefined ? '' : item.prefix;
             const surface = normalizeWord(item.word);
             if (typeof prefix !== 'string' || !/^[לבשה]*$/.test(prefix) || !surface.startsWith(prefix) || prefix.length >= surface.length) throw new Error('Invalid word prefix analysis. Please generate again.');
+            if (item.isName !== undefined && typeof item.isName !== 'boolean') throw new Error('Invalid word name analysis. Please generate again.');
             const match = normalizePhrase(item.match);
             const known = (!match.includes(' ') && entries.includes(match)) || (item.match === '__pronoun__' && pronouns.has(normalizeWord(item.word)));
             const verbAllowed = normalized.mode === 'complete' || !normalized.verbs.includes(match) || normalized.forms.includes(item.form);
-            return {...item, prefix, mastered: item.mastered && known && verbAllowed};
+            return {...item, prefix, isName: item.isName === true, mastered: item.mastered && known && verbAllowed};
         });
         // Older saved analyses have no phrase list. New spans use zero-based word
         // indexes, with end exclusive; punctuation and line boundaries cannot be crossed.
@@ -54,10 +55,11 @@
                 occupied.add(i);
                 if (i > phrase.start && !/^[ \t\u05BE-]+$/.test(text.slice(tokens[i-1].index + tokens[i-1][0].length, tokens[i].index))) throw new Error('Phrase crosses a punctuation or line boundary. Please generate again.');
             }
+            if (phrase.isName !== undefined && typeof phrase.isName !== 'boolean') throw new Error('Invalid phrase name analysis. Please generate again.');
             const match = normalizePhrase(phrase.match);
             const known = match.includes(' ') && entries.includes(match);
             const verbAllowed = normalized.mode === 'complete' || !normalized.verbs.includes(match) || normalized.forms.includes(phrase.form);
-            return {...phrase, mastered: phrase.mastered && known && verbAllowed};
+            return {...phrase, isName: phrase.isName === true, mastered: phrase.mastered && known && verbAllowed};
         });
         return {text: sourceText === undefined ? text : sourceText.trim(), words: analysis, phrases: validatedPhrases, vocabulary: normalized};
     }
@@ -103,7 +105,12 @@
             const noteWord = phrase ? text.slice(tokens[phrase.start].index, tokens[i].index + tokens[i][0].length) : tokens[i][0];
             const translation = (phrase || item).translation.trim();
             let noteId = null;
-            if (!item.mastered) {
+            // Name status belongs to this occurrence, not its spelling: דוד may
+            // be David here and ordinary vocabulary (uncle) elsewhere.
+            const isName = phrase
+                ? phrase.isName === true || analysis.words.slice(phrase.start, phrase.end).every(word => word.isName === true)
+                : item.isName === true;
+            if (!item.mastered && !isName) {
                 if (!ids.has(key)) { ids.set(key, notes.length + 1); notes.push({id: notes.length + 1, word: noteWord, translation}); }
                 noteId = ids.get(key);
                 const note = notes[noteId - 1];

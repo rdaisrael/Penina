@@ -316,3 +316,46 @@ test('interleaved rendering preserves token analysis and inserts questions after
     assert.equal((output.match(/worksheet-reading-section/g)||[]).length,2);
     assert.ok(output.indexOf('QUESTION 1') < output.indexOf('QUESTION 2'));
 });
+
+test('names and prefixed names are not footnoted, without granting vocabulary mastery', () => {
+    const data={text:'דוד\nלדוד דוד ורד',words:[
+        {...entry('דוד',false,'David'),isName:true},
+        {...entry('לדוד',false,'to David'),isName:true,prefix:'ל'},
+        {...entry('דוד',false,'uncle'),isName:false},
+        {...entry('ורד',false,'rose'),isName:false}
+    ]};
+    const result=core.buildResult(data.text,core.validateAnalysis(data,profile));
+    assert.deepEqual(result.words.map(w=>w.noteId),[null,null,1,2]);
+    assert.deepEqual(result.words.map(w=>w.mastered),[false,false,false,false]);
+    assert.deepEqual(result.notes.map(n=>n.translation),['uncle','rose']);
+});
+
+test('multiword proper names are excluded, while ordinary compound vocabulary is footnoted', () => {
+    for (const phraseFlag of [false,true]) {
+        const data={text:'טיול\nתל אביב גן החיות',words:[
+            entry('טיול',true,'trip','טיול'),
+            {...entry('תל',false,'Tel'),isName:!phraseFlag},
+            {...entry('אביב',false,'Aviv'),isName:!phraseFlag},
+            entry('גן',false,'garden'),entry('החיות',false,'animals')
+        ],phrases:[{...phraseEntry(1,3,'תל אביב','Tel Aviv'),isName:phraseFlag},phraseEntry(3,5,'גן החיות','zoo')]};
+        const result=core.buildResult(data.text,core.validateAnalysis(data,phraseProfile));
+        assert.deepEqual(result.words.map(w=>w.noteId),[null,null,null,null,1]);
+        assert.equal(result.notes[0].translation,'zoo');
+        assert.equal((renderer().formatStory(result.text,result.words).match(/footnote-marker/g)||[]).length,1);
+    }
+});
+
+test('name metadata is strictly boolean, required for new generation, and optional for older analyses', () => {
+    for (const value of ['false',null,1]) {
+        const data=phraseSample();data.words[0].isName=value;
+        assert.throws(()=>core.validateAnalysis(data,phraseProfile),/word name analysis/);
+        delete data.words[0].isName;data.phrases[0].isName=value;
+        assert.throws(()=>core.validateAnalysis(data,phraseProfile),/phrase name analysis/);
+    }
+    const {readerFormat,readerPrompt}=require('../lib/reader-response');
+    assert.ok(readerFormat.schema.properties.words.items.required.includes('isName'));
+    assert.ok(readerFormat.schema.properties.phrases.items.required.includes('isName'));
+    assert.ok(readerPrompt('Read',profile).includes('דוד meaning uncle is not'));
+    const result=core.buildResult(sample.text,core.validateAnalysis(sample,profile));
+    assert.equal(result.notes.length,1);
+});

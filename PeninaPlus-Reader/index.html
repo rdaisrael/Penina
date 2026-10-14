@@ -606,7 +606,7 @@
                                 <li><strong>Phrases &amp; Expressions:</strong> Enter one complete mastered Hebrew phrase or expression per cell, with spaces between its words.</li>
                             </ul>
                             <p>Keep the sheet names Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
-                            <p>Save as an Excel Workbook (.xlsx), then upload it below. After uploading, preview the nouns and adjectives and select the categories to include. Each new upload replaces the previous selection.</p>
+                            <p>Save as an Excel workbook (.xlsx or .xls), then upload it below. After uploading, preview the nouns and adjectives and select the categories to include. Each new upload replaces the previous selection.</p>
                         </div>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -616,7 +616,7 @@
                         </div>
                         
                         <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbook:</label>
-                        <input type="file" id="vocab-file-a" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <input type="file" id="vocab-file-a" accept=".xlsx,.xls" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-a" role="status" aria-live="polite"></p>
                         <fieldset id="noun-categories-a" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
                         <fieldset id="adjective-categories-a" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Adjective categories to include</legend><div class="category-options"></div></fieldset>
@@ -724,7 +724,7 @@
                                 <li><strong>Phrases &amp; Expressions:</strong> Enter one complete mastered Hebrew phrase or expression per cell, with spaces between its words.</li>
                             </ul>
                             <p>Keep the sheet names Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
-                            <p>Save as an Excel Workbook (.xlsx), then upload it below. After uploading, preview the nouns and adjectives and select the categories to include. Each new upload replaces the previous selection.</p>
+                            <p>Save as an Excel workbook (.xlsx or .xls), then upload it below. After uploading, preview the nouns and adjectives and select the categories to include. Each new upload replaces the previous selection.</p>
                         </div>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -734,7 +734,7 @@
                         </div>
                         
                         <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbook:</label>
-                        <input type="file" id="vocab-file-b" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <input type="file" id="vocab-file-b" accept=".xlsx,.xls" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-b" role="status" aria-live="polite"></p>
                         <fieldset id="noun-categories-b" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
                         <fieldset id="adjective-categories-b" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Adjective categories to include</legend><div class="category-options"></div></fieldset>
@@ -948,6 +948,7 @@
 
     <script src="reader-core.js"></script>
     <script src="vendor/exceljs-4.4.0.min.js"></script>
+    <script src="vendor/xlsx-0.20.3.full.min.js"></script>
     <script src="vocabulary-upload.js"></script>
     <script src="reader-pagination.js"></script>
     <script>
@@ -1073,9 +1074,15 @@
                 if (typeof ExcelJS === 'undefined') throw new Error('The Excel reader did not load. Refresh the page and try again.');
                 const parts = [];
                 for (const file of files) {
-                    if (!file.name.toLowerCase().endsWith('.xlsx')) throw new Error('Please upload Excel Workbooks (.xlsx).');
+                    if (!/\.xlsx?$/i.test(file.name)) throw new Error('Please upload an Excel workbook (.xlsx or .xls).');
                     if (file.size > 5*1024*1024) throw new Error('Please upload a workbook smaller than 5 MB.');
-                    try { parts.push(await VocabularyUpload.readExcel(await file.arrayBuffer(), ExcelJS)); }
+                    try {
+                        const buffer = await file.arrayBuffer();
+                        if (/\.xls$/i.test(file.name)) {
+                            if (typeof XLSX === 'undefined') throw new Error('The .xls reader did not load. Refresh the page and try again.');
+                            parts.push(VocabularyUpload.readXls(buffer, XLSX));
+                        } else parts.push(await VocabularyUpload.readExcel(buffer, ExcelJS));
+                    }
                     catch (error) { throw new Error(`${file.name}: ${error.message}`); }
                 }
                 const result = parts.length === 1 ? parts[0] : VocabularyUpload.merge(parts);

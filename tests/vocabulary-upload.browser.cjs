@@ -1,5 +1,6 @@
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const ExcelJS=require('../PeninaPlus-Reader/vendor/exceljs-4.4.0.min.js');
+const XLSX=require('../PeninaPlus-Reader/vendor/xlsx-0.20.3.full.min.js');
 const path=require('node:path');
 const assert=require('node:assert/strict');
 const repo=path.resolve(__dirname,'..');
@@ -18,6 +19,18 @@ async function fixture(name,rows){
    try{await route.fulfill({path:path.join(repo,decodeURIComponent(url.pathname))});}catch{await route.abort();}
   });
   await page.goto('http://reader.test/PeninaPlus-Reader/index.html');
+  assert.match(await page.locator('#vocab-file-a').getAttribute('accept'),/\.xls\b/);
+  const xlsWorkbook=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(xlsWorkbook,XLSX.utils.aoa_to_sheet([['Size','Color'],['גדול','אדום']]),'Adjectives');
+  const xls={name:'Adjectives.XLS',mimeType:'application/vnd.ms-excel',buffer:Buffer.from(XLSX.write(xlsWorkbook,{type:'buffer',bookType:'biff8'}))};
+  await page.locator('#vocab-file-a').setInputFiles(xls);
+  await page.waitForFunction(()=>document.getElementById('vocab-upload-status-a').textContent.includes('2 adjectives'));
+  assert.deepEqual(await page.evaluate(()=>uploadedVocabA.adjs),['גדול','אדום']);
+  await page.locator('#pathway-b-radio').check();
+  await page.locator('#vocab-file-b').setInputFiles(xls);
+  await page.waitForFunction(()=>document.getElementById('vocab-upload-status-b').textContent.includes('2 adjectives'));
+  assert.deepEqual(await page.evaluate(()=>uploadedVocabB.adjectiveCategories),{Size:['גדול'],Color:['אדום']});
+  await page.locator('#pathway-a-radio').check();
   const nouns=await fixture('Nouns',[['Clothing','Animals'],['חולצה','כלב'],[null,'חתול']]);
   const adjs=await fixture('Adjectives',[['שם תואר'],['גדול']]);
   const combined=new ExcelJS.Workbook();

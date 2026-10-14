@@ -84,6 +84,35 @@
         const workbook = new ExcelJS.Workbook();
         try { await workbook.xlsx.load(buffer); }
         catch (_) { throw new Error('This file could not be opened. Save it as an Excel Workbook (.xlsx), then upload again.'); }
+        return parseWorkbook(workbook);
+    }
+    function readXls(buffer, XLSX) {
+        let source;
+        try {
+            const bytes = new Uint8Array(buffer);
+            // Do not let the permissive parser treat arbitrary text as a workbook.
+            const compound = [0xD0,0xCF,0x11,0xE0,0xA1,0xB1,0x1A,0xE1].every((value,i) => bytes[i] === value);
+            const biff = [0x09,0x0209,0x0409,0x0809].includes(bytes[0] | (bytes[1] << 8));
+            if (!compound && !biff) throw new Error('Invalid XLS signature');
+            source = XLSX.read(bytes, {type:'array', cellFormula:true, sheetRows:5001});
+        } catch (_) {
+            throw new Error('This .xls file could not be opened. Save it as an unencrypted Excel workbook (.xls or .xlsx), then upload again.');
+        }
+        const worksheets = source.SheetNames.map(name => {
+            const sheet = source.Sheets[name];
+            const range = sheet['!fullref'] || sheet['!ref'];
+            const end = range ? XLSX.utils.decode_range(range).e : {r:-1,c:-1};
+            const cell = address => {
+                const value = sheet[address];
+                return {value:!value ? null : value.f ? {formula:value.f}
+                    : value.t === 'e' ? {error:value.v} : value.v};
+            };
+            return {name, rowCount:end.r+1, columnCount:end.c+1, getCell:cell,
+                getRow:row => ({getCell:column => cell(XLSX.utils.encode_cell({r:row-1,c:column-1}))})};
+        });
+        return parseWorkbook({worksheets});
+    }
+    function parseWorkbook(workbook) {
         const parts = [];
         for (const sheet of workbook.worksheets) {
             const name = sheet.name.trim().toLowerCase();
@@ -131,5 +160,5 @@
         if (!['verbs','nouns','adjs','preps','adverbs','conjunctions','questionWords','expressions'].some(key => result[key]?.length)) throw new Error('The workbook is empty. Add mastered Hebrew words, save it, then upload again.');
         return result;
     }
-    return {parseRows,readExcel,merge,selectNouns,selectAdjectives};
+    return {parseRows,readExcel,readXls,merge,selectNouns,selectAdjectives};
 });

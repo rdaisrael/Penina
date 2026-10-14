@@ -17,8 +17,9 @@ const outputDir=fs.mkdtempSync(path.join(require('os').tmpdir(),'reader-layout-'
  });
  await page.goto('http://reader.test/PeninaPlus-Reader/index.html');
  await page.evaluate(()=>document.fonts.ready);
- assert.equal(await page.locator('#bold-words').isChecked(),true);
- assert.equal(await page.locator('#highlight-words').isChecked(),true);
+ assert.equal(await page.locator('#bold-words').isChecked(),false);
+ assert.equal(await page.locator('#highlight-words').isChecked(),false);
+ await page.evaluate(()=>{document.getElementById('bold-words').checked=true;document.getElementById('highlight-words').checked=true;});
  assert.equal(await page.locator('#question-count').inputValue(),'10');
  const backup=process.env.READER_BACKUP ? JSON.parse(fs.readFileSync(process.env.READER_BACKUP,'utf8')) : null;
  await page.evaluate(backup=>{

@@ -60,12 +60,25 @@
         }
         for (const key of Object.keys(result)) result[key] = [...new Set(result[key])];
         if (categories.size) result.nounCategories = Object.fromEntries(categories);
+        const adjectiveCategories = new Map();
+        for (const part of results) {
+            const source = part.adjectiveCategories || (part.adjs.length ? {General:part.adjs} : {});
+            for (const [name, words] of Object.entries(source)) {
+                adjectiveCategories.set(name, [...new Set([...(adjectiveCategories.get(name) || []), ...words])]);
+            }
+        }
+        if (adjectiveCategories.size) result.adjectiveCategories = Object.fromEntries(adjectiveCategories);
         return result;
     }
     function selectNouns(result, categories) {
         if (!result.nounCategories) return result;
         return {...result, nouns:[...new Set(categories.flatMap(name =>
             Object.hasOwn(result.nounCategories, name) ? result.nounCategories[name] : []))]};
+    }
+    function selectAdjectives(result, categories) {
+        if (!result.adjectiveCategories) return result;
+        return {...result, adjs:[...new Set(categories.flatMap(name =>
+            Object.hasOwn(result.adjectiveCategories, name) ? result.adjectiveCategories[name] : []))]};
     }
     async function readExcel(buffer, ExcelJS) {
         const workbook = new ExcelJS.Workbook();
@@ -105,9 +118,10 @@
                         if (!heading && words.length) throw new Error(`Column ${col+1} needs a heading in row 1.`);
                         if (words.some(word=>!/[\u05D0-\u05EA]/.test(word) || /[a-zA-Z]/.test(word))) throw new Error('Vocabulary entries must be Hebrew words. Put one Hebrew word or expression in each cell.');
                         part[kind].push(...words);
-                        if (kind === 'nouns' && words.length) categories.set(heading, [...new Set([...(categories.get(heading)||[]), ...words])]);
+                        if (['nouns','adjs'].includes(kind) && words.length) categories.set(heading, [...new Set([...(categories.get(heading)||[]), ...words])]);
                     }
                     if (kind === 'nouns') part.nounCategories = Object.fromEntries(categories);
+                    if (kind === 'adjs') part.adjectiveCategories = Object.fromEntries(categories);
                     parts.push(part);
                 }
             } catch (error) { throw new Error(`Sheet "${sheet.name}": ${error.message}`); }
@@ -117,5 +131,5 @@
         if (!['verbs','nouns','adjs','preps','adverbs','conjunctions','questionWords','expressions'].some(key => result[key]?.length)) throw new Error('The workbook is empty. Add mastered Hebrew words, save it, then upload again.');
         return result;
     }
-    return {parseRows,readExcel,merge,selectNouns};
+    return {parseRows,readExcel,merge,selectNouns,selectAdjectives};
 });

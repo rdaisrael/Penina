@@ -71,7 +71,7 @@ test('upload handler clears old vocabulary on replacement and ignores an older u
     const html=fs.readFileSync(require.resolve('../PeninaPlus-Reader/index.html'),'utf8');
     const fields={};
     const context=vm.createContext({uploadedVocabA:{old:true},uploadedVocabB:null,ExcelJS:{},
-        VocabularyUpload:{readExcel:async buffer=>buffer},document:{getElementById(id){if(id.startsWith('noun-categories'))return null;return fields[id] ||= {textContent:'',addEventListener(){}};}}});
+        VocabularyUpload:{readExcel:async buffer=>buffer},document:{getElementById(id){if(id.includes('-categories'))return null;return fields[id] ||= {textContent:'',addEventListener(){}};}}});
     vm.runInContext(html.slice(html.indexOf('        const uploadVersions'),html.indexOf('        async function readApiResponse')),context);
     let finish;
     const oldInput={files:[{name:'old.xlsx',size:10,arrayBuffer:()=>new Promise(resolve=>{finish=resolve;})}],value:'old.xlsx'};
@@ -220,4 +220,28 @@ test('both Reader upload pathways carry the new categories into generation',()=>
         assert.deepEqual([...result.masterWordsList],['תמיד','אבל','איפה','בית ספר']);
         assert.match(result.vocabPrompt, /questionWords/);
     }
+});
+
+test('adjective template accepts custom categories, uneven columns and independent selection',async()=>{
+    const workbook=new ExcelJS.Workbook();
+    await workbook.xlsx.load(fs.readFileSync(require.resolve('../PeninaPlus-Reader/Vocabulary_By_Category.xlsx')));
+    const sheet=workbook.getWorksheet('Adjectives');
+    assert.deepEqual(sheet.getRow(1).values.slice(1),['Size','Color','Shape','Feelings','Qualities']);
+    sheet.getCell('A2').value='גדול'; sheet.getCell('A3').value='קטן';
+    sheet.getCell('B2').value='אדום';
+    sheet.getCell('F1').value='Texture'; sheet.getCell('F2').value='רך';
+    sheet.getCell('G1').value='Size'; sheet.getCell('G2').value='גדול';
+    workbook.getWorksheet('Nouns').getCell('C2').value='כלב';
+    const result=await upload.readExcel(await workbook.xlsx.writeBuffer(),ExcelJS);
+    assert.deepEqual(result.adjectiveCategories,{Size:['גדול','קטן'],Color:['אדום'],Texture:['רך']});
+    const selected=upload.selectAdjectives(upload.selectNouns(result,[]),['Texture','Color']);
+    assert.deepEqual(selected.nouns,[]);
+    assert.deepEqual(selected.adjs,['רך','אדום']);
+    assert.equal(result.adjs.length,4);
+    assert.deepEqual(upload.selectAdjectives(selected,[]).adjs,[]);
+    const legacy=upload.parseRows([headers,['','','','','','','','','','','','יפה']]);
+    assert.deepEqual(upload.merge([result,legacy]).adjectiveCategories.General,['יפה']);
+    const unusual=await upload.readExcel(await workbookWith({Adjectives:[['__proto__'],['טוב']]}),ExcelJS);
+    assert.deepEqual(upload.selectAdjectives(unusual,['__proto__']).adjs,['טוב']);
+    await assert.rejects(upload.readExcel(await workbookWith({Adjectives:[['Size',null],['גדול','קטן']]}),ExcelJS),/heading/);
 });

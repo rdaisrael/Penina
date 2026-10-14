@@ -600,13 +600,13 @@
                             <ul style="padding-left: 22px; line-height: 1.6;">
                                 <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Type X directly in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
                                 <li><strong>Nouns:</strong> Use row 1 for category names, such as Clothing, Body parts, and Animals. Rename these headings or add your own category columns. Enter one mastered singular Hebrew noun per cell below its category. Columns may have different numbers of words.</li>
-                                <li><strong>Adjectives:</strong> Enter one mastered masculine singular Hebrew adjective per cell below the heading.</li>
+                                <li><strong>Adjectives:</strong> Use row 1 for category names, such as Size, Color, Shape, Feelings, and Qualities. Rename headings or add your own category columns. Enter one mastered masculine singular Hebrew adjective per cell below its category.</li>
                                 <li><strong>Prepositions:</strong> Enter one mastered Hebrew preposition per cell below the heading.</li>
                                 <li><strong>Adverbs, Conjunctions, and Question Words:</strong> Enter one mastered Hebrew word per cell on the appropriate sheet.</li>
                                 <li><strong>Phrases &amp; Expressions:</strong> Enter one complete mastered Hebrew phrase or expression per cell, with spaces between its words.</li>
                             </ul>
                             <p>Keep the sheet names Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
-                            <p>Save as an Excel Workbook (.xlsx), then upload it below. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
+                            <p>Save as an Excel Workbook (.xlsx), then upload it below. After uploading, preview the nouns and adjectives and select the categories to include. Each new upload replaces the previous selection.</p>
                         </div>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -619,6 +619,7 @@
                         <input type="file" id="vocab-file-a" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-a" role="status" aria-live="polite"></p>
                         <fieldset id="noun-categories-a" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
+                        <fieldset id="adjective-categories-a" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Adjective categories to include</legend><div class="category-options"></div></fieldset>
                     </div>
                 </div>
 
@@ -717,13 +718,13 @@
                             <ul style="padding-left: 22px; line-height: 1.6;">
                                 <li><strong>Verbs:</strong> Enter mastered Hebrew roots in column A. Keep the verb categories in column B and the column headings unchanged. Type X directly in columns C–H beside each verb category for the tenses and forms the student has mastered.</li>
                                 <li><strong>Nouns:</strong> Use row 1 for category names, such as Clothing, Body parts, and Animals. Rename these headings or add your own category columns. Enter one mastered singular Hebrew noun per cell below its category. Columns may have different numbers of words.</li>
-                                <li><strong>Adjectives:</strong> Enter one mastered masculine singular Hebrew adjective per cell below the heading.</li>
+                                <li><strong>Adjectives:</strong> Use row 1 for category names, such as Size, Color, Shape, Feelings, and Qualities. Rename headings or add your own category columns. Enter one mastered masculine singular Hebrew adjective per cell below its category.</li>
                                 <li><strong>Prepositions:</strong> Enter one mastered Hebrew preposition per cell below the heading.</li>
                                 <li><strong>Adverbs, Conjunctions, and Question Words:</strong> Enter one mastered Hebrew word per cell on the appropriate sheet.</li>
                                 <li><strong>Phrases &amp; Expressions:</strong> Enter one complete mastered Hebrew phrase or expression per cell, with spaces between its words.</li>
                             </ul>
                             <p>Keep the sheet names Verbs, Nouns, Adjectives, Prepositions, Adverbs, Conjunctions, Question Words, and Phrases &amp; Expressions. Unused sheets may be left empty or removed. Blank cells are ignored and duplicate words are combined.</p>
-                            <p>Save as an Excel Workbook (.xlsx), then upload it below. After uploading, preview the nouns and select the categories to include. Each new upload replaces the previous selection.</p>
+                            <p>Save as an Excel Workbook (.xlsx), then upload it below. After uploading, preview the nouns and adjectives and select the categories to include. Each new upload replaces the previous selection.</p>
                         </div>
                         
                         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -736,6 +737,7 @@
                         <input type="file" id="vocab-file-b" accept=".xlsx" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-b" role="status" aria-live="polite"></p>
                         <fieldset id="noun-categories-b" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
+                        <fieldset id="adjective-categories-b" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Adjective categories to include</legend><div class="category-options"></div></fieldset>
                     </div>
                 </div>
             </div>
@@ -1025,11 +1027,15 @@
 
         const uploadVersions = {A:0, B:0};
         function showNounCategories(result, targetPathway) {
-            const box = document.getElementById(`noun-categories-${targetPathway.toLowerCase()}`);
+            showVocabularyCategories(result, targetPathway, 'noun');
+            showVocabularyCategories(result, targetPathway, 'adjective');
+        }
+        function showVocabularyCategories(result, targetPathway, kind) {
+            const box = document.getElementById(`${kind}-categories-${targetPathway.toLowerCase()}`);
             if (!box) return;
             const options = box.querySelector('.category-options');
             options.replaceChildren();
-            const entries = Object.entries(result?.nounCategories || {});
+            const entries = Object.entries(result?.[kind === 'noun' ? 'nounCategories' : 'adjectiveCategories'] || {});
             box.hidden = !entries.length;
             for (const [name, words] of entries) {
                 const label = document.createElement('label');
@@ -1038,7 +1044,9 @@
                 checkbox.type = 'checkbox'; checkbox.checked = true; checkbox.value = name;
                 checkbox.addEventListener('change', () => {
                     const selected = Array.from(options.querySelectorAll('input:checked'), input => input.value);
-                    const filtered = VocabularyUpload.selectNouns(result, selected);
+                    const current = targetPathway === 'A' ? uploadedVocabA : uploadedVocabB;
+                    const filtered = kind === 'noun' ? VocabularyUpload.selectNouns(current, selected)
+                        : VocabularyUpload.selectAdjectives(current, selected);
                     if (targetPathway === 'A') uploadedVocabA = filtered;
                     else uploadedVocabB = filtered;
                 });

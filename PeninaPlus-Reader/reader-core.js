@@ -34,9 +34,11 @@
         const analysis = data.words.map((item, i) => {
             if (!item || normalizeWord(item.word) !== normalizeWord(tokens[i][0]) || typeof item.mastered !== 'boolean' || typeof item.translation !== 'string' || !item.translation.trim() || typeof item.match !== 'string' || typeof item.form !== 'string') throw new Error('Invalid word analysis. Please generate again.');
             // Older saved analyses have no prefix metadata; retain their exact-word grouping.
-            const prefix = item.prefix === undefined ? '' : item.prefix;
+            const candidatePrefix = typeof item.prefix === 'string' ? item.prefix.normalize('NFD').replace(marks, '').trim() : '';
             const surface = normalizeWord(item.word);
-            if (typeof prefix !== 'string' || !/^[לבשה]*$/.test(prefix) || !surface.startsWith(prefix) || prefix.length >= surface.length) throw new Error('Invalid word prefix analysis. Please generate again.');
+            // Prefix metadata only groups footnotes. Never fail the whole reading or
+            // guess a stripped word when the model supplies an unusable prefix.
+            const prefix = /^[לבשה]*$/.test(candidatePrefix) && surface.startsWith(candidatePrefix) && candidatePrefix.length < surface.length ? candidatePrefix : '';
             if (item.isName !== undefined && typeof item.isName !== 'boolean') throw new Error('Invalid word name analysis. Please generate again.');
             const match = normalizePhrase(item.match);
             const known = (!match.includes(' ') && entries.includes(match)) || (item.match === '__pronoun__' && pronouns.has(normalizeWord(item.word)));

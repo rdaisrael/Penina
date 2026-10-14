@@ -745,7 +745,7 @@
             </div>
 
             <div id="comprehension-section" class="form-group panel-secondary">
-                <label class="panel-secondary-label" for="include-worksheet" style="font-size: 18px;"><input type="checkbox" id="include-worksheet"> d. Generate Worksheet</label>
+                <label class="panel-secondary-label" for="include-worksheet" style="font-size: 18px;"><input type="checkbox" id="include-worksheet"> d. Generate Questions</label>
                 <p>Select this option to create comprehension questions with your reading. Choose questions after reading sections or a separate worksheet. Regenerate questions to apply changes to these options.</p>
                 <div class="question-options">
                     <select id="questions-lang" aria-label="Question language">
@@ -1230,6 +1230,7 @@
 
             const requestId = requests.beginStory();
             storyPending = true;
+            lockQuestionOptions(true);
             if (worksheetAbort) worksheetAbort.abort();
             btn.disabled = true;
             document.getElementById('generate-questions-btn').disabled = true;
@@ -1326,6 +1327,7 @@
             } finally {
                 if (requests.isStory(requestId)) {
                     storyPending = false;
+                    lockQuestionOptions(false);
                     btn.innerText = "Generate";
                     btn.disabled = false;
                     document.getElementById('generate-questions-btn').disabled = !currentRawStory;
@@ -1771,6 +1773,10 @@
         }
 
         // --- READING COMPREHENSION GENERATOR ---
+        function lockQuestionOptions(locked) {
+            document.querySelectorAll('#comprehension-section input, #comprehension-section select').forEach(control => control.disabled = locked);
+        }
+
         function renderWorksheet() {
             if (!currentWorksheet) return;
             const {worksheet, lang, placement} = currentWorksheet;
@@ -1824,6 +1830,7 @@
             status.textContent = 'Generating and checking your worksheet…';
             btn.disabled = true;
             btn.innerText = "Writing Questions... (Wait)";
+            lockQuestionOptions(true);
             qViewport.style.display = 'block';
 
             
@@ -1878,6 +1885,7 @@
             } finally {
                 if (requests.isWorksheet(requestId)) {
                     btn.disabled = storyPending;
+                    lockQuestionOptions(storyPending);
                     btn.innerText = "Regenerate Questions";
                 }
             }

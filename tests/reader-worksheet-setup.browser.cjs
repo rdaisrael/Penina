@@ -8,6 +8,9 @@ const repo=path.resolve(__dirname,'..');
  try {
   const page=await browser.newPage({viewport:{width:1200,height:1000}});
   const errors=[],calls=[];let failStory=false;
+  let releaseStory, releaseQuestions;
+  const storyGate=new Promise(resolve=>releaseStory=resolve);
+  const questionGate=new Promise(resolve=>releaseQuestions=resolve);
   page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/*',async route=>{
    const url=new URL(route.request().url());
@@ -16,10 +19,12 @@ const repo=path.resolve(__dirname,'..');
     const request=route.request().postDataJSON();calls.push(request);
     let data;
     if(request.readerVocabulary) {
+     await storyGate;
      const text='ספר\nספר\n\nספר\n\nספר';
      const analysis=core.validateAnalysis({text,words:[0,1,2,3].map(()=>({word:'ספר',mastered:true,translation:'book',match:'ספר',form:''}))},request.readerVocabulary);
      data=failStory?{error:'Test reading failure'}:{text,readerResult:core.buildResult(text,analysis)};
     } else {
+     await questionGate;
      const count=Number(request.prompt.match(/exactly (\d+) questions/)[1]);
      const targets=request.prompt.match(/question-number order: (\[[0-9,]+\])/);
      const sections=targets?JSON.parse(targets[1]):null;
@@ -50,8 +55,18 @@ const repo=path.resolve(__dirname,'..');
   await page.locator('#question-count').selectOption('2');
   await page.locator('#questions-lang').selectOption('English');
   await page.locator('#generate-btn').click();
+  await page.waitForFunction(()=>document.getElementById('generate-btn').disabled);
+  for(const selector of ['#include-worksheet','#questions-lang','#question-count','input[name="question-placement"]']) {
+   assert.equal(await page.locator(selector).first().isDisabled(),true,'question options locked while reading is generated');
+  }
+  releaseStory();
+  await page.waitForFunction(()=>document.getElementById('reader-status').textContent==='Generating and checking your worksheet…');
+  assert.equal(await page.locator('#include-worksheet').isDisabled(),true,'locked during questions too');
+  releaseQuestions();
   await page.waitForFunction(()=>document.getElementById('reader-status').textContent==='Worksheet ready.');
   assert.equal(calls.length,2);
+  assert.equal(await page.locator('#include-worksheet').isEnabled(),true);
+  assert.match(await page.locator('label[for="include-worksheet"]').innerText(),/Generate Questions/);
   assert.match(calls[1].prompt,/in English with exactly 2 questions/);
   assert.equal(await page.locator('.worksheet-question-gap').count(),2);
   assert.equal(await page.locator('#questions-output .worksheet-reading-section').count(),3);
@@ -101,6 +116,7 @@ const repo=path.resolve(__dirname,'..');
   await page.locator('#include-worksheet').check();
   await page.locator('#generate-btn').click();
   await page.waitForFunction(()=>document.getElementById('reader-status').textContent.startsWith('Error:'));
+  assert.equal(await page.locator('#include-worksheet').isEnabled(),true,'unlocked after failure');
   assert.equal(calls.length,5,'failed reading never starts a worksheet');
   assert.deepEqual(errors,[]);
   console.log('Worksheet setup checks passed: visible before generation, selected count/language, automatic generation, unchecked option, and reading failure.');

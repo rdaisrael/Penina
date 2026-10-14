@@ -180,7 +180,7 @@ test('late worksheet response cannot attach to a newly requested story', async (
     field('length').value='one paragraph';field('reading-level').value='beginner';
     let finishWorksheet;
     const tracker=core.createRequestTracker();
-    const context=vm.createContext({AbortSignal,ReaderCore:core,requests:tracker,storyPending:false,worksheetAbort:null,currentRawStory:sample.text,
+    const context=vm.createContext({AbortSignal,ReaderCore:core,requests:tracker,storyPending:false,lockQuestionOptions:()=>{},worksheetAbort:null,currentRawStory:sample.text,
         readerDictaOptions:{keepqq:true},AbortController,console:{error(){}},alert(){},
         document:{getElementById:field,querySelector(){return {style:{}};}},
         toggleLayoutLock(){},clearLineNumbers(){},showWorksheetPrintControls(){throw new Error('Stale worksheet became printable');},
@@ -245,10 +245,13 @@ test('lexical initial letters and other inflections remain distinct from prefix 
     assert.deepEqual(result.words.map(w=>w.noteId),[1,1,2,3,4,5,5,6,7,8]);
 });
 
-test('prefix validation rejects malformed or nonmatching prefixes', () => {
+test('unusable prefix metadata preserves the full word without stopping generation', () => {
     for (const prefix of ['ס','לב','ספר',null,7]) {
         const data={text:'ספר\nספר',words:[{...entry('ספר',false,'book'),prefix},entry('ספר',false,'book')]};
-        assert.throws(()=>core.validateAnalysis(data,profile),/Invalid word prefix/);
+        const result=core.buildResult(data.text,core.validateAnalysis(data,{...profile,words:[]}));
+        assert.equal(result.words[0].prefix,'');
+        assert.equal(result.text,data.text);
+        assert.equal(result.words[0].noteId,result.words[1].noteId);
     }
     const {readerFormat,readerPrompt}=require('../lib/reader-response');
     assert.ok(readerFormat.schema.properties.words.items.required.includes('prefix'));
@@ -362,7 +365,7 @@ test('names and prefixed names are not footnoted, without granting vocabulary ma
         {...entry('דוד',false,'uncle'),isName:false},
         {...entry('ורד',false,'rose'),isName:false}
     ]};
-    const result=core.buildResult(data.text,core.validateAnalysis(data,profile));
+    const result=core.buildResult(data.text,core.validateAnalysis(data,{...profile,words:[]}));
     assert.deepEqual(result.words.map(w=>w.noteId),[null,null,1,2]);
     assert.deepEqual(result.words.map(w=>w.mastered),[false,false,false,false]);
     assert.deepEqual(result.notes.map(n=>n.translation),['uncle','rose']);
@@ -405,4 +408,12 @@ test('personal and possessive pronouns and את are understood without model app
     assert.deepEqual(result.words.map(w=>w.mastered),[true,true,true,true,true,true,false]);
     assert.equal(result.notes.length,1);
     assert.equal(result.notes[0].word,'ספר');
+});
+
+test('pointed prefix metadata is normalized without stripping lexical letters', () => {
+ const text='בספר\nספר';
+ const data={text,words:[{...entry('בספר',false,'in a book'),prefix:' בְּ '},entry('ספר',false,'book')]};
+ const result=core.buildResult(text,core.validateAnalysis(data,{...profile,words:[]}));
+ assert.equal(result.words[0].prefix,'ב');
+ assert.equal(result.words[0].noteId,result.words[1].noteId);
 });

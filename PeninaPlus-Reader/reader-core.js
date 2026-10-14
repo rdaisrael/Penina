@@ -40,7 +40,15 @@
             const match = normalizePhrase(item.match);
             const known = (!match.includes(' ') && entries.includes(match)) || (item.match === '__pronoun__' && pronouns.has(normalizeWord(item.word)));
             const verbAllowed = normalized.mode === 'complete' || !normalized.verbs.includes(match) || normalized.forms.includes(item.form);
-            return {...item, prefix, isName: item.isName === true, mastered: item.mastered && known && verbAllowed};
+            // Recover literal vocabulary matches the model missed, ignoring nikkud.
+            // A root's spelling alone is not evidence of a selected conjugation.
+            // Recognized phrases still determine their components' mastery in buildResult.
+            const directMatch = entries.includes(surface) && (normalized.mode === 'complete' ||
+                ((!normalized.verbs.includes(surface) && !normalized.verbs.includes(match) && !item.form) ||
+                    (match === surface && normalized.forms.includes(item.form))));
+            return {...item, prefix, isName: item.isName === true,
+                match: directMatch ? surface : item.match,
+                mastered: directMatch || (item.mastered && known && verbAllowed)};
         });
         // Older saved analyses have no phrase list. New spans use zero-based word
         // indexes, with end exclusive; punctuation and line boundaries cannot be crossed.

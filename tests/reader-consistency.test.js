@@ -39,9 +39,47 @@ test('rejects source rewrites, missing analysis, wrong word order and changed Di
     assert.equal(core.validateAnalysis(sample,profile,source).text,source);
 });
 
-test('fabricated vocabulary and ambiguous/unknown decisions never become mastered', () => {
+test('direct listed words recover missed or incorrect AI matches', () => {
     const data={text:'ילד\nספר',words:[entry('ילד',true,'child','מומצא'),entry('ספר',false,'book','ספר')]};
-    assert.deepEqual(core.validateAnalysis(data,profile).words.map(w=>w.mastered),[false,false]);
+    assert.deepEqual(core.validateAnalysis(data,profile).words.map(w=>w.mastered),[true,true]);
+    assert.deepEqual(core.validateAnalysis(data,profile).words.map(w=>w.match),['ילד','ספר']);
+});
+
+test('exact matches ignore nikkud, repeat consistently, and receive bold and color', () => {
+    const data={text:'סֵפֶר\nספר ספר',words:[
+        entry('סֵפֶר',false,'book'),entry('ספר',true,'book','ספר'),entry('ספר',false,'book')
+    ]};
+    for (const vocabulary of [profile,{...profile,mode:'upload',words:[],nouns:['סֵפֶר']}]) {
+        const result=core.buildResult(data.text,core.validateAnalysis(data,vocabulary));
+        assert.deepEqual(result.words.map(w=>w.mastered),[true,true,true]);
+        assert.equal(result.notes.length,0);
+        const output=renderer({'bold-words':{checked:true},'highlight-words':{checked:true}}).formatStory(result.text,result.words);
+        assert.ok(output.includes('font-weight: bold'));
+        assert.ok(output.includes('color: #123456'));
+    }
+});
+
+test('direct matching does not guess prefixes, plurals, unknown words or verb forms', () => {
+    const data={text:'הספר\nספרים חדש',words:[
+        entry('הספר',false,'the book'),entry('ספרים',false,'books'),entry('חדש',true,'new','invented')
+    ]};
+    assert.deepEqual(core.validateAnalysis(data,profile).words.map(w=>w.mastered),[false,false,false]);
+    const verbs={...profile,mode:'upload',words:[],verbs:['כתב'],forms:['פעל שלם|עבר']};
+    for (const [match,form,expected] of [['','',false],['כתב','',false],['כתב','פעל שלם|עתיד',false],['כתב','פעל שלם|עבר',true]]) {
+        const data={text:'כתב\nכתב',words:[entry('כתב',false,'wrote',match,form),entry('כתב',false,'wrote',match,form)]};
+        assert.deepEqual(core.validateAnalysis(data,verbs).words.map(w=>w.mastered),[expected,expected]);
+    }
+});
+
+test('an unmastered expression still overrides recovered individual matches', () => {
+    const vocabulary={...profile,mode:'upload',words:[],nouns:['בית','ספר']};
+    const data={text:'בית\nבית ספר',words:[
+        entry('בית',false,'house'),entry('בית',false,'school'),entry('ספר',false,'school')
+    ],phrases:[{start:1,end:3,word:'בית ספר',mastered:false,translation:'school',match:'',form:''}]};
+    const result=core.buildResult(data.text,core.validateAnalysis(data,vocabulary));
+    assert.deepEqual(result.words.map(w=>w.mastered),[true,false,false]);
+    assert.equal(result.notes.length,1);
+    assert.equal(result.notes[0].translation,'school');
 });
 
 function renderer(settings={}) {
@@ -191,7 +229,7 @@ test('grammatical prefixes share one note in either order, including combined pr
     ]) {
         const text=forms[0][0]+'\n'+forms.slice(1).map(([word])=>word).join(' ');
         const data={text,words:forms.map(([word,prefix],i)=>({...entry(word,false,i===0?'book':'the book'),prefix}))};
-        const result=core.buildResult(text,core.validateAnalysis(data,profile));
+        const result=core.buildResult(text,core.validateAnalysis(data,{...profile,words:["ילד"]}));
         assert.equal(result.notes.length,1);
         assert.deepEqual(result.words.map(w=>w.noteId),forms.map(()=>1));
         assert.equal(result.notes[0].translation,'book; the book');
@@ -203,7 +241,7 @@ test('lexical initial letters and other inflections remain distinct from prefix 
     const forms=[['הַר',''],['הָהָר','ה'],['בַּר',''],['שָׁמַר',''],['מַר',''],['בַּיִת',''],['לַבַּיִת','ל'],['סְפָרִים',''],['סֵפֶר',''],['לוֹמֵד','']];
     const text=forms[0][0]+'\n'+forms.slice(1).map(([word])=>word).join(' ');
     const data={text,words:forms.map(([word,prefix])=>({...entry(word,false,'gloss'),prefix}))};
-    const result=core.buildResult(text,core.validateAnalysis(data,profile));
+    const result=core.buildResult(text,core.validateAnalysis(data,{...profile,words:["ילד"]}));
     assert.deepEqual(result.words.map(w=>w.noteId),[1,1,2,3,4,5,5,6,7,8]);
 });
 
@@ -237,7 +275,7 @@ test('vocabulary preserves phrase boundaries, niqqud normalization and maqaf equ
 test('repeated prefix variants get one phrase note, a final-word marker and independent standalone notes', () => {
     const data=phraseSample();
     const pointed='טִיּוּל\nגַּן הַחַיּוֹת בְּגַן הַחַיּוֹת גַּן';
-    const result=core.buildResult(pointed,core.validateAnalysis(data,phraseProfile));
+    const result=core.buildResult(pointed,core.validateAnalysis(data,{...phraseProfile,words:["טיול"]}));
     assert.deepEqual(result.words.map(w=>w.noteId),[null,null,1,null,1,2]);
     assert.deepEqual(result.words.map(w=>w.mastered),[true,false,false,false,false,false]);
     assert.equal(result.notes[0].word,'גַּן הַחַיּוֹת');
@@ -251,7 +289,7 @@ test('whole-phrase mastery requires a listed phrase and cannot leak into individ
     const data=phraseSample();
     data.phrases=data.phrases.map(p=>({...p,mastered:true,match:'גן החיות'}));
     assert.equal(core.validateAnalysis(data,phraseProfile).phrases[0].mastered,false);
-    const known={...phraseProfile,words:[...phraseProfile.words,'גן החיות']};
+    const known={...phraseProfile,words:['טיול','גן החיות']};
     const result=core.buildResult(data.text,core.validateAnalysis(data,known));
     assert.deepEqual(result.words.map(w=>w.mastered),[true,true,true,true,true,false]);
     assert.equal(result.notes.length,1);
@@ -310,7 +348,7 @@ test('section questions are distributed through paragraphs with whole-story revi
 
 test('interleaved rendering preserves token analysis and inserts questions after the relevant section', () => {
     const data={text:'ספר\nספר\n\nילד',words:[entry('ספר',false,'book'),entry('ספר',false,'book'),entry('ילד',true,'child','ילד')]};
-    const result=core.buildResult(data.text,core.validateAnalysis(data,profile));
+    const result=core.buildResult(data.text,core.validateAnalysis(data,{...profile,words:["ילד"]}));
     const output=renderer().formatStory(result.text,result.words,n=>`<aside>QUESTION ${n}</aside>`);
     assert.equal((output.match(/footnote-marker/g)||[]).length,2);
     assert.equal((output.match(/worksheet-reading-section/g)||[]).length,2);

@@ -245,3 +245,61 @@ test('adjective template accepts custom categories, uneven columns and independe
     assert.deepEqual(upload.selectAdjectives(unusual,['__proto__']).adjs,['טוב']);
     await assert.rejects(upload.readExcel(await workbookWith({Adjectives:[['Size',null],['גדול','קטן']]}),ExcelJS),/heading/);
 });
+
+function readerBackup() {
+    return {format:'penina-reader-backup',version:1,readerResult:{...sample,notes:[]},
+        vocabulary:{A:{verbs:['כתב'],nouns:['ספר'],adjs:[],binyanim:[]},B:null},
+        settings:[],worksheet:{lang:'English',placement:'end',worksheet:{title:'Questions',questions:[{number:1,text:'What happened?',lines:2}]}}};
+}
+test('saved JSON backups round-trip reading, vocabulary and worksheets and reject corrupt data',()=>{
+    const backup=readerBackup();
+    assert.deepEqual(upload.readBackup(JSON.stringify(backup)),backup);
+    backup.worksheet.placement='sections';
+    assert.throws(()=>upload.readBackup(JSON.stringify(backup)),/valid Reader/);
+    backup.worksheet.worksheet.questions[0].section=1;
+    assert.deepEqual(upload.readBackup('\uFEFF'+JSON.stringify(backup)),backup);
+    for(const value of ['{','{}',JSON.stringify({...backup,version:2}),JSON.stringify({...backup,vocabulary:{A:{},B:null}})]) {
+        assert.throws(()=>upload.readBackup(value),/JSON|Reader/);
+    }
+});
+test('both upload paths accept a saved JSON backup without loading Excel libraries',async()=>{
+    const html=fs.readFileSync(require.resolve('../PeninaPlus-Reader/index.html'),'utf8');
+    for(const pathway of ['A','B']) {
+        const fields={};let restored;
+        const context=vm.createContext({uploadedVocabA:null,uploadedVocabB:null,VocabularyUpload:upload,
+            restoreReaderBackup:backup=>{restored=backup;},
+            document:{getElementById(id){if(id.includes('-categories'))return null;return fields[id] ||= {textContent:'',addEventListener(){}};}}});
+        vm.runInContext(html.slice(html.indexOf('        const uploadVersions'),html.indexOf('        async function readApiResponse')),context);
+        const backup=readerBackup();
+        await context.validateExcelUpload({files:[{name:'saved.JSON',size:100,text:async()=>JSON.stringify(backup)}]},pathway);
+        assert.deepEqual(restored,backup);
+        assert.match(fields['reader-status'].textContent,/Restored saved.JSON/);
+        const invalid={files:[{name:'bad.json',size:2,text:async()=>'{}'}],value:'bad.json'};
+        await context.validateExcelUpload(invalid,pathway);
+        assert.equal(invalid.value,'');
+        assert.match(fields[`vocab-upload-status-${pathway.toLowerCase()}`].textContent,/valid Reader/);
+    }
+});
+test('restoration reapplies saved controls, reading and worksheet and invalidates pending requests',()=>{
+    const html=fs.readFileSync(require.resolve('../PeninaPlus-Reader/index.html'),'utf8');
+    const fields={}; const controls=[{id:'font-size',name:'',type:'number',value:'24',dispatchEvent(){}},
+        {id:'',name:'vocab-mode-a',type:'radio',value:'upload',checked:true,dispatchEvent(){}}];
+    const backup=readerBackup();
+    backup.settings=[{id:'font-size',name:'',type:'number',value:'32'},
+        {id:'',name:'vocab-mode-a',type:'radio',value:'upload',checked:false}];
+    const tracker=require('../PeninaPlus-Reader/reader-core').createRequestTracker();
+    const old=tracker.beginStory();let aborted=false,rendered=false;
+    const context=vm.createContext({requests:tracker,worksheetAbort:{abort(){aborted=true;}},storyPending:true,
+        uploadVersions:{A:1,B:1},Event:class {},uploadedVocabA:null,uploadedVocabB:null,currentWorksheet:null,
+        document:{querySelectorAll:()=>controls,getElementById:id=>fields[id] ||= {style:{}}},
+        showNounCategories(){},parseAndRenderOutput(data){assert.equal(data.text,backup.readerResult.text);},
+        showWorksheetPrintControls(){},syncUIColors(){},renderStoryToScreen(){rendered=true;},lockQuestionOptions(){}});
+    vm.runInContext(html.slice(html.indexOf('        function restoreReaderBackup'),html.indexOf("        document.getElementById('save-json-btn').addEventListener")),context);
+    context.restoreReaderBackup(backup);
+    assert.equal(controls[0].value,'32');assert.equal(controls[1].checked,false);
+    assert.equal(context.uploadedVocabA,backup.vocabulary.A);
+    assert.equal(context.currentWorksheet,backup.worksheet);
+    assert.equal(fields['questions-viewport'].style.display,'block');
+    assert.equal(fields['generate-questions-btn'].disabled,false);
+    assert.equal(tracker.isStory(old),false);assert.ok(aborted && rendered);
+});

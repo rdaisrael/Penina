@@ -160,5 +160,43 @@
         if (!['verbs','nouns','adjs','preps','adverbs','conjunctions','questionWords','expressions'].some(key => result[key]?.length)) throw new Error('The workbook is empty. Add mastered Hebrew words, save it, then upload again.');
         return result;
     }
-    return {parseRows,readExcel,readXls,merge,selectNouns,selectAdjectives};
+    function readBackup(text) {
+        let backup;
+        try { backup = JSON.parse(text.replace(/^\uFEFF/, '')); }
+        catch (_) { throw new Error('This JSON file could not be read. Choose a file saved with Save JSON Backup.'); }
+        const fail = () => { throw new Error('This is not a valid Reader JSON backup. Choose a file saved with Save JSON Backup.'); };
+        const object = value => value && typeof value === 'object' && !Array.isArray(value);
+        const strings = value => Array.isArray(value) && value.every(item => typeof item === 'string');
+        if (!object(backup) || backup.format !== 'penina-reader-backup' || backup.version !== 1) fail();
+        const result = backup.readerResult;
+        if (!object(result) || typeof result.text !== 'string' || !result.text.trim()
+            || !Array.isArray(result.words) || !result.words.every(word => object(word) && typeof word.word === 'string' && typeof word.mastered === 'boolean')
+            || !Array.isArray(result.notes) || !result.notes.every(note => object(note) && Number.isInteger(note.id) && typeof note.word === 'string' && typeof note.translation === 'string')) fail();
+        if (!object(backup.vocabulary)) fail();
+        for (const pathway of ['A','B']) {
+            const vocab = backup.vocabulary[pathway];
+            if (vocab === null) continue;
+            if (!object(vocab)) fail();
+            for (const key of ['verbs','nouns','adjs','binyanim']) if (!strings(vocab[key])) fail();
+            for (const key of ['preps','adverbs','conjunctions','questionWords','expressions']) if (vocab[key] !== undefined && !strings(vocab[key])) fail();
+            for (const key of ['nounCategories','adjectiveCategories']) {
+                if (vocab[key] !== undefined && (!object(vocab[key]) || !Object.values(vocab[key]).every(strings))) fail();
+            }
+        }
+        if (!Array.isArray(backup.settings) || !backup.settings.every(setting => object(setting)
+            && typeof setting.id === 'string' && typeof setting.name === 'string'
+            && typeof setting.type === 'string' && typeof setting.value === 'string'
+            && (!['checkbox','radio'].includes(setting.type) || typeof setting.checked === 'boolean'))) fail();
+        if (backup.worksheet !== null) {
+            const saved = backup.worksheet;
+            if (!object(saved) || typeof saved.lang !== 'string' || typeof saved.placement !== 'string'
+                || !object(saved.worksheet) || typeof saved.worksheet.title !== 'string'
+                || !Array.isArray(saved.worksheet.questions) || !saved.worksheet.questions.every(q => object(q)
+                    && Number.isInteger(q.number) && typeof q.text === 'string'
+                    && Number.isInteger(q.lines) && q.lines >= 0 && q.lines <= 20
+                    && (saved.placement !== 'sections' || (Number.isInteger(q.section) && q.section >= 0)))) fail();
+        }
+        return backup;
+    }
+    return {readBackup,parseRows,readExcel,readXls,merge,selectNouns,selectAdjectives};
 });

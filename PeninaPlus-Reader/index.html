@@ -617,8 +617,8 @@
                             </a>
                         </div>
                         
-                        <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbook:</label>
-                        <input type="file" id="vocab-file-a" accept=".xlsx,.xls" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <label for="vocab-file-a" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbook or JSON Backup.</label>
+                        <input type="file" id="vocab-file-a" accept=".xlsx,.xls,.json" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-a" role="status" aria-live="polite"></p>
                         <fieldset id="noun-categories-a" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
                         <fieldset id="adjective-categories-a" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Adjective categories to include</legend><div class="category-options"></div></fieldset>
@@ -735,8 +735,8 @@
                             </a>
                         </div>
                         
-                        <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbook:</label>
-                        <input type="file" id="vocab-file-b" accept=".xlsx,.xls" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
+                        <label for="vocab-file-b" style="display: block; margin-bottom: 8px; font-weight: bold; color: #5a5248;">Upload Vocabulary Workbook or JSON Backup.</label>
+                        <input type="file" id="vocab-file-b" accept=".xlsx,.xls,.json" style="font-family: inherit; width: 100%; padding: 10px; border: 1px solid #dcd3c6; border-radius: 5px; background-color: #ffffff; cursor: pointer;">
                         <p id="vocab-upload-status-b" role="status" aria-live="polite"></p>
                         <fieldset id="noun-categories-b" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Noun categories to include</legend><div class="category-options"></div></fieldset>
                         <fieldset id="adjective-categories-b" hidden style="border: 1px solid #dcd3c6; padding: 12px;"><legend>Adjective categories to include</legend><div class="category-options"></div></fieldset>
@@ -1044,7 +1044,7 @@
                 const label = document.createElement('label');
                 label.style.cssText = 'display:block; margin:8px 0;';
                 const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox'; checkbox.checked = true; checkbox.value = name;
+                checkbox.type = 'checkbox'; checkbox.checked = words.every(word => result[kind === 'noun' ? 'nouns' : 'adjs'].includes(word)); checkbox.value = name;
                 checkbox.addEventListener('change', () => {
                     const selected = Array.from(options.querySelectorAll('input:checked'), input => input.value);
                     const current = targetPathway === 'A' ? uploadedVocabA : uploadedVocabB;
@@ -1070,13 +1070,22 @@
             const files = Array.from(inputElement.files);
             status.textContent = '';
             if (!files.length) return;
-            status.textContent = 'Reading Excel workbook…';
+            status.textContent = 'Reading workbook or JSON backup…';
             try {
-                if (files.length !== 1) throw new Error('Please upload one workbook containing all your vocabulary sheets.');
+                if (files.length !== 1) throw new Error('Please upload one vocabulary workbook or JSON backup.');
+                if (/\.json$/i.test(files[0].name)) {
+                    if (files[0].size > 5*1024*1024) throw new Error('Please upload a JSON backup smaller than 5 MB.');
+                    const backup = VocabularyUpload.readBackup(await files[0].text());
+                    if (version !== uploadVersions[targetPathway]) return;
+                    restoreReaderBackup(backup);
+                    status.textContent = `Restored ${files[0].name}: reading, vocabulary, settings, and saved worksheet.`;
+                    document.getElementById('reader-status').textContent = status.textContent;
+                    return;
+                }
                 if (typeof ExcelJS === 'undefined') throw new Error('The Excel reader did not load. Refresh the page and try again.');
                 const parts = [];
                 for (const file of files) {
-                    if (!/\.xlsx?$/i.test(file.name)) throw new Error('Please upload an Excel workbook (.xlsx or .xls).');
+                    if (!/\.xlsx?$/i.test(file.name)) throw new Error('Please upload a vocabulary workbook (.xlsx or .xls) or JSON backup (.json).');
                     if (file.size > 5*1024*1024) throw new Error('Please upload a workbook smaller than 5 MB.');
                     try {
                         const buffer = await file.arrayBuffer();
@@ -1449,6 +1458,42 @@
             if (!currentResult) return;
             printWithMode(currentWorksheet ? (currentWorksheet.placement === 'sections' ? 'worksheet-only' : 'story-worksheet') : 'story-only');
         });
+        function restoreReaderBackup(backup) {
+            requests.beginStory();
+            if (worksheetAbort) worksheetAbort.abort();
+            storyPending = false;
+            uploadVersions.A++; uploadVersions.B++;
+            const controls = Array.from(document.querySelectorAll('input:not([type="file"]), select, textarea'));
+            const restored = [];
+            for (const setting of backup.settings) {
+                const control = controls.find(el => setting.id ? el.id === setting.id
+                    : el.name === setting.name && el.type === setting.type && el.value === setting.value);
+                if (!control || control.type !== setting.type) continue;
+                if (['checkbox','radio'].includes(control.type)) control.checked = setting.checked;
+                else control.value = setting.value;
+                restored.push(control);
+            }
+            for (const control of restored) {
+                if (control.type !== 'radio' || control.checked) control.dispatchEvent(new Event('change'));
+            }
+            uploadedVocabA = backup.vocabulary.A;
+            uploadedVocabB = backup.vocabulary.B;
+            showNounCategories(uploadedVocabA, 'A');
+            showNounCategories(uploadedVocabB, 'B');
+            parseAndRenderOutput({text:backup.readerResult.text, readerResult:backup.readerResult});
+            currentWorksheet = backup.worksheet;
+            if (currentWorksheet) {
+                document.getElementById('questions-viewport').style.display = 'block';
+                showWorksheetPrintControls();
+            }
+            syncUIColors();
+            renderStoryToScreen();
+            lockQuestionOptions(false);
+            document.getElementById('generate-btn').disabled = false;
+            document.getElementById('generate-btn').innerText = 'Generate';
+            document.getElementById('generate-questions-btn').disabled = false;
+        }
+
         document.getElementById('save-json-btn').addEventListener('click', () => {
             if (!currentResult) return;
             const settings = Array.from(document.querySelectorAll('input:not([type="file"]), select, textarea')).map(control => ({

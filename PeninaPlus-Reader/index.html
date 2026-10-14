@@ -642,6 +642,7 @@
                             <option value="2-page">Long (2 Pages)</option>
                             <option value="custom">Other (Specify)</option>
                         </select>
+                        <p style="font-size: 0.85em;">Page lengths use about 300 story words per page. Questions and answer space are additional; printed pages vary with formatting.</p>
                         <input type="text" id="custom-length" placeholder="e.g. 5 pages" style="display: none; margin-top: 10px;">
                     </div>
                 </div>
@@ -1302,8 +1303,10 @@
                     else if (readingLevel === 'intermediate') levelInstruction = "Write at an INTERMEDIATE reading level. Use standard, everyday Modern Israeli Hebrew.";
                     else if (readingLevel === 'advanced') levelInstruction = "CRITICAL: Write at an ADVANCED reading level. Use sophisticated, high-level Hebrew vocabulary.";
 
+                    const lengthPlan = ReaderCore.storyLengthPlan(length);
                     const prompt = `Write a ${length} story in strict, everyday Modern Israeli Hebrew.
                     Do NOT use Biblical Hebrew phrasing, archaic syntax, or vav-ha'hipuch.
+                    ${lengthPlan.instruction}
                     ${levelInstruction}
                     The theme is: ${currentTheme}.
                     Provide a descriptive Title for the story on the very first line.
@@ -1318,6 +1321,7 @@
                         body: JSON.stringify({ 
                             prompt: prompt,
                             readerVocabulary: vocabData.profile,
+                            storyLength: length,
                             dictaOptions: readerDictaOptions,
                             dictaGenre: 'modern'
                         })
@@ -1716,9 +1720,15 @@
             return outputHtml;
         }
 
-        function formatStory(text, targetWords, afterSection) {
+        function formatStory(text, targetWords, afterSection, readingSections) {
+            const displayText = value => {
+                let text = value;
             if (document.getElementById('use-hashem').checked) { text = text.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, "ה׳"); }
             if (document.getElementById('use-elokim').checked) { text = text.replace(/(א[\u0591-\u05C7]*ל[\u0591-\u05C7]*?(?:ו|[\u05B9\u05BA])[\u0591-\u05C7]*)ה([\u0591-\u05C7]*)/g, "$1ק$2"); }
+                return text;
+            };
+            text = displayText(text);
+            if (readingSections) readingSections = readingSections.map(displayText);
 
             let analysisIndex = 0;
             const renderPart = (part, isTitle) => {
@@ -1746,7 +1756,7 @@
             finalOutput += `<div class="story-body" dir="rtl">`;
             if (afterSection) {
                 let section = 0;
-                finalOutput += bodyRaw.split(/(\n+)/).map(part => {
+                finalOutput += (readingSections || bodyRaw.split(/(\n+)/)).map(part => {
                     if (!part.trim()) return ''; // Block sections already provide paragraph spacing.
                     return `<div class="worksheet-reading-section">${renderPart(part, false)}</div>` + afterSection(++section);
                 }).join('');
@@ -1836,7 +1846,7 @@
             output.style.textAlign = direction === 'ltr' ? 'left' : 'right';
             if (integrated) {
                 output.style.setProperty('--paragraph-spacing', document.getElementById('paragraph-spacing').value + 'em');
-                output.innerHTML = formatStory(currentRawStory, currentResult.words, section => renderQuestions(worksheet.questions.filter(q => q.section === section)));
+                output.innerHTML = formatStory(currentRawStory, currentResult.words, section => renderQuestions(worksheet.questions.filter(q => q.section === section)), currentWorksheet.sections);
                 output.querySelector('.story-body').insertAdjacentHTML('beforeend', renderQuestions(worksheet.questions.filter(q => q.section === 0)));
                 output.querySelectorAll('.story-title, .story-body').forEach(node => {
                     node.style.fontFamily = document.getElementById('font-choice').value;
@@ -1918,7 +1928,7 @@
                 
                 if (!requests.isWorksheet(requestId) || storyPending) return;
                 const worksheet = ReaderCore.validateWorksheet(data.text, questionCount, placement === 'sections' ? plan.targets : undefined);
-                currentWorksheet = {worksheet, lang, placement};
+                currentWorksheet = {worksheet, lang, placement, ...(placement === 'sections' ? {sections:plan.sections} : {})};
                 showWorksheetPrintControls();
                 renderStoryToScreen();
                 status.textContent = 'Worksheet ready.';

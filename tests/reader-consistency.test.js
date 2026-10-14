@@ -336,10 +336,12 @@ test('phrase verbs respect selected forms, and generation requires explicit cons
 });
 
 test('section questions are distributed through paragraphs with whole-story review at the end', () => {
-    const plan=core.worksheetPlan('כותרת\nאחד\n\nשניים\n\nשלושה',5);
-    assert.deepEqual(plan.sections,['אחד','שניים','שלושה']);
+    const paragraph = ('הילד ראה את הספר וקרא בו בשמחה עם חבר בבית. ').repeat(5).trim();
+    const story = 'כותרת\n' + [paragraph,paragraph,paragraph].join('\n\n');
+    const plan=core.worksheetPlan(story,5);
+    assert.deepEqual(plan.sections,[paragraph,paragraph,paragraph]);
     assert.deepEqual(plan.targets,[1,2,3,0,0]);
-    assert.deepEqual(core.worksheetPlan('כותרת\nאחד\nשניים\nשלושה',2).targets,[2,0]);
+    assert.deepEqual(core.worksheetPlan(story,2).targets,[2,0]);
     assert.deepEqual(core.worksheetPlan('כותרת\nפסקה אחת',5).targets,[0,0,0,0,0]);
     const text='Title\n'+plan.targets.map((n,i)=>`${i+1}. [SECTION ${n}] Question?\n[LINE]\n[LINE]`).join('\n');
     const worksheet=core.validateWorksheet(text,5,plan.targets);
@@ -416,4 +418,27 @@ test('pointed prefix metadata is normalized without stripping lexical letters', 
  const result=core.buildResult(text,core.validateAnalysis(data,{...profile,words:[]}));
  assert.equal(result.words[0].prefix,'ב');
  assert.equal(result.words[0].noteId,result.words[1].noteId);
+});
+
+test('two-page length counts Hebrew story words, excluding title and worksheet space', () => {
+    assert.equal(core.storyLengthPlan('2-page').minWords,600);
+    assert.equal(core.storyLengthPlan('2 pages').minWords,600);
+    assert.equal(core.storyLengthPlan('1-page').minWords,300);
+    assert.equal(core.storyLengthPlan('3-paragraph').minWords,150);
+    assert.throws(()=>core.validateStoryLength('כותרת\n'+ 'ילד '.repeat(204),'2-page'),/too short/);
+    assert.throws(()=>core.validateStoryLength('ילד '.repeat(600)+'\nילד','2-page'),/too short/);
+    core.validateStoryLength('כותרת\n'+'ילד '.repeat(600),'2-page');
+});
+
+test('questions follow substantial reading passages and retain all words in order', () => {
+    const sentence='הילד ראה את הספר וקרא בו בשמחה עם חבר בבית.';
+    const story='כותרת\n'+Array(15).fill(sentence).join('\n\n');
+    const plan=core.worksheetPlan(story,15);
+    assert.equal(plan.targets.length,15);
+    assert.ok(plan.sections.length > 1);
+    for(const passage of plan.sections) {
+        assert.ok(core.words(passage).length >= 40);
+        assert.ok((passage.match(/\./g)||[]).length >= 3);
+    }
+    assert.deepEqual(core.words(plan.sections.join(' ')).map(x=>x[0]),core.words(story.split('\n').slice(1).join(' ')).map(x=>x[0]));
 });

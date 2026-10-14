@@ -303,3 +303,22 @@ test('restoration reapplies saved controls, reading and worksheet and invalidate
     assert.equal(fields['generate-questions-btn'].disabled,false);
     assert.equal(tracker.isStory(old),false);assert.ok(aborted && rendered);
 });
+
+test('too-short generated drafts are expanded on retry and never silently accepted',async()=>{
+    const core=require('../PeninaPlus-Reader/reader-core');
+    const make = n => {
+        const text='ספר\n'+'ספר '.repeat(n).trim();
+        return {text,words:core.words(text).map(()=>({word:'ספר',mastered:true,translation:'book',match:'ספר',form:''}))};
+    };
+    const calls=[];
+    const result=await response.generateReaderAnalysis('Write a story',profile,undefined,async prompt=>{
+        calls.push(prompt);return JSON.stringify(make(calls.length===1?204:600));
+    },'2-page');
+    assert.equal(core.words(result.text).length,601);
+    assert.equal(calls.length,2);
+    assert.match(calls[1],/600/);
+    assert.ok(!calls[1].includes('Preserve this supplied text exactly'));
+    await assert.rejects(response.generateReaderAnalysis('Write',profile,undefined,async()=>JSON.stringify(make(204)),'2-page'),/too short/);
+    const supplied=make(10);
+    assert.equal((await response.generateReaderAnalysis('Analyze',profile,supplied.text,async()=>JSON.stringify(supplied),'2-page')).text,supplied.text);
+});

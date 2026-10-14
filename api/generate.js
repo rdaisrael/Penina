@@ -7,7 +7,7 @@ module.exports = async function (req, res) {
 
     if (req.body?.action === 'binyan-worksheet') return require('../lib/binyan-handler')(req, res);
 
-    const { prompt, suppliedText, dictaGenre, dictaOptions, readerVocabulary, sourceText } = req.body || {};
+    const { prompt, suppliedText, dictaGenre, dictaOptions, readerVocabulary, sourceText, storyLength } = req.body || {};
 
     const targetGenre = dictaGenre === "biblical" ? "poetry" : dictaGenre;
     const validGenres = ["modern", "rabbinic", "poetry"];
@@ -30,7 +30,7 @@ module.exports = async function (req, res) {
                 return res.status(413).json({ error: "Prompt too large." });
             }
             if (readerVocabulary) {
-                analysis = await reader.generateReaderAnalysis(prompt, readerVocabulary, sourceText, generateOpenAIText);
+                analysis = await reader.generateReaderAnalysis(prompt, readerVocabulary, sourceText, generateOpenAIText, storyLength);
                 textToVowelize = analysis.text;
             } else {
                 textToVowelize = await generateOpenAIText(prompt);

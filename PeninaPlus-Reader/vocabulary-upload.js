@@ -189,6 +189,7 @@
             && (!['checkbox','radio'].includes(setting.type) || typeof setting.checked === 'boolean'))) fail();
         if (backup.worksheet !== null) {
             const saved = backup.worksheet;
+            if (saved?.sections !== undefined && (!strings(saved.sections) || saved.sections.join(' ').replace(/\s+/g, ' ').trim() !== result.text.split('\n').slice(1).join(' ').replace(/\s+/g, ' ').trim())) fail();
             if (!object(saved) || typeof saved.lang !== 'string' || typeof saved.placement !== 'string'
                 || !object(saved.worksheet) || typeof saved.worksheet.title !== 'string'
                 || !Array.isArray(saved.worksheet.questions) || !saved.worksheet.questions.every(q => object(q)

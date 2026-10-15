@@ -546,3 +546,57 @@ test('too-long drafts get specific retry feedback and still must meet the reques
     assert.equal(core.words(result.text).length,151);
     await assert.rejects(generateReaderAnalysis('Write',phraseProfile,undefined,async()=>JSON.stringify(make(201)),'100-200 words'),/too long/);
 });
+
+test('fixed-story repair requires every word occurrence and reconstructs source order', async () => {
+    const {generateReaderAnalysis}=require('../lib/reader-response');
+    const text='גן\nגן החיות גן החיות';
+    const data={text,words:core.words(text).map(([word],i)=>entry(word,false,'meaning '+i)),phrases:[]};
+    let calls=0;
+    const result=await generateReaderAnalysis('Write',phraseProfile,undefined,async(prompt,options)=>{
+        if (++calls===1) return JSON.stringify({...data,words:data.words.slice(1)});
+        const schema=options.textFormat.schema;
+        assert.equal(options.textFormat.strict,true);
+        assert.deepEqual(schema.properties.words.required,['w0','w1','w2','w3','w4']);
+        assert.equal(schema.properties.words.additionalProperties,false);
+        assert.equal(schema.properties.words.properties.w4.$ref,'#/$defs/word');
+        assert.deepEqual(schema.$defs.word.required,['word','mastered','translation','match','form','prefix','isName']);
+        assert.match(prompt,/words is an object, not an array/);
+        return JSON.stringify({...data,words:Object.fromEntries(data.words.map((word,i)=>['w'+i,word]).reverse())});
+    });
+    assert.equal(calls,2);
+    assert.equal(result.text,text);
+    assert.deepEqual(result.words.map(w=>w.translation),data.words.map(w=>w.translation));
+});
+
+test('fixed-story repair rejects omitted keys, extras, wrong words and rewritten stories', async () => {
+    const {generateReaderAnalysis}=require('../lib/reader-response');
+    for (const change of [
+        data=>delete data.words.w1,
+        data=>{data.words.w99=data.words.w0;},
+        data=>{data.words.w1={...data.words.w1,word:'שונה'};},
+        data=>{data.text='אחר\nלגמרי';}
+    ]) {
+        let calls=0;
+        await assert.rejects(generateReaderAnalysis('Write',profile,undefined,async()=>{
+            if (++calls===1) return JSON.stringify({...sample,words:[]});
+            const data={...sample,words:Object.fromEntries(sample.words.map((word,i)=>['w'+i,{...word}]))};
+            change(data);return JSON.stringify(data);
+        }),/analysis|supplied text/);
+        assert.equal(calls,2);
+    }
+});
+
+test('long-story repair has a required entry per occurrence with a compact shared schema', async () => {
+    const {generateReaderAnalysis}=require('../lib/reader-response');
+    const text='סיפור\n'+'ספר '.repeat(600).trim();
+    const data={text,words:core.words(text).map(([word])=>entry(word,false,'book')),phrases:[]};
+    let calls=0;
+    const result=await generateReaderAnalysis('Write',profile,undefined,async(prompt,options)=>{
+        if (++calls===1) return JSON.stringify({...data,words:data.words.slice(0,200)});
+        assert.equal(options.textFormat.schema.properties.words.required.length,601);
+        assert.ok(JSON.stringify(options.textFormat).length<40000);
+        return JSON.stringify({...data,words:Object.fromEntries(data.words.map((word,i)=>['w'+i,word]))});
+    },'401-600 words');
+    assert.equal(result.words.length,601);
+    assert.equal(calls,2);
+});

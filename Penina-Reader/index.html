@@ -398,12 +398,12 @@
                     <div style="flex: 1;">
                         <label for="length">d. Story Length:</label>
                         <select id="length">
-                            <option value="3-paragraph">Short (3 Paragraphs)</option>
-                            <option value="1-page">Medium (1 Page)</option>
-                            <option value="2-page">Long (2 Pages)</option>
-                            <option value="custom">Other (Specify)</option>
+                            <option value="100-200 words">Short (100-200 Words)</option>
+                            <option value="201-400 words">Medium (201-400 Words)</option>
+                            <option value="401-600 words">Long (401-600 Words)</option>
+                            <option value="custom">Other (Number of Words)</option>
                         </select>
-                        <input type="text" id="custom-length" placeholder="e.g. 5 pages" style="display: none; margin-top: 10px;">
+                        <input type="number" id="custom-length" min="1" step="1" aria-label="Number of words" placeholder="Number of words" style="display: none; margin-top: 10px;">
                     </div>
                 </div>
             </div>
@@ -744,8 +744,10 @@
                 return;
             }
 
-            if (length === 'custom') {
-                length = customLength || "1-page";
+            if (isPathwayA && length === 'custom') {
+                const count = Number(customLength);
+                if (!Number.isSafeInteger(count) || count < 1) { alert("Please enter a positive whole number of words."); return; }
+                length = `${count} words`;
             }
 
             // AUTO-UNLOCK
@@ -867,7 +869,8 @@
 
             let topicInstruction = currentTheme ? `The theme is: ${currentTheme}.` : "";
             let wordsInstruction = currentTargets ? `CRITICAL: You MUST make every attempt to prioritize and prominently use these specific target words throughout the course of the story: ${currentTargets}.` : "";
-            const prompt = `Write a ${length} story in strict, everyday Modern Israeli Hebrew.
+            const prompt = `Write a story of ${length} in strict, everyday Modern Israeli Hebrew.
+            The word count applies to the Hebrew STORY BODY only, excluding the title. Stay within the requested range or use exactly the requested custom word count.
             Do NOT use Biblical Hebrew phrasing, archaic syntax, or vav-ha'hipuch.
             ${levelInstruction}
             ${topicInstruction} 

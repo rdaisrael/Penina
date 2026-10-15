@@ -637,13 +637,13 @@
                     <div style="flex: 1;">
                         <label for="length">Story Length:</label>
                         <select id="length">
-                            <option value="3-paragraph">Short (3 Paragraphs)</option>
-                            <option value="1-page">Medium (1 Page)</option>
-                            <option value="2-page">Long (2 Pages)</option>
-                            <option value="custom">Other (Specify)</option>
+                            <option value="100-200 words">Short (100-200 Words)</option>
+                            <option value="201-400 words">Medium (201-400 Words)</option>
+                            <option value="401-600 words">Long (401-600 Words)</option>
+                            <option value="custom">Other (Number of Words)</option>
                         </select>
-                        <p style="font-size: 0.85em;">Page lengths use about 300 story words per page. Questions and answer space are additional; printed pages vary with formatting.</p>
-                        <input type="text" id="custom-length" placeholder="e.g. 5 pages" style="display: none; margin-top: 10px;">
+                        <p style="font-size: 0.85em;">Word counts apply to the story body only. The title, questions, and answer space are additional.</p>
+                        <input type="number" id="custom-length" min="1" step="1" aria-label="Number of words" placeholder="Number of words" style="display: none; margin-top: 10px;">
                     </div>
                 </div>
             </div>
@@ -1233,6 +1233,13 @@
             if (isPathwayA && !currentTheme) { alert("Please enter a topic first!"); return; }
             if (!isPathwayA && (!rawSuppliedText || !suppliedTitle)) { alert("Please supply both a title and text!"); return; }
 
+            let length = document.getElementById('length').value;
+            if (isPathwayA && length === 'custom') {
+                const count = Number(document.getElementById('custom-length').value);
+                if (!Number.isSafeInteger(count) || count < 1) { alert("Please enter a positive whole number of words."); return; }
+                length = `${count} words`;
+            }
+
             // Auto-unlock layouts
             document.getElementById('toggle-line-numbers').checked = false;
             toggleLayoutLock(false);
@@ -1291,8 +1298,6 @@
                     status.textContent = 'Reading ready. Vocabulary edits apply when you Generate again.' + (data.readerResult.spellingChanges.length ? ` Dicta used standard pointed spelling in ${data.readerResult.spellingChanges.length} word(s), adjusting vowel letters.` : '');
                 } else {
                     // Pathway A Original Story
-                    let length = document.getElementById('length').value;
-                    if (length === 'custom') length = document.getElementById('custom-length').value || "1-page";
                     const readingLevel = document.getElementById('reading-level').value;
 
                     btn.innerText = "Writing Story... (Wait)";

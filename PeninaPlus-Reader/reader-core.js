@@ -134,18 +134,22 @@
     }
     function storyLengthPlan(length) {
         const value = String(length || '').trim();
+        const range = value.match(/^(\d+)-(\d+) words$/i);
+        const exact = value.match(/^(\d+) words$/i);
         const pages = value.match(/^(\d+(?:\.\d+)?)\s*-?\s*pages?$/i);
         const paragraphs = value.match(/^(\d+)\s*-?\s*paragraphs?$/i);
-        const minWords = pages ? Math.ceil(Number(pages[1]) * 300)
+        const minWords = range ? Number(range[1]) : exact ? Number(exact[1]) : pages ? Math.ceil(Number(pages[1]) * 300)
             : paragraphs ? Number(paragraphs[1]) * 50 : 0;
-        return {minWords, instruction:minWords
-            ? `Write ${minWords}–${Math.ceil(minWords * 1.2)} Hebrew words in the STORY BODY alone, excluding the title, questions, answer lines and footnotes. This is a reading-length target; worksheet space must never shorten the story. Use developed paragraphs of at least 3 sentences and about 50–80 words, separated by blank lines. Keep beginner sentences simple without shortening the overall story.`
+        const maxWords = range ? Number(range[2]) : exact ? minWords : undefined;
+        return {minWords, maxWords, instruction:minWords
+            ? `Write ${minWords}–${maxWords ?? Math.ceil(minWords * 1.2)} Hebrew words in the STORY BODY alone, excluding the title, questions, answer lines and footnotes. This is a reading-length target; worksheet space must never shorten the story. Use paragraphs separated by blank lines, with paragraph and sentence lengths appropriate to the requested word count. Keep beginner sentences simple without shortening the overall story.`
             : `Requested story length: ${value}. This applies to the story alone, excluding questions and answer space. Use developed paragraphs of at least 3 sentences, separated by blank lines.`};
     }
     function validateStoryLength(text, length) {
-        const {minWords} = storyLengthPlan(length);
+        const {minWords, maxWords} = storyLengthPlan(length);
         const count = words(String(text).split('\n').slice(1).join('\n')).length;
         if (count < minWords) throw new Error(`The story was too short (${count} words; at least ${minWords} required). Please generate again.`);
+        if (maxWords !== undefined && count > maxWords) throw new Error(`The story was too long (${count} words; at most ${maxWords} required). Please generate again.`);
     }
     function readingSections(text) {
         const paragraphs = String(text).split('\n').slice(1).map(s => s.trim()).filter(Boolean);

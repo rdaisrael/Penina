@@ -442,3 +442,17 @@ test('questions follow substantial reading passages and retain all words in orde
     }
     assert.deepEqual(core.words(plan.sections.join(' ')).map(x=>x[0]),core.words(story.split('\n').slice(1).join(' ')).map(x=>x[0]));
 });
+
+test('word-count ranges enforce both boundaries and exclude the title', () => {
+    for (const [length,min,max] of [['100-200 words',100,200],['201-400 words',201,400],['401-600 words',401,600],['37 words',37,37]]) {
+        const plan=core.storyLengthPlan(length);
+        assert.equal(plan.minWords,min);
+        assert.equal(plan.maxWords,max);
+        assert.ok(plan.instruction.includes(`${min}–${max} Hebrew words`));
+        const story=count=>'כותרת ארוכה\n'+'ילד '.repeat(count);
+        core.validateStoryLength(story(min),length);
+        core.validateStoryLength(story(max),length);
+        assert.throws(()=>core.validateStoryLength(story(min-1),length),/too short/);
+        assert.throws(()=>core.validateStoryLength(story(max+1),length),/too long/);
+    }
+});

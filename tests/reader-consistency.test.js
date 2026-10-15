@@ -456,3 +456,93 @@ test('word-count ranges enforce both boundaries and exclude the title', () => {
         assert.throws(()=>core.validateStoryLength(story(max+1),length),/too long/);
     }
 });
+
+test('generation repairs unique phrase positions without regenerating the story', async () => {
+    const {generateReaderAnalysis}=require('../lib/reader-response');
+    for (const patch of [{start:0,end:2},{start:1,end:2},{start:30,end:32}]) {
+        const data=phraseSample();
+        data.phrases[0]={...data.phrases[0],...patch};
+        let calls=0;
+        const result=await generateReaderAnalysis('Write',phraseProfile,undefined,async()=>{
+            calls++;return JSON.stringify(data);
+        });
+        assert.equal(calls,1);
+        assert.equal(result.text,data.text);
+        assert.deepEqual(result.phrases.map(p=>[p.start,p.end]),[[1,3],[3,5]]);
+        assert.equal(core.buildResult(result.text,result).notes[0].translation,'zoo; at the zoo');
+    }
+});
+
+test('ambiguous phrase positions require repair with indexed tokens and the actual error', async () => {
+    const {generateReaderAnalysis}=require('../lib/reader-response');
+    const text='טיול\nגן החיות גן החיות';
+    const data={text,words:core.words(text).map(([word])=>entry(word,false,'meaning')),
+        phrases:[phraseEntry(0,2,'גן החיות','zoo')]};
+    const calls=[];
+    const result=await generateReaderAnalysis('Write',phraseProfile,undefined,async prompt=>{
+        calls.push(prompt);
+        return JSON.stringify(calls.length===1?data:{...data,phrases:[phraseEntry(1,3,'גן החיות','zoo'),phraseEntry(3,5,'גן החיות','zoo')]});
+    });
+    assert.equal(calls.length,2);
+    assert.match(calls[1],/Phrase analysis does not match/);
+    assert.ok(calls[1].includes('{"index":1,"word":"גן"}'));
+    assert.equal(result.phrases.length,2);
+});
+
+test('phrase recovery never accepts fabricated expressions or boundary crossings', async () => {
+    const {generateReaderAnalysis}=require('../lib/reader-response');
+    for (const separator of [', ','\n']) {
+        const data=phraseSample();
+        data.text=data.text.replace('גן החיות','גן'+separator+'החיות');
+        let calls=0;
+        await assert.rejects(generateReaderAnalysis('Write',phraseProfile,undefined,async()=>{
+            calls++;return JSON.stringify(data);
+        }),/boundary/);
+        assert.equal(calls,2);
+    }
+    const data=phraseSample();data.phrases[0].word='בית ספר';
+    await assert.rejects(generateReaderAnalysis('Write',phraseProfile,undefined,async()=>JSON.stringify(data)),/does not match/);
+});
+
+test('phrase position repair retains overlap, metadata and source-text safeguards', async () => {
+    const {generateReaderAnalysis}=require('../lib/reader-response');
+    for (const [change,expected] of [
+        [data=>data.phrases.push({...data.phrases[0],start:30,end:32}),/Overlapping/],
+        [data=>{data.phrases[0].start=30;data.phrases[0].translation='';},/Invalid phrase/],
+        [data=>{data.phrases[0].start=30;data.phrases[0].isName='false';},/name analysis/],
+        [data=>{data.words=data.words.slice(1);},/Word analysis does not match/]
+    ]) {
+        const data=phraseSample();change(data);
+        let calls=0;
+        await assert.rejects(generateReaderAnalysis('Write',phraseProfile,undefined,async()=>{
+            calls++;return JSON.stringify(data);
+        }),expected);
+        assert.equal(calls,2);
+    }
+    const data=phraseSample();data.phrases[0].start=30;
+    await assert.rejects(generateReaderAnalysis('Analyze',phraseProfile,'טיול\nסיפור אחר',async()=>JSON.stringify(data)),/changed the supplied text/);
+});
+
+test('service retry also repairs phrase positions within the two-call budget', async () => {
+    const {generateReaderAnalysis}=require('../lib/reader-response');
+    const data=phraseSample();data.phrases[0].start=30;
+    let calls=0;
+    const result=await generateReaderAnalysis('Write',phraseProfile,undefined,async()=>{
+        if (++calls===1) throw Object.assign(new Error('temporary outage'),{retryable:true});
+        return JSON.stringify(data);
+    });
+    assert.equal(calls,2);
+    assert.equal(result.phrases[0].start,1);
+});
+
+test('too-long drafts get specific retry feedback and still must meet the requested limit', async () => {
+    const {generateReaderAnalysis}=require('../lib/reader-response');
+    const make=count=>({text:'טיול\n'+'גן '.repeat(count),words:[entry('טיול',false,'trip'),...Array.from({length:count},()=>entry('גן',false,'garden'))],phrases:[]});
+    const calls=[];
+    const result=await generateReaderAnalysis('Write',phraseProfile,undefined,async prompt=>{
+        calls.push(prompt);return JSON.stringify(make(calls.length===1?201:150));
+    },'100-200 words');
+    assert.match(calls[1],/too long \(201 words; at most 200 required\)/);
+    assert.equal(core.words(result.text).length,151);
+    await assert.rejects(generateReaderAnalysis('Write',phraseProfile,undefined,async()=>JSON.stringify(make(201)),'100-200 words'),/too long/);
+});

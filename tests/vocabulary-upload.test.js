@@ -317,6 +317,7 @@ test('too-short generated drafts are expanded on retry and never silently accept
     assert.equal(core.words(result.text).length,601);
     assert.equal(calls.length,2);
     assert.match(calls[1],/600/);
+    assert.match(calls[1],/previous attempt failed validation: The story was too short \(204 words/);
     assert.ok(!calls[1].includes('Preserve this supplied text exactly'));
     await assert.rejects(response.generateReaderAnalysis('Write',profile,undefined,async()=>JSON.stringify(make(204)),'2-page'),/too short/);
     const supplied=make(10);

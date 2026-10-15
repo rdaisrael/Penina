@@ -36,7 +36,7 @@ test('Class games embed a self-contained scheduler and have no per-set flashcard
 
 test('Disabled game types are omitted and disabling every game has a safe empty state',()=>{
  const card={term:'סוס',english:'horse',alternativeAnswers:{english:{term:'סוס',definition:'horse',answers:['cow','dog','cat','bird']}}};
- const all=['quiz','lines','cards','asteroids','flappy','chomp'];
+ const all=['quiz','lines','cards','asteroids','flappy','chomp','snowblaster'];
  for(const id of all){
   const html=makeClassGames('Class',[card],{disabledGames:[id]});
   assert(!html.includes(`data-game="${id}"`));

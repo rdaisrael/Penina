@@ -26,7 +26,7 @@
     removeButton.className = 'combine-action primary';
     const gameChoices = document.createElement('fieldset');
     gameChoices.className = 'teacher-choices';
-    const gameCatalog = [['quiz','Quick Quiz'],['lines','Connect the Words'],['cards','Match the Cards'],['asteroids','Vocabulary Asteroids'],['flappy','Flappy Vocab'],['chomp','Chomp & Charge']];
+    const gameCatalog = [['quiz','Quick Quiz'],['lines','Connect the Words'],['cards','Match the Cards'],['asteroids','Vocabulary Asteroids'],['flappy','Flappy Vocab'],['chomp','Chomp & Charge'],['snowblaster','Snowblaster!']];
     gameChoices.innerHTML = '<legend>Included exercises and games</legend><p>Checked activities are included. Uncheck any activity to exclude it, then save.</p>' + gameCatalog.map(([id,name]) => `<label><input type="checkbox" value="${id}" class="game-remove-select"><span>${name}</span></label>`).join('');
     management.appendChild(gameChoices);
     const saveGames = document.createElement('button');

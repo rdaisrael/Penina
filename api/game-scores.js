@@ -13,6 +13,7 @@ module.exports = function (req, res) {
     if (game === 'assessment') return require('../lib/quiz-submissions')(req, res);
     if (game === 'live') return require('../lib/live-game')(req, res);
     if (game === 'asteroids') return asteroids(req, res);
+    if (game === 'snowblaster') return require('../lib/snowblaster-scores')(req, res);
     if (game === 'flappy') return flappy(req, res);
     if (game === 'matching') return matching(req, res);
     res.setHeader('Cache-Control', 'no-store');

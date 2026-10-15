@@ -5,7 +5,7 @@ const { makeApp, makeClassGames, practiceRows } = require('../PeninaPlus-vocab-b
 const { makeSheet } = require('../PeninaPlus-vocab-builder/vocabulary-sheets');
 
 const MAX_HTML_LENGTH = 4_000_000;
-const GAME_IDS = ['quiz', 'lines', 'cards', 'asteroids', 'flappy', 'chomp'];
+const GAME_IDS = ['quiz', 'lines', 'cards', 'asteroids', 'flappy', 'chomp', 'snowblaster'];
 async function readGameSettings(grade) {
     const pathname = `vocabulary-game-settings/${grade}.json`;
     const result = await list({ prefix: pathname, limit: 1 });

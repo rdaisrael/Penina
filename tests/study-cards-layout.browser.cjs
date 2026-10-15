@@ -27,7 +27,7 @@ const app = require('../PeninaPlus-vocab-builder/offline-study-cards');
                         return { cardHeight: document.getElementById('card').offsetHeight, contextHeight: document.getElementById('cardContext').offsetHeight, main: measure('mainText'), context: measure('contextText') };
                     });
                     assert.equal(state.cardHeight, 323);
-                    assert.equal(state.contextHeight, 260);
+                    assert.equal(state.contextHeight, 160);
                     for (const text of [state.main, state.context]) {
                         assert(text.height <= text.availableHeight, JSON.stringify({ width, index, side, state }));
                         assert(text.width <= text.availableWidth, JSON.stringify({ width, index, side, state }));

@@ -11,7 +11,7 @@ async function accountRequest(action,body) {
 (async()=>{
     try {
         const config=await accountRequest('config');
-        if(!config.configured){connectionStatus.textContent='Google Classroom connection is awaiting one-time setup by the site owner.';document.querySelector('#connectGoogle button').disabled=true;return;}
+        if(!config.configured){connectionStatus.textContent='Google Classroom connection is awaiting one-time setup by the site owner.';document.querySelector('#connectGoogle button[type="submit"]').disabled=true;return;}
         const result=await accountRequest('courses');
         connectionStatus.textContent='Connected as '+result.email;
         document.getElementById('chooseClass').hidden=false;
@@ -20,12 +20,12 @@ async function accountRequest(action,body) {
     }catch(error){connectionStatus.textContent=error.message;}
 })();
 document.getElementById('connectGoogle').addEventListener('submit',async event=>{
-    event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;
+    event.preventDefault();const button=event.target.querySelector('button[type="submit"]');button.disabled=true;
     try{const result=await accountRequest('login',{role:'teacher',password:event.target.elements.password.value});location.assign(result.url);}
     catch(error){connectionStatus.textContent=error.message;button.disabled=false;}
 });
 document.getElementById('chooseClass').addEventListener('submit',async event=>{
-    event.preventDefault();document.getElementById('classLink').hidden=true;const button=event.target.querySelector('button');button.disabled=true;
+    event.preventDefault();document.getElementById('classLink').hidden=true;const button=event.target.querySelector('button[type="submit"]');button.disabled=true;
     try{
         const result=await accountRequest('assign',{courseId:document.getElementById('classChoice').value});
         document.getElementById('studentLink').value=result.url;document.getElementById('classroom').href=result.classroomURL;
@@ -45,7 +45,7 @@ function render() {
     }).join('');
 }
 form.addEventListener('submit',async event=>{
-    event.preventDefault(); const button = form.querySelector('button'); button.disabled = true;
+    event.preventDefault(); const button = form.querySelector('button[type="submit"]'); button.disabled = true;
     status.textContent = 'Loading answers…'; document.getElementById('reports').replaceChildren(); document.getElementById('export').hidden = true; records = [];
     try {
         const response = await fetch('/api/game-scores?game=assessment-retake-8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'report',password:form.elements.password.value})});

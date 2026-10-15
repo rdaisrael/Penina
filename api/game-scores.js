@@ -5,6 +5,8 @@ const matching = require('../lib/matching-scores');
 // Share one serverless function so both class boards fit within the hosting limit.
 module.exports = function (req, res) {
     const game = req.query?.game;
+    if (game === 'quiz-builder') return require('../lib/quiz-builder').handle(req,res);
+    if (game === 'assessment-custom') return require('../lib/quiz-custom-submissions')(req,res);
     if (game === 'quiz-account') return require('../lib/quiz-account').handle(req, res);
     if (game === 'assessment-retake-8') return require('../lib/quiz-retake-8-submissions')(req, res);
     if (game === 'assessment-retake') return require('../lib/quiz-retake-submissions')(req, res);

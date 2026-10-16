@@ -14,6 +14,7 @@ async function accountRequest(action,body) {
         if(!config.configured){connectionStatus.textContent='Google Classroom connection is awaiting one-time setup by the site owner.';document.querySelector('#connectGoogle button[type="submit"]').disabled=true;return;}
         const result=await accountRequest('courses');
         connectionStatus.textContent='Connected as '+result.email;
+        document.getElementById('connectGoogle').hidden=true;
         document.getElementById('chooseClass').hidden=false;
         document.getElementById('classChoice').innerHTML='<option value="">Choose a class</option>'+result.courses.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.section?' — '+esc(c.section):''}</option>`).join('');
         if(!result.courses.length)connectionStatus.textContent+=' · No active classes taught by this account were found.';
@@ -50,7 +51,7 @@ form.addEventListener('submit',async event=>{
     try {
         const response = await fetch('/api/game-scores?game=assessment-retake-8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'report',password:form.elements.password.value})});
         const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Answers could not be loaded.');
-        questions=result.questions; records = result.submissions;
+        questions=result.questions; records = result.submissions.filter(r=>!new URLSearchParams(location.search).get('class') || r.classId===new URLSearchParams(location.search).get('class'));
         status.textContent = `${records.length} submission${records.length===1?'':'s'}. Questions 2–5 are graded automatically. Open a submission to correct questions 1 and 6.`;
         document.getElementById('export').hidden = !records.length; render();
     } catch(error) { status.textContent = error.message; }

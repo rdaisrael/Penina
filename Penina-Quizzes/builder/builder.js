@@ -24,7 +24,7 @@ function render(){
     $('checkpoint').value=quiz.forwardOnlyFrom ?? '';$('checkpointMessageField').hidden=quiz.forwardOnlyFrom==null;
     $('checkpointMessage').value=quiz.checkpointMessage || 'Review your previous answers now. Beginning with the next question, you cannot return to previous questions. The rest of this quiz goes forward only.';$('badge').textContent=quiz.published?'PUBLISHED':'DRAFT';summary();
     $('questions').innerHTML=quiz.questions.map((q,i)=>(i===quiz.forwardOnlyFrom?'<section class="checkpoint-banner"><strong>Review checkpoint</strong><p>'+esc($('checkpointMessage').value)+'</p></section>':'')+renderQuestion(q,i)).join('') || '<p class="muted">A blank page for your next great lesson. Add a question below.</p>';
-    $('assign').hidden=!quiz.published;if(quiz.published)$('assign').href='/Penina-Quizzes/custom/teacher.html?quiz='+encodeURIComponent(quiz.id);renderButtons();
+    $('assign').hidden=!quiz.published;if(quiz.published)$('assign').href='/Penina-Quizzes/custom/teacher.html?quiz='+encodeURIComponent(quiz.id)+'&mode=assign';renderButtons();
 }
 async function library(){const data=await api('list');connected=true;$('connect').hidden=true;$('account').textContent='Connected as '+data.email;$('library').innerHTML=data.quizzes.map(q=>`<button class="library-item" data-id="${esc(q.id)}">${esc(q.title)}<small>${q.published?'Published':'Draft'} · ${q.count} question${q.count===1?'':'s'}</small></button>`).join('') || '<p class="muted">Your saved quizzes will appear here.</p>';renderButtons();}
 function leave(){return !dirty || confirm('Discard unsaved changes to this quiz?');}

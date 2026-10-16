@@ -6,12 +6,13 @@ function harness() {
         setCredentials(value){this.credentials=value;}
         generateAuthUrl(options){state.options=options;return 'https://accounts.google.com/o/oauth2/v2/auth?state='+options.state;}
         async getToken(options){state.exchange=options;return {tokens:{id_token:'verified-by-library',refresh_token:'refresh-secret',scope:[...state.options.scope].join(' ')}};}
-        async verifyIdToken(options){state.verification=options;if(state.invalidToken)throw Error('Invalid signature or audience');return {getPayload:()=>({sub:'student-id',email:'student@school.org',name:'Student',email_verified:true,nonce:state.wrongNonce?'wrong':state.options.nonce})};}
+        async verifyIdToken(options){state.verification=options;if(state.invalidToken)throw Error('Invalid signature or audience');return {getPayload:()=>({sub:'student-id',email:state.email || 'student@school.org',name:'Student',email_verified:true,nonce:state.wrongNonce?'wrong':state.options.nonce})};}
         async request({url,params,paramsSerializer,method='GET',data}) {
             requests.push({url,params,method,data,query:paramsSerializer(params)});
             if(url.endsWith(':return')) {if(state.returnFailure)throw {response:{status:503}};return {data:{}};}
             if(method==='PATCH')return {data:{...data,id:'submission-1'}};
             if(url.endsWith('/studentSubmissions'))return {data:{studentSubmissions:[{id:'submission-1',userId:state.wrongStudent?'other':'student-id',courseId:'course-1',courseWorkId:'work-1',associatedWithDeveloper:!state.foreignWork,state:state.submissionState || 'TURNED_IN'}]}};
+            if(url.endsWith('/courseWork/work-1') && state.workUnavailable)throw {response:{status:503}};
             if(url.endsWith('/courseWork/work-1'))return {data:{id:'work-1',associatedWithDeveloper:!state.foreignWork,state:state.draft?'DRAFT':'PUBLISHED',maxPoints:state.changedMax?20:(state.maxPoints || 12)}};
             if(url.endsWith('/courseWork')) {
                 if(method==='POST') {if(state.createDenied)throw {response:{status:403}};state.created={id:'work-1',associatedWithDeveloper:true,state:'DRAFT',alternateLink:'https://classroom.google.com/test',materials:data.materials};return {data:state.created};}
@@ -31,7 +32,10 @@ function harness() {
         if(n.endsWith('questions.json'))return require(n);
         return require(n);
     }};
-    vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../lib/quiz-account.js'),'utf8'),ctx);
+    const source=fs.readFileSync(path.join(__dirname,'../lib/quiz-account.js'),'utf8');
+    const salt=source.match(/const TEACHER_SALT = '([^']+)'/)[1];
+    const testHash=require('crypto').scryptSync('portal-test-password',salt,64).toString('hex');
+    vm.runInNewContext(source.replace(/const TEACHER_HASH = '[^']+'/,"const TEACHER_HASH = '"+testHash+"'"),ctx);
     const api=ctx.module.exports;
     blobs.set('quiz-google/classes/'+ 'c'.repeat(32)+'.txt',api.seal({quiz:'gemara-6-wl-2',owner:'teacher-id',courseId:'course-1',className:'Gemara'}));
     blobs.set('quiz-google/teachers/teacher-id.txt',api.seal({refreshToken:'stored-refresh-token'}));
@@ -225,4 +229,50 @@ test('Grade 8 retake grades use its eight-point assignment and cannot target the
     await assert.rejects(h.api.sendGrade(req,record,grading,'gemara-8-intro-retake'),/8 points/);
     h.state.maxPoints=8;const sent=await h.api.sendGrade(req,record,grading,'gemara-8-intro-retake');
     assert.equal(sent.maxPoints,8);assert.equal(sent.score,7.5);assert.equal(sent.returned,true);
+});
+
+test('User 1 entrance checks email and password and binds the Google callback',async()=>{
+    const h=harness(), req=h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true,email:'disrael@saracademy.org',password:'wrong'}});
+    assert.equal((await h.run(req)).code,401);
+    req.body.password='portal-test-password';req.body.email='other@school.org';assert.equal((await h.run(req)).code,401);
+    req.body.email='disrael@saracademy.org';const login=await h.run(req);assert.equal(login.code,200);assert.equal(h.state.options.login_hint,req.body.email);
+    const callback=h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}});
+    assert.equal((await h.run(callback)).code,403); // A different verified Google account cannot become User 1.
+    h.state.email=req.body.email;const result=await h.run(callback);assert.equal(result.code,303);assert.equal(result.headers.Location,'/Penina-Quizzes/teacher/');
+    const cookie=result.headers['Set-Cookie'][1].split(';')[0];
+    assert.equal(h.api.isAccountOwner({headers:{cookie}}),true);
+    const info=await h.run(h.request({query:{action:'teacher'},headers:{cookie}}));assert.equal(info.data.userId,1);
+    assert.equal((await h.run(h.request({query:{action:'teacher'}}))).code,403);
+    assert.equal(h.api.isAccountOwner(h.request({headers:{cookie:h.cookie({role:'teacher',email:req.body.email})}})),false);
+});
+test('User 1 cannot bypass the new password with the old grade password',async()=>{
+    const h=harness();h.state.email='disrael@saracademy.org';
+    const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',password:'teacher-secret'}}));
+    const result=await h.run(h.request({query:{action:'callback',code:'code',state:h.state.options.state},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));assert.equal(result.code,403);
+});
+test('Assignment list is restricted to the signed-in owner and excludes other teachers',async()=>{
+    const h=harness(),headers={cookie:h.cookie({sub:'teacher-id',role:'teacher',userId:1,email:'disrael@saracademy.org'})};
+    h.blobs.set('quiz-google/classes/'+ 'd'.repeat(32)+'.txt',h.api.seal({quiz:'gemara-6-wl-2',owner:'teacher-id',courseId:'course-1',courseWorkId:'work-1',className:'Gemara'}));
+    h.blobs.set('quiz-google/classes/'+ 'e'.repeat(32)+'.txt',h.api.seal({quiz:'gemara-6-wl-2',owner:'someone-else',courseId:'course-2',courseWorkId:'work-2',className:'Private class'}));
+    const result=await h.run(h.request({query:{action:'assignments'},headers}));assert.equal(result.code,200);assert.equal(result.data.assignments.length,1);assert.equal(result.data.assignments[0].classId,'d'.repeat(32));assert.equal(JSON.stringify(result.data).includes('Private class'),false);
+    assert.equal((await h.run(h.request({query:{action:'assignments'}}))).code,403);
+});
+test('Publishing uses the stored assignment and requires active teacher membership',async()=>{
+    const h=harness(),headers={cookie:h.cookie({sub:'teacher-id',role:'teacher'}),origin:'https://www.penina-hebrew.org'};
+    const req=h.request({method:'POST',query:{},headers,body:{action:'publish-assignment',courseId:'course-1'}});
+    assert.equal((await h.run(req)).code,403);
+    assert.equal((await h.run({...req,body:{action:'assign',courseId:'course-1'}})).code,200);
+    h.state.draft=true;assert.equal((await h.run(req)).code,200);
+    const patch=h.requests.find(r=>r.method==='PATCH');assert.equal(patch.data.state,'PUBLISHED');assert.equal(patch.params.updateMask,'state');
+    h.state.teacher=false;assert.equal((await h.run(req)).code,403);h.state.teacher=true;
+    h.state.active=false;assert.equal((await h.run(req)).code,403);h.state.active=true;
+    h.state.foreignWork=true;assert.equal((await h.run(req)).code,409);
+    assert.equal((await h.run({...req,headers:{...headers,origin:'https://attacker.example'}})).code,403);
+});
+
+test('Saved assignments remain listed when Classroom status cannot be fetched',async()=>{
+    const h=harness();h.state.workUnavailable=true;
+    h.blobs.set('quiz-google/classes/'+ 'd'.repeat(32)+'.txt',h.api.seal({quiz:'gemara-6-wl-2',owner:'teacher-id',courseId:'course-1',courseWorkId:'work-1',className:'Gemara'}));
+    const result=await h.run(h.request({query:{action:'assignments'},headers:{cookie:h.cookie({sub:'teacher-id',role:'teacher',userId:1,email:'disrael@saracademy.org'})}}));
+    assert.equal(result.code,200);assert.equal(result.data.assignments.length,1);assert.equal(result.data.assignments[0].state,'UNKNOWN');
 });

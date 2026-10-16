@@ -6,7 +6,7 @@ function harness() {
     let identity={sub:'student-id',classId:'c'.repeat(32),className:'Test class',name:'Student <one>',email:'student@school.org'};
     class TestDate extends Date {constructor(...args){super(...(args.length?args:[now]));} static now(){return now;}}
     const ctx = {Date:TestDate,module:{exports:{}},Buffer,console:{error(){}},process:{env:{BLOB_READ_WRITE_TOKEN:'test-server-secret'}},fetch:async url=>({ok:true,text:async()=>blobs.get(url)}),require:n=>{
-        if(n==='./quiz-account') return {requireStudent:async()=>{if(!identity)throw Object.assign(new Error('Not enrolled'),{status:403});return identity;},sendGrade:async(req,record,grading)=>{if(gradeError)throw Object.assign(Error('Google unavailable'),{status:503});sentGrades.push({record,grading});return {score:grading.total};}};
+        if(n==='./quiz-account') return {isAccountOwner:req=>req.headers?.cookie==='owner-session',requireStudent:async()=>{if(!identity)throw Object.assign(new Error('Not enrolled'),{status:403});return identity;},sendGrade:async(req,record,grading)=>{if(gradeError)throw Object.assign(Error('Google unavailable'),{status:503});sentGrades.push({record,grading});return {score:grading.total};}};
         if(n==='./quiz-grading') return require('../lib/quiz-grading');
         if(n==='crypto') return require('crypto');
         if(n.endsWith('questions.json')) return questions;
@@ -15,7 +15,7 @@ function harness() {
         throw Error(n);
     }};
     vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../lib/quiz-submissions.js'),'utf8'),ctx);
-    const run = async body=>{const res={setHeader(){},status(s){this.code=s;return this;},json(d){this.data=d;return this;}};await ctx.module.exports({method:'POST',body},res);return res;};
+    const run = async (body,headers={})=>{const res={setHeader(){},status(s){this.code=s;return this;},json(d){this.data=d;return this;}};await ctx.module.exports({method:'POST',body,headers},res);return res;};
     const autoRun=async body=>{
         if(body.action==='submit' && !body.token && ctx.module.exports.validate(body)) {
             const started=await run({action:'start',id:body.id,email:body.email});
@@ -153,4 +153,11 @@ test('Sending corrections uses server-calculated grades; Google failures preserv
     assert.equal((await h.run({action:'report',password:'teacher-secret'})).data.submissions[0].grading.feedback,'Reviewed');
     h.setGradeError(false);const sent=await h.run(body);assert.equal(sent.data.classroom.score,sent.data.grading.total);
     assert.equal(h.sentGrades[0].record.sub,'student-id');assert.notEqual(h.sentGrades[0].grading.total,100);
+});
+
+test('User 1 can load imported reports without a grade password, with same-origin protection',async()=>{
+    const h=harness();
+    assert.equal((await h.rawRun({action:'report'},{cookie:'owner-session',origin:'https://www.penina-hebrew.org'})).code,200);
+    assert.equal((await h.rawRun({action:'report'},{cookie:'owner-session',origin:'https://attacker.example'})).code,403);
+    assert.equal((await h.rawRun({action:'report'},{cookie:'student-session',origin:'https://www.penina-hebrew.org'})).code,401);
 });

@@ -17,11 +17,22 @@ async function accountRequest(action,body) {
         if(!config.configured){connectionStatus.textContent='Google Classroom connection is awaiting one-time setup by the site owner.';document.querySelector('#connectGoogle button[type="submit"]').disabled=true;return;}
         const result=await accountRequest('courses');
         connectionStatus.textContent='Connected as '+result.email;
+        document.getElementById('connectGoogle').hidden=true;
         document.getElementById('chooseClass').hidden=false;
         document.getElementById('classChoice').innerHTML='<option value="">Choose a class</option>'+result.courses.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.section?' — '+esc(c.section):''}</option>`).join('');
         document.getElementById('reportClass').innerHTML='<option value="">All classes — submissions only</option>'+result.courses.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.section?' — '+esc(c.section):''}</option>`).join('');
         if(!result.courses.length)connectionStatus.textContent+=' · No active classes taught by this account were found.';
     }catch(error){connectionStatus.textContent=error.message;}
+    finally {
+        // Never silently broaden a class-specific link to all classes.
+        const params=new URLSearchParams(location.search),selectedCourse=params.get('course');
+        const selector=document.getElementById('reportClass');
+        if(selectedCourse) {
+            if(![...selector.options].some(option=>option.value===selectedCourse))selector.add(new Option('Selected class (not in active class list)',selectedCourse));
+            selector.value=selectedCourse;
+        }
+        if(params.get('mode')!=='assign')await loadReport();
+    }
 })();
 document.getElementById('connectGoogle').addEventListener('submit',async event=>{
     event.preventDefault();const button=event.target.querySelector('button[type="submit"]');button.disabled=true;

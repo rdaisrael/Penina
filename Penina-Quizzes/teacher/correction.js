@@ -11,8 +11,8 @@ window.QuizCorrection = (() => {
     function question(q, i, answers, auto, manual, step) {
         const grade = auto || manual, max = grade.max, [kind, label] = state(grade.score, max);
         const reference = auto ? auto.correctAnswer : manual.modelAnswer;
-        return `<section class="review-question" data-grade="${kind}">
-            <div class="question-heading"><span class="question-number">Question ${i+1}</span><span class="grade-badge">${label}</span><span class="question-points">${grade.score ?? '—'} / ${max} points</span></div>
+        return `<section class="review-question ${q.extraCredit?'extra-credit':''}" data-grade="${kind}">
+            <div class="question-heading"><span class="question-number">Question ${i+1}</span>${q.extraCredit?'<span class="extra-credit-badge">Extra credit</span>':''}<span class="grade-badge">${label}</span><span class="question-points">${grade.score ?? '—'} / ${max} points</span></div>
             <h2 class="review-prompt" dir="auto">${escape(q.prompt)}</h2>
             <div class="answer-comparison"><div class="student-response"><h3>Student’s answer</h3>${answers.map((a,j)=>`<div class="response-part">${q.fields ? `<span class="field-label" dir="auto">${escape(q.fields[j])}</span>` : answers.length > 1 ? `<span class="field-label">Part ${j+1}</span>` : ''}<p dir="auto">${escape(a || '(No answer)')}</p></div>`).join('')}</div>
             <div class="reference-response"><h3>${auto ? 'Correct answer' : 'Model answer'}</h3><p dir="auto">${escape(reference || 'No model answer provided.')}</p></div></div>

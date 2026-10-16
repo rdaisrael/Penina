@@ -9,3 +9,7 @@ fieldset{border:0;padding:0;margin:0}select{max-width:100%;padding:10px;border:1
 .sentence[dir="ltr"] select{direction:ltr}
 
 .table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:12px;text-align:left;border-bottom:1px solid #dce5df;vertical-align:top}thead th{background:#edf3ee;white-space:nowrap}td{white-space:nowrap}.summary-prompt{font-weight:400;min-width:180px;max-width:380px;white-space:pre-wrap}.roster-status{font-weight:600}#checkpointPage{border:2px solid #a78b35;background:#fffbee}#checkpointPage button{margin:8px 4px}#checkpointText{white-space:pre-wrap}
+
+/* Bonus questions keep their grading colors and gain a distinct gold frame. */
+.extra-credit{outline:2px solid #b88a2c;outline-offset:2px;background-color:#fffaf0}
+.extra-credit-badge{display:inline-block;border:1px solid #c99c43;border-radius:6px;padding:3px 9px;background:#fff3d6;color:#76500c;font:600 13px/1.5 system-ui,sans-serif}.extra-credit-badge[hidden]{display:none}

@@ -56,7 +56,7 @@ function render() {
         return `<details class="card"><summary>${esc(r.name)} · ${esc(r.email)}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(new Date(r.submittedAt).toLocaleString())} · Receipt: ${esc(r.id)}</p><form class="correction" data-id="${r.id}">${questions.map((q,i)=>{
             const auto=g.automatic.find(item=>item.index===i),manual=g.manual.find(item=>item.index===i);
             return QuizCorrection.question(q,i,r.answers[i],auto,manual,q.allowHalfCredit===true?0.5:1);
-        }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label><p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use ${g.baseMax} points.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send grade to Classroom</button><p class="muted">Email returns the corrected test to ${esc(r.email)}, including teacher overrides and your explanations. The answer key is not included.</p><button type="submit" name="emailStudent" value="yes">Save and email corrected test</button><p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
+        }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label><p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use ${g.baseMax} regular points${g.extraMax?', plus up to '+g.extraMax+' extra-credit points':''}.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send grade to Classroom</button><p class="muted">Email returns the corrected test to ${esc(r.email)}, including teacher overrides and your explanations. The answer key is not included.</p><button type="submit" name="emailStudent" value="yes">Save and email corrected test</button><p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
     }).join('');
 }
 function renderSummary() {
@@ -66,7 +66,7 @@ function renderSummary() {
         const counts={correct:0,incorrect:0,partial:0,pending:0};
         for(const r of records){const item=[...r.grading.automatic,...r.grading.manual].find(v=>v.index===index);counts[!item || item.score===null?'pending':item.score===item.max?'correct':item.score===0?'incorrect':'partial']++;}
         const cell=n=>`${n} (${records.length?Math.round(n/records.length*1000)/10+'%':'—'})`;
-        return `<tr><th scope="row"><span>Q${index+1}</span><div class="summary-prompt" dir="auto">${esc(q.prompt)}</div></th>${Object.values(counts).map(n=>`<td>${cell(n)}</td>`).join('')}</tr>`;
+        return `<tr><th scope="row"><span>Q${index+1}${q.extraCredit?' · Extra credit':''}</span><div class="summary-prompt" dir="auto">${esc(q.prompt)}</div></th>${Object.values(counts).map(n=>`<td>${cell(n)}</td>`).join('')}</tr>`;
     }).join('');
 }
 function renderRoster(roster) {
@@ -110,7 +110,7 @@ document.getElementById('reports').addEventListener('submit',async event=>{
     finally{buttons.forEach(button=>button.disabled=false);}
 });
 document.getElementById('export').addEventListener('click',()=>{
-    const columns = questions.map((q,i)=>`${i+1}. ${q.prompt}`);
+    const columns = questions.map((q,i)=>`${i+1}. ${q.extraCredit?'[Extra credit] ':''}${q.prompt}`);
     // Prevent answers or names being interpreted as spreadsheet formulas.
     const csvCell = v => { let s = String(v); if (/^[\s]*[=+\-@]/.test(s)) s = "'" + s; return '"'+s.replace(/"/g,'""')+'"'; };
     const rows = [['Name','School email','Submitted at','Receipt','Automatic points',...questions.flatMap((q,i)=>q.type==='text'?['Q'+(i+1)+' points']:[]),'Final score','Questions awaiting correction','Teacher feedback',...columns],...records.map(r=>[r.name,r.email,r.submittedAt,r.id,r.grading.automaticScore,...r.grading.manual.map(q=>q.score??''),r.grading.total??'',r.grading.pending,r.grading.feedback,...r.answers.map(values=>values.join(' | '))])];

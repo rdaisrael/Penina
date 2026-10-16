@@ -28,12 +28,12 @@ function shuffled(values) {
 }
 function controls(q,i) {
     const choices=q.choices?shuffled(q.choices):[];
-    const select=(j,label)=>`<select name="q${i}-${j}" aria-label="${esc(label)}" required><option value="">Choose a word</option>${choices.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>`;
+    const select=(j,label)=>`<select name="q${i}-${j}" aria-label="${esc(label)}" ${q.extraCredit?'':'required'}><option value="">Choose a word</option>${choices.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>`;
     if(q.type==='choice')return `<label>Choose one answer${select(0,'Your answer')}</label>`;
     if(q.type==='multi')return `<fieldset><legend>${q.scoringMode==='response'?'Select exactly '+q.responseCount+' answers':'Check all that apply'}</legend>${choices.map((c,j)=>`<label class="choice"><input type="checkbox" name="q${i}-choice-${q.choices.indexOf(c)}" value="${esc(c)}"><span dir="auto">${esc(c)}</span></label>`).join('')}</fieldset>`;
     if(q.type==='gaps')return `<div class="sentence" dir="${q.direction}">${q.prompt.split('___').map((part,j)=>esc(part)+(j<q.prompt.split('___').length-1?select(j,'Blank '+(j+1)):'')).join('')}</div>`;
     if(q.type==='order')return `<p class="muted">Choose each item in order. Position 1 is on the ${q.direction==='rtl'?'right':'left'}. Use each item once.</p><div class="ordering" dir="${q.direction}">${choices.map((_,j)=>`<label><span>(${j+1})</span>${select(j,'Position '+(j+1))}</label>`).join('')}</div>`;
-    return `<label>Your answer<textarea name="q${i}-0" dir="auto" spellcheck="true" maxlength="5000" required></textarea></label>`;
+    return `<label>Your answer<textarea name="q${i}-0" dir="auto" spellcheck="true" maxlength="5000" ${q.extraCredit?'':'required'}></textarea></label>`;
 }
 async function request(record) {
     const response = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,classId})});
@@ -66,7 +66,7 @@ function applyProgress(state) {
     }
     snapshot();
 }
-function incomplete(index){const values=answer(questions[index],index);return (questions[index].type==='multi' && questions[index].scoringMode==='response' && values.length!==questions[index].responseCount) || !values.length || values.some(v=>!v.trim()) || (questions[index].type==='order' && new Set(values).size!==values.length);}
+function incomplete(index){const values=answer(questions[index],index);if(questions[index].extraCredit)return questions[index].type==='order' && new Set(values.filter(Boolean)).size!==values.filter(Boolean).length;return (questions[index].type==='multi' && questions[index].scoringMode==='response' && values.length!==questions[index].responseCount) || !values.length || values.some(v=>!v.trim()) || (questions[index].type==='order' && new Set(values).size!==values.length);}
 async function advance(through) {
     if(moving || expired)return;
     for(let i=lockedThrough+1;i<=through;i++)if(incomplete(i)){navigate(i);status.textContent='Complete this answer before locking it and continuing.';return;}
@@ -95,7 +95,7 @@ function showReceipt() {
     const automatic = new Map((submission.automatic || []).map(q=>[q.index,q]));
     document.getElementById('answerFeedback').innerHTML=questions.map((q,i)=>{
         const result=automatic.get(i);
-        return `<section><h3 dir="auto">${i+1}. ${esc(q.prompt)}</h3><p class="answer">Your answer: ${submission.answers[i].map(a=>esc(a||'(Unanswered)')).join('<br>')}</p>${result?`<p class="${result.correct?'correct':'warning'}">${result.correct?'Correct':result.partial?'Partly correct':'Incorrect'}</p>`:'<p>Awaiting teacher correction.</p>'}</section>`;
+        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="auto">${i+1}. ${esc(q.prompt)}</h3><p class="answer">Your answer: ${submission.answers[i].map(a=>esc(a||'(Unanswered)')).join('<br>')}</p>${result?`<p class="${result.correct?'correct':'warning'}">${result.correct?'Correct':result.partial?'Partly correct':'Incorrect'}</p>`:'<p>Awaiting teacher correction.</p>'}</section>`;
     }).join('');
 }
 function tick() {
@@ -131,7 +131,7 @@ async function enterQuiz() {
         if(!response.ok)throw new Error(identity.error || 'Sign in with Google to continue.');
         questions=identity.questions;
         document.querySelector('h1').textContent=identity.title;document.title=identity.title+' | PP Quiz';
-        document.getElementById('quizSummary').textContent=questions.length+' questions · '+questions.reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' points';
+        document.getElementById('quizSummary').textContent=questions.length+' questions · '+questions.filter(q=>!q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' regular points · '+questions.filter(q=>q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' extra-credit points';
         document.getElementById('durationDescription').textContent=identity.durationMinutes===null?'No time limit.':'Time limit: '+identity.durationMinutes+' minutes. The timer continues if you leave this page.';
         document.getElementById('timedNotice').hidden=identity.durationMinutes===null;
         forwardOnlyFrom=identity.forwardOnlyFrom ?? null;document.getElementById('checkpointText').textContent=identity.checkpointMessage || '';
@@ -142,7 +142,7 @@ async function enterQuiz() {
         document.getElementById('studentIdentity').textContent=identity.name+' · '+identity.email+' · '+identity.className;
         form.elements.studentName.value=identity.name;form.elements.studentEmail.value=identity.email;
         try { saved = JSON.parse(localStorage.getItem(DRAFT)) || {}; } catch (_) {}
-        document.getElementById('questions').innerHTML=questions.map((q,i)=>`<section class="card" data-question="${i}" hidden><p class="number">Question ${i+1} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${q.scoringMode==='response'?' · '+q.points+' per correct response':''}</p><h2 class="prompt" dir="auto">${esc(q.prompt)}</h2>${controls(q,i)}</section>`).join('');
+        document.getElementById('questions').innerHTML=questions.map((q,i)=>`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${i+1}${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${q.scoringMode==='response'?' · '+q.points+' per correct response':''}</p><h2 class="prompt" dir="auto">${esc(q.prompt)}</h2>${controls(q,i)}</section>`).join('');
         for(const control of form.querySelectorAll('#questions input, #questions textarea, #questions select')) {
             const value=saved.values?.[control.name];
             if(value!==undefined) {if(control.type==='checkbox')control.checked=value===true;else control.value=value;}

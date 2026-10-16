@@ -208,3 +208,28 @@ test('Email returns saved teacher overrides and explanations only to the submitt
  const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.data.submissions[0].grading.automatic[0].explanation,body.explanations[1]);
  h.state.emailFailure=true;const failed=await h.call(h.submissions,h.req(body));assert.equal(failed.code,200);assert.equal(failed.data.emailError,'Email failed');assert.equal(failed.data.grading.total,7);
 });
+
+test('Extra credit adds to earned points but not the denominator, and is optional',()=>{
+ const regular={type:'choice',prompt:'Regular',points:1,choices:['A','B'],answer:['A']};
+ const q={...fixture(),questions:[...Array.from({length:10},()=>({...regular})),{...regular,prompt:'Bonus',extraCredit:true}]};
+ const valid=model.validateQuiz(q,true),answers=q.questions.map(()=>['A']);
+ const g=model.grade(valid,answers);assert.equal(g.total,11);assert.equal(g.baseMax,10);assert.equal(g.extraMax,1);
+ answers[10]=[''];assert(model.validAnswers(valid,answers));assert.equal(model.grade(valid,answers).total,10);
+ answers[0]=[''];assert(!model.validAnswers(valid,answers));
+ assert.equal(model.publicQuestions(valid)[10].extraCredit,true);
+ assert.throws(()=>model.validateQuiz({...q,questions:[{...regular,extraCredit:true}]},true),/regular question/);
+ assert.throws(()=>model.validateQuiz({...q,questions:[{...regular,extraCredit:'yes'}]},true));
+ const written={...fixture(),questions:[regular,{type:'text',prompt:'Bonus explanation',points:2,extraCredit:true,answer:'Example'}]};
+ assert(model.validAnswers(written,[['A'],['']]));assert.equal(model.grade(written,[['A'],['']]).total,1);
+ assert.equal(model.grade(written,[['A'],['attempt']]).pending,1);
+ const manual=model.grade(written,[['A'],['attempt']],{scores:[2]});assert.equal(manual.total,3);assert.equal(manual.baseMax,1);
+});
+test('Published bonus settings survive reload and Classroom receives 11 out of 10',async()=>{
+ const h=harness(),regular={type:'choice',prompt:'Regular',points:1,choices:['A','B'],answer:['A']};
+ const q={...fixture(),questions:[...Array.from({length:10},()=>({...regular})),{...regular,prompt:'Bonus',extraCredit:true}]};
+ const link=await assigned(h,q);assert.equal(h.state.work.maxPoints,10);
+ const loaded=await h.call(h.builder.handle,h.req({action:'load',id:link.quiz}));assert.equal(loaded.data.quiz.questions[10].extraCredit,true);
+ const id='b'.repeat(32),answers=q.questions.map(()=>['A']);const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ assert.equal((await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers},'student'))).code,200);
+ const corrected=await h.call(h.submissions,h.req({...link,id,action:'correct',scores:[],feedback:'',sendToClassroom:true}));assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,11);assert.equal(corrected.data.grading.baseMax,10);assert.equal(h.state.grade.assignedGrade,11);assert.equal(corrected.data.classroom.maxPoints,10);
+});

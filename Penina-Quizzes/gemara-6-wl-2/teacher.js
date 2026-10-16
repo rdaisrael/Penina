@@ -41,8 +41,8 @@ function render() {
         const g=r.grading;
         return `<details class="card"><summary>${esc(r.name)} · ${esc(r.email)}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(new Date(r.submittedAt).toLocaleString())} · Receipt: ${esc(r.id)}</p><form class="correction" data-id="${r.id}">${questions.map((q,i)=>{
             const auto=g.automatic.find(item=>item.index===i),manual=g.manual.find(item=>item.index===i);
-            return `<h2 class="prompt">${i+1}. ${esc(q.prompt)}</h2>${r.answers[i].map((a,j)=>`<p class="answer">${q.fields?esc(q.fields[j])+': ':''}${esc(a||'(No answer)')}</p>`).join('')}${auto ? `<p class="muted">Automatically graded: ${auto.score}/1 · Correct answer: <bdi>${esc(auto.correctAnswer)}</bdi></p>` : `<label>Points for question ${i+1} (0–${manual.max})<input name="manual${i}" type="number" min="0" max="${manual.max}" step="0.5" value="${manual.score??''}" placeholder="Awaiting correction"></label>`}`;
-        }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label><p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use 12 regular points, plus up to 4 extra-credit points.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send grade to Classroom</button><p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
+            return QuizCorrection.question(q,i,r.answers[i],auto,manual,0.5);
+        }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label><p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use 12 regular points, plus up to 4 extra-credit points.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send grade to Classroom</button><p class="muted">Email returns the corrected test to ${esc(r.email)}, including teacher overrides and your explanations. The answer key is not included.</p><button type="submit" name="emailStudent" value="yes">Save and email corrected test</button><p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
     }).join('');
 }
 form.addEventListener('submit',async event=>{
@@ -60,13 +60,15 @@ form.addEventListener('submit',async event=>{
 document.getElementById('reports').addEventListener('submit',async event=>{
     event.preventDefault(); const correction=event.target;
     if(!correction.matches('.correction') || !correction.reportValidity())return;
-    const r=records.find(item=>item.id===correction.dataset.id),message=correction.querySelector('.saveStatus'),buttons=[...correction.querySelectorAll('button')],sendToClassroom=event.submitter?.name==='sendToClassroom';
-    buttons.forEach(button=>button.disabled=true);message.textContent=sendToClassroom?'Saving and sending grade…':'Saving corrections…';
+    const r=records.find(item=>item.id===correction.dataset.id),message=correction.querySelector('.saveStatus'),buttons=[...correction.querySelectorAll('button')],sendToClassroom=event.submitter?.name==='sendToClassroom',emailStudent=event.submitter?.name==='emailStudent';
+    buttons.forEach(button=>button.disabled=true);message.textContent=emailStudent?'Saving and emailing corrected test…':sendToClassroom?'Saving and sending grade…':'Saving corrections…';
     const scores=r.grading.manual.map(q=>{const value=correction.elements.namedItem('manual'+q.index).value;return value===''?null:Number(value);});
     try {
-        const response=await fetch('/api/game-scores?game=assessment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'correct',id:r.id,password:form.elements.password.value,scores,sendToClassroom,feedback:correction.elements.feedback.value})});
+        const response=await fetch('/api/game-scores?game=assessment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'correct',id:r.id,password:form.elements.password.value,scores,overrides:QuizCorrection.overrides(correction),explanations:QuizCorrection.explanations(correction),emailStudent,sendToClassroom,feedback:correction.elements.feedback.value})});
         const result=await response.json();if(!response.ok)throw new Error(result.error||'Corrections were not saved.');
         r.grading=result.grading;document.getElementById('score-'+r.id).textContent=scoreText(r.grading);message.textContent='Corrections saved. '+scoreText(r.grading);
+        if(result.email)message.textContent+=' Corrected test accepted for email delivery to '+result.email.to+'.';
+        if(result.emailError)message.textContent+=' Email not sent: '+result.emailError+' Your corrections are saved; you can retry emailing.';
         if(result.classroomError)message.textContent+=' Classroom: '+result.classroomError;
         if(result.classroom)message.textContent+=' Grade sent to Classroom: '+result.classroom.score+'/12. '+(result.classroom.returned?'Work returned to the student.':result.classroom.returnPending?'Return is pending; retry or return it in Classroom.':'The student must mark the assignment done in Classroom; then send again to return it.');
     }catch(error){message.textContent=error.message+' Your unsaved corrections remain in the fields.';}

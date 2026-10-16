@@ -19,6 +19,7 @@ function harness(){
   return {data:{id:'course',name:'Test class',courseState:'ACTIVE'}};
  }}
  function load(name){if(cache.has(name))return cache.get(name).exports;const module={exports:{}};cache.set(name,module);const context={module,exports:module.exports,Date:class extends Date {static now(){return state.now ?? Date.now();}},console,URL,URLSearchParams,Buffer,__dirname:path.join(__dirname,'../lib'),process:{env:{BLOB_READ_WRITE_TOKEN:'test',GOOGLE_CLASSROOM_CLIENT_ID:'test',GOOGLE_CLASSROOM_CLIENT_SECRET:'test'}},fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:n=>{
+   if(n==='./quiz-correction-email')return {sendCorrectedTest:async data=>{state.emailed=data;if(state.emailFailure)throw Error('Email failed');return {status:'accepted',to:data.record.email};}};
    if(n==='google-auth-library')return {OAuth2Client};
    if(n==='@vercel/blob')return {list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,o)=>{if(!o.allowOverwrite&&blobs.has(p))throw Error('exists');blobs.set(p,s);},del:async p=>blobs.delete(p)};
    if(n==='./vocabulary-pages')return {getPage:async()=>({}),authenticatePage:(_,pw)=>pw==='secret'?null:{status:401,error:'Bad password'}};
@@ -177,4 +178,33 @@ test('Per-response maxima persist through publishing, student data, reports and 
  const answers=correctAnswers();answers[3]=['א','ב'];const submitted=await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers},'student'));assert.equal(submitted.code,200);assert.equal(submitted.data.automatic.find(q=>q.index===3).partial,true);
  const result=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[2],feedback:'',sendToClassroom:true}));assert.equal(result.data.grading.total,9);assert.equal(result.data.classroom.maxPoints,11);assert.equal(h.state.grade.assignedGrade,9);
  const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.data.summary[3].partial,1);
+});
+
+test('Custom automatic overrides preserve answers, enforce increments, update summary and Classroom',async()=>{
+ const h=harness(),link=await assigned(h),id='a'.repeat(32),answers=correctAnswers();answers[1]=['A'];
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ assert.equal((await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers},'student'))).code,200);
+ const body={...link,id,action:'correct',scores:[2],overrides:{1:1},feedback:'Corrected key error',sendToClassroom:true};
+ assert.equal((await h.call(h.submissions,h.req(body,'student'))).code,403);
+ for(const overrides of [{1:0.5},{1:2},{0:1},{999:1},null,[]])assert.equal((await h.call(h.submissions,h.req({...body,overrides}))).code,400);
+ const saved=await h.call(h.submissions,h.req(body));assert.equal(saved.code,200);assert.equal(saved.data.grading.total,7);assert.equal(h.state.grade.assignedGrade,7);
+ const report=await h.call(h.submissions,h.req({...link,action:'report'})),record=report.data.submissions[0];
+ assert.deepEqual(record.answers,answers);assert.equal(record.grading.automatic[0].originalScore,0);assert.equal(record.grading.automatic[0].score,1);assert.equal(record.grading.automatic[0].overridden,true);
+ assert.equal(model.summarize(fixture(),[record])[1].correct,1);
+ const restored=await h.call(h.submissions,h.req({...body,overrides:{}}));assert.equal(restored.data.grading.total,6);
+ const quiz=fixture();quiz.questions[1].allowHalfCredit=true;
+ assert.equal(model.validOverrides({1:0.5},model.grade(quiz,answers).automatic),true);
+});
+
+test('Email returns saved teacher overrides and explanations only to the submitting student',async()=>{
+ const h=harness(),link=await assigned(h),id='e'.repeat(32),answers=correctAnswers();answers[1]=['A'];
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers},'student'));
+ const body={...link,id,action:'correct',scores:[2],overrides:{1:1},explanations:{1:'The answer key was wrong; you earned full credit.'},feedback:'Good work',emailStudent:true,email:'attacker@example.org'};
+ assert.equal((await h.call(h.submissions,h.req(body,'student2'))).code,403);assert.equal(h.state.emailed,undefined);
+ assert.equal((await h.call(h.submissions,h.req({...body,scores:[null]}))).code,400);assert.equal(h.state.emailed,undefined);
+ for(const explanations of [{1:'x'.repeat(2001)},{999:'wrong'},[],null])assert.equal((await h.call(h.submissions,h.req({...body,explanations}))).code,400);
+ const sent=await h.call(h.submissions,h.req(body));assert.equal(sent.code,200);assert.equal(sent.data.email.to,'student@school.org');assert.equal(h.state.emailed.grading.automatic[0].explanation,body.explanations[1]);
+ const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.data.submissions[0].grading.automatic[0].explanation,body.explanations[1]);
+ h.state.emailFailure=true;const failed=await h.call(h.submissions,h.req(body));assert.equal(failed.code,200);assert.equal(failed.data.emailError,'Email failed');assert.equal(failed.data.grading.total,7);
 });

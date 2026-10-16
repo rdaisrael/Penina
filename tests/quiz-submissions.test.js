@@ -161,3 +161,18 @@ test('User 1 can load imported reports without a grade password, with same-origi
     assert.equal((await h.rawRun({action:'report'},{cookie:'owner-session',origin:'https://attacker.example'})).code,403);
     assert.equal((await h.rawRun({action:'report'},{cookie:'student-session',origin:'https://www.penina-hebrew.org'})).code,401);
 });
+
+test('Automatic score overrides persist, validate, restore, and reach Classroom',async()=>{
+ const h=harness(),submitted=submission();assert.equal((await h.run(submitted)).code,200);
+ const before=(await h.run({action:'report',password:'teacher-secret'})).data.submissions[0];
+ const index=0,original=before.grading.automatic.find(q=>q.index===index).score,changed=original===0?1:0;
+ const body={action:'correct',id:submitted.id,password:'teacher-secret',scores:[1,1,0,0],overrides:{[index]:changed},feedback:'Answer key correction',sendToClassroom:true};
+ assert.equal((await h.run({...body,password:'wrong'})).code,401);
+ for(const overrides of [{[index]:99},{[index]:-1},{[index]:0.25},{[index]:'1'},{999:1},[],null])assert.equal((await h.run({...body,overrides})).code,400);
+ const saved=await h.run(body);assert.equal(saved.code,200);assert.equal(saved.data.grading.automatic.find(q=>q.index===index).score,changed);
+ assert.equal(h.sentGrades.at(-1).grading.total,saved.data.grading.total);
+ const after=(await h.run({action:'report',password:'teacher-secret'})).data.submissions[0];
+ const item=after.grading.automatic.find(q=>q.index===index);assert.equal(item.originalScore,original);assert.equal(item.overridden,true);assert.equal(item.score,changed);
+ assert.deepEqual(after.answers,before.answers);
+ h.advance(1000);const restored=await h.run({...body,overrides:{}});assert.equal(restored.code,200);assert.equal(restored.data.grading.automatic.find(q=>q.index===index).score,original);
+});

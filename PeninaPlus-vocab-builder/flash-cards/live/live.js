@@ -4,7 +4,7 @@
  const host=params.get('host')==='1';let code=params.get('code')||'',auth='',snapshot=null,stamp='',timer=null,busy=false,stopped=false,online=true,pollId=0,failures=0;
  const storageKey=()=>`penina-live-${host?'host':'student'}-${code}`;
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- let clockOffset=0;const celebrated=new Set(),startedRounds=new Set();
+ let clockOffset=0;const celebrated=new Set(),startedRounds=new Set(),finishedRounds=new Set();
  const revealSeen=new Set();let revealUntil=0;
  let realtimeClient=null,realtimeChannel=null,realtimeReady=false,refreshHint=null,inFlight=false;
  const letters=['A','B','C','D'];
@@ -38,15 +38,29 @@
   };
  }
  function leaderboard(scores){return `<ol class="scores">${scores.slice(0,3).map((p,i)=>`<li><span class="player-identity"><span>${i+1}.</span>${avatarFigure(p.avatar)}<span>${esc(p.name)}</span></span><strong>${p.score} pts</strong></li>`).join('')}</ol>`;}
+ function podium(scores){
+  const places=['1st','2nd','3rd'],groups=[];
+  for(const player of [...scores].sort((a,b)=>b.score-a.score)){
+   let group=groups.find(group=>group.score===player.score);
+   if(!group){if(groups.length===3)break;group={score:player.score,players:[]};groups.push(group);}
+   group.players.push(player);
+  }
+  return `<ol class="winner-podium" aria-label="Final standings">${groups.map((group,i)=>`<li class="podium-place podium-place-${i+1}" value="${i+1}"><div class="podium-person" role="group" aria-label="${places[i]} place winners" tabindex="0">${group.players.map(p=>`<div class="podium-contestant"><strong class="podium-initials">${esc(p.name)}</strong>${avatarFigure(p.avatar)}</div>`).join('')}</div><div class="podium-step"><span class="podium-rank">${places[i]}</span><strong class="podium-points">${group.score} <span>points${group.players.length>1?' each':''}</span></strong></div></li>`).join('')}</ol>`;
+ }
  function updateClock(){
   const clock=stage.querySelector('[data-clock]');if(!clock||!snapshot)return;
   const remaining=Math.max(0,Math.ceil((snapshot.deadline-Date.now()-clockOffset)/1000));
   clock.textContent=(snapshot.phase==='reveal'?'Next question in ':'Time left: ')+remaining+'s';
   if(!remaining&&snapshot.phase==='question')stage.querySelectorAll('[data-choice]').forEach(button=>button.disabled=true);
  }
- function startConfetti(data){
+ function startConfetti(data,finish=false){
+  if(finish){
+   if(data.phase!=='ended'||data.index<0||finishedRounds.has(data.round||0))return;
+   finishedRounds.add(data.round||0);
+  }else{
   if(data.phase!=='question'||data.index!==0||startedRounds.has(data.round||0))return;
   startedRounds.add(data.round||0);
+  }
   if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
   const burst=document.createElement('div');burst.className='start-confetti';burst.setAttribute('aria-hidden','true');
   const colors=['#ff1744','#ff8a00','#ffe600','#40ed5b','#00d9ff','#2979ff','#b64cff','#ff40c8'];
@@ -56,6 +70,15 @@
    burst.append(piece);
   }
   document.body.append(burst);setTimeout(()=>burst.remove(),4100);
+  if(finish){
+   const balloons=document.createElement('div');balloons.className='finish-balloons';balloons.setAttribute('aria-hidden','true');
+   for(let i=0;i<24;i++){
+    const balloon=document.createElement('i');
+    balloon.style.cssText=`left:${2+Math.random()*92}%;--balloon-color:${colors[i%colors.length]};--sway:${(Math.random()-.5)*24}vw;--duration:${3.8+Math.random()*1.4}s;--delay:${Math.random()*1.2}s;--size:${32+Math.random()*28}px`;
+    balloons.append(balloon);
+   }
+   document.body.append(balloons);setTimeout(()=>balloons.remove(),6600);
+  }
  }
  function fireworks(data){
   if(host||data.phase!=='reveal'||data.me?.choice!==data.question.correct||celebrated.has(`${data.round||0}:${data.index}`))return;
@@ -118,7 +141,7 @@
  }
  function draw(data){
   if(host)window.PeninaMusic?.update(data);
-  startConfetti(data);fireworks(data);wrongAnswer(data);
+  startConfetti(data);startConfetti(data,true);fireworks(data);wrongAnswer(data);
   const signature=JSON.stringify(data)+busy+online;if(signature===stamp)return;stamp=signature;snapshot=data;
   const meta=`<div class="question-meta"><span>${esc(data.className)}</span><span>Game <b>${code}</b> · ${data.playerCount} joined</span></div>`;
   if(data.phase==='lobby'){
@@ -127,7 +150,7 @@
    }else stage.innerHTML=meta+`<section class="panel waiting"><div class="chosen-avatar">${avatarFigure(data.me.avatar)}</div><h1>You’re in, ${esc(data.me.name)}.</h1><p>Keep this page open. Your teacher will start the game.</p><p class="muted">${data.playerCount} student${data.playerCount===1?'':'s'} joined · ${data.total} questions</p></section>`;
    return;
   }
-  if(data.phase==='ended'){stage.innerHTML=meta+`<section class="panel waiting"><p class="eyebrow">Game complete</p><h1>Well played, everyone.</h1>${!host?`<p class="notice success player-identity">${avatarFigure(data.me.avatar)}${esc(data.me.name)} · ${data.me.score} points</p>`:''}${leaderboard(data.scores)}${host&&data.scoreEmail?`<p role="status">${data.scoreEmail.status==='sent'?'Scores submitted for email delivery to your teacher address.':'The score email could not be sent. Please retry.'}</p>${data.scoreEmail.status==='failed'?'<button data-email-retry>Retry score email</button>':''}`:''}<div class="actions"><a class="button" href="${esc(data.classUrl||'../')}">Back to class</a>${host&&data.settings?`<button class="primary" data-action="restart" ${busy||!online?'disabled':''}>Play again →</button>`:''}${!host?'<p class="muted">Stay on this page to play again. Your teacher can return everyone to the lobby.</p>':''}</div></section>`;return;}
+  if(data.phase==='ended'){stage.innerHTML=meta+`<section class="panel waiting game-finale"><p class="eyebrow">Game complete</p><h1>Well played, everyone.</h1>${!host?`<p class="notice success player-identity">${avatarFigure(data.me.avatar)}${esc(data.me.name)} · ${data.me.score} points</p>`:''}${podium(data.scores)}${host&&data.scoreEmail?`<p role="status">${data.scoreEmail.status==='sent'?'Scores submitted for email delivery to your teacher address.':'The score email could not be sent. Please retry.'}</p>${data.scoreEmail.status==='failed'?'<button data-email-retry>Retry score email</button>':''}`:''}<div class="actions"><a class="button" href="${esc(data.classUrl||'../')}">Back to class</a>${host&&data.settings?`<button class="primary" data-action="restart" ${busy||!online?'disabled':''}>Play again →</button>`:''}${!host?'<p class="muted">Stay on this page to play again. Your teacher can return everyone to the lobby.</p>':''}</div></section>`;return;}
   const revealed=data.phase==='reveal',q=data.question,choice=data.me?.choice;
   const answerMarkup=q.options.map((text,i)=>{
    const className='answer'+(revealed&&i===q.correct?' correct':'')+(!host&&choice===i?' selected':'')+(revealed&&!host&&choice===i&&i!==q.correct?' wrong':'');

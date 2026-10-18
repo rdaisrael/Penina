@@ -301,3 +301,24 @@ test('Navigation starts on the selected side even when a flip is still pending',
         }
     }
 });
+
+test('Student sheets retain saved emphasis in original and translated context, with safe plain-text fallback',()=>{
+ const {renderTable}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');
+ const card={term:'ספר',contextQuote:'זה ספר טוב',contextQuoteRuns:[{text:'זה '},{text:'ספר',bold:true},{text:' טוב'}],hebrewTranslation:'קרא ספר',hebrewTranslationRuns:[{text:'קרא '},{text:'ספר',bold:true}],englishTranslation:'Read a book today',englishTranslationRuns:[{text:'Read a '},{text:'book',bold:true},{text:' today'}]};
+ const html=renderTable([card]);assert(html.includes('זה <strong>ספר</strong> טוב'));assert(html.includes('קרא <strong>ספר</strong>'));assert(html.includes('Read a <strong>book</strong> today'));
+ const english=renderTable([card],{hebrew:false});assert(!english.includes('קרא'));assert(english.includes('<strong>ספר</strong>'));assert(english.includes('<strong>book</strong>'));
+ const changed=renderTable([{...card,englishTranslation:'Edited quote <script>',englishTranslationRuns:[{text:'old',bold:true}]}]);assert(changed.includes('Edited quote &lt;script&gt;'));assert(!changed.includes('<strong>old</strong>'));
+});
+
+test('PDF sheet drawing preserves bold context runs, RTL placement, and long wrapped text',()=>{
+ const {renderPages}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');const draws=[];
+ const ctx={scale(){},fillRect(){},strokeRect(){},measureText(text){return{width:Array.from(text).length*(this.font.startsWith('bold ')?8:7)}},fillText(text,x,y){draws.push({text,x,y,font:this.font,direction:this.direction});}};
+ const document={createElement:()=>({setAttribute(){},getContext:()=>ctx})};
+ const tail=' more words'.repeat(200);
+ const cards=[{term:'ספר',contextQuote:'זה ספר טוב',contextQuoteRuns:[{text:'זה '},{text:'ספר',bold:true},{text:' טוב'}],hebrewTranslation:'קרא ספר',hebrewTranslationRuns:[{text:'קרא '},{text:'ספר',bold:true}],englishTranslation:'Read a book'+tail,englishTranslationRuns:[{text:'Read a '},{text:'book',bold:true},{text:tail}]}];
+ const pages=renderPages(document,{title:'Test',cards});assert(pages.length>1);
+ assert(draws.some(d=>d.text==='book'&&d.font.startsWith('bold ')));
+ const original=draws.findIndex(d=>d.text==='זה ');assert(original>=0);assert.equal(draws[original+1].text,'ספר');assert(draws[original+1].font.startsWith('bold '));assert(draws[original+1].x<draws[original].x);assert.equal(draws[original+1].direction,'rtl');
+ assert(draws.some(d=>d.text.includes('Read a')&&!d.font.startsWith('bold ')));
+ assert.equal(draws.map(d=>d.text).join('').match(/more/g).length,200);assert.equal(draws.map(d=>d.text).join('').match(/words/g).length,200);
+});

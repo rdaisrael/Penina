@@ -12,7 +12,7 @@ function game(){
 }
 test('Twenty-four correct melts finish with 2600 points and complete exactly three rounds',()=>{const g=game();g.start();for(let i=0;i<24;i++){g.hit(true);g.hit(true);g.advance();if(i===7||i===15)g.start();}assert.match(g.q('score').textContent,/2600/);assert.equal(g.q('panel').children[0].textContent,'All three rounds complete!');g.stop();assert.equal(g.listeners.size,0);});
 test('Eight missed answers exhaust the starting 200 points and bury the player',()=>{const g=game();g.start();for(let i=0;i<8;i++){for(let j=0;j<200;j++)g.tick();g.advance();}assert.equal(g.q('score').textContent,'0 points');assert.equal(g.q('drift').style.bottom,'0%');assert.equal(g.q('panel').children[0].textContent,'Snowed under! Game over');g.hit(true);assert.equal(g.q('score').textContent,'0 points');g.stop();});
-test('Pause freezes the fall and cleanup cancels progression',()=>{const g=game();g.start();g.q('pause').onclick();for(let i=0;i<200;i++)g.tick();assert.equal(g.q('score').textContent,'200 points');g.start();for(let i=0;i<151;i++)g.tick();assert.equal(g.q('score').textContent,'175 points');g.stop();g.advance();assert.equal(g.q('score').textContent,'175 points');});
+test('Pause freezes the fall and cleanup cancels progression',()=>{const g=game();g.start();g.q('pause').onclick();for(let i=0;i<200;i++)g.tick();assert.equal(g.q('score').textContent,'200 points');g.start();for(let i=0;i<200;i++)g.tick();assert.equal(g.q('score').textContent,'175 points');g.stop();g.advance();assert.equal(g.q('score').textContent,'175 points');});
 test('A wrong blast crossing below zero ends the run immediately and clamps the score to zero',()=>{const g=game();g.start();for(let i=0;i<7;i++){for(let j=0;j<200;j++)g.tick();g.advance();}assert.equal(g.q('score').textContent,'25 points');g.hit(false);g.hit(true);assert.equal(g.q('score').textContent,'0 points');assert.equal(g.q('drift').style.bottom,'0%');g.advance();assert.equal(g.q('panel').children[0].textContent,'Snowed under! Game over');g.stop();});
 test('Generated offline games include Snowblaster and compile as standalone scripts',()=>{const html=app.makeApp('Snow',[{term:'סוס',english:'horse',alternativeAnswers:{english:{term:'סוס',definition:'horse',answers:['cat','dog','bird','fish']}}}]);assert.match(html,/data-game="snowblaster"/);for(const match of html.matchAll(/<script>([\s\S]*?)<\/script>/g))new vm.Script(match[1]);});
 
@@ -26,3 +26,31 @@ test('Shots travel before scoring and mouse or screen taps launch fireballs',()=
 test('Snowflakes start at differing heights and drift sideways as they fall',()=>{const g=game();g.start();const targets=g.q('targets').children,initial=targets.map(b=>b.style.transform);assert(new Set(initial).size>1);for(let i=0;i<10;i++)g.tick();assert(targets.some((b,i)=>b.style.transform!==initial[i]));g.stop();});
 
 test('Class Gamify offers Snowblaster by default and respects teacher exclusions',()=>{const cards=[{term:'סוס',english:'horse',alternativeAnswers:{english:{term:'סוס',definition:'horse',answers:['cat','dog','bird','fish']}}}];const options={homeUrl:'/class',leaderboardUrl:'/api/game-scores?game=asteroids&grade=sixth'};assert.match(app.makeClassGames('Class',cards,options),/data-game="snowblaster"/);assert.doesNotMatch(app.makeClassGames('Class',cards,{...options,disabledGames:['snowblaster']}),/data-game="snowblaster"/);});
+
+
+test('Keyboard taps make sub-degree adjustments and Shift gives finer aiming',()=>{
+ const normal=game(),fine=game();normal.start();fine.start();
+ const event=shiftKey=>({key:'ArrowRight',shiftKey,preventDefault(){}});
+ normal.listeners.get('keydown')(event(false));fine.listeners.get('keydown')(event(true));
+ const degrees=g=>Number(g.q('gun').transform.match(/rotate\(([^ ]+)/)[1]);
+ assert(degrees(normal)>0&&degrees(normal)<.5);assert(degrees(fine)>0&&degrees(fine)<degrees(normal)/3);
+ normal.stop();fine.stop();
+});
+test('Pointer aiming uses local coordinates even when the arena is displayed at another scale',()=>{
+ const source=app.mountSnowblaster.toString();let context={angle:0,Math,aim(){},origin:()=>({x:242,y:192}),q:()=>({clientWidth:450,clientHeight:280,getBoundingClientRect:()=>({left:100,top:50,width:900,height:560})})};
+ vm.createContext(context);vm.runInContext(source.slice(source.indexOf('function aimAt(e){'),source.indexOf('function melt(')),context);
+ context.aimAt({clientX:584,clientY:150});assert.equal(context.angle,0);
+ context.aimAt({clientX:784,clientY:150});assert(Math.abs(context.angle-Math.atan2(100,142))<1e-10);
+});
+test('Swept hits reject empty target corners and select the first crossed target at any display scale',()=>{
+ const source=app.mountSnowblaster.toString();
+ for(const scale of [1,2]){
+  const target=(left,top)=>({getBoundingClientRect:()=>({left:100+left*scale,top:50+top*scale,right:100+(left+120)*scale,bottom:50+(top+140)*scale})});
+  const context={index:0,targets:[target(100,100),target(100,300)],q:()=>({clientWidth:500,clientHeight:600,getBoundingClientRect:()=>({left:100,top:50,width:500*scale,height:600*scale})})};
+  vm.createContext(context);vm.runInContext(source.slice(source.indexOf('function collision('),source.indexOf('function clearProjectiles(')),context);
+  assert.equal(context.collision(95,250,95,90),null);
+  assert.equal(context.collision(105,105,110,105),null);
+  assert.equal(context.collision(160,550,160,50).index,1);
+  context.targets[1].disabled=true;assert.equal(context.collision(160,550,160,50).index,0);
+ }
+});

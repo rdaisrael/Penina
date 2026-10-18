@@ -488,7 +488,7 @@ test('Joining mid-question skips old feedback on initial and subsequent polls',(
 test('Start confetti fires once per round, cleans up, and honors reduced motion',()=>{
  for(const reduced of [false,true]){
   const bursts=[],timers=[],context={startedRounds:new Set(),window:{matchMedia:()=>({matches:reduced})},document:{createElement:()=>({style:{},children:[],setAttribute(){},append(piece){this.children.push(piece);},remove(){this.removed=true;}}),body:{append:burst=>bursts.push(burst)}},setTimeout:fn=>timers.push(fn)};
-  vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function startConfetti(data){'),client.indexOf(' function fireworks(data){')),context);
+  vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function startConfetti(data,finish=false){'),client.indexOf(' function fireworks(data){')),context);
   for(const data of [{phase:'lobby',index:-1},{phase:'question',index:2},{phase:'reveal',index:0}])context.startConfetti(data);
   assert.equal(bursts.length,0);
   context.startConfetti({phase:'question',index:0});context.startConfetti({phase:'question',index:0});
@@ -540,4 +540,43 @@ test('Avatar selection rejects untrusted values and supports older clients witho
  assert.equal((await h.request(null,{code},hostToken)).body.playerCount,0);
  const old=await h.join(code);
  assert.equal((await h.request(null,{code},old.body.studentToken)).body.me.avatar,1);
+});
+
+
+test('Finish celebration runs once per completed round, skips cancelled lobbies and reduced motion',()=>{
+ for(const reduced of [false,true]){
+  const layers=[],timers=[],context={finishedRounds:new Set(),startedRounds:new Set(),window:{matchMedia:()=>({matches:reduced})},document:{createElement:()=>({style:{},children:[],setAttribute(){},append(x){this.children.push(x)},remove(){this.removed=true}}),body:{append:x=>layers.push(x)}},setTimeout:fn=>timers.push(fn)};
+  vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function startConfetti(data,finish=false){'),client.indexOf(' function fireworks(data){')),context);
+  context.startConfetti({phase:'question',index:0},true);context.startConfetti({phase:'ended',index:-1},true);assert.equal(layers.length,0);
+  context.startConfetti({phase:'ended',index:4,round:0},true);context.startConfetti({phase:'ended',index:4,round:0},true);
+  assert.equal(layers.length,reduced?0:2);
+  if(!reduced){assert.equal(layers[0].children.length,160);assert.equal(layers[1].children.length,24);timers.forEach(fn=>fn());assert(layers.every(x=>x.removed));}
+  context.startConfetti({phase:'ended',index:4,round:1},true);assert.equal(layers.length,reduced?0:4);
+ }
+});
+test('Podium keeps server ranking, pairs each avatar with initials and points, and handles small groups',()=>{
+ const context={avatarFigure:id=>'<figure>'+id+'</figure>',esc:s=>s.replace(/</g,'&lt;')};vm.createContext(context);
+ vm.runInContext(client.slice(client.indexOf(' function podium(scores){'),client.indexOf(' function updateClock(){')),context);
+ const scores=[{name:'AB',avatar:11,score:500},{name:'CD',avatar:10,score:300},{name:'EF',avatar:2,score:100}];
+ for(const count of [0,1,2,3]){const html=context.podium(scores.slice(0,count));assert.equal((html.match(/<li /g)||[]).length,count);scores.slice(0,count).forEach((p,i)=>{assert(html.includes('podium-place-'+(i+1)));assert(html.includes('<strong class="podium-initials">'+p.name+'</strong><figure>'+p.avatar+'</figure>'));assert(html.includes(p.score+' <span>points</span>'));});}
+ assert(context.podium([{name:'<AB',avatar:1,score:0}]).includes('&lt;AB'));
+});
+
+
+test('Final standings retain every player tied within the top three score levels',async()=>{
+ const h=await setup();for(const name of ['CD','EF','GH','IJ'])await h.join(h.code,name);
+ await h.request('start',{code:h.code,version:0},h.hostToken);
+ await h.request('end',{code:h.code,version:1},h.hostToken);
+ for(const token of [h.hostToken,h.studentToken]){
+  const view=(await h.request(null,{code:h.code},token)).body;
+  assert.equal(view.scores.length,5);assert(view.scores.every(p=>p.score===0));assert(view.scores.every(p=>!('schoolEmail' in p)));
+ }
+});
+test('Podium groups tied winners on each level with initials above their figures',()=>{
+ const context={avatarFigure:id=>'<figure>'+id+'</figure>',esc:s=>s};vm.createContext(context);
+ vm.runInContext(client.slice(client.indexOf(' function podium(scores){'),client.indexOf(' function updateClock(){')),context);
+ const scores=[500,500,400,400,300,300,200].map((score,i)=>({score,name:'P'+i,avatar:i+1}));
+ const html=context.podium(scores);assert.equal((html.match(/<li /g)||[]).length,3);assert.equal((html.match(/podium-contestant/g)||[]).length,6);assert(!html.includes('P6'));
+ const levels=html.split('<li ').slice(1);levels.forEach((level,i)=>{assert(level.includes('P'+(i*2)));assert(level.includes('P'+(i*2+1)));assert(level.includes('points each'));});
+ assert(html.indexOf('P0')<html.indexOf('<figure>1</figure>'));
 });

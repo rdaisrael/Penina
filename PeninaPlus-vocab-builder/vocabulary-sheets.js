@@ -3,6 +3,12 @@
     const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const displayValue = value => String(value === undefined || value === null ? '' : value).trim().toLowerCase() === 'n' ? '' : String(value || '');
 
+    function textRuns(text, runs) {
+        if (!Array.isArray(runs)) return [{text, bold:false}];
+        const normalized = runs.map(run => ({text:String(run && run.text || ''), bold:!!(run && run.bold)}));
+        return normalized.map(run => run.text).join('') === text ? normalized : [{text, bold:false}];
+    }
+
     function sanitizeCards(cards) {
         return (Array.isArray(cards) ? cards : []).map(card => ({
             ...card,
@@ -76,11 +82,47 @@
             ctx.direction=rtl?'rtl':'ltr';ctx.textAlign=rtl?'right':'left';
             ctx.fillText(text,rtl?x+available:x,top);
         }
+        function richLines(block, available) {
+            const result=[];
+            let line=[], used=0;
+            const flush=()=>{result.push({text:line.map(run=>run.text).join(''),runs:line});line=[];used=0;};
+            const append=(text,bold)=>{
+                font(block.size,bold);
+                const width=ctx.measureText(text).width;
+                if(used+width>available && line.length)flush();
+                const last=line[line.length-1];
+                if(last && last.bold===bold)last.text+=text;else line.push({text,bold});
+                used+=width;
+            };
+            for(const run of textRuns(block.text,block.runs)){
+                for(const token of run.text.split(/(\r?\n|[^\S\r\n]+)/).filter(Boolean)){
+                    if(/^\r?\n$/.test(token)){flush();continue;}
+                    font(block.size,run.bold);
+                    if(ctx.measureText(token).width>available){
+                        const chars=typeof Intl.Segmenter==='function'?Array.from(new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(token),part=>part.segment):Array.from(token);
+                        chars.forEach(char=>append(char,run.bold));
+                    }else append(token,run.bold);
+                }
+            }
+            if(line.length)flush();
+            return result;
+        }
+        function drawRich(item,x,top,available){
+            const rtl=/[\u0590-\u05ff]/.test(item.text);
+            let cursor=rtl?x+available:x;
+            ctx.fillStyle='#222';ctx.textBaseline='top';ctx.direction=rtl?'rtl':'ltr';ctx.textAlign=rtl?'right':'left';
+            for(const run of item.runs){
+                font(item.size,run.bold);
+                ctx.fillText(run.text,cursor,top);
+                cursor+=(rtl?-1:1)*ctx.measureText(run.text).width;
+            }
+        }
         function cell(blocks, available) {
             const result=[];
             blocks.filter(block=>block.text).forEach((block,index) => {
                 if(index)result.push({text:'',height:10,size:10});
-                lines(block.text,available-16,block.size,block.bold).forEach(text => {
+                if(block.runs)richLines(block,available-16).forEach(line=>result.push({...block,...line,height:block.size*1.6}));
+                else lines(block.text,available-16,block.size,block.bold).forEach(text => {
                     result.push({...block,text,height:block.size*1.6});
                 });
             });
@@ -91,9 +133,9 @@
             const definitions=[];
             if(options.hebrew!==false)definitions.push({text:card.hebrew,size,bold:false});
             if(options.english!==false)definitions.push({text:card.english,size:size*.86,bold:false});
-            const context=[{text:card.contextQuote,size:size*.95}];
-            if(options.hebrew!==false)context.push({text:card.hebrewTranslation,size:size*.86});
-            if(options.english!==false)context.push({text:card.englishTranslation,size:size*.8});
+            const context=[{text:card.contextQuote,runs:card.contextQuoteRuns,size:size*.95}];
+            if(options.hebrew!==false)context.push({text:card.hebrewTranslation,runs:card.hebrewTranslationRuns,size:size*.86});
+            if(options.english!==false)context.push({text:card.englishTranslation,runs:card.englishTranslationRuns,size:size*.8});
             const cells=[cell([{text:card.term,size,bold:true}],columns[0]),cell(definitions,columns[1])];
             if(columns.length===3) {
                 const items=cell(context,columns[2]);
@@ -129,7 +171,7 @@
                             draw(item.english,x+8,citationTop,half,item.size,false,'#666','ltr');
                             draw(item.hebrew,x+16+half,citationTop,half,item.size,false,'#666','rtl');
                             citationTop+=item.height;
-                        } else {draw(item.text,x+8,top,columns[index]-16,item.size,item.bold);top+=item.height;}
+                        } else {if(item.runs)drawRich(item,x+8,top,columns[index]-16);else draw(item.text,x+8,top,columns[index]-16,item.size,item.bold);top+=item.height;}
                     });
                     x+=columns[index];
                 });
@@ -141,16 +183,16 @@
     }
 
     function renderTable(cards, options = {}) {
-        const block = (value, language, className = '') => {
+        const block = (value, language, className = '', runs) => {
             const text = displayValue(value);
-            return text ? `<p class="${className}" lang="${language}" dir="${language === 'he' ? 'rtl' : 'auto'}">${escapeHtml(text)}</p>` : '';
+            return text ? `<p class="${className}" lang="${language}" dir="${language === 'he' ? 'rtl' : 'auto'}">${textRuns(text,runs).map(run=>run.bold?'<strong>'+escapeHtml(run.text)+'</strong>':escapeHtml(run.text)).join('')}</p>` : '';
         };
         const rows = (Array.isArray(cards) ? cards : []).map(card => {
             const definitions = (options.hebrew !== false ? block(card.hebrew, 'he') : '')
                 + (options.english !== false ? block(card.english, 'en') : '');
-            const context = block(card.contextQuote, 'he')
-                + (options.hebrew !== false ? block(card.hebrewTranslation, 'he') : '')
-                + (options.english !== false ? block(card.englishTranslation, 'en') : '')
+            const context = block(card.contextQuote, 'he', '', card.contextQuoteRuns)
+                + (options.hebrew !== false ? block(card.hebrewTranslation, 'he', '', card.hebrewTranslationRuns) : '')
+                + (options.english !== false ? block(card.englishTranslation, 'en', '', card.englishTranslationRuns) : '')
                 + '<div class="citations">'
                 + (options.english !== false ? block(card.sourceEnglish, 'en') : '')
                 + block(card.sourceHebrew, 'he') + '</div>';
@@ -215,14 +257,14 @@
 *{box-sizing:border-box}body{margin:0;background:#eeeae3;color:#263344;font:16px Arial,sans-serif}
 .toolbar{max-width:900px;margin:20px auto;padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:white;border-radius:12px}
 button{padding:12px 18px;border:1px solid #b8bdc5;border-radius:8px;background:white;font:inherit;cursor:pointer}button.primary{background:#4353ff;color:white;border-color:#4353ff}#status{width:100%;margin:0;line-height:1.5}
-.sheet{max-width:900px;margin:0 auto 24px;padding:32px;background:white;font-size:${fontSize}pt;line-height:1.5}h1{font-size:1.5em;line-height:1.3;overflow-wrap:anywhere}
+.sheet{max-width:900px;margin:0 auto 24px;padding:32px;background:white;font-size:${fontSize}pt;line-height:1.5}h1{font-size:1.5em;line-height:1.3;overflow-wrap:anywhere;background:#2c3e50;color:#fff;padding:10px;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact}
 table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #c8c5bf;padding:8px;vertical-align:top;overflow-wrap:anywhere}th{background:#f4efe6;text-align:left;font-size:.85em}.term{width:20%;font-weight:bold}p{margin:0;white-space:pre-wrap}td p+p{margin-top:.65em}.context{font-size:.9em}.citations{display:flex;justify-content:space-between;gap:12px;font-size:.7em;color:#555;margin-top:10px}.citations p{flex:1;margin:0}footer{margin-top:20px;font-size:9pt;color:#60666f}
 @page{size:letter;margin:.75in}
 @media print{html,body{margin:0;background:white}.toolbar{display:none!important}.sheet{max-width:none;width:100%;padding:0;margin:0}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}h1{break-after:avoid}table{overflow:visible}th{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 </style></head><body>
 <div class="toolbar"><button id="print" class="primary" type="button">Print Sheets</button><button id="download" type="button">Download Sheets (PDF)</button><p id="status" role="status">Use Print Sheets, then adjust Scale in your browser’s print dialog.</p></div>
 <main class="sheet"><h1>${escapeHtml(title)}</h1>${renderTable(cards, options)}<footer>Generated with Penina-Hebrew Suite</footer></main>
-<script id="peninaSheetData" type="application/json">${data}</script><script>(() => { const displayValue = ${displayValue.toString()}; const sanitizeCards = ${sanitizeCards.toString()}; const renderPages = ${renderPages.toString()}; return (${start.toString()})(); })();</script></body></html>`;
+<script id="peninaSheetData" type="application/json">${data}</script><script>(() => { const displayValue = ${displayValue.toString()}; const textRuns = ${textRuns.toString()}; const sanitizeCards = ${sanitizeCards.toString()}; const renderPages = ${renderPages.toString()}; return (${start.toString()})(); })();</script></body></html>`;
     }
     if (typeof module !== 'undefined' && module.exports) module.exports = { makeSheet, renderTable, renderPages };
 })();

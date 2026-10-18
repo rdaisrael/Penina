@@ -67,3 +67,16 @@
 .avatar-option:hover .avatar-card{border-color:var(--purple)}
 .player-identity{display:flex;align-items:center;gap:10px}.students li{display:inline-flex;align-items:center;gap:8px}.scores .avatar-figure{width:48px}.chosen-avatar .avatar-figure{width:112px;margin-bottom:12px}
 @media(max-width:380px){.avatar-options{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* Winners stand second, first, third, with the champion on the tallest step. */
+.game-finale{max-width:840px!important;background:radial-gradient(ellipse at top,#fff3bf,transparent 60%),#fff}
+.winner-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;gap:10px;list-style:none;padding:0;margin:28px 0 32px;text-align:center}
+.podium-place{display:flex;flex-direction:column;justify-content:flex-end;min-width:0;grid-row:1}.podium-place-1{grid-column:2;--medal:#ffd451;--medal-dark:#b77d08;--step-height:180px}.podium-place-2{grid-column:1;--medal:#dce5f3;--medal-dark:#7a8ba4;--step-height:140px}.podium-place-3{grid-column:3;--medal:#e9ae7f;--medal-dark:#aa663a;--step-height:100px}
+.podium-person{display:flex;align-items:flex-end;justify-content:safe center;gap:4px;padding:0;overflow-x:auto}.podium-contestant{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}.podium-person .avatar-figure{width:clamp(42px,7vw,95px)}.podium-person:focus-visible{outline:3px solid #a880d0;outline-offset:2px}.podium-initials{font-size:clamp(18px,3vw,27px);overflow-wrap:anywhere}
+.podium-step{height:var(--step-height);background:linear-gradient(135deg,#ffffff66,transparent),var(--medal);border:1px solid var(--medal-dark);border-bottom:7px solid var(--medal-dark);border-radius:12px 12px 4px 4px;display:flex;flex-direction:column;align-items:center;padding:10px 4px;color:#2f2440;box-shadow:0 8px 14px #25183912}
+.podium-rank{font-size:clamp(22px,4vw,36px);font-weight:900;line-height:1.1}.podium-points{font-size:clamp(14px,2vw,20px);margin-top:5px}.podium-points span{font-size:.75em}
+.finish-balloons{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:1002}.finish-balloons i{position:absolute;bottom:-160px;width:var(--size);height:calc(var(--size)*1.25);border-radius:50% 50% 46% 46%;background:radial-gradient(ellipse at 28% 25%,#ffffffbb,transparent 30%),var(--balloon-color);box-shadow:inset -5px -5px 10px #0002;animation:live-balloon-rise var(--duration) ease-out var(--delay) both}
+.finish-balloons i::before{content:'';position:absolute;top:98%;left:calc(50% - 5px);border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid var(--balloon-color)}.finish-balloons i::after{content:'';position:absolute;top:calc(100% + 7px);left:50%;height:65px;width:12px;border-left:1px solid #817598;border-radius:50%}
+@keyframes live-balloon-rise{from{transform:translate3d(0,0,0) rotate(-8deg)}to{transform:translate3d(var(--sway),calc(-100vh - 250px),0) rotate(12deg)}}
+@media(prefers-reduced-motion:reduce){.finish-balloons{display:none}}
+@media(max-width:420px){.winner-podium{gap:6px}.podium-step{padding:8px 2px}.podium-points span{display:block}.podium-place-3{--step-height:100px}}

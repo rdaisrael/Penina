@@ -10,7 +10,7 @@
     const downloadCombinedButton = document.getElementById('download-combined');
     const manageTrigger = document.getElementById('manage-trigger');
     const management = document.getElementById('management');
-    const removeButton = document.getElementById('remove-sets');
+    document.getElementById('remove-sets')?.remove();
     const teacherDialog = document.createElement('dialog');
     teacherDialog.className = 'input-dialog teacher-dialog';
     teacherDialog.setAttribute('aria-labelledby', 'teacher-tools-title');
@@ -21,9 +21,6 @@
     setChoices.className = 'teacher-choices';
     management.querySelector('span').remove();
     management.appendChild(setChoices);
-    management.appendChild(removeButton);
-    removeButton.textContent = 'Save wordlists';
-    removeButton.className = 'combine-action primary';
     const gameChoices = document.createElement('fieldset');
     gameChoices.className = 'teacher-choices';
     const gameCatalog = [['quiz','Quick Quiz'],['lines','Connect the Words'],['cards','Match the Cards'],['asteroids','Vocabulary Asteroids'],['flappy','Flappy Vocab'],['chomp','Chomp & Charge'],['snowblaster','Snowblaster!']];
@@ -47,7 +44,7 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Game choices could not be saved.');
             disabledGames = data.disabledGames;
-            renderTeacherChoices(); gameStatus.textContent = 'Game choices saved. Students will see the updated menu when they open Gamify.';
+            classGamify.hidden = !sets.some(set => set.hasGames) || disabledGames.length === gameCatalog.length; gameStatus.textContent = 'Game choices saved. Students will see the updated menu when they open Gamify.';
         } catch(error) { gameStatus.textContent = error.message || 'Game choices could not be saved.'; }
         finally { saveGames.disabled = false; }
     });
@@ -96,9 +93,8 @@
         return section;
     }
     management.append(
-        teacherSection('teacher-live-heading', 'Start Live Game', [startLive, scoreEmailControls]),
-        teacherSection('teacher-wordlists-heading', 'Wordlists', [setChoices, removeButton]),
-        teacherSection('teacher-games-heading', 'Exercises and Games', [gameChoices, saveGames, gameStatus])
+        teacherSection('teacher-live-heading', 'Start Live Game', [setChoices, scoreEmailControls, startLive]),
+        teacherSection('teacher-games-heading', 'Student Exercises and Games', [gameChoices, saveGames, gameStatus])
     );
     const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';
     lockTools.onclick = () => teacherDialog.close();
@@ -320,13 +316,14 @@
     async function openLiveSetup() {
         if (sendScoresToTeacher.checked && !teacherScoreEmail.reportValidity()) return;
         const scoreEmail = sendScoresToTeacher.checked ? teacherScoreEmail.value.trim() : '';
-        const eligible = sets.filter(set => set.hasGames);
-        if (!selectedPathnames().length) { await showMessage('Choose wordlists', 'Check at least one wordlist to include.'); return; }
-        if (!eligible.length) { await showMessage('No game-ready sets', 'Publish a set with teacher-approved answer choices first.'); return; }
         const selected = new Set(selectedPathnames());
+        const eligible = sets.filter(set => set.hasGames && selected.has(set.pathname));
+        if (!selected.size) { await showMessage('Choose wordlists', 'Check at least one wordlist to include.'); return; }
+        if (!eligible.length) { await showMessage('No game-ready sets', 'Choose a wordlist with teacher-approved answer choices first.'); return; }
+        const pathnames = eligible.map(set => set.pathname);
         const dialog = document.createElement('dialog');
         dialog.className = 'input-dialog live-setup';
-        dialog.innerHTML = `<form class="input-dialog-form"><h2>Start Live Game</h2><p>Students join with a game code.</p><fieldset><legend>Vocabulary sets</legend>${eligible.map(set => `<label class="live-set"><input type="checkbox" name="sets" value="${escapeHtml(set.pathname)}" ${selected.has(set.pathname) ? 'checked' : ''}><span>${escapeHtml(set.title)}</span></label>`).join('')}</fieldset><label>Answer language<select name="language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><label>Questions<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label>Question pacing<select name="seconds"><option value="0">Manual — teacher advances</option><option value="5">5 seconds</option><option value="7">7 seconds</option><option value="10" selected>10 seconds</option></select></label><label>Show correct answer for<select name="revealSeconds"><option value="5" selected>5 seconds</option><option value="7">7 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option></select></label><p>Students see right/wrong feedback when the answer is revealed.</p><p>100 points per correct answer.</p><p class="live-setup-error" role="alert"></p><div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Open lobby →</button></div></form>`;
+        dialog.innerHTML = `<form class="input-dialog-form"><h2>Start Live Game</h2><p>Students join with a game code.</p><div class="live-wordlist-summary"><h3>Included wordlists</h3><ul>${eligible.map(set => `<li>${escapeHtml(set.title)}</li>`).join('')}</ul><p>These wordlists are selected for this game. To change them, cancel and return to Start Live Game.</p></div><label>Answer language<select name="language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><label>Questions<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label>Question pacing<select name="seconds"><option value="0">Manual — teacher advances</option><option value="5">5 seconds</option><option value="7">7 seconds</option><option value="10" selected>10 seconds</option></select></label><label>Show correct answer for<select name="revealSeconds"><option value="5" selected>5 seconds</option><option value="7">7 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option></select></label><p>Students see right/wrong feedback when the answer is revealed.</p><p>100 points per correct answer.</p><p class="live-setup-error" role="alert"></p><div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Open lobby →</button></div></form>`;
         document.body.appendChild(dialog);dialog.showModal();
         let creating = false;
         dialog.addEventListener('cancel', event => { if (creating) event.preventDefault(); });
@@ -334,7 +331,7 @@
         dialog.querySelector('[data-cancel]').onclick = () => dialog.close();
         dialog.querySelector('form').onsubmit = async event => {
             event.preventDefault();if (creating) return;
-            const form = event.currentTarget, pathnames = [...form.querySelectorAll('input[name="sets"]:checked')].map(input => input.value);
+            const form = event.currentTarget;
             const note = form.querySelector('.live-setup-error');
             if (!pathnames.length) { note.textContent = 'Choose at least one vocabulary set.'; return; }
             creating = true;note.textContent = 'Opening the lobby…';form.querySelectorAll('button').forEach(button => { button.disabled = true; });
@@ -381,19 +378,6 @@
         }
     }
 
-    async function saveWordlists() {
-        const excluded = [...setChoices.querySelectorAll('input:not(:checked)')].map(input => input.value);
-        removeButton.disabled = true;
-        try {
-            const response = await fetch('/api/flashcard-sets', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({grade, password:managementPassword, action:'wordlist-settings', excludedWordlists:excluded})});
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Could not save wordlists.');
-            excludedWordlists = data.excludedWordlists; renderTeacherChoices();
-            await showMessage('Wordlists saved', 'Checked wordlists are included in class activities. Your published lists have not been deleted.');
-        } catch(error) { await showMessage('Unable to save wordlists', error.message); }
-        finally { removeButton.disabled = false; }
-    }
-
     search.addEventListener('input', render);
     setsElement.addEventListener('change', event => {
         if (!event.target.classList.contains('combine-select')) return;
@@ -403,6 +387,5 @@
     viewCombinedButton.addEventListener('click', viewCombinedSet);
     downloadCombinedButton.addEventListener('click', downloadCombinedSet);
     manageTrigger.addEventListener('click', enterManagementMode);
-    removeButton.addEventListener('click', saveWordlists);
     load();
 })();

@@ -17,7 +17,7 @@ test('Lobby join is idempotent; students cannot reveal, skip, or read host state
  assert.equal((await h.request('start',{code:h.code,version:0},h.studentToken)).code,403);
  const student=await h.request(null,{code:h.code},h.studentToken);assert.equal(student.body.players,undefined);
  assert.equal((await h.request('start',{code:h.code,version:0},h.hostToken)).code,200);
- assert.equal((await h.join(h.code,'Late')).code,409);
+ assert.equal((await h.join(h.code,'CD',joinKey)).code,200);
  assert.equal((await h.request('start',{code:h.code,version:0},h.hostToken)).code,409);
 });
 test('Answers remain secret until reveal, first tap wins, concurrent answers are retained, and scores update after reveal',async()=>{
@@ -135,7 +135,7 @@ test('Live standings expose only three places while preserving each personal sco
 });
 test('A screen that misses the server reveal still displays the answer for five seconds',()=>{
  let now=1000;const drawn=[];
- const context={Date:{now:()=>now},revealSeen:new Set(),revealUntil:0,snapshot:null,clockOffset:0,draw:data=>{context.snapshot=data;drawn.push(data.phase);},updateClock(){}};
+ const context={Date:{now:()=>now},revealSeen:new Set(),revealUntil:0,snapshot:{phase:'question',index:0},clockOffset:0,draw:data=>{context.snapshot=data;drawn.push(data.phase);},updateClock(){}};
  vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' function draw(data){')),context);
  const data={phase:'question',index:1,lastReveal:{phase:'reveal',index:0}};
  context.present(data);assert.deepEqual(drawn,['reveal']);now=5999;context.present(data);assert.deepEqual(drawn,['reveal']);now=6000;context.present(data);assert.deepEqual(drawn,['reveal','question']);
@@ -413,7 +413,7 @@ test('Joining requires a school email; addresses stay private and match initials
  }
  for(const [pathname,entry]of h.storage)if(pathname.startsWith('live-vocab/'))assert(!entry.body.includes('@school.org'));
  assert.match(client, /School email address<input type="email" name="schoolEmail"[^>]*required/);
- assert.match(client, /request\('join',\{name,joinKey,schoolEmail\}\)/);
+ assert.match(client, /request\('join',\{name,joinKey,schoolEmail,avatar\}\)/);
 });
 
 test('Live games emphasize the latest date and honor the chosen reveal duration',async()=>{
@@ -431,4 +431,113 @@ test('Live games emphasize the latest date and honor the chosen reveal duration'
   h.advance(1);await h.request(null,{code},hostToken);
  }
  assert.equal((await h.request(null,{code},hostToken)).body.phase,'ended');
+});
+
+
+test('Late arrivals join the current question, retain their identity, and score only submitted answers',async()=>{
+ for(const database of [false,true]){
+  const h=harness({database}),{code,hostToken}=(await h.create()).body;
+  await h.join(code);await h.request('start',{code,version:0},hostToken);
+  await h.request('reveal',{code,version:1},hostToken);
+  await h.request('next',{code,version:2},hostToken);
+  const joinKey=crypto.randomUUID(),joined=await h.join(code,'CD',joinKey);
+  assert.equal(joined.code,200);const token=joined.body.studentToken;
+  const view=(await h.request(null,{code},token)).body;
+  assert.equal(view.index,1);assert.equal(view.phase,'question');assert.equal(view.me.score,0);
+  assert.equal(view.question.correct,undefined);assert.equal(view.playerCount,2);
+  const choice=view.question.options.indexOf(h.cards.find(c=>c.term===view.question.term).english);
+  assert.equal((await h.request('answer',{code,index:0,choice},token)).code,409);
+  assert.equal((await h.request('answer',{code,index:1,choice},token)).code,200);
+  assert.equal((await h.join(code,'CD',joinKey)).body.studentToken,token);
+  await h.request('reveal',{code,version:3},hostToken);
+  const after=(await h.request(null,{code},token)).body;
+  assert.equal(after.me.score,100);assert.equal(after.playerCount,2);
+  const duringReveal=await h.join(code,'EF');assert.equal(duringReveal.code,200);
+  assert.equal((await h.request('answer',{code,index:1,choice},duringReveal.body.studentToken)).code,409);
+  await h.request('end',{code,version:4},hostToken);
+  assert.equal((await h.join(code,'GH')).code,409);
+ }
+});
+
+test('Joining a timed or paused game preserves the current clock and answer restrictions',async()=>{
+ const h=harness(),{code,hostToken}=(await h.create({seconds:5})).body;
+ await h.join(code);await h.request('start',{code,version:0},hostToken);
+ h.advance(3000);
+ const token=(await h.join(code,'CD')).body.studentToken;
+ const view=(await h.request(null,{code},token)).body;assert.equal(view.deadline-view.serverNow,2000);
+ await h.request('pause',{code,version:1},hostToken);
+ const paused=(await h.join(code,'EF')).body.studentToken;
+ assert.equal((await h.request(null,{code},paused)).body.paused,true);
+ assert.equal((await h.request('answer',{code,index:0,choice:0},paused)).code,409);
+ await h.request('resume',{code,version:2},hostToken);h.advance(2000);
+ const expired=(await h.join(code,'GH')).body.studentToken;
+ assert.equal((await h.request(null,{code},expired)).body.phase,'reveal');
+ assert.equal((await h.request('answer',{code,index:0,choice:0},expired)).code,409);
+});
+
+test('Joining mid-question skips old feedback on initial and subsequent polls',()=>{
+ const drawn=[],context={Date:{now:()=>1000},revealSeen:new Set(),revealUntil:0,snapshot:null,clockOffset:0,draw:data=>{context.snapshot=data;drawn.push(data.phase);},updateClock(){}};
+ vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' function gameSettings(){')),context);
+ const lastReveal={phase:'reveal',round:0,index:0},current={phase:'question',round:0,index:1,lastReveal};
+ context.present(current);context.present(current);
+ context.present({phase:'reveal',round:0,index:1});
+ assert.deepEqual(drawn,['question','question','reveal']);
+});
+
+
+test('Start confetti fires once per round, cleans up, and honors reduced motion',()=>{
+ for(const reduced of [false,true]){
+  const bursts=[],timers=[],context={startedRounds:new Set(),window:{matchMedia:()=>({matches:reduced})},document:{createElement:()=>({style:{},children:[],setAttribute(){},append(piece){this.children.push(piece);},remove(){this.removed=true;}}),body:{append:burst=>bursts.push(burst)}},setTimeout:fn=>timers.push(fn)};
+  vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function startConfetti(data){'),client.indexOf(' function fireworks(data){')),context);
+  for(const data of [{phase:'lobby',index:-1},{phase:'question',index:2},{phase:'reveal',index:0}])context.startConfetti(data);
+  assert.equal(bursts.length,0);
+  context.startConfetti({phase:'question',index:0});context.startConfetti({phase:'question',index:0});
+  assert.equal(bursts.length,reduced?0:1);
+  context.startConfetti({phase:'question',index:0,round:1});assert.equal(bursts.length,reduced?0:2);
+  if(!reduced){assert.equal(bursts[0].children.length,160);timers[0]();assert.equal(bursts[0].removed,true);}
+ }
+});
+
+
+test('All eleven avatars persist through joining, answers, standings, reconnects and replay',async()=>{
+ for(const database of [false,true]){
+  const h=harness({database}),{code,hostToken}=(await h.create()).body;
+  const keys=[],tokens=[];
+  for(let avatar=1;avatar<=11;avatar++){
+   const joinKey=crypto.randomUUID();keys.push(joinKey);
+   const joined=await h.request('join',{code,name:'AB',joinKey,schoolEmail:'student'+avatar+'@school.example',avatar});
+   assert.equal(joined.code,200);tokens.push(joined.body.studentToken);
+   assert.equal((await h.request(null,{code},joined.body.studentToken)).body.me.avatar,avatar);
+  }
+  const lobby=(await h.request(null,{code},hostToken)).body;
+  assert.deepEqual(lobby.players.map(p=>p.avatar),Array.from({length:11},(_,i)=>i+1));
+  await h.request('start',{code,version:0},hostToken);
+  const view=(await h.request(null,{code},tokens[10])).body;
+  const choice=view.question.options.indexOf(h.cards.find(c=>c.term===view.question.term).english);
+  await h.request('answer',{code,index:0,choice},tokens[10]);
+  const responses=(await h.request(null,{code},hostToken)).body;
+  assert.equal(responses.players.find(p=>p.avatar===11).answered,true);
+  await h.request('reveal',{code,version:1},hostToken);
+  const scores=(await h.request(null,{code},tokens[10])).body.scores;
+  assert.deepEqual(scores[0],{name:'AB',score:100,avatar:11});
+  assert(!JSON.stringify(scores).includes('@school.example'));
+  const rejoin=await h.request('join',{code,name:'AB',joinKey:keys[10],schoolEmail:'student11@school.example',avatar:1});
+  assert.equal(rejoin.body.studentToken,tokens[10]);
+  assert.equal((await h.request(null,{code},tokens[10])).body.me.avatar,11);
+  await h.request('end',{code,version:2},hostToken);
+  const final=(await h.request(null,{code},hostToken)).body;
+  assert.equal(final.finalScores[0].avatar,11);
+  await h.request('restart',{code,version:3},hostToken);
+  assert.equal((await h.request(null,{code},tokens[10])).body.me.avatar,11);
+ }
+});
+
+test('Avatar selection rejects untrusted values and supports older clients without avatars',async()=>{
+ const h=harness(),{code,hostToken}=(await h.create()).body;
+ for(const avatar of [0,12,-1,1.5,'11','<img>',null,{},[]]){
+  assert.equal((await h.request('join',{code,name:'AB',joinKey:crypto.randomUUID(),schoolEmail:'a@school.example',avatar})).code,400);
+ }
+ assert.equal((await h.request(null,{code},hostToken)).body.playerCount,0);
+ const old=await h.join(code);
+ assert.equal((await h.request(null,{code},old.body.studentToken)).body.me.avatar,1);
 });

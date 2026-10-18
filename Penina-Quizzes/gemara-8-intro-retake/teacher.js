@@ -36,10 +36,14 @@ document.getElementById('chooseClass').addEventListener('submit',async event=>{
 function scoreText(g) {
     return g.pending ? `Automatic: ${g.automaticScore}/${g.automaticMax} · ${g.pending} question${g.pending===1?'':'s'} awaiting correction` : `Final: ${g.total}/${g.baseMax} · Automatic: ${g.automaticScore}/${g.automaticMax}`;
 }
+function formatResultTime(value) {
+    return new Date(value).toLocaleString('en-US', {timeZone:'America/New_York',timeZoneName:'short'});
+}
 function render() {
+    records.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
     document.getElementById('reports').innerHTML = records.map(r=>{
         const g=r.grading;
-        return `<details class="card"><summary>${esc(r.name)} · ${esc(r.email)}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(new Date(r.submittedAt).toLocaleString())} · Receipt: ${esc(r.id)}</p><form class="correction" data-id="${r.id}">${questions.map((q,i)=>{
+        return `<details class="card"><summary>${esc(r.name)} · ${esc(r.email)}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(formatResultTime(r.submittedAt))} · Receipt: ${esc(r.id)}</p><form class="correction" data-id="${r.id}">${questions.map((q,i)=>{
             const auto=g.automatic.find(item=>item.index===i),manual=g.manual.find(item=>item.index===i);
             return QuizCorrection.question(q,i,r.answers[i],auto,manual,0.5);
         }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label><p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use 8 points.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send grade to Classroom</button><p class="muted">Email returns the corrected test to ${esc(r.email)}, including teacher overrides and your explanations. The answer key is not included.</p><button type="submit" name="emailStudent" value="yes">Save and email corrected test</button><p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
@@ -78,7 +82,7 @@ document.getElementById('export').addEventListener('click',()=>{
     const columns = questions.map((q,i)=>`${i+1}. ${q.prompt}`);
     // Prevent answers or names being interpreted as spreadsheet formulas.
     const csvCell = v => { let s = String(v); if (/^[\s]*[=+\-@]/.test(s)) s = "'" + s; return '"'+s.replace(/"/g,'""')+'"'; };
-    const rows = [['Name','School email','Submitted at','Receipt','Automatic (out of 5)','Q1 points','Q6 points','Final score (out of 8)','Questions awaiting correction','Teacher feedback',...columns],...records.map(r=>[r.name,r.email,r.submittedAt,r.id,r.grading.automaticScore,...r.grading.manual.map(q=>q.score??''),r.grading.total??'',r.grading.pending,r.grading.feedback,...r.answers.map(values=>values.join(' | '))])];
+    const rows = [['Name','School email','Submitted at (Eastern Time)','Receipt','Automatic (out of 5)','Q1 points','Q6 points','Final score (out of 8)','Questions awaiting correction','Teacher feedback',...columns],...records.map(r=>[r.name,r.email,formatResultTime(r.submittedAt),r.id,r.grading.automaticScore,...r.grading.manual.map(q=>q.score??''),r.grading.total??'',r.grading.pending,r.grading.feedback,...r.answers.map(values=>values.join(' | '))])];
     const url = URL.createObjectURL(new Blob(['\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
     const a = document.createElement('a'); a.href = url; a.download = 'Gemara-8-Intro-Retake-submissions.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 });

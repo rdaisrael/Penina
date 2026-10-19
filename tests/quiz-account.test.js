@@ -121,12 +121,12 @@ function gradeFixture(h) {
     h.blobs.set('quiz-google/classes/'+classId+'.txt',h.api.seal({quiz:'gemara-6-wl-2',owner:'teacher-id',courseId:'course-1',courseWorkId:'work-1'}));
     return {req:h.request({method:'POST',headers:{cookie:h.cookie({sub:'teacher-id',role:'teacher'}),origin:'https://www.penina-hebrew.org'}}),record:{sub:'student-id',classId},grading:{pending:0,total:15.5}};
 }
-test('Grade transfer binds to stored assignment and student, preserves extra credit, and returns turned-in work',async()=>{
+test('Grade transfer binds to stored assignment and student, preserves extra credit, and saves only a draft',async()=>{
     const h=harness(),f=gradeFixture(h);
     const result=await h.api.sendGrade(f.req,f.record,f.grading);
-    assert.equal(result.score,15.5);assert.equal(result.returned,true);
+    assert.equal(result.score,15.5);assert.equal(result.draft,true);
     const patch=h.requests.find(r=>r.method==='PATCH');assert(patch.url.endsWith('/courseWork/work-1/studentSubmissions/submission-1'));
-    assert.equal(patch.params.updateMask,'draftGrade,assignedGrade');assert.equal(patch.data.draftGrade,15.5);assert.equal(patch.data.assignedGrade,15.5);
+    assert.equal(patch.params.updateMask,'draftGrade');assert.equal(patch.data.draftGrade,15.5);assert.equal(patch.data.assignedGrade,undefined);assert(!h.requests.some(r=>r.url.endsWith(':return')));
 });
 test('Grade transfer refuses incomplete corrections, wrong teacher, practice and legacy submissions, foreign assignments, and wrong student',async()=>{
     for(const change of [
@@ -147,13 +147,16 @@ test('Grade transfer refuses incomplete corrections, wrong teacher, practice and
         await assert.rejects(()=>h.api.sendGrade(f.req,f.record,f.grading));assert(!h.requests.some(r=>r.method==='PATCH'));
     }
 });
-test('Grades can be retried after return failure; unsubmitted work is not falsely reported as returned',async()=>{
-    const h=harness(),f=gradeFixture(h);h.state.returnFailure=true;
-    assert.equal((await h.api.sendGrade(f.req,f.record,f.grading)).returnPending,true);
-    h.state.returnFailure=false;assert.equal((await h.api.sendGrade(f.req,f.record,f.grading)).returned,true);
-    h.state.submissionState='NEW';const before=h.requests.filter(r=>r.url.endsWith(':return')).length;
-    const result=await h.api.sendGrade(f.req,f.record,f.grading);assert.equal(result.needsTurnIn,true);assert.equal(result.returned,false);
-    assert.equal(h.requests.filter(r=>r.url.endsWith(':return')).length,before);
+test('Draft grades update without returning work, regardless of submission state',async()=>{
+    const h=harness(),f=gradeFixture(h);
+    for(const state of ['NEW','TURNED_IN','RETURNED']) {
+        h.state.submissionState=state;
+        f.grading.total-=1;
+        const result=await h.api.sendGrade(f.req,f.record,f.grading);
+        assert.equal(result.draft,true);
+        assert.equal(h.requests.filter(r=>r.method==='PATCH').at(-1).data.draftGrade,f.grading.total);
+    }
+    assert(!h.requests.some(r=>r.url.endsWith(':return')));
 });
 test('Assignment creation recovers after the mapping write is lost without duplicating coursework',async()=>{
     const h=harness();const req=h.request({method:'POST',query:{},headers:{cookie:h.cookie({sub:'teacher-id',role:'teacher'}),origin:'https://www.penina-hebrew.org'},body:{action:'assign',courseId:'course-1'}});
@@ -201,7 +204,7 @@ test('Retake grades use its eight-point assignment and cannot target the origina
     await assert.rejects(h.api.sendGrade(req,record,grading),/assigned this quiz/);
     await assert.rejects(h.api.sendGrade(req,record,grading,'gemara-6-intro-retake'),/8 points/);
     h.state.maxPoints=8;const sent=await h.api.sendGrade(req,record,grading,'gemara-6-intro-retake');
-    assert.equal(sent.maxPoints,8);assert.equal(sent.score,7.5);assert.equal(sent.returned,true);
+    assert.equal(sent.maxPoints,8);assert.equal(sent.score,7.5);assert.equal(sent.draft,true);
 });
 
 test('Grade 8 retake assignment has a separate class link and eight-point Classroom draft',async()=>{
@@ -228,7 +231,7 @@ test('Grade 8 retake grades use its eight-point assignment and cannot target the
     await assert.rejects(h.api.sendGrade(req,record,grading),/assigned this quiz/);
     await assert.rejects(h.api.sendGrade(req,record,grading,'gemara-8-intro-retake'),/8 points/);
     h.state.maxPoints=8;const sent=await h.api.sendGrade(req,record,grading,'gemara-8-intro-retake');
-    assert.equal(sent.maxPoints,8);assert.equal(sent.score,7.5);assert.equal(sent.returned,true);
+    assert.equal(sent.maxPoints,8);assert.equal(sent.score,7.5);assert.equal(sent.draft,true);
 });
 
 test('User 1 entrance checks email and password and binds the Google callback',async()=>{

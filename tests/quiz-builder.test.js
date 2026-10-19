@@ -68,7 +68,7 @@ test('Custom attempts submit once, grade, restrict reports, and transfer teacher
  assert.equal((await h.call(h.submissions,h.req({action:'start',id:'b'.repeat(32),classId,quiz:id},'student'))).code,409);
  assert.equal((await h.call(h.submissions,h.req({action:'report',quiz:id},'other'))).code,403);
  const report=await h.call(h.submissions,h.req({action:'report',quiz:id}));assert.equal(report.code,200);assert.equal(report.data.submissions.length,1);assert.equal(report.data.submissions[0].grading.pending,1);
- const corrected=await h.call(h.submissions,h.req({action:'correct',quiz:id,id:attemptId,scores:[2],feedback:'Well done',sendToClassroom:true}));assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,7);assert.equal(corrected.data.classroom.score,7);assert.equal(h.state.grade.assignedGrade,7);
+ const corrected=await h.call(h.submissions,h.req({action:'correct',quiz:id,id:attemptId,scores:[2],feedback:'Well done',sendToClassroom:true}));assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,7);assert.equal(corrected.data.classroom.score,7);assert.equal(h.state.grade.draftGrade,7);
 });
 test('Builder Google sign-in returns to editor and custom student sign-in returns to its quiz',async()=>{
  const h=harness();const login=await h.call(h.account.handle,h.req({action:'login',role:'teacher',password:'secret',builder:true}));assert.equal(login.code,200);
@@ -176,7 +176,7 @@ test('Per-response maxima persist through publishing, student data, reports and 
  const request=h.req({},'student',{action:'student',quiz:link.quiz,classId:link.classId});request.method='GET';const student=await h.call(h.account.handle,request);assert.equal(student.data.questions[3].maxPoints,4);
  const id='8'.repeat(32),start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
  const answers=correctAnswers();answers[3]=['א','ב'];const submitted=await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers},'student'));assert.equal(submitted.code,200);assert.equal(submitted.data.automatic.find(q=>q.index===3).partial,true);
- const result=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[2],feedback:'',sendToClassroom:true}));assert.equal(result.data.grading.total,9);assert.equal(result.data.classroom.maxPoints,11);assert.equal(h.state.grade.assignedGrade,9);
+ const result=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[2],feedback:'',sendToClassroom:true}));assert.equal(result.data.grading.total,9);assert.equal(result.data.classroom.maxPoints,11);assert.equal(h.state.grade.draftGrade,9);
  const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.data.summary[3].partial,1);
 });
 
@@ -187,7 +187,7 @@ test('Custom automatic overrides preserve answers, enforce increments, update su
  const body={...link,id,action:'correct',scores:[2],overrides:{1:1},feedback:'Corrected key error',sendToClassroom:true};
  assert.equal((await h.call(h.submissions,h.req(body,'student'))).code,403);
  for(const overrides of [{1:0.5},{1:2},{0:1},{999:1},null,[]])assert.equal((await h.call(h.submissions,h.req({...body,overrides}))).code,400);
- const saved=await h.call(h.submissions,h.req(body));assert.equal(saved.code,200);assert.equal(saved.data.grading.total,7);assert.equal(h.state.grade.assignedGrade,7);
+ const saved=await h.call(h.submissions,h.req(body));assert.equal(saved.code,200);assert.equal(saved.data.grading.total,7);assert.equal(h.state.grade.draftGrade,7);
  const report=await h.call(h.submissions,h.req({...link,action:'report'})),record=report.data.submissions[0];
  assert.deepEqual(record.answers,answers);assert.equal(record.grading.automatic[0].originalScore,0);assert.equal(record.grading.automatic[0].score,1);assert.equal(record.grading.automatic[0].overridden,true);
  assert.equal(model.summarize(fixture(),[record])[1].correct,1);
@@ -204,9 +204,18 @@ test('Email returns saved teacher overrides and explanations only to the submitt
  assert.equal((await h.call(h.submissions,h.req(body,'student2'))).code,403);assert.equal(h.state.emailed,undefined);
  assert.equal((await h.call(h.submissions,h.req({...body,scores:[null]}))).code,400);assert.equal(h.state.emailed,undefined);
  for(const explanations of [{1:'x'.repeat(2001)},{999:'wrong'},[],null])assert.equal((await h.call(h.submissions,h.req({...body,explanations}))).code,400);
+ assert.equal((await h.call(h.submissions,h.req(body))).code,409);assert.equal(h.state.emailed,undefined);
+ const draft=await h.call(h.submissions,h.req({...body,emailStudent:false,sendToClassroom:true}));assert.equal(draft.code,200);assert.equal(draft.data.grading.classroomDraft,true);
  const sent=await h.call(h.submissions,h.req(body));assert.equal(sent.code,200);assert.equal(sent.data.email.to,'student@school.org');assert.equal(h.state.emailed.grading.automatic[0].explanation,body.explanations[1]);
  const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.data.submissions[0].grading.automatic[0].explanation,body.explanations[1]);
  h.state.emailFailure=true;const failed=await h.call(h.submissions,h.req(body));assert.equal(failed.code,200);assert.equal(failed.data.emailError,'Email failed');assert.equal(failed.data.grading.total,7);
+ const changed={...body,scores:[1]};
+ assert.equal((await h.call(h.submissions,h.req(changed))).code,409);
+ const saved=await h.call(h.submissions,h.req({...changed,emailStudent:false}));assert.equal(saved.data.grading.classroomDraft,false);
+ const reloaded=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(reloaded.data.submissions[0].grading.classroomDraft,false);
+ const updated=await h.call(h.submissions,h.req({...changed,emailStudent:false,sendToClassroom:true}));assert.equal(updated.data.grading.classroomDraft,true);assert.equal(h.state.grade.draftGrade,6);assert.equal(h.state.grade.assignedGrade,undefined);
+ const ready=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(ready.data.submissions[0].grading.classroomDraft,true);
+ h.state.emailFailure=false;assert.equal((await h.call(h.submissions,h.req(changed))).data.email.to,'student@school.org');
 });
 
 test('Extra credit adds to earned points but not the denominator, and is optional',()=>{
@@ -231,5 +240,5 @@ test('Published bonus settings survive reload and Classroom receives 11 out of 1
  const loaded=await h.call(h.builder.handle,h.req({action:'load',id:link.quiz}));assert.equal(loaded.data.quiz.questions[10].extraCredit,true);
  const id='b'.repeat(32),answers=q.questions.map(()=>['A']);const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
  assert.equal((await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers},'student'))).code,200);
- const corrected=await h.call(h.submissions,h.req({...link,id,action:'correct',scores:[],feedback:'',sendToClassroom:true}));assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,11);assert.equal(corrected.data.grading.baseMax,10);assert.equal(h.state.grade.assignedGrade,11);assert.equal(corrected.data.classroom.maxPoints,10);
+ const corrected=await h.call(h.submissions,h.req({...link,id,action:'correct',scores:[],feedback:'',sendToClassroom:true}));assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,11);assert.equal(corrected.data.grading.baseMax,10);assert.equal(h.state.grade.draftGrade,11);assert.equal(corrected.data.classroom.maxPoints,10);
 });

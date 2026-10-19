@@ -22,6 +22,11 @@ window.QuizCorrection = (() => {
     }
     document.addEventListener('input', event => {
         const input = event.target;
+        const form=input.closest('form.correction');
+        if(form) {
+            form.dataset.classroomDraft='false';
+            form.querySelector('[name="emailStudent"]').disabled=true;
+        }
         if(input.matches('.correction textarea')) { input.closest('form').querySelector('.saveStatus').textContent='Unsaved changes — save corrections when you’re ready.'; return; }
         if (!input.matches('.correction input[name^="manual"], .correction input[name^="auto"]')) return;
         const card = input.closest('.review-question');

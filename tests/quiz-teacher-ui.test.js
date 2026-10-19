@@ -73,3 +73,38 @@ test('Clicking a roster name opens and focuses the submitted answers',()=>{
  handler({target:{closest:()=>({dataset:{submission:'receipt'}})},preventDefault(){prevented=true;}});
  assert.ok(card.open && scrolled && focused && prevented);
 });
+
+for(const folder of ['custom','gemara-6-wl-2','gemara-6-intro-retake','gemara-8-intro-retake']) {
+ test(`${folder}: email waits for a saved Classroom draft, retries failures, opens the next response, and closes the last`,async()=>{
+  const script=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes',folder,'teacher.js'),'utf8');
+  let handler,result,requests=0,focused=false,nextFocused=false,scrolled=false;
+  const email={name:'emailStudent',disabled:true},buttons=[{name:'sendToClassroom'},email],field={disabled:false},message={};
+  const next={open:false,matches:s=>s==='details',scrollIntoView(){scrolled=true;},querySelector:()=>({focus(){nextFocused=true;}})};
+  const card={open:true,nextElementSibling:next,querySelector:()=>({focus(){focused=true;}})};
+  const form={dataset:{id:'receipt',classroomDraft:'false'},matches:()=>true,reportValidity:()=>true,querySelector:()=>message,querySelectorAll:s=>s==='button'?buttons:[field],elements:{feedback:{value:''}},closest:()=>card};
+  const record={id:'receipt',grading:{manual:[]}};
+  vm.runInNewContext(script.slice(script.indexOf("document.getElementById('reports').addEventListener('submit'"),script.indexOf("document.getElementById('export').addEventListener")),{
+   document:{getElementById:()=>({addEventListener:(type,fn)=>handler=fn})},records:[record],form:{elements:{password:{value:''}}},SUBMISSIONS_API:'/test',QuizCorrection:{overrides:()=>({}),explanations:()=>({})},renderRoster(){},renderSummary(){},currentRoster:{},scoreText:()=>'',
+   fetch:async()=>{requests++;assert.equal(field.disabled,true);assert.equal(email.disabled,true);return {ok:true,json:async()=>result};}
+  });
+  const submit=name=>handler({preventDefault(){},target:form,submitter:{name}});
+  await submit('emailStudent');assert.equal(requests,0);
+  result={grading:{manual:[],pending:0,classroomDraft:false},classroomError:'Google unavailable'};
+  await submit('sendToClassroom');assert.equal(email.disabled,true);assert.equal(card.open,true);assert.equal(field.disabled,false);
+  result={grading:{manual:[],pending:0,classroomDraft:true},classroom:{score:8,maxPoints:11}};
+  await submit('sendToClassroom');assert.equal(email.disabled,false);assert.equal(card.open,true);assert.match(message.textContent,/Draft grade saved/);assert.doesNotMatch(message.textContent,/mark.*done/);
+  result={grading:{manual:[],pending:0,classroomDraft:true},emailError:'Email unavailable'};
+  await submit('emailStudent');assert.equal(email.disabled,false);assert.equal(card.open,true);assert.equal(next.open,false);
+  result={grading:{manual:[],pending:0,classroomDraft:true},email:{to:'student@school.org'}};
+  await submit('emailStudent');assert.equal(card.open,false);assert.equal(next.open,true);assert.equal(nextFocused,true);assert.equal(scrolled,true);assert.equal(focused,false);assert.equal(field.disabled,false);
+  card.open=true;card.nextElementSibling=null;
+  await submit('emailStudent');assert.equal(card.open,false);assert.equal(focused,true);
+ });
+}
+test('Editing feedback disables email until the updated grading is saved to Classroom',()=>{
+ let handler;
+ const button={disabled:false},message={},form={dataset:{classroomDraft:'true'},querySelector:s=>s==='[name="emailStudent"]'?button:message};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/correction.js'),'utf8'),{window:{},document:{addEventListener:(type,fn)=>handler=fn}});
+ handler({target:{closest:()=>form,matches:selector=>selector==='.correction textarea'}});
+ assert.equal(button.disabled,true);assert.equal(form.dataset.classroomDraft,'false');
+});

@@ -11,7 +11,7 @@
         const [before,after]=q.sentence.split('___');
         return `<div class="sentence-line" dir="rtl" lang="he">${esc(before)}${answer?`<strong>${esc(q.answer)}</strong>`:'<span class="sentence-blank" aria-label="Write the missing verb"></span>'}${esc(after)}${rootCue?` <span class="root-cue">(${esc(q.root)})</span>`:''}</div>`;
     }
-    function question(q,learn,key,mixedTenses){
+    function question(q,key,mixedTenses){
         const type=q.exercise||'conjugate';
         let body;
         if(key){
@@ -24,16 +24,15 @@
         }else if(type==='sentence')body=sentence(q,false,type==='sentence');
         else if(type==='writing')body=`<p class="writing-prompt">${he(target(q))} · (${he(q.root)})</p><div class="writing-lines" aria-label="Space for your sentence"><span></span><span></span></div>`;
         else body=`<div class="question-prompt" dir="rtl">${he(target(q))}<span class="root-cue">(${he(q.root)})</span><span class="answer-line" aria-label="Write your answer"></span></div>`;
-        const hint=learn&&!key&&type!=='writing'?`<p class="hint">Hint: ${esc(q.hint)}</p>`:'';
         const tense=mixedTenses?`<span class="question-tense">${esc(tenseLabel(q.pair))}</span>`:'';
-        return `<div class="question" data-exercise="${esc(type)}"><span class="question-number">${q.number}.</span><div class="question-content">${tense}${body}${hint}</div></div>`;
+        return `<div class="question" data-exercise="${esc(type)}"><span class="question-number">${q.number}.</span><div class="question-content">${tense}${body}</div></div>`;
     }
-    function render(questions,{learn=false,key=false}={}){
+    function render(questions,{key=false}={}){
         const types=[...new Set(questions.map(q=>q.exercise||'conjugate'))];
         return types.map(type=>{
             const qs=questions.filter(q=>(q.exercise||'conjugate')===type);
             const tenses=[...new Set(qs.map(q=>tenseLabel(q.pair)))];
-            return `<section class="exercise-section" data-section="${esc(type)}"><h3>${esc(core.exerciseTypes[type])}${tenses.length===1?`<span class="section-tense"> · ${esc(tenses[0])}</span>`:''}</h3>${key?'':`<p class="exercise-instructions">${esc(instructions[type])}</p>`}${qs.map(q=>question(q,learn,key,tenses.length>1)).join('')}${type==='writing'&&!key?'<p class="self-check">Check: Does your verb match the subject, gender, number and tense?</p>':''}</section>`;
+            return `<section class="exercise-section" data-section="${esc(type)}"><h3>${esc(core.exerciseTypes[type])}${tenses.length===1?`<span class="section-tense"> · ${esc(tenses[0])}</span>`:''}</h3>${key?'':`<p class="exercise-instructions">${esc(instructions[type])}</p>`}${qs.map(q=>question(q,key,tenses.length>1)).join('')}${type==='writing'&&!key?'<p class="self-check">Check: Does your verb match the subject, gender, number and tense?</p>':''}</section>`;
         }).join('');
     }
     return {render};

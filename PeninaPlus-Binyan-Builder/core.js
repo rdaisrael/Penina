@@ -86,7 +86,7 @@
         if(result.questions.length!==request.count)fail();
         plan(request).forEach((expected,i)=>{
             const q=result.questions[i];
-            if(!q||(q.exercise||'conjugate')!==expected.exercise||q.number!==expected.number||q.pair!==expected.pair||q.person!==expected.person||!rootOK(q.root)||!eligibleRoot(q.root,q.pair)||!hebrew(q.answer)||!text(q.meaning,150)||!text(q.hint,300))fail();
+            if(!q||(q.exercise||'conjugate')!==expected.exercise||q.number!==expected.number||q.pair!==expected.pair||q.person!==expected.person||!rootOK(q.root)||!eligibleRoot(q.root,q.pair)||!hebrew(q.answer)||!text(q.meaning,150))fail();
             if(['sentence','writing'].includes(expected.exercise)){
                 if(!text(q.sentence,400)||q.sentence.split('___').length!==2||!/[א-ת]/.test(q.sentence)||/[<>]/.test(q.sentence))fail();
                 // The target answer must be blanked, never already supplied in the stem.

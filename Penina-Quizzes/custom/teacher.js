@@ -1,5 +1,5 @@
 'use strict';
-let questions, records = [],reportRequest=0;
+let questions, records = [],currentRoster=null,reportRequest=0;
 const form = document.getElementById('login'), status = document.getElementById('status');
 function esc(s) { return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 const quizId=new URLSearchParams(location.search).get('quiz') || '';
@@ -54,10 +54,10 @@ function formatResultTime(value) {
     return new Date(value).toLocaleString('en-US', {timeZone:'America/New_York',timeZoneName:'short'});
 }
 function render() {
-    records.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+    records.sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}) || a.id.localeCompare(b.id));
     document.getElementById('reports').innerHTML = records.map(r=>{
         const g=r.grading;
-        return `<details class="card"><summary>${esc(r.name)} · ${esc(r.email)}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(formatResultTime(r.submittedAt))} · Receipt: ${esc(r.id)}</p><form class="correction" data-id="${r.id}">${questions.map((q,i)=>{
+        return `<details class="card" id="submission-${esc(r.id)}"><summary>${esc(r.name)} · ${esc(r.email)}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(formatResultTime(r.submittedAt))} · Receipt: ${esc(r.id)}</p><form class="correction" data-id="${r.id}">${questions.map((q,i)=>{
             const auto=g.automatic.find(item=>item.index===i),manual=g.manual.find(item=>item.index===i);
             return QuizCorrection.question(q,i,r.answers[i],auto,manual,q.allowHalfCredit===true?0.5:1);
         }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label><p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use ${g.baseMax} regular points${g.extraMax?', plus up to '+g.extraMax+' extra-credit points':''}.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send grade to Classroom</button><p class="muted">Email returns the corrected test to ${esc(r.email)}, including teacher overrides and your explanations. The answer key is not included.</p><button type="submit" name="emailStudent" value="yes">Save and email corrected test</button><p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
@@ -80,7 +80,12 @@ function renderRoster(roster) {
     const labels={'not-assigned':'Not assigned','not-started':'Not started','in-progress':'In progress',submitted:'Submitted',expired:'Time expired · not submitted'};
     const counts={};for(const s of roster.students)counts[s.status]=(counts[s.status] || 0)+1;
     caption.textContent=roster.className+' · '+roster.students.length+' enrolled students'+(roster.assigned?' · '+Object.entries(counts).map(([key,n])=>n+' '+labels[key].toLowerCase()).join(' · '):' · This quiz has not been assigned to this class.')+' · Use Load roster & results to refresh.';
-    rows.innerHTML=[...roster.students].sort((a,b)=>(Date.parse(b.submittedAt)||0)-(Date.parse(a.submittedAt)||0)).map(s=>`<tr><th scope="row">${esc(s.name)}</th><td><span class="roster-status">${labels[s.status]}</span></td><td>${s.startedAt?esc(formatResultTime(s.startedAt)):'—'}</td><td>${s.submittedAt?esc(formatResultTime(s.submittedAt)):'—'}</td></tr>`).join('') || '<tr><td colspan="4">No students are enrolled in this class.</td></tr>';
+    const submissions=new Map(records.map(record=>[record.id,record]));
+    rows.innerHTML=[...roster.students].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}) || a.id.localeCompare(b.id)).map(s=>{
+        const submission=submissions.get(s.submissionId),graded=submission?.grading.savedAt && submission.grading.pending===0;
+        const name=submission?`<a href="#submission-${esc(submission.id)}" data-submission="${esc(submission.id)}">${esc(s.name)}</a>`:esc(s.name);
+        return `<tr><th scope="row">${name}</th><td><span class="roster-status">${labels[s.status]}</span></td><td>${graded?'<span class="graded-check" role="img" aria-label="Graded" title="Graded">✓</span>':'<span aria-label="Not graded">—</span>'}</td><td>${s.startedAt?esc(formatResultTime(s.startedAt)):'—'}</td><td>${s.submittedAt?esc(formatResultTime(s.submittedAt)):'—'}</td></tr>`;
+    }).join('') || '<tr><td colspan="5">No students are enrolled in this class.</td></tr>';
 }
 async function loadReport() {
     const requestId=++reportRequest,button=form.querySelector('button[type="submit"]');button.disabled=true;
@@ -90,7 +95,7 @@ async function loadReport() {
         const result=await response.json();if(requestId!==reportRequest)return;if(!response.ok)throw new Error(result.error || 'Results could not be loaded.');
         questions=result.questions;records=result.submissions;document.querySelector('h1').textContent=result.title;
         status.textContent=`${records.length} submission${records.length===1?'':'s'}. Open a submission to review answers and mark written questions.`;
-        document.getElementById('export').hidden=!records.length;render();renderRoster(result.roster);renderSummary();
+        document.getElementById('export').hidden=!records.length;currentRoster=result.roster;render();renderRoster(currentRoster);renderSummary();
     }catch(error){if(requestId===reportRequest)status.textContent=error.message;}
     finally{if(requestId===reportRequest)button.disabled=false;}
 }
@@ -105,7 +110,7 @@ document.getElementById('reports').addEventListener('submit',async event=>{
     try {
         const response=await fetch(SUBMISSIONS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'correct',id:r.id,scores,overrides:QuizCorrection.overrides(correction),explanations:QuizCorrection.explanations(correction),emailStudent,sendToClassroom,feedback:correction.elements.feedback.value})});
         const result=await response.json();if(!response.ok)throw new Error(result.error||'Corrections were not saved.');
-        r.grading=result.grading;renderSummary();document.getElementById('score-'+r.id).textContent=scoreText(r.grading);message.textContent='Corrections saved. '+scoreText(r.grading);
+        r.grading=result.grading;renderRoster(currentRoster);renderSummary();document.getElementById('score-'+r.id).textContent=scoreText(r.grading);message.textContent='Corrections saved. '+scoreText(r.grading);
         if(result.email)message.textContent+=' Corrected test accepted for email delivery to '+result.email.to+'.';
         if(result.emailError)message.textContent+=' Email not sent: '+result.emailError+' Your corrections are saved; you can retry emailing.';
         if(result.classroomError)message.textContent+=' Classroom: '+result.classroomError;
@@ -123,3 +128,13 @@ document.getElementById('export').addEventListener('click',()=>{
 });
 
 document.getElementById('classChoice').addEventListener('change',()=>{document.getElementById('classLink').hidden=true;});
+
+document.getElementById('rosterRows').addEventListener('click',event=>{
+    const link=event.target.closest('a[data-submission]');
+    if(!link)return;
+    const submission=document.getElementById('submission-'+link.dataset.submission);
+    if(!submission)return;
+    event.preventDefault();submission.open=true;
+    submission.scrollIntoView({block:'start'});
+    submission.querySelector('summary').focus({preventScroll:true});
+});

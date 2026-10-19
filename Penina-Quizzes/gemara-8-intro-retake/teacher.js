@@ -40,7 +40,7 @@ function formatResultTime(value) {
     return new Date(value).toLocaleString('en-US', {timeZone:'America/New_York',timeZoneName:'short'});
 }
 function render() {
-    records.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+    records.sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}) || a.id.localeCompare(b.id));
     document.getElementById('reports').innerHTML = records.map(r=>{
         const g=r.grading;
         return `<details class="card"><summary>${esc(r.name)} · ${esc(r.email)}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(formatResultTime(r.submittedAt))} · Receipt: ${esc(r.id)}</p><form class="correction" data-id="${r.id}">${questions.map((q,i)=>{

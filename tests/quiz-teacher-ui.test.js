@@ -21,3 +21,55 @@ test('Class list failures still load reports and preserve a selected class',asyn
 test('Assigning never auto-loads correction reports',async()=>{
  const result=await initialize({search:'?mode=assign',failCourses:true});assert.deepEqual(result.loaded,[]);
 });
+
+function rosterView(records) {
+ const elements=new Map();
+ const document={getElementById(id){if(!elements.has(id))elements.set(id,{replaceChildren(){this.innerHTML='';}});return elements.get(id);}};
+ const context={document,records,esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),formatResultTime:s=>s};
+ vm.runInNewContext(source.slice(source.indexOf('function renderRoster('),source.indexOf('async function loadReport(')),context);
+ return {render:context.renderRoster,elements};
+}
+test('Roster includes non-submitters, sorts names, and links only available submissions',()=>{
+ const view=rosterView([{id:'receipt-z',grading:{pending:1,savedAt:null}}]);
+ view.render({className:'Class',assigned:true,students:[
+  {id:'z',name:'Zoe',status:'submitted',submissionId:'receipt-z'},
+  {id:'b',name:'ben',status:'in-progress'},
+  {id:'a',name:'Alice',status:'not-started'}
+ ]});
+ const html=view.elements.get('rosterRows').innerHTML;
+ assert.ok(html.indexOf('Alice')<html.indexOf('ben'));
+ assert.ok(html.indexOf('ben')<html.indexOf('Zoe'));
+ assert.match(html,/href="#submission-receipt-z" data-submission="receipt-z">Zoe/);
+ assert.equal((html.match(/<a /g)||[]).length,1);
+ assert.doesNotMatch(html,/class="graded-check"/);
+});
+test('Graded check requires saved, complete corrections and updates after saving',()=>{
+ const record={id:'receipt',grading:{pending:0,savedAt:null}},view=rosterView([record]);
+ const roster={className:'Class',assigned:true,students:[{id:'a',name:'Alice',status:'submitted',submissionId:'receipt'}]};
+ view.render(roster);assert.doesNotMatch(view.elements.get('rosterRows').innerHTML,/class="graded-check"/);
+ record.grading={pending:1,savedAt:'2026-10-19'};
+ view.render(roster);assert.doesNotMatch(view.elements.get('rosterRows').innerHTML,/class="graded-check"/);
+ record.grading.pending=0;
+ view.render(roster);assert.match(view.elements.get('rosterRows').innerHTML,/aria-label="Graded"/);
+ const reloaded=rosterView([JSON.parse(JSON.stringify(record))]);reloaded.render(roster);
+ assert.match(reloaded.elements.get('rosterRows').innerHTML,/aria-label="Graded"/);
+});
+test('Answer cards are alphabetical and provide roster link targets',()=>{
+ const records=['Zoe','Alice','ben'].map((name,i)=>({id:String(i),name,email:'student@example.org',answers:[],grading:{automatic:[],manual:[],feedback:'',baseMax:0,pending:0}}));
+ const reports={};
+ vm.runInNewContext(source.slice(source.indexOf('function render()'),source.indexOf('function renderSummary()'))+'\nrender();',{
+  records,questions:[],document:{getElementById:()=>reports},esc:String,scoreText:()=>'',formatResultTime:()=>''
+ });
+ assert.deepEqual(records.map(r=>r.name),['Alice','ben','Zoe']);
+ assert.match(reports.innerHTML,/id="submission-1"/);
+});
+test('Clicking a roster name opens and focuses the submitted answers',()=>{
+ let handler,scrolled=false,focused=false;
+ const card={open:false,scrollIntoView(){scrolled=true;},querySelector(){return {focus(){focused=true;}};}};
+ vm.runInNewContext(source.slice(source.indexOf("document.getElementById('rosterRows').addEventListener")),{
+  document:{getElementById:id=>id==='rosterRows'?{addEventListener(type,fn){handler=fn;}}:id==='submission-receipt'?card:null}
+ });
+ let prevented=false;
+ handler({target:{closest:()=>({dataset:{submission:'receipt'}})},preventDefault(){prevented=true;}});
+ assert.ok(card.open && scrolled && focused && prevented);
+});

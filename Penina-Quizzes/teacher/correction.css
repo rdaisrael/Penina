@@ -26,3 +26,6 @@
 /* Bonus questions keep their grading colors and gain a distinct gold frame. */
 .extra-credit{outline:2px solid #b88a2c;outline-offset:2px;background-color:#fffaf0}
 .extra-credit-badge{display:inline-block;border:1px solid #c99c43;border-radius:6px;padding:3px 9px;background:#fff3d6;color:#76500c;font:600 13px/1.5 system-ui,sans-serif}.extra-credit-badge[hidden]{display:none}
+
+.graded-check{color:#17613b;font-size:22px;font-weight:750}
+#reports>details.card{scroll-margin-top:20px}

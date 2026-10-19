@@ -115,6 +115,11 @@ document.getElementById('reports').addEventListener('submit',async event=>{
         if(result.emailError)message.textContent+=' Email not sent: '+result.emailError+' Your corrections are saved; you can retry emailing.';
         if(result.classroomError)message.textContent+=' Classroom: '+result.classroomError;
         if(result.classroom)message.textContent+=' Grade sent to Classroom: '+result.classroom.score+'/'+result.classroom.maxPoints+'. '+(result.classroom.returned?'Work returned to the student.':result.classroom.returnPending?'Return is pending; retry or return it in Classroom.':'The student must mark the assignment done in Classroom; then send again to return it.');
+        if(emailStudent && result.email && !result.emailError && !result.classroomError && r.grading.pending===0) {
+            const submission=correction.closest('details');
+            submission.open=false;
+            submission.querySelector('summary').focus({preventScroll:true});
+        }
     }catch(error){message.textContent=error.message+' Your unsaved corrections remain in the fields.';}
     finally{buttons.forEach(button=>button.disabled=false);}
 });

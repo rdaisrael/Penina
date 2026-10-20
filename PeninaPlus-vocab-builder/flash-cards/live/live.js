@@ -17,20 +17,20 @@
    const result=await response.json();if(!response.ok){const e=new Error(result.error||'Please try again.');e.status=response.status;throw e;}return result;
   }catch(e){if(e.name==='AbortError')throw new Error('Connection timed out. Please try again.');throw e;}finally{clearTimeout(timeout);}
  }
- const avatarNames=['Chassidishe man','Chassidishe boy','Chassidishe girl','Modern Orthodox boy in blue','Modern Orthodox boy with glasses','Modern Orthodox girl in lavender','Modern Orthodox girl with glasses','Israeli boy','Israeli girl','Man davening','SAR Academy girl reading'];
+ const avatarCount=11;
  function avatarFigure(value){
-  const id=Number.isInteger(value)&&value>=1&&value<=avatarNames.length?value:1;
+  const id=Number.isInteger(value)&&value>=1&&value<=avatarCount?value:1;
   return `<span class="avatar-figure avatar-${id}" aria-hidden="true"></span>`;
  }
  function avatarPicker(){
-  return `<fieldset class="avatar-picker"><legend>Choose your character</legend><p class="muted">Your character appears beside your initials.</p><div class="avatar-options">${avatarNames.map((name,i)=>`<label class="avatar-option"><input type="radio" name="avatar" value="${i+1}" required aria-label="${esc(name)}"><span class="avatar-card">${avatarFigure(i+1)}<span class="avatar-number">${i+1}</span></span></label>`).join('')}</div></fieldset>`;
+  return `<fieldset class="avatar-picker"><legend>Choose your character</legend><p class="muted">Your character appears beside your initials.</p><div class="avatar-options">${Array.from({length:avatarCount},(_,i)=>`<label class="avatar-option"><input type="radio" name="avatar" value="${i+1}" required aria-label="Character ${i+1}"><span class="avatar-card">${avatarFigure(i+1)}<span class="avatar-number">${i+1}</span></span></label>`).join('')}</div></fieldset>`;
  }
  function joinForm(){
   stage.innerHTML=`<section class="panel join-panel"><p class="eyebrow">A whole class. One challenge.</p><h1>Join the live game</h1><p class="muted">Enter the code on your classroom board.</p><form id="join-form"><label>Game code<input name="code" inputmode="numeric" autocomplete="off" pattern="[0-9]{6}" maxlength="6" value="${esc(/^\d{6}$/.test(code)?code:'')}" required></label><label>Your initials (1–3 letters)<input name="name" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" required></label><label>School email address<input type="email" name="schoolEmail" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" required></label><p class="muted">Your school email is included in the teacher’s score report. Only your initials and character appear on the leaderboard.</p>${avatarPicker()}<button class="primary full" type="submit">Join game →</button></form></section>`;
   stage.querySelector('form').onsubmit=async event=>{
    event.preventDefault();if(busy)return;const form=event.currentTarget;code=form.elements.code.value.trim();const name=form.elements.name.value.normalize('NFKC').trim().toUpperCase();if(!/^\d{6}$/.test(code))return;if(!/^\p{L}{1,3}$/u.test(name)){showError('Enter 1–3 letters for your initials.');return;}
    const schoolEmail=form.elements.schoolEmail.value.trim();if(!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(schoolEmail)){showError('Enter a valid school email address.');return;}
-   const avatar=Number(form.elements.avatar.value);if(!Number.isInteger(avatar)||avatar<1||avatar>avatarNames.length){showError('Choose your character.');return;}
+   const avatar=Number(form.elements.avatar.value);if(!Number.isInteger(avatar)||avatar<1||avatar>avatarCount){showError('Choose your character.');return;}
    busy=true;form.querySelector('button').disabled=true;showError('');
    let joinKey=stored('penina-live-join-key-'+code);if(!joinKey){joinKey=crypto.randomUUID();stored('penina-live-join-key-'+code,joinKey);}
    try{const result=await request('join',{name,joinKey,schoolEmail,avatar});auth=result.studentToken;stored(storageKey(),auth);history.replaceState(null,'','?code='+code);busy=false;if(inFlight)timer=setTimeout(poll,300);else await poll();}

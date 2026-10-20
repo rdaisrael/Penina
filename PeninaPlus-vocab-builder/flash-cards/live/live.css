@@ -80,3 +80,47 @@
 @keyframes live-balloon-rise{from{transform:translate3d(0,0,0) rotate(-8deg)}to{transform:translate3d(var(--sway),calc(-100vh - 250px),0) rotate(12deg)}}
 @media(prefers-reduced-motion:reduce){.finish-balloons{display:none}}
 @media(max-width:420px){.winner-podium{gap:6px}.podium-step{padding:8px 2px}.podium-points span{display:block}.podium-place-3{--step-height:100px}}
+
+/* Animation frames contain only transparent people; the pastel circles stay fixed.
+   The picker, lobby, and personal score remain static. */
+:is(.scores,.winner-podium) .avatar-figure{position:relative;background-image:none;isolation:isolate}
+:is(.scores,.winner-podium) .avatar-figure::before{content:'';position:absolute;z-index:-1;width:88%;aspect-ratio:1;left:6%;top:18%;border-radius:50%;background:var(--avatar-halo,#d8efff)}
+:is(.scores,.winner-podium) .avatar-figure::after{content:'';position:absolute;top:0;left:50%;height:100%;aspect-ratio:3/4;transform:translateX(-50%);background-image:var(--avatar-sheet);background-size:400% 200%;background-position:0 0;background-repeat:no-repeat;animation:var(--avatar-animation,avatar-frames) var(--avatar-duration,2.4s) steps(1,end) infinite}
+.podium-person{padding-top:12px;padding-inline:6px}
+.avatar-1{--avatar-sheet:url('avatars/motion-01.png');--avatar-duration:1.6s;--avatar-halo:#d1efff}
+.avatar-2{--avatar-sheet:url('avatars/motion-02.png');--avatar-duration:2.4s;--avatar-halo:#e4f6d6}
+.avatar-3{--avatar-sheet:url('avatars/motion-03.png');--avatar-duration:2.4s;--avatar-halo:#ffded9}
+.avatar-4{--avatar-sheet:url('avatars/motion-04.png');--avatar-duration:1.8s;--avatar-halo:#fff0bb}
+.avatar-5{--avatar-sheet:url('avatars/motion-05.png');--avatar-duration:1.6s;--avatar-halo:#dff3dc}
+.avatar-6{--avatar-sheet:url('avatars/motion-06.png');--avatar-duration:1.6s;--avatar-halo:#eee0fa}
+.avatar-7{--avatar-sheet:url('avatars/motion-07.png');--avatar-duration:1.8s;--avatar-halo:#dff3e9}
+.avatar-8{--avatar-sheet:url('avatars/motion-08.png');--avatar-duration:1.6s;--avatar-halo:#d5efff}
+.avatar-9{--avatar-sheet:url('avatars/motion-09.png');--avatar-duration:2s;--avatar-halo:#ffdeda}
+.avatar-10{--avatar-sheet:url('avatars/motion-10.png');--avatar-duration:2.4s;--avatar-halo:#e7e2ff}
+.avatar-11{--avatar-sheet:url('avatars/motion-11.png');--avatar-duration:2.4s;--avatar-halo:#eadcff}
+.avatar-3{--avatar-animation:avatar-read-begin;--avatar-duration:4.8s}
+@keyframes avatar-read-begin{
+ 0%{background-position:0% 0%}
+ 10%{background-position:33.333333% 0%}
+ 20%{background-position:66.666667% 0%}
+ 30%{background-position:100% 0%}
+ 40%,60%,80%{background-position:0% 100%}
+ 50%,70%,90%{background-position:33.333333% 100%}
+ 100%{background-position:100% 100%}
+}
+@keyframes avatar-frames{
+ 0%,100%{background-position:0% 0%}
+ 12.5%{background-position:33.333333% 0%}
+ 25%{background-position:66.666667% 0%}
+ 37.5%{background-position:100% 0%}
+ 50%{background-position:0% 100%}
+ 62.5%{background-position:33.333333% 100%}
+ 75%{background-position:66.666667% 100%}
+ 87.5%{background-position:100% 100%}
+}
+/* Keep the stray atlas fragment (x=0..19) outside the visible area at all
+   times. Every intended pose starts at x>=29, so this 27px gutter is safe. */
+:is(.scores,.winner-podium) .avatar-2::after{clip-path:inset(0 0 0 7%)}
+@media(prefers-reduced-motion:reduce){
+ :is(.scores,.winner-podium) .avatar-figure::after{animation:none}
+}

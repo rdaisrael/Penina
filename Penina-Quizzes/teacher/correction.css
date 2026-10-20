@@ -38,3 +38,8 @@
 
 /* Keep saved send dates readable when a student response is folded up. */
 summary [id^="score-"]{display:block;white-space:pre-line}
+
+/* Keep the hand-correction marker beside its result, including on narrow screens. */
+.grade-result{display:inline-flex;align-items:center;gap:8px}
+.hand-corrected-dot{display:inline-block;width:10px;height:10px;flex:none;border-radius:50%;background:#2563eb}
+.hand-corrected-dot[hidden]{display:none}

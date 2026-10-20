@@ -282,25 +282,26 @@ test('Saved assignments remain listed when Classroom status cannot be fetched',a
 });
 
 
-test('Correction list orders posted quizzes by posting time and drafts by creation time',async()=>{
+test('Correction list puts posted quizzes first by posting time, then drafts by creation time',async()=>{
     const h=harness(),headers={cookie:h.cookie({sub:'teacher-id',role:'teacher',userId:1,email:'disrael@saracademy.org'})};
     h.state.works={
         older:{state:'PUBLISHED',creationTime:'2026-01-01T10:00:00Z',updateTime:'2026-10-20T10:00:00Z'},
         draft:{state:'DRAFT',creationTime:'2026-10-15T10:00:00Z',updateTime:'2026-10-21T10:00:00Z'},
+        newerDraft:{state:'DRAFT',creationTime:'2026-10-22T10:00:00Z',updateTime:'2026-10-22T10:00:00Z'},
         recent:{state:'PUBLISHED',creationTime:'2026-01-02T10:00:00Z',updateTime:'2026-10-19T10:00:00Z'}
     };
-    for(const [i,id] of ['older','draft','recent'].entries())h.blobs.set('quiz-google/classes/'+String(i).repeat(32)+'.txt',h.api.seal({quiz:'gemara-6-wl-2',owner:'teacher-id',courseId:'course-1',courseWorkId:id,className:id,...(id==='older'?{postedAt:'2026-10-10T10:00:00Z'}:{})}));
+    for(const [i,id] of ['older','draft','recent','newerDraft'].entries())h.blobs.set('quiz-google/classes/'+String(i).repeat(32)+'.txt',h.api.seal({quiz:'gemara-6-wl-2',owner:'teacher-id',courseId:'course-1',courseWorkId:id,className:id,...(id==='older'?{postedAt:'2026-10-10T10:00:00Z'}:{})}));
     const load=()=>h.run(h.request({query:{action:'assignments'},headers}));
     let result=await load();
     assert.equal(result.code,200);
-    assert.equal(result.data.assignments.map(a=>a.className).join(','),'recent,draft,older');
+    assert.equal(result.data.assignments.map(a=>a.className).join(','),'recent,older,newerDraft,draft');
     h.state.works.recent.updateTime='2026-11-01T10:00:00Z';
     h.state.works.draft.state='PUBLISHED';
     result=await load();
-    assert.equal(result.data.assignments.map(a=>a.className).join(','),'draft,recent,older');
+    assert.equal(result.data.assignments.map(a=>a.className).join(','),'draft,recent,older,newerDraft');
     assert.equal(result.data.assignments[1].postedAt,'2026-10-19T10:00:00Z');
     delete h.state.works;
     h.state.googleFailure=true;
     result=await load();
-    assert.equal(result.data.assignments.map(a=>a.className).join(','),'draft,recent,older');
+    assert.equal(result.data.assignments.map(a=>a.className).join(','),'draft,recent,older,newerDraft');
 });

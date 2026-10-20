@@ -35,3 +35,6 @@
 #login label,#chooseClass label{display:flex;flex-direction:column;gap:10px;width:100%;min-width:0}
 #login select,#chooseClass select{display:block;width:100%;max-width:100%;min-width:0;margin:0}
 #login button,#chooseClass button{max-width:100%;white-space:normal}
+
+/* Keep saved send dates readable when a student response is folded up. */
+summary [id^="score-"]{display:block;white-space:pre-line}

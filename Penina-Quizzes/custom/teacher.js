@@ -55,7 +55,10 @@ document.getElementById('chooseClass').addEventListener('submit',async event=>{
     }catch(error){connectionStatus.textContent=error.message;}finally{button.disabled=false;}
 });
 function scoreText(g) {
-    return g.pending ? `Automatic: ${g.automaticScore}/${g.automaticMax} · ${g.pending} question${g.pending===1?'':'s'} awaiting correction` : `Final: ${g.total}/${g.baseMax} · Automatic: ${g.automaticScore}/${g.automaticMax}`;
+    const score=g.pending ? `${g.pending} question${g.pending===1?'':'s'} awaiting correction` : `Final: ${g.total}/${g.baseMax}`;
+    const lms=g.lmsSentAt ? 'Results sent to LMS: '+formatResultTime(g.lmsSentAt) : 'Results sent to LMS: Not yet recorded';
+    const student=g.studentSentAt ? 'Results sent to student: '+formatResultTime(g.studentSentAt) : 'Results sent to student: Not yet recorded';
+    return [score,lms,student].join('\n');
 }
 function formatResultTime(value) {
     return new Date(value).toLocaleString('en-US', {timeZone:'America/New_York',timeZoneName:'short'});

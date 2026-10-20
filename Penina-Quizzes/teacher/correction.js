@@ -31,7 +31,7 @@ window.QuizCorrection = (() => {
             <div class="answer-comparison"><div class="student-response"><h3>Student’s answer</h3>${answers.map((a,j)=>`<div class="response-part">${q.fields ? `<span class="field-label" dir="auto">${escape(q.fields[j])}</span>` : answers.length > 1 ? `<span class="field-label">Part ${j+1}</span>` : ''}<p dir="auto">${escape(a || '(No answer)')}</p></div>`).join('')}</div>
             <div class="reference-response"><h3>${auto ? 'Correct answer' : 'Model answer'}</h3><p dir="auto">${escape(reference || 'No model answer provided.')}</p></div></div>
             <div class="question-marking">${auto ? `<label>Points awarded <span class="points-range">(0–${max})</span><input aria-label="Points for question ${i+1}" name="auto${i}" data-original="${auto.originalScore ?? auto.score}" type="number" min="0" max="${max}" step="${step}" value="${auto.score}" required></label><span class="marking-hint">Answer-key score: ${auto.originalScore ?? auto.score}/${max}. Change the points to override this student’s mark. <strong class="override-label">${auto.overridden ? 'Teacher override' : ''}</strong></span>` : `<label>Points awarded <span class="points-range">(0–${max})</span><input aria-label="Points for question ${i+1}" name="manual${i}" type="number" min="0" max="${max}" step="${step}" value="${manual.score ?? ''}" placeholder="—"></label><span class="marking-hint">Leave blank if this answer still needs correction.</span>`}</div>
-            ${auto ? `<label class="override-explanation">Explanation for the student <span class="muted">(included in the email when you override this mark)</span><textarea name="explanation${i}" maxlength="2000" dir="auto" placeholder="For example: The answer key was incorrect. Your answer is correct, so I have awarded full credit.">${escape(auto.explanation || '')}</textarea></label>` : ''}
+            <label class="override-explanation">Explanation for the student <span class="muted">${auto?'(included in the email when you override this mark)':'(included in the corrected-test email)'}</span><textarea name="explanation${i}" maxlength="2000" dir="auto" placeholder="Explain the points awarded or why you revised this mark.">${escape(grade.explanation || '')}</textarea></label>
         </section>`;
     }
     document.addEventListener('input', event => {
@@ -62,7 +62,7 @@ window.QuizCorrection = (() => {
     function explanations(form) {
         const changed = overrides(form);
         return Object.fromEntries([...form.querySelectorAll('textarea[name^="explanation"]')]
-            .filter(input => Object.hasOwn(changed,input.name.slice(11)))
+            .filter(input => Object.hasOwn(changed,input.name.slice(11)) || form.elements.namedItem('manual'+input.name.slice(11)))
             .map(input => [input.name.slice(11),input.value.trim()]));
     }
     return {question, overrides, explanations, compareStudents};

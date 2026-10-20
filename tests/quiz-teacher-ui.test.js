@@ -152,3 +152,21 @@ test('Opening student responses scrolls to their beginning after the panels chan
  card.open=true;handlers.toggle.fn({target:card});card.isConnected=false;frames.shift()();
  assert.equal(scrolls.length,1);
 });
+
+
+for(const fieldName of ['manual9','auto9'])test(`${fieldName}: above-assigned scores require confirmation before saving or sending`,()=>{
+ const handlers={},prompts=[];let accept=false,focused=false,stopped=false,prevented=false;
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/correction.js'),'utf8'),{
+  window:{confirm:message=>{prompts.push(message);return accept;}},document:{addEventListener(type,fn,capture){handlers[type]={fn,capture};}}
+ });
+ const input={name:fieldName,value:'2',dataset:{max:'1'},validity:{valid:true},focus(){focused=true;}};
+ const form={matches:()=>true,querySelectorAll:()=>[input]};
+ const event={target:form,preventDefault(){prevented=true;},stopImmediatePropagation(){stopped=true;}};
+ assert.equal(handlers.submit.capture,true);
+ handlers.submit.fn(event);assert.ok(prevented && stopped && focused);assert.match(prompts[0],/Question 10: 2 points awarded; 1 assigned/);
+ accept=true;prevented=stopped=false;handlers.submit.fn(event);assert.equal(prevented,false);assert.equal(stopped,false);
+ handlers.submit.fn(event);assert.equal(prompts.length,2);
+ input.value='3';handlers.submit.fn(event);assert.equal(prompts.length,3);
+ input.value='1';handlers.submit.fn(event);assert.equal(prompts.length,3);
+ input.value='';handlers.submit.fn(event);assert.equal(prompts.length,3);
+});

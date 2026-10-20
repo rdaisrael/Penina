@@ -70,7 +70,7 @@ test('Teacher corrections persist with half points, extra credit, and feedback; 
 });
 test('Invalid correction scores and nonexistent submissions are rejected',async()=>{
     const h=harness();await h.run(submission());
-    for(const scores of [[2,1,2,2],[1,-1,2,2],[1,1,3,2],[1,1,2],[1,'1',2,2],[1,0.3,2,2]]) {
+    for(const scores of [[1,-1,2,2],[1,1,2],[1,'1',2,2],[1,0.3,2,2]]) {
         assert.equal((await h.run({action:'correct',id:'a'.repeat(32),password:'teacher-secret',scores,feedback:''})).code,400);
     }
     assert.equal((await h.run({action:'correct',id:'b'.repeat(32),password:'teacher-secret',scores:[1,1,2,2],feedback:''})).code,404);
@@ -168,7 +168,7 @@ test('Automatic score overrides persist, validate, restore, and reach Classroom'
  const index=0,original=before.grading.automatic.find(q=>q.index===index).score,changed=original===0?1:0;
  const body={action:'correct',id:submitted.id,password:'teacher-secret',scores:[1,1,0,0],overrides:{[index]:changed},feedback:'Answer key correction',sendToClassroom:true};
  assert.equal((await h.run({...body,password:'wrong'})).code,401);
- for(const overrides of [{[index]:99},{[index]:-1},{[index]:0.25},{[index]:'1'},{999:1},[],null])assert.equal((await h.run({...body,overrides})).code,400);
+ for(const overrides of [{[index]:-1},{[index]:0.25},{[index]:'1'},{999:1},[],null])assert.equal((await h.run({...body,overrides})).code,400);
  const saved=await h.run(body);assert.equal(saved.code,200);assert.equal(saved.data.grading.automatic.find(q=>q.index===index).score,changed);
  assert.equal(h.sentGrades.at(-1).grading.total,saved.data.grading.total);
  const after=(await h.run({action:'report',password:'teacher-secret'})).data.submissions[0];

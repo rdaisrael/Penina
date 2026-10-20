@@ -18,7 +18,7 @@ window.QuizCorrection = (() => {
     }
     function state(score, max) {
         if (score === null || score === undefined) return ['pending', 'Needs correction'];
-        if (score === max) return ['correct', '✓ Correct'];
+        if (score >= max) return ['correct', '✓ Correct'];
         if (score === 0) return ['incorrect', '✕ Incorrect'];
         return ['partial', '◐ Partial credit'];
     }
@@ -31,7 +31,7 @@ window.QuizCorrection = (() => {
             <h2 class="review-prompt" dir="auto">${escape(q.prompt)}</h2>
             <div class="answer-comparison"><div class="student-response"><h3>Student’s answer</h3>${answers.map((a,j)=>`<div class="response-part">${q.fields ? `<span class="field-label" dir="auto">${escape(q.fields[j])}</span>` : answers.length > 1 ? `<span class="field-label">Part ${j+1}</span>` : ''}<p dir="auto">${escape(a || '(No answer)')}</p></div>`).join('')}</div>
             <div class="reference-response"><h3>${auto ? 'Correct answer' : 'Model answer'}</h3><p dir="auto">${escape(reference || 'No model answer provided.')}</p></div></div>
-            <div class="question-marking">${auto ? `<label>Points awarded <span class="points-range">(0–${max})</span><input aria-label="Points for question ${i+1}" name="auto${i}" data-original="${auto.originalScore ?? auto.score}" type="number" min="0" max="${max}" step="${step}" value="${auto.score}" required></label><span class="marking-hint">Answer-key score: ${auto.originalScore ?? auto.score}/${max}. Change the points to override this student’s mark. <strong class="override-label">${auto.overridden ? 'Teacher override' : ''}</strong></span>` : `<label>Points awarded <span class="points-range">(0–${max})</span><input aria-label="Points for question ${i+1}" name="manual${i}" type="number" min="0" max="${max}" step="${step}" value="${manual.score ?? ''}" placeholder="—"></label><span class="marking-hint">Leave blank if this answer still needs correction.</span>`}</div>
+            <div class="question-marking">${auto ? `<label>Points awarded <span class="points-range">(suggested: 0–${max})</span><input aria-label="Points for question ${i+1}" name="auto${i}" data-original="${auto.originalScore ?? auto.score}" type="number" min="0" data-max="${max}" step="${step}" value="${auto.score}" required></label><span class="marking-hint">Answer-key score: ${auto.originalScore ?? auto.score}/${max}. Change the points to override this student’s mark. <strong class="override-label">${auto.overridden ? 'Teacher override' : ''}</strong></span>` : `<label>Points awarded <span class="points-range">(suggested: 0–${max})</span><input aria-label="Points for question ${i+1}" name="manual${i}" type="number" min="0" data-max="${max}" step="${step}" value="${manual.score ?? ''}" placeholder="—"></label><span class="marking-hint">You may award more than the suggested points. Leave blank if this answer still needs correction.</span>`}</div>
             <label class="override-explanation">Explanation for the student <span class="muted">${auto?'(included in the email when you override this mark)':'(included in the corrected-test email)'}</span><textarea name="explanation${i}" maxlength="2000" dir="auto" placeholder="Explain the points awarded or why you revised this mark.">${escape(grade.explanation || '')}</textarea></label>
         </section>`;
     }
@@ -46,8 +46,27 @@ window.QuizCorrection = (() => {
             }
         });
     }, true);
+    const confirmedExtraPoints = new WeakMap();
+    // Confirm before any save, Classroom transfer, or email handler can run.
+    document.addEventListener('submit', event => {
+        const form = event.target;
+        if (!form.matches('form.correction')) return;
+        const inputs = [...form.querySelectorAll('input[name^="manual"], input[name^="auto"]')].filter(input =>
+            input.validity.valid && input.value !== '' && Number(input.value) > Number(input.dataset.max) &&
+            confirmedExtraPoints.get(input) !== input.value);
+        if (!inputs.length) return;
+        const questions = inputs.map(input => `Question ${Number(input.name.replace(/^(manual|auto)/, ''))+1}: ${input.value} points awarded; ${input.dataset.max} assigned.`).join('\n');
+        if (!window.confirm(`Did you intend to exceed the number of assigned points for ${inputs.length===1?'this question':'these questions'}?\n\n${questions}\n\nChoose OK to keep these scores, or Cancel to review them.`)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            inputs[0].focus();
+            return;
+        }
+        inputs.forEach(input => confirmedExtraPoints.set(input, input.value));
+    }, true);
     document.addEventListener('input', event => {
         const input = event.target;
+        confirmedExtraPoints.delete(input);
         const form=input.closest('form.correction');
         if(form) {
             form.dataset.classroomDraft='false';
@@ -58,13 +77,14 @@ window.QuizCorrection = (() => {
         const card = input.closest('.review-question');
         if (!card) return;
         const valid = input.validity.valid, score = input.value === '' ? null : Number(input.value);
-        const [kind,label] = valid ? state(score, Number(input.max)) : ['pending', 'Check points'];
+        const max = Number(input.dataset.max ?? input.max);
+        const [kind,label] = valid ? state(score, max) : ['pending', 'Check points'];
         const overrideLabel = card.querySelector('.override-label');
         if (overrideLabel) overrideLabel.textContent = valid && score !== Number(input.dataset.original) ? 'Teacher override' : '';
         card.querySelector('.hand-corrected-dot').hidden = !valid || score === null || (input.name.startsWith('auto') && score === Number(input.dataset.original));
         card.dataset.grade = kind;
         card.querySelector('.grade-badge').textContent = label;
-        card.querySelector('.question-points').textContent = `${valid ? score ?? '—' : '—'} / ${input.max} points`;
+        card.querySelector('.question-points').textContent = `${valid ? score ?? '—' : '—'} / ${max} points`;
         input.closest('form').querySelector('.saveStatus').textContent = 'Unsaved changes — save corrections when you’re ready.';
     });
     function overrides(form) {

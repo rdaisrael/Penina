@@ -41,7 +41,7 @@ test('Automatic grading is exact; repeated gap answers work; written marks remai
  const q=fixture(),answers=[['explanation'],['B'],['C','A'],['א','א'],['ב','א']];
  assert(model.validAnswers(q,answers));const g=model.grade(q,answers);assert.equal(g.automaticScore,5);assert.equal(g.total,null);assert.equal(g.pending,1);
  assert.equal(model.grade(q,answers,{scores:[1.5]}).total,6.5);answers[2]=['A','A'];assert(!model.validAnswers(q,answers));assert.equal(model.grade(q,answers).automaticScore,4);
- assert(!model.validCorrections(q,[3]));assert(!JSON.stringify(model.publicQuestions(q)).includes('answer'));
+ assert(model.validCorrections(q,[3]));assert(!JSON.stringify(model.publicQuestions(q)).includes('answer'));
 });
 test('Drafts require a teacher, same origin, stay owner scoped and are encrypted at rest',async()=>{
  const h=harness();assert.equal((await h.call(h.builder.handle,h.req({action:'save',quiz:fixture()},'student'))).code,403);
@@ -186,7 +186,7 @@ test('Custom automatic overrides preserve answers, enforce increments, update su
  assert.equal((await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers},'student'))).code,200);
  const body={...link,id,action:'correct',scores:[2],overrides:{1:1},feedback:'Corrected key error',sendToClassroom:true};
  assert.equal((await h.call(h.submissions,h.req(body,'student'))).code,403);
- for(const overrides of [{1:0.5},{1:2},{0:1},{999:1},null,[]])assert.equal((await h.call(h.submissions,h.req({...body,overrides}))).code,400);
+ for(const overrides of [{1:0.5},{1:-1},{0:1},{999:1},null,[]])assert.equal((await h.call(h.submissions,h.req({...body,overrides}))).code,400);
  const saved=await h.call(h.submissions,h.req(body));assert.equal(saved.code,200);assert.equal(saved.data.grading.total,7);assert.equal(h.state.grade.draftGrade,7);
  const report=await h.call(h.submissions,h.req({...link,action:'report'})),record=report.data.submissions[0];
  assert.deepEqual(record.answers,answers);assert.equal(record.grading.automatic[0].originalScore,0);assert.equal(record.grading.automatic[0].score,1);assert.equal(record.grading.automatic[0].overridden,true);
@@ -241,4 +241,35 @@ test('Published bonus settings survive reload and Classroom receives 11 out of 1
  const id='b'.repeat(32),answers=q.questions.map(()=>['A']);const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
  assert.equal((await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers},'student'))).code,200);
  const corrected=await h.call(h.submissions,h.req({...link,id,action:'correct',scores:[],feedback:'',sendToClassroom:true}));assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,11);assert.equal(corrected.data.grading.baseMax,10);assert.equal(h.state.grade.draftGrade,11);assert.equal(corrected.data.classroom.maxPoints,10);
+});
+
+
+test('Hand-graded points above the suggestion persist and reach Classroom and email',async()=>{
+ const h=harness(),quiz=fixture();quiz.questions[0].points=1;quiz.questions[0].extraCredit=true;
+ const link=await assigned(h,quiz),id='f'.repeat(32);
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));
+ const body={...link,id,action:'correct',scores:[2],explanations:{0:'This question should allow two points.'},feedback:''};
+ const saved=await h.call(h.submissions,h.req({...body,sendToClassroom:true}));
+ assert.equal(saved.code,200);assert.equal(saved.data.grading.manual[0].score,2);
+ assert.equal(saved.data.grading.manual[0].max,1);
+ assert.equal(h.state.grade.draftGrade,saved.data.grading.total);
+ const sent=await h.call(h.submissions,h.req({...body,emailStudent:true}));assert.equal(sent.code,200);
+ assert.equal(h.state.emailed.grading.manual[0].score,2);
+ const report=await h.call(h.submissions,h.req({...link,action:'report'}));
+ assert.equal(report.data.submissions[0].grading.manual[0].score,2);assert.equal(report.data.summary[0].correct,1);
+ for(const score of [-1,0.25,'2'])assert.equal((await h.call(h.submissions,h.req({...body,scores:[score]}))).code,400);
+});
+
+
+test('Above-assigned automatic overrides persist and reach Classroom and email',async()=>{
+ const h=harness(),link=await assigned(h),id='9'.repeat(32);
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));
+ const body={...link,id,action:'correct',scores:[2],overrides:{1:2},explanations:{1:'Two points intended.'},feedback:''};
+ const saved=await h.call(h.submissions,h.req({...body,sendToClassroom:true}));assert.equal(saved.code,200);
+ assert.equal(saved.data.grading.automatic[0].score,2);assert.equal(saved.data.grading.automatic[0].max,1);
+ assert.equal(h.state.grade.draftGrade,saved.data.grading.total);
+ const sent=await h.call(h.submissions,h.req({...body,emailStudent:true}));assert.equal(sent.code,200);assert.equal(h.state.emailed.grading.automatic[0].score,2);
+ const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.data.submissions[0].grading.automatic[0].score,2);assert.equal(report.data.summary[1].correct,1);
 });

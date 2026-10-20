@@ -5,7 +5,6 @@ function esc(s) { return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;
 const quizId=new URLSearchParams(location.search).get('quiz') || '';
 const ACCOUNT_API='/api/game-scores?game=quiz-account&quiz='+encodeURIComponent(quizId);
 const SUBMISSIONS_API='/api/game-scores?game=assessment-custom&quiz='+encodeURIComponent(quizId);
-document.getElementById('studentQuiz').href='./?quiz='+encodeURIComponent(quizId);
 const connectionStatus=document.getElementById('connectionStatus');
 async function accountRequest(action,body) {
     const response=await fetch(ACCOUNT_API+(body?'':'&action='+action),body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,action})}:{});

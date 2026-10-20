@@ -132,3 +132,23 @@ test('Results dropdown includes only classes assigned this quiz, even if the act
  const assigning=await initialize({search:'?mode=assign',assignments});
  assert.ok(!assigning.requests.includes('assignments'));
 });
+
+
+test('Opening student responses scrolls to their beginning after the panels change',()=>{
+ const handlers={},frames=[],scrolls=[];
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/correction.js'),'utf8'),{
+  window:{},document:{addEventListener(type,fn,capture){handlers[type]={fn,capture};}},requestAnimationFrame:fn=>frames.push(fn)
+ });
+ const card={open:true,isConnected:true,matches:s=>s==='#reports > details.card',scrollIntoView:options=>scrolls.push(options)};
+ assert.equal(handlers.toggle.capture,true);
+ handlers.toggle.fn({target:card});
+ assert.equal(scrolls.length,0);
+ frames.shift()();
+ assert.equal(scrolls[0].block,'start');assert.equal(scrolls[0].behavior,'instant');
+ handlers.toggle.fn({target:card});card.open=false;frames.shift()();
+ handlers.toggle.fn({target:card});
+ handlers.toggle.fn({target:{...card,open:true,matches:()=>false}});
+ assert.equal(scrolls.length,1);assert.equal(frames.length,0);
+ card.open=true;handlers.toggle.fn({target:card});card.isConnected=false;frames.shift()();
+ assert.equal(scrolls.length,1);
+});

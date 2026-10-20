@@ -35,6 +35,17 @@ window.QuizCorrection = (() => {
             <label class="override-explanation">Explanation for the student <span class="muted">${auto?'(included in the email when you override this mark)':'(included in the corrected-test email)'}</span><textarea name="explanation${i}" maxlength="2000" dir="auto" placeholder="Explain the points awarded or why you revised this mark.">${escape(grade.explanation || '')}</textarea></label>
         </section>`;
     }
+    // Wait for the previous student's panel to collapse before positioning the new one.
+    // Capture is required because native details toggle events do not bubble.
+    document.addEventListener('toggle', event => {
+        const submission = event.target;
+        if (!submission.matches('#reports > details.card') || !submission.open) return;
+        requestAnimationFrame(() => {
+            if (submission.isConnected && submission.open) {
+                submission.scrollIntoView({block:'start', behavior:'instant'});
+            }
+        });
+    }, true);
     document.addEventListener('input', event => {
         const input = event.target;
         const form=input.closest('form.correction');

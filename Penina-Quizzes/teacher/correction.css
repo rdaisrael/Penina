@@ -29,3 +29,9 @@
 
 .graded-check{color:#17613b;font-size:22px;font-weight:750}
 #reports>details.card{scroll-margin-top:20px}
+
+/* Keep class labels, controls, and actions on separate, spaced lines. */
+#login,#chooseClass{display:flex;flex-direction:column;align-items:flex-start;gap:18px}
+#login label,#chooseClass label{display:flex;flex-direction:column;gap:10px;width:100%;min-width:0}
+#login select,#chooseClass select{display:block;width:100%;max-width:100%;min-width:0;margin:0}
+#login button,#chooseClass button{max-width:100%;white-space:normal}

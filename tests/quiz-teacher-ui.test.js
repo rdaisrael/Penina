@@ -4,11 +4,11 @@ const correctionContext={window:{},document:{addEventListener(){}}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/correction.js'),'utf8'),correctionContext);
 const QuizCorrection=correctionContext.window.QuizCorrection;
 const initializer=source.slice(source.indexOf('(async()=>{'),source.indexOf('})();')+5);
-async function initialize({search,failCourses=false,configured=true}) {
+async function initialize({search,failCourses=false,configured=true,assignments=[]}) {
  const elements=new Map(),requests=[],loaded=[];
  function element(id){if(!elements.has(id))elements.set(id,{options:[{value:''}],value:'',add(option){this.options.push(option);}});return elements.get(id);}
- const context={URLSearchParams,location:{search},Option:class{constructor(label,value){this.label=label;this.value=value;}},document:{getElementById:element,querySelector:()=>({})},connectionStatus:element('connectionStatus'),esc:s=>s,
-  accountRequest:async action=>{requests.push(action);if(action==='config')return {configured};if(failCourses)throw Error('Classroom unavailable');return {email:'teacher@school.org',courses:[{id:'active',name:'Active class'}]};},
+ const context={URLSearchParams,quizId:'custom-test',location:{search},Option:class{constructor(label,value){this.label=label;this.value=value;}},document:{getElementById:element,querySelector:()=>({})},connectionStatus:element('connectionStatus'),esc:s=>s,
+  accountRequest:async action=>{requests.push(action);if(action==='config')return {configured};if(action==='assignments')return {assignments};if(failCourses)throw Error('Classroom unavailable');return {email:'teacher@school.org',courses:[{id:'active',name:'Active class'}]};},
   loadReport:async()=>loaded.push(element('reportClass').value)};
  await vm.runInNewContext(initializer,context);
  return {elements,requests,loaded};
@@ -121,4 +121,14 @@ test('Last-name ordering handles ties, comma names, single names, and whitespace
  const html=view.elements.get('rosterRows').innerHTML;
  assert.ok(html.indexOf('ben Adams')<html.indexOf('Zoe Adams'));
  assert.ok(html.indexOf('Zoe Adams')<html.indexOf('Amy Zimmer'));
+});
+
+test('Results dropdown includes only classes assigned this quiz, even if the active course list fails',async()=>{
+ const assignments=[{quiz:'custom-test',courseId:'6b',className:'Gemara 6B'},{quiz:'other-quiz',courseId:'8a',className:'Gemara 8A'},{quiz:'custom-test',courseId:'6a',className:'Gemara 6A'}];
+ for(const failCourses of [false,true]) {
+  const result=await initialize({search:'?mode=review',assignments,failCourses});
+  assert.deepEqual(result.elements.get('reportClass').options.map(o=>o.value),['','6a','6b']);
+ }
+ const assigning=await initialize({search:'?mode=assign',assignments});
+ assert.ok(!assigning.requests.includes('assignments'));
 });

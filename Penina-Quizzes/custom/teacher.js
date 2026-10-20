@@ -54,7 +54,7 @@ function formatResultTime(value) {
     return new Date(value).toLocaleString('en-US', {timeZone:'America/New_York',timeZoneName:'short'});
 }
 function render() {
-    records.sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}) || a.id.localeCompare(b.id));
+    records.sort(QuizCorrection.compareStudents);
     document.getElementById('reports').innerHTML = records.map(r=>{
         const g=r.grading;
         return `<details class="card" id="submission-${esc(r.id)}"><summary>${esc(r.name)} · ${esc(r.email)}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(formatResultTime(r.submittedAt))} · Receipt: ${esc(r.id)}</p><form class="correction" data-id="${r.id}" data-classroom-draft="${g.classroomDraft===true}">${questions.map((q,i)=>{
@@ -81,7 +81,7 @@ function renderRoster(roster) {
     const counts={};for(const s of roster.students)counts[s.status]=(counts[s.status] || 0)+1;
     caption.textContent=roster.className+' · '+roster.students.length+' enrolled students'+(roster.assigned?' · '+Object.entries(counts).map(([key,n])=>n+' '+labels[key].toLowerCase()).join(' · '):' · This quiz has not been assigned to this class.')+' · Use Load roster & results to refresh.';
     const submissions=new Map(records.map(record=>[record.id,record]));
-    rows.innerHTML=[...roster.students].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}) || a.id.localeCompare(b.id)).map(s=>{
+    rows.innerHTML=[...roster.students].sort(QuizCorrection.compareStudents).map(s=>{
         const submission=submissions.get(s.submissionId),graded=submission?.grading.savedAt && submission.grading.pending===0;
         const name=submission?`<a href="#submission-${esc(submission.id)}" data-submission="${esc(submission.id)}">${esc(s.name)}</a>`:esc(s.name);
         return `<tr><th scope="row">${name}</th><td><span class="roster-status">${labels[s.status]}</span></td><td>${graded?'<span class="graded-check" role="img" aria-label="Graded" title="Graded">✓</span>':'<span aria-label="Not graded">—</span>'}</td><td>${s.startedAt?esc(formatResultTime(s.startedAt)):'—'}</td><td>${s.submittedAt?esc(formatResultTime(s.submittedAt)):'—'}</td></tr>`;

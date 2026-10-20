@@ -1,5 +1,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/custom/teacher.js'),'utf8');
+const correctionContext={window:{},document:{addEventListener(){}}};
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/correction.js'),'utf8'),correctionContext);
+const QuizCorrection=correctionContext.window.QuizCorrection;
 const initializer=source.slice(source.indexOf('(async()=>{'),source.indexOf('})();')+5);
 async function initialize({search,failCourses=false,configured=true}) {
  const elements=new Map(),requests=[],loaded=[];
@@ -25,7 +28,7 @@ test('Assigning never auto-loads correction reports',async()=>{
 function rosterView(records) {
  const elements=new Map();
  const document={getElementById(id){if(!elements.has(id))elements.set(id,{replaceChildren(){this.innerHTML='';}});return elements.get(id);}};
- const context={document,records,esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),formatResultTime:s=>s};
+ const context={document,records,QuizCorrection,esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),formatResultTime:s=>s};
  vm.runInNewContext(source.slice(source.indexOf('function renderRoster('),source.indexOf('async function loadReport(')),context);
  return {render:context.renderRoster,elements};
 }
@@ -55,13 +58,13 @@ test('Graded check requires saved, complete corrections and updates after saving
  assert.match(reloaded.elements.get('rosterRows').innerHTML,/aria-label="Graded"/);
 });
 test('Answer cards are alphabetical and provide roster link targets',()=>{
- const records=['Zoe','Alice','ben'].map((name,i)=>({id:String(i),name,email:'student@example.org',answers:[],grading:{automatic:[],manual:[],feedback:'',baseMax:0,pending:0}}));
+ const records=['Amy Zimmer','Zoe Adams','ben Adams'].map((name,i)=>({id:String(i),name,email:'student@example.org',answers:[],grading:{automatic:[],manual:[],feedback:'',baseMax:0,pending:0}}));
  const reports={};
  vm.runInNewContext(source.slice(source.indexOf('function render()'),source.indexOf('function renderSummary()'))+'\nrender();',{
-  records,questions:[],document:{getElementById:()=>reports},esc:String,scoreText:()=>'',formatResultTime:()=>''
+  records,QuizCorrection,questions:[],document:{getElementById:()=>reports},esc:String,scoreText:()=>'',formatResultTime:()=>''
  });
- assert.deepEqual(records.map(r=>r.name),['Alice','ben','Zoe']);
- assert.match(reports.innerHTML,/id="submission-1"/);
+ assert.deepEqual(records.map(r=>r.name),['ben Adams','Zoe Adams','Amy Zimmer']);
+ assert.match(reports.innerHTML,/id="submission-2"/);
 });
 test('Clicking a roster name opens and focuses the submitted answers',()=>{
  let handler,scrolled=false,focused=false;
@@ -107,4 +110,15 @@ test('Editing feedback disables email until the updated grading is saved to Clas
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/correction.js'),'utf8'),{window:{},document:{addEventListener:(type,fn)=>handler=fn}});
  handler({target:{closest:()=>form,matches:selector=>selector==='.correction textarea'}});
  assert.equal(button.disabled,true);assert.equal(form.dataset.classroomDraft,'false');
+});
+
+test('Last-name ordering handles ties, comma names, single names, and whitespace',()=>{
+ const names=['Amy Zimmer','Zoe Adams','ben Adams','  Ada   Brown  ','Brown, Aaron','Cher'];
+ const students=names.map((name,id)=>({name,id:String(id)})).sort(QuizCorrection.compareStudents);
+ assert.deepEqual(students.map(s=>s.name),['ben Adams','Zoe Adams','Brown, Aaron','  Ada   Brown  ','Cher','Amy Zimmer']);
+ const view=rosterView([]);
+ view.render({className:'Class',assigned:true,students:names.map((name,id)=>({name,id:String(id),status:'not-started'}))});
+ const html=view.elements.get('rosterRows').innerHTML;
+ assert.ok(html.indexOf('ben Adams')<html.indexOf('Zoe Adams'));
+ assert.ok(html.indexOf('Zoe Adams')<html.indexOf('Amy Zimmer'));
 });

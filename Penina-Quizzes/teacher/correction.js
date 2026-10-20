@@ -2,6 +2,20 @@
 // Shared presentation; existing correction forms remain responsible for saving grades.
 window.QuizCorrection = (() => {
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function compareStudents(a, b) {
+        const parts = student => {
+            const name = String(student.name || '').trim().replace(/\s+/g, ' ');
+            if (name.includes(',')) {
+                const [last, ...first] = name.split(',');
+                return [last.trim(), first.join(',').trim()];
+            }
+            const words = name.split(' ');
+            return [words.pop(), words.join(' ')];
+        };
+        const [lastA, firstA] = parts(a), [lastB, firstB] = parts(b);
+        const compare = (x, y) => x.localeCompare(y, undefined, {sensitivity:'base'});
+        return compare(lastA, lastB) || compare(firstA, firstB) || compare(String(a.id || ''), String(b.id || ''));
+    }
     function state(score, max) {
         if (score === null || score === undefined) return ['pending', 'Needs correction'];
         if (score === max) return ['correct', '✓ Correct'];
@@ -51,5 +65,5 @@ window.QuizCorrection = (() => {
             .filter(input => Object.hasOwn(changed,input.name.slice(11)))
             .map(input => [input.name.slice(11),input.value.trim()]));
     }
-    return {question, overrides, explanations};
+    return {question, overrides, explanations, compareStudents};
 })();

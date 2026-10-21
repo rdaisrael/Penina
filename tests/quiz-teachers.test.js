@@ -23,3 +23,10 @@ test('Only David with the assignment code can allocate a number; records persist
  await assert.rejects(h.api.manage(h.req({...teacher,userId:3,password:'2-no'})),e=>e.status===400);
  const list=await h.api.manage({method:'GET',headers:{cookie:'david'}});assert.equal(list.teachers.length,2);
 });
+
+test('Registered Google emails resolve teacher numbers without passwords or verifier exposure',async()=>{
+ const h=harness();await h.api.manage(h.req(teacher));
+ assert.equal((await h.api.registered('DISRAEL@saracademy.org')).userId,1);
+ const result=await h.api.registered(teacher.email);assert.equal(result.userId,2);assert.equal(result.hash,undefined);assert.equal(result.salt,undefined);
+ assert.equal(await h.api.registered('unknown@example.org'),null);
+});

@@ -5,8 +5,8 @@ function harness() {
     class OAuth2Client {
         setCredentials(value){this.credentials=value;}
         generateAuthUrl(options){state.options=options;return 'https://accounts.google.com/o/oauth2/v2/auth?state='+options.state;}
-        async getToken(options){state.exchange=options;return {tokens:{id_token:'verified-by-library',refresh_token:'refresh-secret',scope:[...state.options.scope].join(' ')}};}
-        async verifyIdToken(options){state.verification=options;if(state.invalidToken)throw Error('Invalid signature or audience');return {getPayload:()=>({sub:'student-id',email:state.email || 'student@school.org',name:'Student',email_verified:true,nonce:state.wrongNonce?'wrong':state.options.nonce})};}
+        async getToken(options){state.exchange=options;return {tokens:{id_token:'verified-by-library',refresh_token:state.noRefresh?undefined:'refresh-secret',scope:[...state.options.scope].join(' ')}};}
+        async verifyIdToken(options){state.verification=options;if(state.invalidToken)throw Error('Invalid signature or audience');return {getPayload:()=>({sub:'student-id',email:state.email || 'student@school.org',name:'Student',email_verified:!state.unverified,nonce:state.wrongNonce?'wrong':state.options.nonce})};}
         async request({url,params,paramsSerializer,method='GET',data}) {
             requests.push({url,params,method,data,query:paramsSerializer(params)});
             if(url.endsWith(':return')) {if(state.returnFailure)throw {response:{status:503}};return {data:{}};}
@@ -29,7 +29,7 @@ function harness() {
         if(n==='crypto')return require('crypto');
         if(n==='google-auth-library')return {OAuth2Client};
         if(n==='@vercel/blob')return {del:async p=>blobs.delete(p),list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,options)=>{if(options?.allowOverwrite===false && blobs.has(p))throw Error('Already exists');blobs.set(p,s);}};
-        if(n==='./quiz-teachers')return {verify:async(email,password)=>email==='second@school.org' && password==='2-signin'?{userId:2,email}:null};
+        if(n==='./quiz-teachers')return {registered:async email=>email==='disrael@saracademy.org'?{userId:1,email}:email==='second@school.org'?{userId:2,email}:null};
         if(n==='./vocabulary-pages')return {getPage:async()=>({}),authenticatePage:(_,p)=>p==='teacher-secret'?null:{status:401,error:'Incorrect password'}};
         if(n.endsWith('questions.json'))return require(n);
         return require(n);
@@ -236,21 +236,20 @@ test('Grade 8 retake grades use its eight-point assignment and cannot target the
     assert.equal(sent.maxPoints,8);assert.equal(sent.score,7.5);assert.equal(sent.draft,true);
 });
 
-test('User 1 entrance checks email and password and binds the Google callback',async()=>{
-    const h=harness(), req=h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true,email:'disrael@saracademy.org',password:'wrong'}});
-    assert.equal((await h.run(req)).code,401);
-    req.body.password='portal-test-password';req.body.email='other@school.org';assert.equal((await h.run(req)).code,401);
-    req.body.email='disrael@saracademy.org';const login=await h.run(req);assert.equal(login.code,200);assert.equal(h.state.options.login_hint,req.body.email);
+test('Google-only teacher login derives privileges from the verified registered email',async()=>{
+    const h=harness(), req=h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true,userId:1,email:'disrael@saracademy.org'}});
+    const login=await h.run(req);assert.equal(login.code,200);assert.equal(h.state.options.prompt,'select_account');
     const callback=h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}});
-    assert.equal((await h.run(callback)).code,403); // A different verified Google account cannot become User 1.
-    h.state.email=req.body.email;const result=await h.run(callback);assert.equal(result.code,303);assert.equal(result.headers.Location,'/Penina-Quizzes/teacher/');
+    assert.equal((await h.run(callback)).code,403);
+    assert.equal(h.blobs.has('quiz-google/teachers/student-id.txt'),false);
+    h.state.email='disrael@saracademy.org';h.state.unverified=true;assert.equal((await h.run(callback)).code,401);h.state.unverified=false;
+    const result=await h.run(callback);assert.equal(result.code,303);assert.equal(result.headers.Location,'/Penina-Quizzes/teacher/');
     const cookie=result.headers['Set-Cookie'][1].split(';')[0];
+    assert(result.headers['Set-Cookie'][1].includes('Max-Age=2592000'));
     assert.equal(h.api.isAccountOwner({headers:{cookie}}),true);
     const info=await h.run(h.request({query:{action:'teacher'},headers:{cookie}}));assert.equal(info.data.userId,1);
-    assert.equal((await h.run(h.request({query:{action:'teacher'}}))).code,403);
-    assert.equal(h.api.isAccountOwner(h.request({headers:{cookie:h.cookie({role:'teacher',email:req.body.email})}})),false);
 });
-test('User 1 cannot bypass the new password with the old grade password',async()=>{
+test('Legacy grade login cannot create an owner portal session',async()=>{
     const h=harness();h.state.email='disrael@saracademy.org';
     const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',password:'teacher-secret'}}));
     const result=await h.run(h.request({query:{action:'callback',code:'code',state:h.state.options.state},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));assert.equal(result.code,403);
@@ -309,10 +308,30 @@ test('Correction list puts posted quizzes first by posting time, then drafts by 
 
 test('Assigned teacher sign-in binds Google email and carries its number without owner privileges',async()=>{
  const h=harness();const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true,email:'second@school.org',password:'2-signin'}}));
- assert.equal(login.code,200);assert.equal(h.state.options.login_hint,'second@school.org');
+ assert.equal(login.code,200);assert.equal(h.state.options.prompt,'select_account');
  const callback=h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}});
  assert.equal((await h.run(callback)).code,403);
  h.state.email='second@school.org';const result=await h.run(callback);assert.equal(result.code,303);
  const cookie=result.headers['Set-Cookie'][1].split(';')[0];assert.equal(h.api.isAccountOwner({headers:{cookie}}),false);
  const info=await h.run(h.request({query:{action:'teacher'},headers:{cookie}}));assert.equal(info.data.userId,2);
+});
+
+test('Returning teachers reuse saved refresh tokens without repeating consent',async()=>{
+ const h=harness();h.state.email='disrael@saracademy.org';h.state.noRefresh=true;
+ h.blobs.set('quiz-google/teachers/student-id.txt',h.api.seal({refreshToken:'existing-token'}));
+ const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true}}));
+ const result=await h.run(h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));
+ assert.equal(result.code,303);assert.equal(result.headers.Location,'/Penina-Quizzes/teacher/');
+ assert.equal(h.api.unseal(h.blobs.get('quiz-google/teachers/student-id.txt')).refreshToken,'existing-token');
+ assert.equal(h.state.options.prompt,'select_account');
+});
+test('Missing offline access requests consent once, while explicit reconnect requests it immediately',async()=>{
+ const h=harness();h.state.email='disrael@saracademy.org';h.state.noRefresh=true;
+ const req=h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true}});
+ const login=await h.run(req);
+ const callback=(cookie)=>h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:cookie.split(';')[0]}});
+ const retry=await h.run(callback(login.headers['Set-Cookie']));assert.equal(retry.code,303);assert(retry.headers.Location.startsWith('https://accounts.google.com/'));assert.equal(h.state.options.prompt,'consent');
+ assert.equal((await h.run(callback(retry.headers['Set-Cookie']))).code,403);
+ h.state.noRefresh=false;assert.equal((await h.run(callback(retry.headers['Set-Cookie']))).headers.Location,'/Penina-Quizzes/teacher/');
+ req.body.reconnect=true;await h.run(req);assert.equal(h.state.options.prompt,'select_account consent');
 });

@@ -1,6 +1,6 @@
 # PP Quiz builder
 
-Open `/Penina-Quizzes/builder/` from **Build a quiz** on the Penina home page. Connect the existing Google teacher account using the existing teacher-password flow. The account owns its own library.
+Open `/Penina-Quizzes/builder/` from **Build a quiz** on the Penina home page. Sign in with the registered Google teacher account through Teacher tools. The account owns its own library.
 
 Create a quiz title and a 1–1,000 minute time limit or **No time limit**, then add written answer, multiple choice, multiple answers, fill-in-the-blanks, or ordering questions. Each question has a point value and reading direction. For blanks, insert `___`, update the blanks, and select the answer for each position. Repeated answers are allowed for blanks. Ordering uses each item once; position 1 starts at the selected reading-direction edge. Written questions have optional teacher-only model answers. Other question types default to all-or-nothing scoring per question, with optional points per correct response.
 

@@ -76,6 +76,23 @@
             font-family: Arial, sans-serif;
         }
 
+        .teacher-account {
+            margin-top: 24px;
+        }
+
+        .teacher-account .btn {
+            display: inline-block;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        .teacher-account p {
+            max-width: 420px;
+            margin: 12px auto 0;
+            font: 1rem/1.5 Arial, sans-serif;
+            color: var(--text-muted);
+        }
+
         .cards-container {
             display: flex;
             gap: 100px 40px;
@@ -277,7 +294,10 @@
 
     <header>
         <h1>Penina-Hebrew Suite</h1>
-    
+        <nav class="teacher-account" aria-label="Teacher account">
+            <a href="/Penina-Quizzes/teacher/" class="btn">Teacher sign-in / Manage users</a>
+            <p>Open your teacher tools. David’s account can also assign teacher numbers and view registered teachers.</p>
+        </nav>
     </header>
     
     <div class="cards-container">

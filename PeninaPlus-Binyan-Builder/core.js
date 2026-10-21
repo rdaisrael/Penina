@@ -18,7 +18,7 @@
     const people = {
         first_sg:'אני', second_m_sg:'אתה', second_f_sg:'את', third_m_sg:'הוא', third_f_sg:'היא',
         first_pl:'אנחנו', second_m_pl:'אתם', second_f_pl:'אתן', third_m_pl:'הם', third_f_pl:'הן',
-        masculine_singular:'זכר יחיד', feminine_singular:'נקבה יחידה', masculine_plural:'זכר רבים', feminine_plural:'נקבה רבות', form:'צורה'
+        masculine_singular:'הוא, אתה, אני (ז.)', feminine_singular:'היא, את, אני (נ.)', masculine_plural:'הם, אתם, אנחנו (ז.)', feminine_plural:'הן, אתן, אנחנו (נ.)', form:'צורה'
     };
     const normalize = value => String(value).normalize('NFD').replace(/[\u0591-\u05C7]/g,'').replace(/[^א-ת]/g,'').replace(/[ךםןףץ]/g,c=>({'ך':'כ','ם':'מ','ן':'נ','ף':'פ','ץ':'צ'}[c]));
     function persons(pair) {

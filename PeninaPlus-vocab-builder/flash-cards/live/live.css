@@ -124,3 +124,7 @@
 @media(prefers-reduced-motion:reduce){
  :is(.scores,.winner-podium) .avatar-figure::after{animation:none}
 }
+
+/* Keep native tap/scroll behavior, with feedback across the whole answer card. */
+button.answer{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+button.answer:active:not(:disabled){background:var(--wash);border-color:var(--purple);box-shadow:inset 0 0 0 2px #d9c5ed}

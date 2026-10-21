@@ -499,42 +499,42 @@ test('Start confetti fires once per round, cleans up, and honors reduced motion'
 });
 
 
-test('All eleven avatars persist through joining, answers, standings, reconnects and replay',async()=>{
+test('All fourteen avatars persist through joining, answers, standings, reconnects and replay',async()=>{
  for(const database of [false,true]){
   const h=harness({database}),{code,hostToken}=(await h.create()).body;
   const keys=[],tokens=[];
-  for(let avatar=1;avatar<=11;avatar++){
+  for(let avatar=1;avatar<=14;avatar++){
    const joinKey=crypto.randomUUID();keys.push(joinKey);
    const joined=await h.request('join',{code,name:'AB',joinKey,schoolEmail:'student'+avatar+'@school.example',avatar});
    assert.equal(joined.code,200);tokens.push(joined.body.studentToken);
    assert.equal((await h.request(null,{code},joined.body.studentToken)).body.me.avatar,avatar);
   }
   const lobby=(await h.request(null,{code},hostToken)).body;
-  assert.deepEqual(lobby.players.map(p=>p.avatar),Array.from({length:11},(_,i)=>i+1));
+  assert.deepEqual(lobby.players.map(p=>p.avatar),Array.from({length:14},(_,i)=>i+1));
   await h.request('start',{code,version:0},hostToken);
-  const view=(await h.request(null,{code},tokens[10])).body;
+  const view=(await h.request(null,{code},tokens[13])).body;
   const choice=view.question.options.indexOf(h.cards.find(c=>c.term===view.question.term).english);
-  await h.request('answer',{code,index:0,choice},tokens[10]);
+  await h.request('answer',{code,index:0,choice},tokens[13]);
   const responses=(await h.request(null,{code},hostToken)).body;
-  assert.equal(responses.players.find(p=>p.avatar===11).answered,true);
+  assert.equal(responses.players.find(p=>p.avatar===14).answered,true);
   await h.request('reveal',{code,version:1},hostToken);
-  const scores=(await h.request(null,{code},tokens[10])).body.scores;
-  assert.deepEqual(scores[0],{name:'AB',score:100,avatar:11});
+  const scores=(await h.request(null,{code},tokens[13])).body.scores;
+  assert.deepEqual(scores[0],{name:'AB',score:100,avatar:14});
   assert(!JSON.stringify(scores).includes('@school.example'));
-  const rejoin=await h.request('join',{code,name:'AB',joinKey:keys[10],schoolEmail:'student11@school.example',avatar:1});
-  assert.equal(rejoin.body.studentToken,tokens[10]);
-  assert.equal((await h.request(null,{code},tokens[10])).body.me.avatar,11);
+  const rejoin=await h.request('join',{code,name:'AB',joinKey:keys[13],schoolEmail:'student14@school.example',avatar:1});
+  assert.equal(rejoin.body.studentToken,tokens[13]);
+  assert.equal((await h.request(null,{code},tokens[13])).body.me.avatar,14);
   await h.request('end',{code,version:2},hostToken);
   const final=(await h.request(null,{code},hostToken)).body;
-  assert.equal(final.finalScores[0].avatar,11);
+  assert.equal(final.finalScores[0].avatar,14);
   await h.request('restart',{code,version:3},hostToken);
-  assert.equal((await h.request(null,{code},tokens[10])).body.me.avatar,11);
+  assert.equal((await h.request(null,{code},tokens[13])).body.me.avatar,14);
  }
 });
 
 test('Avatar selection rejects untrusted values and supports older clients without avatars',async()=>{
  const h=harness(),{code,hostToken}=(await h.create()).body;
- for(const avatar of [0,12,-1,1.5,'11','<img>',null,{},[]]){
+ for(const avatar of [0,15,-1,1.5,'11','<img>',null,{},[]]){
   assert.equal((await h.request('join',{code,name:'AB',joinKey:crypto.randomUUID(),schoolEmail:'a@school.example',avatar})).code,400);
  }
  assert.equal((await h.request(null,{code},hostToken)).body.playerCount,0);

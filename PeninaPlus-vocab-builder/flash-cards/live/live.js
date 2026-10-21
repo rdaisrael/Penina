@@ -17,7 +17,7 @@
    const result=await response.json();if(!response.ok){const e=new Error(result.error||'Please try again.');e.status=response.status;throw e;}return result;
   }catch(e){if(e.name==='AbortError')throw new Error('Connection timed out. Please try again.');throw e;}finally{clearTimeout(timeout);}
  }
- const avatarCount=11;
+ const avatarCount=14;
  function avatarFigure(value){
   const id=Number.isInteger(value)&&value>=1&&value<=avatarCount?value:1;
   return `<span class="avatar-figure avatar-${id}" aria-hidden="true"></span>`;

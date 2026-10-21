@@ -128,3 +128,9 @@
 /* Keep native tap/scroll behavior, with feedback across the whole answer card. */
 button.answer{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 button.answer:active:not(:disabled){background:var(--wash);border-color:var(--purple);box-shadow:inset 0 0 0 2px #d9c5ed}
+
+/* The opening frame doubles as the still portrait; the same sheet dances in standings. */
+.avatar-12,.avatar-13,.avatar-14{background-image:var(--avatar-sheet);background-size:400% 200%;background-position:0 0;aspect-ratio:3/4}
+.avatar-12{--avatar-sheet:url('avatars/motion-12.png');--avatar-duration:2.4s;--avatar-halo:#d9f2ed}
+.avatar-13{background-image:url('avatars/character-13-v2.png');background-size:contain;background-position:center;--avatar-sheet:url('avatars/motion-13-spin-v3.png');--avatar-duration:2.4s;--avatar-halo:#ffe2dc}
+.avatar-14{--avatar-sheet:url('avatars/motion-14-floor.png');--avatar-duration:2.4s;--avatar-halo:#d8f3f2}

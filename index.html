@@ -280,7 +280,28 @@
             color: #333;
         }
 
+
+        [hidden] { display: none !important; }
+        #teacher-numbers {
+            box-sizing: border-box;
+            width: calc(100% - 40px);
+            max-width: 720px;
+            margin: 40px auto 0;
+            padding: 28px;
+            background: white;
+            border: 2px solid var(--gold-border);
+            border-radius: 15px;
+            font: 1rem/1.5 Arial, sans-serif;
+        }
+        #teacher-numbers label { display: grid; gap: 6px; margin: 16px 0; }
+        #teacher-numbers input { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--silver-border); border-radius: 6px; font: inherit; }
+        #teacher-numbers button { cursor: pointer; font: inherit; min-height: 44px; }
+        #teacher-numbers button:not(.password-visibility) { padding: 10px 16px; background: #f9f6ef; color: var(--text-dark); border: 1px solid var(--gold-border); border-radius: 6px; }
+        #teacher-list { overflow-wrap: anywhere; }
     </style>
+    <script src="/homepage-teachers.js" defer></script>
+    <link rel="stylesheet" href="/Penina-Quizzes/password-toggle.css">
+    <script src="/Penina-Quizzes/password-toggle.js" defer></script>
 </head>
 <body>
 
@@ -295,8 +316,8 @@
     <header>
         <h1>Penina-Hebrew Suite</h1>
         <nav class="teacher-account" aria-label="Teacher account">
-            <a href="/Penina-Quizzes/teacher/" class="btn">Teacher sign-in / Manage users</a>
-            <p>Open your teacher tools. David’s account can also assign teacher numbers and view registered teachers.</p>
+            <a href="/Penina-Quizzes/teacher/" class="btn">Teacher sign-in</a>
+            <p>Open your vocabulary and quiz tools.</p>
         </nav>
     </header>
     
@@ -356,6 +377,8 @@
             <a href="/Penina-Quizzes/gemara-6-wl-2/" style="margin-top:18px;color:var(--text-dark);font-family:Arial,sans-serif">Students: open quiz</a>
         </div>
     </div>
+
+    <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Number 1 belongs to David Israel. Assign a different number to each teacher.</p><button id="load-teachers" type="button">Show assigned numbers</button><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><label>Teacher sign-in password<input name="password" type="password" maxlength="256" autocomplete="new-password" placeholder="Start with their number and a hyphen" required></label><label>Teacher assignment password<input name="assignmentPassword" type="password" autocomplete="off" required></label><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
 
     <footer>
         <div style="display: flex; flex-direction: column; align-items: center;">

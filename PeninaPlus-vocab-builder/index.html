@@ -839,7 +839,8 @@
                         <button type="submit" id="create-webpage-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;">Create webpage</button>
                     </form>
                 </details>
-                <details class="add-webpage"><summary>Add an older webpage to my list</summary><p>Sign in to Teacher tools first, then enter the webpage link and its publishing password to identify its teacher number.</p><form id="claim-webpage-form"><label for="claim-page-url">Existing webpage link</label><input id="claim-page-url" type="url" required><label for="claim-page-password">Publishing password</label><input id="claim-page-password" type="password" maxlength="256" required><button type="submit">Add to my webpages</button></form></details>
+                <!-- Temporarily hidden; remove hidden to restore the older-page linking tool. -->
+                <details class="add-webpage" hidden><summary>Add an older webpage to my list</summary><p>Sign in to Teacher tools first, then enter the webpage link and its publishing password to identify its teacher number.</p><form id="claim-webpage-form"><label for="claim-page-url">Existing webpage link</label><input id="claim-page-url" type="url" required><label for="claim-page-password">Publishing password</label><input id="claim-page-password" type="password" maxlength="256" required><button type="submit">Add to my webpages</button></form></details>
                 <div id="vocabulary-pages-status" role="status" aria-live="polite"></div>
                 <button type="button" id="retry-vocabulary-pages" hidden>Retry loading webpages</button>
             </div>

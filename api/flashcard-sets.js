@@ -1,5 +1,5 @@
 const { del, list, put } = require('@vercel/blob');
-const { getPage, publicPage, authenticatePage } = require('../lib/vocabulary-pages');
+const { getPage, publicPage, authenticatePage, rememberOwner } = require('../lib/vocabulary-pages');
 const { makeApp, makeClassGames, practiceRows } = require('../PeninaPlus-vocab-builder/offline-study-cards');
 
 const { makeSheet } = require('../PeninaPlus-vocab-builder/vocabulary-sheets');
@@ -145,6 +145,7 @@ module.exports = async function (req, res) {
         const authenticationError = authenticatePage(page, req.body && req.body.password !== undefined
             ? req.body.password : req.headers['x-penina-publish-key']);
         if (authenticationError) return send(res, authenticationError.status, { error: authenticationError.error });
+        await rememberOwner(page, req.body?.password !== undefined ? req.body.password : req.headers['x-penina-publish-key']);
 
         if (req.method === 'DELETE') {
             const prefix = `vocabulary-cards/${grade}/`;

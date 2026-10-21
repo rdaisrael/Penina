@@ -32,6 +32,8 @@ function server() {
         require(name) {
             if (name === 'crypto') return require('node:crypto');
             if (name === '@vercel/blob') return storage;
+            if (name === '../lib/quiz-teachers') return load('lib/quiz-teachers.js');
+            if (name === '../lib/quiz-account') return {session: req => ({role:'teacher',userId:Number(req.headers.cookie.split('=').pop())})};
             if (name === '../lib/vocabulary-pages') return load('lib/vocabulary-pages.js');
             return require(path.join(__dirname, '../api', name));
         }
@@ -51,31 +53,26 @@ function server() {
         await load(file)({ method, body, query, headers }, response);
         return response;
     }
-    const create = body => request('api/vocabulary-pages.js', 'POST', { creationPassword: '123-aw', ...body });
+    const create = body => request('api/vocabulary-pages.js', 'POST', { creationPassword: '1-AW', ...body });
     return { request, create, blobs, env };
 }
 
-test('Creation accepts digits followed by -aw even with a legacy environment override', async () => {
+test('Creation requires exactly the configured owner creation code', async () => {
     const { request, blobs } = server();
-    const body = { name: 'New Class', password: 'page-password' };
-    for (const creationPassword of ['1234', 'wrong', '1-wc', '1-AW', '-aw', 'a-aw', '-1-aw', '1.5-aw', ' 1-aw', '1-aw ', '1-aw\n', '1-aw\r', 'test-admin-password', '1'.repeat(254) + '-aw']) {
-        assert.equal((await request('api/vocabulary-pages.js', 'POST', { ...body, creationPassword })).code, 401);
-        assert.equal(blobs.size, 0);
+    for (const creationPassword of ['1-aw','2-AW','0-aw','001-AW','1-AW ','wrong','1-AU']) {
+        assert.equal((await request('api/vocabulary-pages.js','POST',{name:'Test',password:'1-6',creationPassword})).code,401);
+        assert.equal(blobs.size,0);
     }
-    for (const creationPassword of ['0-aw', '1-aw', '123-aw', '00123-aw']) {
-        assert.equal((await request('api/vocabulary-pages.js', 'POST', {
-            ...body, name: 'Class ' + creationPassword, creationPassword
-        })).code, 201);
-    }
+    assert.equal((await request('api/vocabulary-pages.js','POST',{name:'Test',password:'1-6',creationPassword:'1-AW'})).code,201);
 });
 
 test('Created pages persist across requests, list alongside grades, and expose no credentials', async () => {
     const { request, create, blobs } = server();
-    const created = await create({ name: '  Ninth   Grade  ', password: 'סיסמה<&> secret' });
+    const created = await create({ name: '  Ninth   Grade  ', password: '1-סיסמה<&>-secret' });
     assert.equal(created.code, 201);
     assert.equal(created.body.page.name, 'Ninth Grade');
     assert.equal(created.body.page.url, '/PeninaPlus-vocab-builder/flash-cards/?page=ninth-grade');
-    await create({ name: 'מילים', password: 'another-password' });
+    await create({ name: 'מילים', password: '1-another-password' });
     const listing = await request('api/vocabulary-pages.js', 'GET');
     assert.equal(listing.code, 200);
     assert.equal(listing.body.pages.length, 5);
@@ -85,41 +82,41 @@ test('Created pages persist across requests, list alongside grades, and expose n
     for (const page of listing.body.pages) assert.deepEqual(Object.keys(page).sort(), ['id', 'name', 'url']);
     for (const blob of blobs.values()) {
         assert(!blob.content.includes('secret'));
-        assert(!blob.content.includes('another-password'));
+        assert(!blob.content.includes('1-another-password'));
     }
 });
 
 test('Duplicate and concurrent creates cannot overwrite another page password', async () => {
     const { request, create } = server();
-    const results = await Promise.all(['first', 'second'].map(password => create({ name: 'My Class', password })));
+    const results = await Promise.all(['1-first', '1-second'].map(password => create({ name: 'My Class', password })));
     assert.deepEqual(results.map(result => result.code).sort(), [201, 409]);
-    const duplicate = await create({ name: 'MY CLASS', password: 'replacement' });
+    const duplicate = await create({ name: 'MY CLASS', password: '1-replacement' });
     assert.equal(duplicate.code, 409);
-    const originalPassword = results[0].code === 201 ? 'first' : 'second';
+    const originalPassword = results[0].code === 201 ? '1-first' : '1-second';
     assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'my-class', action: 'authenticate', password: originalPassword })).code, 200);
-    assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'my-class', action: 'authenticate', password: 'replacement' })).code, 401);
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'my-class', action: 'authenticate', password: '1-replacement' })).code, 401);
 });
 
 test('Duplicate names ignore capitalization, extra whitespace, and Unicode variants', async () => {
     const { create, blobs } = server();
-    assert.equal((await create({ name: 'My Class', password: 'original' })).code, 201);
+    assert.equal((await create({ name: 'My Class', password: '1-original' })).code, 201);
     for (const name of ['My Class', 'MY CLASS', '  my   class  ', 'Ｍｙ Ｃｌａｓｓ']) {
-        const result = await create({ name, password: 'replacement' });
+        const result = await create({ name, password: '1-replacement' });
         assert.equal(result.code, 409);
         assert.match(result.body.error, /already exists/);
         assert.equal(blobs.size, 1);
     }
-    assert.equal((await create({ name: 'מילים', password: 'original' })).code, 201);
-    assert.equal((await create({ name: '  מילים  ', password: 'replacement' })).code, 409);
+    assert.equal((await create({ name: 'מילים', password: '1-original' })).code, 201);
+    assert.equal((await create({ name: '  מילים  ', password: '1-replacement' })).code, 409);
     assert.equal(blobs.size, 2);
 });
 
 test('A custom page supports empty view, publishing, viewing, authentication, and deletion with its own password', async () => {
     const { request, create } = server();
-    const password = ' סיסמה secret ';
+    const password = '1-סיסמה-secret';
     const grade = 'ninth';
     await create({ name: 'Ninth', password });
-    await create({ name: 'Tenth', password: 'different' });
+    await create({ name: 'Tenth', password: '1-different' });
     const empty = await request('api/flashcard-sets.js', 'GET', {}, { grade });
     assert.equal(empty.code, 200);
     assert.equal(empty.body.sets.length, 0);
@@ -137,19 +134,19 @@ test('A custom page supports empty view, publishing, viewing, authentication, an
     assert.equal(viewed.code, 200);
     assert(viewed.body.includes('מילה'));
     assert.equal((await request('api/flashcard-sets.js', 'GET', {}, { grade: 'tenth', view: pathname })).code, 404);
-    assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade, password: 'different', pathnames: [pathname] })).code, 401);
-    assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade: 'tenth', password: 'different', pathnames: [pathname] })).code, 400);
+    assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade, password: '1-different', pathnames: [pathname] })).code, 401);
+    assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade: 'tenth', password: '1-different', pathnames: [pathname] })).code, 400);
     assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade, password, pathnames: [pathname] })).code, 200);
     assert.equal((await request('api/flashcard-sets.js', 'GET', {}, { grade })).body.sets.length, 0);
 });
 
 test('Invalid names, missing passwords, unknown pages, and existing grade names are rejected', async () => {
     const { request, create } = server();
-    for (const body of [{ name: ' ', password: 'ok' }, { name: 'New', password: '  ' }, { name: 'a'.repeat(121), password: 'ok' }, { name: 'New', password: 'x'.repeat(257) }]) {
+    for (const body of [{ name: ' ', password: '1-ok' }, { name: 'New', password: '  ' }, { name: 'a'.repeat(121), password: '1-ok' }, { name: 'New', password: 'x'.repeat(257) }]) {
         assert.equal((await create(body)).code, 400);
     }
     for (const name of ['Sixth', 'Sixth Grade Gemara Vocabulary', 'SEVENTH']) {
-        assert.equal((await create({ name, password: 'ok' })).code, 409);
+        assert.equal((await create({ name, password: '1-ok' })).code, 409);
     }
     for (const grade of ['unknown', '../sixth', '']) {
         assert.equal((await request('api/flashcard-sets.js', 'GET', {}, { grade })).code, 400);
@@ -161,9 +158,9 @@ test('Invalid names, missing passwords, unknown pages, and existing grade names 
 test('Storage failures report errors without creating a successful page response', async () => {
     const { create, env, blobs } = server();
     delete env.BLOB_READ_WRITE_TOKEN;
-    const result = await create({ name: 'New Page', password: 'private-value' });
+    const result = await create({ name: 'New Page', password: '1-private-value' });
     assert.equal(result.code, 500);
-    assert(!JSON.stringify(result.body).includes('private-value'));
+    assert(!JSON.stringify(result.body).includes('1-private-value'));
     assert.equal(blobs.size, 0);
 });
 
@@ -172,14 +169,14 @@ test('Page creation requires the creation password pattern before any page is sa
     const { request, blobs } = server();
     for (const creationPassword of [undefined, '', 'wrong!', '1235', 1234, ['test-admin-password']]) {
         const result = await request('api/vocabulary-pages.js', 'POST', {
-            name: 'Protected Page', password: 'page-publishing-password', creationPassword
+            name: 'Protected Page', password: '1-page-publishing-password', creationPassword
         });
         assert.equal(result.code, 401);
         assert.equal(blobs.size, 0);
         assert(!JSON.stringify(result.body).includes('test-admin-password'));
     }
     const created = await request('api/vocabulary-pages.js', 'POST', {
-        name: 'Protected Page', password: 'page-publishing-password', creationPassword: '123-aw'
+        name: 'Protected Page', password: '1-page-publishing-password', creationPassword: '1-AW'
     });
     assert.equal(created.code, 201);
     assert.equal(blobs.size, 1);
@@ -192,15 +189,15 @@ test('Page creation requires the creation password pattern before any page is sa
         grade: 'protected-page', action: 'authenticate', password: 'test-admin-password'
     })).code, 401);
     assert.equal((await request('api/flashcard-sets.js', 'POST', {
-        grade: 'protected-page', action: 'authenticate', password: 'page-publishing-password'
+        grade: 'protected-page', action: 'authenticate', password: '1-page-publishing-password'
     })).code, 200);
 });
 
 test('Game choices require the class password, persist, and remain isolated by class', async () => {
     const { request, create } = server();
-    await create({ name: 'Game Class', password: 'editing-code' });
-    await create({ name: 'Other Class', password: 'other-code' });
-    const body = { grade: 'game-class', action: 'game-settings', password: 'editing-code', disabledGames: ['quiz', 'chomp'] };
+    await create({ name: 'Game Class', password: '1-editing-code' });
+    await create({ name: 'Other Class', password: '1-other-code' });
+    const body = { grade: 'game-class', action: 'game-settings', password: '1-editing-code', disabledGames: ['quiz', 'chomp'] };
     assert.equal((await request('api/flashcard-sets.js', 'POST', { ...body, password: 'wrong' })).code, 401);
     assert.equal((await request('api/flashcard-sets.js', 'POST', { ...body, disabledGames: ['unknown'] })).code, 400);
     assert.equal((await request('api/flashcard-sets.js', 'POST', body)).code, 200);
@@ -210,7 +207,7 @@ test('Game choices require the class password, persist, and remain isolated by c
     assert.deepEqual(other.body.disabledGames, []);
     const cards = [{ term: 'סוס', english: 'horse', alternativeAnswers: { english: { term: 'סוס', definition: 'horse', answers: ['cow','dog','cat','bird'] } } }];
     const html = require('../PeninaPlus-vocab-builder/offline-study-cards').makeApp('Review', cards);
-    assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'game-class', password: 'editing-code', title: 'Review', html })).code, 201);
+    assert.equal((await request('api/flashcard-sets.js', 'POST', { grade: 'game-class', password: '1-editing-code', title: 'Review', html })).code, 201);
     const games = await request('api/flashcard-sets.js', 'GET', {}, { grade: 'game-class', games: '1' });
     assert.equal(games.code, 200);
     assert(!games.body.includes('data-game="quiz"')); assert(!games.body.includes('data-game="chomp"'));
@@ -221,8 +218,8 @@ test('Game choices require the class password, persist, and remain isolated by c
 });
 
 test('Wordlist inclusion persists without deleting sets and preserves exercise choices', async () => {
- const {request,create}=server();await create({name:'Included Class',password:'code'});
- const base={grade:'included-class',password:'code'};
+ const {request,create}=server();await create({name:'Included Class',password:'1-code'});
+ const base={grade:'included-class',password:'1-code'};
  const html=require('../PeninaPlus-vocab-builder/offline-study-cards').makeApp('Review',[{term:'סוס',english:'horse',alternativeAnswers:{english:{term:'סוס',definition:'horse',answers:['cow','dog','cat','bird']}}}]);
  await request('api/flashcard-sets.js','POST',{...base,title:'Review',html});
  let listing=await request('api/flashcard-sets.js','GET',{},base);const pathname=listing.body.sets[0].pathname;
@@ -239,4 +236,33 @@ test('Wordlist inclusion persists without deleting sets and preserves exercise c
  assert.deepEqual((await request('api/flashcard-sets.js','GET',{},base)).body.excludedWordlists,[pathname]);
  await request('api/flashcard-sets.js','POST',{...settings,excludedWordlists:[]});
  assert.match((await request('api/flashcard-sets.js','GET',{}, {...base,games:'1'})).body,/data-game="quiz"/);
+});
+
+test('Signed-in teachers only receive pages belonging to their number',async()=>{
+ const {create,request,env}=server();env.CARD_PUBLISH_KEY_SIXTH='1-6';
+ await create({name:'David page',password:'1-mine'});await create({name:'Other teacher',password:'2-theirs'});
+ const david=await request('api/vocabulary-pages.js','GET',{}, {},{cookie:'__Host-penina-quiz-session=1'});
+ assert.deepEqual(david.body.pages.map(p=>p.id).sort(),['david-page','sixth']);
+ const other=await request('api/vocabulary-pages.js','GET',{}, {},{cookie:'__Host-penina-quiz-session=2'});
+ assert.deepEqual(other.body.pages.map(p=>p.id),['other-teacher']);
+ assert.equal((await request('api/vocabulary-pages.js','POST',{name:'Wrong owner',password:'2-no',creationPassword:'1-AW'}, {},{cookie:'__Host-penina-quiz-session=1'})).code,403);
+});
+test('Legacy numbered pages gain ownership after successful authentication only',async()=>{
+ const {create,request,blobs}=server();await create({name:'Legacy',password:'2-old'});
+ const blob=blobs.get('vocabulary-pages/legacy.json');const record=JSON.parse(blob.content);delete record.ownerNumber;blob.content=JSON.stringify(record);
+ await request('api/flashcard-sets.js','POST',{grade:'legacy',action:'authenticate',password:'1-wrong'});
+ assert.equal(JSON.parse(blob.content).ownerNumber,undefined);
+ assert.equal((await request('api/flashcard-sets.js','POST',{grade:'legacy',action:'authenticate',password:'2-old'})).code,200);
+ assert.equal(JSON.parse(blobs.get(blob.pathname).content).ownerNumber,2);
+});
+
+test('An older page can be linked only with its valid password and matching signed-in number',async()=>{
+ const {create,request,blobs}=server();await create({name:'Old page',password:'2-old'});
+ const blob=blobs.get('vocabulary-pages/old-page.json'),record=JSON.parse(blob.content);delete record.ownerNumber;blob.content=JSON.stringify(record);
+ const headers={cookie:'__Host-penina-quiz-session=2',origin:'https://www.penina-hebrew.org'};
+ const body={action:'claim',pageId:'old-page',password:'2-old'};
+ assert.equal((await request('api/vocabulary-pages.js','POST',body,{}, {...headers,cookie:'__Host-penina-quiz-session=1'})).code,403);
+ assert.equal((await request('api/vocabulary-pages.js','POST',{...body,password:'2-wrong'},{},headers)).code,401);
+ assert.equal((await request('api/vocabulary-pages.js','POST',body,{},headers)).code,200);
+ const listing=await request('api/vocabulary-pages.js','GET',{}, {},headers);assert.equal(listing.body.pages[0].id,'old-page');
 });

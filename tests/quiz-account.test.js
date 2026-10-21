@@ -29,6 +29,7 @@ function harness() {
         if(n==='crypto')return require('crypto');
         if(n==='google-auth-library')return {OAuth2Client};
         if(n==='@vercel/blob')return {del:async p=>blobs.delete(p),list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,options)=>{if(options?.allowOverwrite===false && blobs.has(p))throw Error('Already exists');blobs.set(p,s);}};
+        if(n==='./quiz-teachers')return {verify:async(email,password)=>email==='second@school.org' && password==='2-signin'?{userId:2,email}:null};
         if(n==='./vocabulary-pages')return {getPage:async()=>({}),authenticatePage:(_,p)=>p==='teacher-secret'?null:{status:401,error:'Incorrect password'}};
         if(n.endsWith('questions.json'))return require(n);
         return require(n);
@@ -304,4 +305,14 @@ test('Correction list puts posted quizzes first by posting time, then drafts by 
     h.state.googleFailure=true;
     result=await load();
     assert.equal(result.data.assignments.map(a=>a.className).join(','),'draft,recent,older,newerDraft');
+});
+
+test('Assigned teacher sign-in binds Google email and carries its number without owner privileges',async()=>{
+ const h=harness();const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true,email:'second@school.org',password:'2-signin'}}));
+ assert.equal(login.code,200);assert.equal(h.state.options.login_hint,'second@school.org');
+ const callback=h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}});
+ assert.equal((await h.run(callback)).code,403);
+ h.state.email='second@school.org';const result=await h.run(callback);assert.equal(result.code,303);
+ const cookie=result.headers['Set-Cookie'][1].split(';')[0];assert.equal(h.api.isAccountOwner({headers:{cookie}}),false);
+ const info=await h.run(h.request({query:{action:'teacher'},headers:{cookie}}));assert.equal(info.data.userId,2);
 });

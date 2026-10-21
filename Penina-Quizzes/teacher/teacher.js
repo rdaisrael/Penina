@@ -7,4 +7,18 @@ async function load(){const button=$('refresh');button.disabled=true;$('status')
 $('login').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button[type=submit]');button.disabled=true;$('status').textContent='Checking your account…';try{const result=await request('login',{role:'teacher',portal:true,email:e.target.elements.email.value,password:e.target.elements.password.value});e.target.elements.password.value='';location.assign(result.url);}catch(e){$('status').textContent=e.message;button.disabled=false;}};
 $('logout').onclick=async()=>{try{await request('logout',{});location.replace('./');}catch(e){$('status').textContent=e.message;}};
 $('refresh').onclick=load;$('classFilter').onchange=render;
-(async()=>{try{const user=await request('teacher');$('logout').hidden=false;$('identity').textContent='USER '+user.userId+' · '+user.email;$('status').textContent='';if(new URLSearchParams(location.search).get('view')==='correct'){$('correct').hidden=false;await load();}else $('home').hidden=false;}catch(e){if(e.status===401||e.status===403){$('signin').hidden=false;$('status').textContent='';}else $('status').textContent=e.message;}})();
+(async()=>{try{const user=await request('teacher');$('logout').hidden=false;$('identity').textContent='USER '+user.userId+' · '+user.email;$('status').textContent='';$('teacher-numbers').hidden=user.userId!==1;if(new URLSearchParams(location.search).get('view')==='correct'){$('correct').hidden=false;await load();}else $('home').hidden=false;}catch(e){if(e.status===401||e.status===403){$('signin').hidden=false;$('status').textContent='';}else $('status').textContent=e.message;}})();
+
+async function teacherNumbers(body) {
+    const response=await fetch('/api/vocabulary-pages?action=teachers',body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,action:'teachers'})}:{cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok)throw Error(data.error || 'Teacher numbers could not be loaded.');
+    $('teacher-list').replaceChildren();
+    for(const teacher of data.teachers){const item=document.createElement('li');item.textContent=teacher.userId+' — '+teacher.name+' ('+teacher.email+')';$('teacher-list').append(item);}
+}
+$('load-teachers').onclick=async()=>{try{await teacherNumbers();$('teacher-number-status').textContent='';}catch(error){$('teacher-number-status').textContent=error.message;}};
+$('assign-teacher').onsubmit=async event=>{
+    event.preventDefault();const form=event.target,button=form.querySelector('button[type=submit]');button.disabled=true;
+    try{await teacherNumbers(Object.fromEntries(new FormData(form)));form.reset();$('teacher-number-status').textContent='Teacher number assigned. Give the teacher their number and sign-in password.';}
+    catch(error){$('teacher-number-status').textContent=error.message;}finally{button.disabled=false;}
+};

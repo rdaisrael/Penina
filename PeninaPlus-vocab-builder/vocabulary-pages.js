@@ -63,15 +63,29 @@
             const response = await fetch('/api/vocabulary-pages', { cache: 'no-store' });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Unable to load webpages.');
+            const selected = dropdown.value;
+            dropdown.replaceChildren();
             data.pages.forEach(addOption);
+            if (data.pages.some(page => page.id === selected)) dropdown.value = selected;
             updateLinks();
-            showStatus('');
+            showStatus(data.pages.length ? '' : 'No webpages are assigned to your teacher number yet.');
         } catch (_error) {
             showStatus('Saved webpages could not be loaded. Retry to see all publishing destinations.', true);
             retryButton.hidden = false;
         }
     }
 
+    document.getElementById('claim-webpage-form').addEventListener('submit', async event => {
+        event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;
+        try {
+            const url=new URL(document.getElementById('claim-page-url').value);
+            const pageId=url.searchParams.get('page') || url.pathname.match(/\/(sixth|seventh|eighth)-grade\//)?.[1];
+            if(!pageId)throw Error('Enter a vocabulary webpage link.');
+            const response=await fetch('/api/vocabulary-pages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'claim',pageId,password:document.getElementById('claim-page-password').value})});
+            const data=await response.json();if(!response.ok)throw Error(data.error);
+            event.target.reset();await loadPages();showStatus('The webpage is now in your list.');
+        }catch(error){showStatus(error.message,true);}finally{button.disabled=false;}
+    });
     let loadingPages = loadPages();
     retryButton.addEventListener('click', () => { loadingPages = loadPages(); });
     dropdown.addEventListener('change', () => { publishPassword.value = ''; updateLinks(); });

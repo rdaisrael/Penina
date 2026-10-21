@@ -802,9 +802,6 @@
                     <div class="form-group">
                         <label for="publish-card-grade">Publish Flashcards, Sheets, and Practice Exercises to:</label>
                         <select id="publish-card-grade">
-                            <option value="sixth" data-url="/PeninaPlus-vocab-builder/flash-cards/sixth-grade/">Sixth Grade Gemara Vocabulary</option>
-                            <option value="seventh" data-url="/PeninaPlus-vocab-builder/flash-cards/seventh-grade/">Seventh Grade Gemara Vocabulary</option>
-                            <option value="eighth" data-url="/PeninaPlus-vocab-builder/flash-cards/eighth-grade/">Eighth Grade Gemara Vocabulary</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -842,6 +839,7 @@
                         <button type="submit" id="create-webpage-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;">Create webpage</button>
                     </form>
                 </details>
+                <details class="add-webpage"><summary>Add an older webpage to my list</summary><p>Sign in to Teacher tools first, then enter the webpage link and its publishing password to identify its teacher number.</p><form id="claim-webpage-form"><label for="claim-page-url">Existing webpage link</label><input id="claim-page-url" type="url" required><label for="claim-page-password">Publishing password</label><input id="claim-page-password" type="password" maxlength="256" required><button type="submit">Add to my webpages</button></form></details>
                 <div id="vocabulary-pages-status" role="status" aria-live="polite"></div>
                 <button type="button" id="retry-vocabulary-pages" hidden>Retry loading webpages</button>
             </div>

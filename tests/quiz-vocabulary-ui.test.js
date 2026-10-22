@@ -7,7 +7,7 @@ function harness(api){
  const $=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',innerHTML:'',checked:false,disabled:false,hidden:false,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;},querySelectorAll(selector){return id==='vocabularyPanel'&&selector==='input,textarea,select,button'?[...elements.values()]:id==='vocabularyTypes'?types.filter(t=>selector==='input:checked'?t.checked:true):[];},focus(){this.focused=true;}});return elements.get(id);};
  const state={changes:0,confirmed:[],status:'',error:null};
  const ctx={$,quiz:{title:'My original quiz',questions:[{type:'text',prompt:'Existing question'}],vocabulary:source()},busy:false,connected:true,structuredClone,console,
-  esc:v=>String(v).replaceAll('<','&lt;'),changed:()=>state.changes++,status:message=>state.status=message,confirm:message=>{state.confirmed.push(message);return state.confirm!==false;},api,
+  esc:v=>String(v).replaceAll('<','&lt;'),changed:()=>state.changes++,status:message=>state.status=message,confirm:message=>{state.confirmed.push(message);return state.confirm!==false;},api:async(action,body)=>action==='vocabulary-coverage'?{coverage:state.coverage??{wordCount:15,coveredWords:15,repeatedUses:0}}:api(action,body),
   run:async fn=>{if(ctx.busy)return;ctx.busy=true;ctx.vocabularyButtons();try{await fn();}catch(e){state.error=e.message;}finally{ctx.busy=false;ctx.vocabularyButtons();}},render:()=>ctx.renderVocabulary()};
  vm.createContext(ctx);vm.runInContext(code,ctx);return {ctx,$,state};
 }
@@ -43,4 +43,22 @@ test('Settings and table edits are included in the next generation request',asyn
  for(const el of h.$('vocabularyTypes').querySelectorAll('input'))el.checked=el.value==='text';h.$('vocabularyCount').listeners.change();
  h.$('vocabularyRows').listeners.input({target:{dataset:{vocabField:'definitionDistractors'},value:'manual one\nmanual two',closest:()=>({dataset:{vocabRow:'0'}})}});
  await h.$('vocabularyGenerate').onclick();assert.equal(sent.count,1);assert.equal(sent.direction,'rtl');assert.equal(sent.wordBank,false);assert.deepEqual(Array.from(sent.types),['text']);assert.deepEqual(Array.from(sent.rows[0].definitionDistractors),['manual one','manual two']);
+});
+
+test('Repeats require confirmation before questions are requested; cancel keeps the draft intact',async()=>{
+ const h=harness(async()=>assert.fail('No generation after cancellation'));h.state.coverage={wordCount:15,repeatedUses:7};h.state.confirm=false;
+ const before=JSON.stringify(h.ctx.quiz);await h.$('vocabularyGenerate').onclick();assert.equal(JSON.stringify(h.ctx.quiz),before);
+ assert.match(h.state.confirmed[0],/15 words/);assert.match(h.state.confirmed[0],/7 additional/);assert.match(h.$('vocabularyStatus').textContent,/cancelled/);
+});
+test('Accepting the coverage warning generates the requested quiz',async()=>{
+ const h=harness(async(_,body)=>({questions:Array.from({length:Math.min(10,body.count-body.offset)},()=>({type:'choice'}))}));
+ h.state.coverage={wordCount:15,repeatedUses:3};await h.$('vocabularyGenerate').onclick();assert.equal(h.state.confirmed.length,1);assert.equal(h.ctx.quiz.questions.length,16);
+});
+
+test('Additional correct answers are editable separately from distractors',()=>{
+ const h=harness(async()=>({}));
+ assert.match(h.$('vocabularyRows').innerHTML,/Additional correct answers/);
+ h.$('vocabularyRows').listeners.input({target:{dataset:{vocabField:'additionalAnswers'},value:'valid one\nvalid two',closest:()=>({dataset:{vocabRow:'0'}})}});
+ assert.deepEqual(Array.from(h.ctx.quiz.vocabulary.rows[0].additionalAnswers),['valid one','valid two']);
+ assert.deepEqual(Array.from(h.ctx.quiz.vocabulary.rows[0].definitionDistractors),['old definition0']);
 });

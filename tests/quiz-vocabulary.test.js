@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const v=require('../lib/quiz-vocabulary'),model=require('../lib/quiz-builder-model');
-function rows(n=15){return Array.from({length:n},(_,i)=>({word:'מילה'+i,definition:'meaning'+i,definitionDistractors:['wrong meaning '+i+'a','wrong meaning '+i+'b','wrong meaning '+i+'c'],wordDistractors:['decoy'+i+'a','decoy'+i+'b','decoy'+i+'c']}));}
+function rows(n=15){return Array.from({length:n},(_,i)=>({word:'מילה'+i,definition:'meaning'+i,additionalAnswers:['alternate meaning'+i],definitionDistractors:['wrong meaning '+i+'a','wrong meaning '+i+'b','wrong meaning '+i+'c'],wordDistractors:['decoy'+i+'a','decoy'+i+'b','decoy'+i+'c']}));}
 function config(overrides={}){return {rows:rows(),count:15,types:['text','choice','multi','match','gaps','order'],wordBank:true,direction:'ltr',...overrides};}
 const sentenceAI=async prompt=>JSON.stringify({sentences:JSON.parse(prompt.split('\nData: ')[1]).map(r=>({index:r.index,sentence:'The context for '+r.definition+' is ___.'}))});
 test('CSV/TSV imports preserve quoted commas, multiline definitions, Unicode, BOM and optional headers',()=>{
@@ -36,7 +36,7 @@ test('All selected formats, exact counts, editable banks and grading survive gen
  const answers=all.map(q=>q.type==='text'?['A student explanation']:q.answer);
  assert(model.validAnswers(quiz,answers));assert.equal(model.grade(quiz,answers).automaticScore,all.filter(q=>q.type!=='text').length);
  assert.deepEqual(all[1].answer,['meaning1']);assert(all[1].choices.includes('wrong meaning 1a'));
- assert(all[3].choices.includes('wrong meaning 3a'));assert(all[4].choices.includes('wrong meaning 4a'));assert.deepEqual(all[4].answer,['meaning4']);
+ const plans=v.plan(c).entries;assert(all[3].choices.includes('wrong meaning '+plans[3].indices[0]+'a'));assert(all[4].choices.includes('wrong meaning '+plans[4].indices[0]+'a'));assert.deepEqual(all[4].answer,['meaning'+plans[4].indices[0]]);
  assert(model.publicQuestions(quiz).every(q=>!Object.hasOwn(q,'answer')));
 });
 test('100 questions are generated in bounded batches; selected type count and input bounds are enforced',async()=>{
@@ -64,12 +64,14 @@ test('Hebrew terms generate English-only distractors and English terms generate 
 });
 test('Every generated answer bank follows its term language, including mixed lists',async()=>{
  const mixed=[{word:'שלום',definition:'peace',definitionDistractors:['war','noise']},{word:'אור',definition:'light',definitionDistractors:['darkness','water']},{word:'water',definition:'מים',definitionDistractors:['אש','אדמה']},{word:'night',definition:'לילה',definitionDistractors:['יום','בוקר']}];
+ mixed.forEach((r,i)=>r.additionalAnswers=[i<2?'alternate meaning '+i:'חלופה'+i]);
  for(const type of ['choice','multi','match','gaps','text']){
   const generated=await v.questions(config({rows:mixed,count:4,types:[type]}));
   for(let i=0;i<4;i++){
    const q=generated[i],answers=type==='text'?[q.answer]:q.choices;
-   assert(answers.every(a=>i<2?!/[א-ת]/.test(a):/[א-ת]/.test(a)&&!/[a-z]/i.test(a)));
-   assert.equal(q.direction,i<2?'ltr':'rtl');
+   const first=v.plan(config({rows:mixed,count:4,types:[type]})).entries[i].indices[0];
+   assert(answers.every(a=>first<2?!/[א-ת]/.test(a):/[א-ת]/.test(a)&&!/[a-z]/i.test(a)));
+   assert.equal(q.direction,first<2?'ltr':'rtl');
   }
  }
  const bad=structuredClone(mixed);bad[0].definitionDistractors=['מלחמה'];await assert.rejects(v.questions(config({rows:bad,count:4,types:['choice']})),/English/);
@@ -109,4 +111,86 @@ test('Markdown accepts named headers, optional outside pipes, alignments and esc
  assert.throws(()=>v.parseTable('| א | |\n| ב | second |'),/word and definition/);
  assert.equal(v.parseTable('word,definition\nא,"first | one"\nב,second')[0].definition,'first | one');
  assert.equal(v.parseTable('א\tfirst | one\nב\tsecond')[0].definition,'first | one');
+});
+
+
+test('Coverage includes grouped words and never repeats until the complete list has been covered',()=>{
+ for(const n of [10,12,15])for(const types of [['choice','match','gaps'],['text','choice','multi','match','gaps','order'],['match'],['multi'],['order']]){
+  const p=v.plan(config({rows:rows(n),count:23,types})),used=new Set();
+  for(const entry of p.entries){
+   assert.equal(new Set(entry.indices).size,entry.indices.length);
+   for(const index of entry.indices){if(used.has(index))assert.equal(used.size,n);used.add(index);}
+  }
+  assert.equal(p.coverage.coveredWords,n);assert(p.coverage.repeatedUses>0);
+ }
+});
+test('Groups shrink to avoid repeats and coverage stays consistent across ten-question batches',async()=>{
+ const c=config({rows:rows(15),count:10,types:['choice','match','gaps']});
+ const p=v.plan(c);assert.equal(p.coverage.repeatedUses,0);assert.equal(p.coverage.coveredWords,15);
+ const long=config({rows:rows(15),count:21,types:['choice','match','multi','order','gaps']});
+ const expected=v.plan(long),generated=[];
+ for(let offset=0;offset<long.count;offset+=10)generated.push(...await v.questions({...long,offset}));
+ assert.equal(generated.length,21);
+ generated.forEach((q,i)=>{
+  const terms=expected.entries[i].indices;
+  if(q.type==='match')assert.deepEqual(q.items,terms.map(j=>long.rows[j].word));
+  else if(q.type==='order')assert.deepEqual(new Set(q.answer),new Set(terms.map(j=>long.rows[j].word)));
+  else if(q.type==='multi')assert.deepEqual(q.answer,[long.rows[terms[0]].definition,...long.rows[terms[0]].additionalAnswers]);
+  else assert.deepEqual(q.answer,terms.map(j=>long.rows[j].definition));
+ });
+ assert.deepEqual(v.coverage(long),expected.coverage);
+});
+test('Short mixed-language groups cannot silently repeat before covering the other language',()=>{
+ const mixed=[...rows(2),{word:'night',definition:'לילה',definitionDistractors:['יום']}];
+ assert.throws(()=>v.plan(config({rows:mixed,count:3,types:['match']})),/cover every word/);
+ const p=v.plan(config({rows:mixed,count:2,types:['match','choice']}));
+ assert.equal(p.coverage.coveredWords,3);assert.equal(p.coverage.repeatedUses,0);
+});
+
+test('Multiple answers uses one term and teacher-approved answers, with incorrect distractors',async()=>{
+ const c=config({rows:rows(2),count:2,types:['multi']});
+ const qs=await v.questions(c);
+ qs.forEach((q,i)=>{
+  assert.equal(v.plan(c).entries[i].indices.length,1);
+  assert(q.prompt.includes(c.rows[i].word));assert(!q.prompt.includes(c.rows[1-i].word));
+  assert.deepEqual(q.answer,[c.rows[i].definition,...c.rows[i].additionalAnswers]);
+  assert(q.answer.every(a=>q.choices.includes(a)));
+  assert(c.rows[i].definitionDistractors.every(a=>q.choices.includes(a)&&!q.answer.includes(a)));
+ });
+ const unavailable=rows(2).map(({additionalAnswers,...r})=>r);
+ unavailable[0].definition='meaning / another meaning';
+ await assert.rejects(v.questions({...c,rows:unavailable}),/additional correct answer/);
+ const mixed=rows(3);delete mixed[0].additionalAnswers;delete mixed[2].additionalAnswers;
+ const p=v.plan(config({rows:mixed,count:3,types:['multi','choice','text']}));
+ assert.deepEqual(p.entries.find(e=>e.type==='multi').indices,[1]);assert.equal(p.coverage.repeatedUses,0);
+});
+test('Approved alternatives persist, follow answer language, and cannot become distractors',async()=>{
+ const r=rows(2);assert.deepEqual(v.source({rows:r}).rows[0].additionalAnswers,r[0].additionalAnswers);
+ assert.throws(()=>v.validateRows([{...r[0],definitionDistractors:r[0].additionalAnswers}],1),/correct answer/);
+ assert.throws(()=>v.validateRows([{...r[0],additionalAnswers:[r[0].definition]}],1),/differ/);
+ await assert.rejects(v.questions(config({rows:[{...r[0],additionalAnswers:['אור']},r[1]]})),/English/);
+ const result=await v.distractors({rows:r,index:0},async()=>JSON.stringify({rows:[{index:0,definitionDistractors:['wrong a','wrong b','wrong c']}]}));
+ assert.deepEqual(result[0].additionalAnswers,r[0].additionalAnswers);
+ await assert.rejects(v.distractors({rows:r,index:0},async()=>JSON.stringify({rows:[{index:0,definitionDistractors:[r[1].additionalAnswers[0],'wrong b','wrong c']}]})),/repeat vocabulary answers/);
+});
+
+test('Every incorrect generated choice comes exclusively from its participating table rows',async()=>{
+ const c=config({count:23}),p=v.plan(c),generated=[];
+ c.rows.forEach((r,i)=>r.definitionDistractors=['teacher edited wrong '+i]);
+ for(let offset=0;offset<c.count;offset+=10)generated.push(...await v.questions({...c,offset},async()=>assert.fail('Quiz generation must never invent distractors')));
+ generated.forEach((q,i)=>{
+  if(['text','order'].includes(q.type))return;
+  const indices=p.entries[i].indices;
+  const permitted=indices.flatMap(j=>c.rows[j].definitionDistractors);
+  const wrong=q.choices.filter(choice=>!q.answer.includes(choice));
+  assert.deepEqual(new Set(wrong),new Set(permitted));
+ });
+});
+test('Missing table distractors never fall back to other rows or generated choices',async()=>{
+ const input=rows(3);input[0].definitionDistractors=[];
+ for(const type of ['choice','multi','gaps'])await assert.rejects(v.questions(config({rows:input,count:1,types:[type]}),async()=>assert.fail('No invented distractors')),/table rows/);
+ const match=await v.questions(config({rows:input,count:1,types:['match']}));
+ assert.deepEqual(new Set(match[0].choices.filter(c=>!match[0].answer.includes(c))),new Set(input.flatMap(r=>r.definitionDistractors)));
+ input.forEach(r=>r.definitionDistractors=[]);
+ await assert.rejects(v.questions(config({rows:input,count:1,types:['match']})),/table rows/);
 });

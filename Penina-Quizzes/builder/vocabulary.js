@@ -15,7 +15,7 @@ function renderVocabulary(){
     $('vocabularyCount').value=source.count;$('vocabularyBank').checked=source.wordBank;
     $('vocabularyDirection').value=source.direction;
     for(const el of $('vocabularyTypes').querySelectorAll('input'))el.checked=source.types.includes(el.value);
-    $('vocabularyRows').innerHTML=source.rows.map((r,i)=>`<tr data-vocab-row="${i}"><td><input data-vocab-field="word" aria-label="Word ${i+1}" value="${esc(r.word)}" maxlength="500" dir="auto"></td><td><textarea data-vocab-field="definition" aria-label="Definition ${i+1}" maxlength="500" dir="auto">${esc(r.definition)}</textarea></td><td><small data-distractor-language>${distractorLanguage(r.word)} distractors</small><textarea data-vocab-field="definitionDistractors" aria-label="Distractors ${i+1}" maxlength="5010" dir="auto">${esc(r.definitionDistractors.join('\n'))}</textarea></td><td><button type="button" class="quiet" data-vocab-regenerate="${i}">Regenerate row ${i+1}</button><button type="button" class="quiet" data-vocab-remove="${i}">Remove row ${i+1}</button></td></tr>`).join('');
+    $('vocabularyRows').innerHTML=source.rows.map((r,i)=>`<tr data-vocab-row="${i}"><td><input data-vocab-field="word" aria-label="Word ${i+1}" value="${esc(r.word)}" maxlength="500" dir="auto"></td><td><textarea data-vocab-field="definition" aria-label="Definition ${i+1}" maxlength="500" dir="auto">${esc(r.definition)}</textarea><label>Additional correct answers (for multiple answers)<textarea data-vocab-field="additionalAnswers" aria-label="Additional correct answers ${i+1}" maxlength="5010" dir="auto" placeholder="One additional correct answer per line">${esc((r.additionalAnswers??[]).join('\n'))}</textarea></label></td><td><small data-distractor-language>${distractorLanguage(r.word)} distractors</small><textarea data-vocab-field="definitionDistractors" aria-label="Distractors ${i+1}" maxlength="5010" dir="auto">${esc(r.definitionDistractors.join('\n'))}</textarea></td><td><button type="button" class="quiet" data-vocab-regenerate="${i}">Regenerate row ${i+1}</button><button type="button" class="quiet" data-vocab-remove="${i}">Remove row ${i+1}</button></td></tr>`).join('');
     $('vocabularyRegenerate').textContent=source.rows.some(r=>r.definitionDistractors.length)?'Regenerate all distractors':'Generate distractors';
     vocabularyButtons();
 }
@@ -45,7 +45,7 @@ $('vocabularyRows').addEventListener('input',event=>{
     const row=event.target.closest('[data-vocab-row]'),field=event.target.dataset.vocabField;
     if(!row || !field)return;
     const r=quiz.vocabulary.rows[Number(row.dataset.vocabRow)];
-    r[field]=field.endsWith('Distractors')?event.target.value.split('\n').map(v=>v.trim()).filter(Boolean):event.target.value;
+    r[field]=(field.endsWith('Distractors')||field==='additionalAnswers')?event.target.value.split('\n').map(v=>v.trim()).filter(Boolean):event.target.value;
     if(field==='word'){const label=row.querySelector?.('[data-distractor-language]');if(label)label.textContent=distractorLanguage(r.word)+' distractors';}
     vocabularyChanged();
 });
@@ -90,6 +90,11 @@ $('vocabularyGenerate').onclick=()=>vocabularyRun(async()=>{
     if(!config.types.length)throw Error('Select at least one question type.');
     if(config.count<config.types.length)throw Error('Choose at least one question for each selected type.');
     if(quiz.questions.length+config.count>100)throw Error('A quiz can contain up to 100 questions. Choose a smaller number or start a new quiz.');
+    vocabularyMessage('Checking vocabulary coverage…');
+    const {coverage}=await api('vocabulary-coverage',config);
+    if(coverage.repeatedUses>0 && !confirm('This quiz will cover all '+coverage.wordCount+' words, then reuse words '+coverage.repeatedUses+' additional time'+(coverage.repeatedUses===1?'':'s')+'. Matching and ordering groups each use several words. Generate with these repeats? Choose Cancel to reduce the question count or change the types.')){
+        vocabularyMessage('Generation cancelled. Reduce the question count or change the types to avoid repeated words.');return;
+    }
     const generated=[];
     for(let offset=0;offset<config.count;offset+=10){
         vocabularyMessage('Creating questions '+(offset+1)+'–'+Math.min(offset+10,config.count)+' of '+config.count+'… Your draft will update when all questions are ready.');

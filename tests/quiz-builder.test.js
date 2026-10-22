@@ -312,7 +312,7 @@ test('Vocabulary questions survive saving, publishing, student submission and re
 
 test('Vocabulary import and AI endpoints enforce teacher session and same origin',async()=>{
  const h=harness();
- for(const action of ['import-vocabulary','vocabulary-distractors','vocabulary-questions']){
+ for(const action of ['import-vocabulary','vocabulary-distractors','vocabulary-questions','vocabulary-coverage']){
   assert.equal((await h.call(h.builder.handle,h.req({action},'student'))).code,403);
   const request=h.req({action});request.headers.origin='https://evil.example';assert.equal((await h.call(h.builder.handle,request)).code,403);
  }

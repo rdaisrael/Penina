@@ -39,3 +39,15 @@ Question summaries show counts and percentages out of all submissions in the sel
 Matching questions pair each teacher-entered word or definition with an answer from a word bank. Use **Add word or distractor** to add extra choices and select the correct answer for each item. Choices may be reused. Unused choices are distractors and never earn credit. Scoring can apply to the complete question or each correct match.
 
 Fill-in-the-blank questions use `___` for each blank. **Use a word bank** defaults to checked and supports any number of distractors within the 50-choice limit. Uncheck it for typed answers, then enter the answer key for each blank. Typed answers ignore capitalization and surrounding spaces but otherwise require the entered spelling. Existing published blank questions retain their word banks and grading behavior.
+
+## Generate a quiz from a vocabulary list
+
+Open **Generate a quiz from vocabulary** in the builder. Upload CSV/TSV/text or paste two columns copied from a spreadsheet: word and definition. A header row is optional. CSV definitions containing commas must be quoted. Lists support 2–50 entries (10–15 recommended), with 500 characters per word or definition and a 100 KB import limit.
+
+The editable table includes correct definitions, incorrect definitions for choice/matching questions, and extra words for multiple-answer questions and blank word banks. **Generate distractors** suggests three of each per word. Regenerate one row or all rows; replacement of existing edits requires confirmation. Generation failures leave the existing table untouched. Suggestions need teacher review for semantic correctness. Manual distractors can also be entered, one per line (up to ten in each cell).
+
+Choose 1–100 questions, the formats to include, blank word-bank behavior, and reading direction. All selected formats appear, distributed evenly, so the question count must be at least the number of selected formats. Matching groups count as one question. Ordering sorts vocabulary alphabetically. Written questions ask for a meaning and example sentence; teachers grade them. Longer quizzes reuse vocabulary. Context sentences and distractor suggestions use the existing server-only OpenAI adapter; answer keys and choice banks are constructed from teacher-reviewed vocabulary.
+
+Generation runs in batches of at most ten. No questions are added until all batches finish successfully. Questions append to the current draft, up to the existing 100-question limit. Teachers can name the quiz, edit generated questions/answer keys/points, or add more questions in the regular builder. Save, publish, and Google Classroom assignment use the existing workflow; generation does not publish or assign anything.
+
+Vocabulary tables and settings save in the encrypted owner-scoped draft, survive reload and duplication, and remain out of public published snapshots. Table edits affect future generation, not existing questions. The existing OPENAI_API_KEY and configured model settings are used. Automated tests stub the AI service; live semantic quality and Google Classroom assignment should receive a deployed smoke check.

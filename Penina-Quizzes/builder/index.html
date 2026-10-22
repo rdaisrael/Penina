@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Build a quiz · PP Quiz</title><link rel="icon" type="image/png" href="/Penina-favicon.png"><link rel="stylesheet" href="builder.css"><script src="builder.js" defer></script><link rel="stylesheet" href="/Penina-Quizzes/password-toggle.css"><script src="/Penina-Quizzes/password-toggle.js" defer></script><script src="/Penina-Quizzes/teacher/page.js" defer></script></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Build a quiz · PP Quiz</title><link rel="icon" type="image/png" href="/Penina-favicon.png"><link rel="stylesheet" href="builder.css"><script src="builder.js" defer></script><script src="vocabulary.js" defer></script><link rel="stylesheet" href="/Penina-Quizzes/password-toggle.css"><script src="/Penina-Quizzes/password-toggle.js" defer></script><script src="/Penina-Quizzes/teacher/page.js" defer></script></head><body>
 <header><nav aria-label="Main navigation"><a href="/">Penina Home</a> · <a href="/Penina-Quizzes/teacher/">Penina Quiz Home</a></nav><span class="brand">PP Quiz <small>TEACHER STUDIO</small></span></header>
 <main><div class="intro"><div><p class="eyebrow">YOUR QUESTIONS. YOUR CLASSROOM.</p><h1>Build a quiz</h1><p>Create questions in English or Hebrew, set the answers, and make it your own.</p></div><button id="new">＋ New quiz</button></div>
 <section class="connection"><form id="connect" hidden><label>Teacher password (Sixth Grade publishing password) <input name="password" type="password" required autocomplete="current-password"></label><button type="submit">Connect Google Classroom</button></form><p id="account" role="status">Connecting to your quiz library…</p></section>
@@ -7,6 +7,34 @@
 <label class="title-label">Quiz title<input id="title" maxlength="160" placeholder="e.g. Gemara 6 · Chapter review" value="Untitled quiz"></label>
 <div class="settings"><label>Timing<select id="timing"><option value="timed">Time limit</option><option value="none">No time limit</option></select></label><label id="durationField">Time limit (minutes)<input id="duration" type="number" min="1" max="1000" value="60"></label><p>Written answers are marked by you. Choose whether points apply to the whole question or to each correct response.</p></div>
 <section class="checkpoint-settings"><h2>Review checkpoint</h2><label>Switch to forward-only questions<select id="checkpoint"><option value="">No checkpoint — students may go back</option></select></label><p class="hint">Place a review page before a question. Students can check earlier answers before confirming. After confirmation, each Next click locks the answer they leave, and they cannot go back.</p><label id="checkpointMessageField" hidden>Message on the review page<textarea id="checkpointMessage" maxlength="2000" dir="auto"></textarea></label></section>
+<details id="vocabularyPanel" class="vocabulary-panel">
+<summary>Generate a quiz from vocabulary</summary>
+<p>Upload 10–15 words and definitions, review the suggested distractors, then choose your quiz. Lists of 2–50 words are supported.</p>
+<section><h2>1. Add your vocabulary</h2>
+<label>Upload a word list<input id="vocabularyFile" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain"></label>
+<p class="hint">CSV or tab-separated text, with two columns: word and definition. You can also copy two columns from Excel or Google Sheets and paste below.</p>
+<label>Paste words and definitions<textarea id="vocabularyPaste" maxlength="100000" placeholder="word&#9;definition&#10;lucid&#9;clear and easy to understand&#10;reluctant&#9;unwilling or hesitant"></textarea></label>
+<button id="vocabularyImport" class="secondary" type="button">Load vocabulary table</button>
+</section>
+<section id="vocabularyReview" hidden><h2>2. Review words and distractors</h2>
+<p>Incorrect definitions are used for multiple choice and matching. Extra words are used for multiple answers and blank word banks. Edit any cell; put one distractor on each line. Check that each distractor is clearly wrong for the intended meaning.</p>
+<div class="vocabulary-table-scroll" role="region" aria-label="Editable vocabulary and distractors" tabindex="0"><table class="vocabulary-table"><thead><tr><th scope="col">Word</th><th scope="col">Correct definition</th><th scope="col">Incorrect definitions</th><th scope="col">Extra words</th><th scope="col">Actions</th></tr></thead><tbody id="vocabularyRows"></tbody></table></div>
+<div class="vocabulary-actions"><button id="vocabularyAdd" class="quiet" type="button">＋ Add word</button><button id="vocabularyRegenerate" class="secondary" type="button">Generate distractors</button></div>
+<p class="hint">Regenerating replaces the distractors in the selected rows, including your edits. Words and correct definitions stay unchanged. Table edits affect future generation; existing questions stay unchanged. Save draft to keep this table with your quiz.</p>
+</section>
+<section id="vocabularySettings" hidden><h2>3. Choose your quiz</h2>
+<label>Number of questions<input id="vocabularyCount" type="number" min="1" max="100" step="1" value="15"></label>
+<fieldset id="vocabularyTypes"><legend>Question types to include</legend>
+<label><input type="checkbox" value="text">Written answer</label><label><input type="checkbox" value="choice" checked>Multiple choice</label><label><input type="checkbox" value="multi">Multiple answers</label><label><input type="checkbox" value="match" checked>Matching</label><label><input type="checkbox" value="gaps" checked>Fill in the blanks</label><label><input type="checkbox" value="order">Ordering (alphabetical)</label>
+</fieldset>
+<label class="vocabulary-check"><input id="vocabularyBank" type="checkbox" checked>Use word banks for blanks (includes your extra words)</label>
+<label>Reading direction<select id="vocabularyDirection"><option value="ltr">Left to right</option><option value="rtl">Right to left (Hebrew)</option></select></label>
+<p class="hint">Questions are spread evenly across the selected types. A matching group counts as one question. Words may repeat, especially in longer quizzes. Ordering questions ask for alphabetical order.</p>
+<button id="vocabularyGenerate" type="button">Generate editable quiz</button>
+<p class="hint">Generated questions are added to this draft. You can rename it, edit every question and answer, and add more questions below. Review before publishing, then choose a class using Assign quiz.</p>
+</section>
+<p id="vocabularyStatus" role="status" aria-live="polite"></p>
+</details>
 <div id="questions"></div>
 <div class="add-row"><label>Question type<select id="type"><option value="text">Written answer</option><option value="choice">Multiple choice</option><option value="multi">Multiple answers</option><option value="match">Matching</option><option value="gaps">Fill in the blanks</option><option value="order">Ordering</option></select></label><button id="add">＋ Add question</button><button id="reuseChoices" class="secondary" disabled>＋ Add question with previous choices</button></div>
 <div class="actions"><button id="save">Save draft</button><button id="preview" class="secondary">Student preview</button><button id="publish" class="secondary">Publish quiz</button><button id="duplicate" class="quiet">Duplicate</button></div><p id="status" role="status" aria-live="polite">Start by adding your first question.</p><a id="assign" class="button" hidden>Assign quiz →</a>

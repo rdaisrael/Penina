@@ -19,6 +19,7 @@ function harness(){
   return {data:{id:'course',name:'Test class',courseState:'ACTIVE'}};
  }}
  function load(name){if(cache.has(name))return cache.get(name).exports;const module={exports:{}};cache.set(name,module);const context={module,exports:module.exports,Date:class extends Date {static now(){return state.now ?? Date.now();}},console,URL,URLSearchParams,Buffer,__dirname:path.join(__dirname,'../lib'),process:{env:{BLOB_READ_WRITE_TOKEN:'test',GOOGLE_CLASSROOM_CLIENT_ID:'test',GOOGLE_CLASSROOM_CLIENT_SECRET:'test'}},fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:n=>{
+   if(n==='./openai-text')return {generateOpenAIText:async(...args)=>{if(!state.aiGenerator)throw Error('No test AI response configured');return state.aiGenerator(...args);}};
    if(n==='./quiz-correction-email')return {sendCorrectedTest:async data=>{state.emailed=data;if(state.emailFailure)throw Error('Email failed');return {status:'accepted',to:data.record.email};}};
    if(n==='google-auth-library')return {OAuth2Client};
    if(n==='@vercel/blob')return {list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,o)=>{if(!o.allowOverwrite&&blobs.has(p))throw Error('exists');blobs.set(p,s);},del:async p=>blobs.delete(p)};
@@ -306,4 +307,28 @@ test('Vocabulary questions survive saving, publishing, student submission and re
  const attemptId='e'.repeat(32),start=await h.call(h.submissions,h.req({action:'start',id:attemptId,classId,quiz:id},'student'));assert.equal(start.code,200);
  const result=await h.call(h.submissions,h.req({action:'submit',id:attemptId,classId,quiz:id,token:start.data.token,answers:[['clear','swift'],['LUCID'],['reluctant']]},'student'));assert.equal(result.code,200);
  const report=await h.call(h.submissions,h.req({action:'report',quiz:id}));assert.equal(report.code,200);assert.equal(report.data.submissions[0].grading.total,4);assert.equal(report.data.submissions[0].grading.pending,0);
+});
+
+
+test('Vocabulary import and AI endpoints enforce teacher session and same origin',async()=>{
+ const h=harness();
+ for(const action of ['import-vocabulary','vocabulary-distractors','vocabulary-questions']){
+  assert.equal((await h.call(h.builder.handle,h.req({action},'student'))).code,403);
+  const request=h.req({action});request.headers.origin='https://evil.example';assert.equal((await h.call(h.builder.handle,request)).code,403);
+ }
+ const result=await h.call(h.builder.handle,h.req({action:'import-vocabulary',text:'word,definition\nlucid,clear\nreluctant,unwilling'}));assert.equal(result.code,200);assert.equal(result.data.rows.length,2);
+});
+test('Vocabulary source persists encrypted in drafts and duplicates but never in public snapshots',async()=>{
+ const h=harness(),q=fixture();q.vocabulary={rows:[{word:'lucid',definition:'clear',definitionDistractors:['murky'],wordDistractors:['slow']},{word:'reluctant',definition:'unwilling',definitionDistractors:['eager'],wordDistractors:['fast']}],types:['choice'],count:3};
+ const saved=await h.call(h.builder.handle,h.req({action:'save',quiz:q}));assert.equal(saved.code,200);const id=saved.data.quiz.id;
+ const loaded=await h.call(h.builder.handle,h.req({action:'load',id}));assert.equal(loaded.data.quiz.vocabulary.rows[0].word,'lucid');assert(![...h.blobs.values()].some(v=>v.includes('lucid')));
+ const published=await h.call(h.builder.handle,h.req({action:'publish',id}));assert.equal(published.code,200);assert.equal(published.data.quiz.vocabulary.rows.length,2);assert.equal((await h.builder.published(id)).vocabulary,undefined);
+ const copy=await h.call(h.builder.handle,h.req({action:'save',quiz:{...published.data.quiz,published:false}}));assert.equal(copy.code,200);assert.notEqual(copy.data.quiz.id,id);assert.equal(copy.data.quiz.vocabulary.count,3);
+});
+test('Generated quiz endpoint honors edited distractors and returns a validated editable question list',async()=>{
+ const h=harness(),rows=[{word:'lucid',definition:'clear',definitionDistractors:['teacher edited distractor'],wordDistractors:['slow']},{word:'reluctant',definition:'unwilling',definitionDistractors:['eager'],wordDistractors:['fast']}];
+ const result=await h.call(h.builder.handle,h.req({action:'vocabulary-questions',rows,count:7,types:['choice','match'],offset:0}));assert.equal(result.code,200);assert.equal(result.data.questions.length,7);assert(result.data.questions[0].choices.includes('teacher edited distractor'));
+ const draft={title:'Generated quiz',durationMinutes:null,questions:result.data.questions};const id=await h.publish(draft);assert.equal((await h.builder.published(id)).questions.length,7);
+ h.state.aiGenerator=async()=>JSON.stringify({rows:[{index:0,definitionDistractors:['opaque','dark','rapid'],wordDistractors:['hazy','dim','quick']}]});
+ const regenerated=await h.call(h.builder.handle,h.req({action:'vocabulary-distractors',rows,index:0}));assert.equal(regenerated.code,200);assert.equal(regenerated.data.rows[0].definition,'clear');assert.deepEqual(regenerated.data.rows[1],rows[1]);
 });

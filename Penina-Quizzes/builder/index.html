@@ -13,12 +13,12 @@
 <section><h2>1. Add your vocabulary</h2>
 <label>Upload a word list<input id="vocabularyFile" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain"></label>
 <p class="hint">CSV or tab-separated text, with two columns: word and definition. You can also copy two columns from Excel or Google Sheets and paste below.</p>
-<label>Paste words and definitions<textarea id="vocabularyPaste" maxlength="100000" placeholder="word&#9;definition&#10;lucid&#9;clear and easy to understand&#10;reluctant&#9;unwilling or hesitant"></textarea></label>
+<label>Paste words and definitions<textarea id="vocabularyPaste" maxlength="100000" placeholder="word&#9;definition&#10;שלום&#9;peace&#10;אור&#9;light"></textarea></label>
 <button id="vocabularyImport" class="secondary" type="button">Load vocabulary table</button>
 </section>
 <section id="vocabularyReview" hidden><h2>2. Review words and distractors</h2>
-<p>Incorrect definitions are used for multiple choice and matching. Extra words are used for multiple answers and blank word banks. Edit any cell; put one distractor on each line. Check that each distractor is clearly wrong for the intended meaning.</p>
-<div class="vocabulary-table-scroll" role="region" aria-label="Editable vocabulary and distractors" tabindex="0"><table class="vocabulary-table"><thead><tr><th scope="col">Word</th><th scope="col">Correct definition</th><th scope="col">Incorrect definitions</th><th scope="col">Extra words</th><th scope="col">Actions</th></tr></thead><tbody id="vocabularyRows"></tbody></table></div>
+<p>For Hebrew terms, enter English translations and distractors. For English terms, enter Hebrew translations and distractors. All answer choices use that opposite language. Edit any cell; put one distractor on each line.</p>
+<div class="vocabulary-table-scroll" role="region" aria-label="Editable vocabulary and distractors" tabindex="0"><table class="vocabulary-table"><thead><tr><th scope="col">Word</th><th scope="col">Correct translation / definition</th><th scope="col">Distractors</th><th scope="col">Actions</th></tr></thead><tbody id="vocabularyRows"></tbody></table></div>
 <div class="vocabulary-actions"><button id="vocabularyAdd" class="quiet" type="button">＋ Add word</button><button id="vocabularyRegenerate" class="secondary" type="button">Generate distractors</button></div>
 <p class="hint">Regenerating replaces the distractors in the selected rows, including your edits. Words and correct definitions stay unchanged. Table edits affect future generation; existing questions stay unchanged. Save draft to keep this table with your quiz.</p>
 </section>
@@ -27,7 +27,7 @@
 <fieldset id="vocabularyTypes"><legend>Question types to include</legend>
 <label><input type="checkbox" value="text">Written answer</label><label><input type="checkbox" value="choice" checked>Multiple choice</label><label><input type="checkbox" value="multi">Multiple answers</label><label><input type="checkbox" value="match" checked>Matching</label><label><input type="checkbox" value="gaps" checked>Fill in the blanks</label><label><input type="checkbox" value="order">Ordering (alphabetical)</label>
 </fieldset>
-<label class="vocabulary-check"><input id="vocabularyBank" type="checkbox" checked>Use word banks for blanks (includes your extra words)</label>
+<label class="vocabulary-check"><input id="vocabularyBank" type="checkbox" checked>Use word banks for translation blanks (includes your distractors)</label>
 <label>Reading direction<select id="vocabularyDirection"><option value="ltr">Left to right</option><option value="rtl">Right to left (Hebrew)</option></select></label>
 <p class="hint">Questions are spread evenly across the selected types. A matching group counts as one question. Words may repeat, especially in longer quizzes. Ordering questions ask for alphabetical order.</p>
 <button id="vocabularyGenerate" type="button">Generate editable quiz</button>

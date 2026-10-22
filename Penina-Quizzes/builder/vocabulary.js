@@ -1,5 +1,6 @@
 'use strict';
 // The vocabulary source lives on the draft so loading/duplicating quizzes retains teacher edits.
+function distractorLanguage(word){return /[א-ת]/u.test(word)?'English':'Hebrew';}
 function vocabularySource(){return quiz.vocabulary || {rows:[],count:15,types:['choice','match','gaps'],wordBank:true,direction:'ltr'};}
 function vocabularyMessage(message){$('vocabularyStatus').textContent=message;}
 function vocabularyButtons(){
@@ -14,8 +15,8 @@ function renderVocabulary(){
     $('vocabularyCount').value=source.count;$('vocabularyBank').checked=source.wordBank;
     $('vocabularyDirection').value=source.direction;
     for(const el of $('vocabularyTypes').querySelectorAll('input'))el.checked=source.types.includes(el.value);
-    $('vocabularyRows').innerHTML=source.rows.map((r,i)=>`<tr data-vocab-row="${i}"><td><input data-vocab-field="word" aria-label="Word ${i+1}" value="${esc(r.word)}" maxlength="500" dir="auto"></td><td><textarea data-vocab-field="definition" aria-label="Definition ${i+1}" maxlength="500" dir="auto">${esc(r.definition)}</textarea></td><td><textarea data-vocab-field="definitionDistractors" aria-label="Incorrect definitions ${i+1}" maxlength="5010" dir="auto">${esc(r.definitionDistractors.join('\n'))}</textarea></td><td><textarea data-vocab-field="wordDistractors" aria-label="Extra words ${i+1}" maxlength="5010" dir="auto">${esc(r.wordDistractors.join('\n'))}</textarea></td><td><button type="button" class="quiet" data-vocab-regenerate="${i}">Regenerate row ${i+1}</button><button type="button" class="quiet" data-vocab-remove="${i}">Remove row ${i+1}</button></td></tr>`).join('');
-    $('vocabularyRegenerate').textContent=source.rows.some(r=>r.definitionDistractors.length||r.wordDistractors.length)?'Regenerate all distractors':'Generate distractors';
+    $('vocabularyRows').innerHTML=source.rows.map((r,i)=>`<tr data-vocab-row="${i}"><td><input data-vocab-field="word" aria-label="Word ${i+1}" value="${esc(r.word)}" maxlength="500" dir="auto"></td><td><textarea data-vocab-field="definition" aria-label="Definition ${i+1}" maxlength="500" dir="auto">${esc(r.definition)}</textarea></td><td><small data-distractor-language>${distractorLanguage(r.word)} distractors</small><textarea data-vocab-field="definitionDistractors" aria-label="Distractors ${i+1}" maxlength="5010" dir="auto">${esc(r.definitionDistractors.join('\n'))}</textarea></td><td><button type="button" class="quiet" data-vocab-regenerate="${i}">Regenerate row ${i+1}</button><button type="button" class="quiet" data-vocab-remove="${i}">Remove row ${i+1}</button></td></tr>`).join('');
+    $('vocabularyRegenerate').textContent=source.rows.some(r=>r.definitionDistractors.length)?'Regenerate all distractors':'Generate distractors';
     vocabularyButtons();
 }
 function vocabularyChanged(){changed();vocabularyMessage('Vocabulary edits are unsaved. Save draft to keep your table.');}
@@ -45,6 +46,7 @@ $('vocabularyRows').addEventListener('input',event=>{
     if(!row || !field)return;
     const r=quiz.vocabulary.rows[Number(row.dataset.vocabRow)];
     r[field]=field.endsWith('Distractors')?event.target.value.split('\n').map(v=>v.trim()).filter(Boolean):event.target.value;
+    if(field==='word'){const label=row.querySelector?.('[data-distractor-language]');if(label)label.textContent=distractorLanguage(r.word)+' distractors';}
     vocabularyChanged();
 });
 $('vocabularyRows').addEventListener('click',event=>{
@@ -65,7 +67,7 @@ $('vocabularyAdd').onclick=()=>{
 async function regenerateVocabulary(index){
     await vocabularyRun(async()=>{
         const rows=structuredClone(vocabularySource().rows),indices=index===undefined?rows.map((_,i)=>i):[index];
-        if(indices.some(i=>rows[i].definitionDistractors.length||rows[i].wordDistractors.length) && !confirm(index===undefined?'Replace all distractors, including your edits?':'Replace the distractors in this row, including your edits?'))return;
+        if(indices.some(i=>rows[i].definitionDistractors.length) && !confirm(index===undefined?'Replace all distractors, including your edits?':'Replace the distractors in this row, including your edits?'))return;
         let generated=rows;
         for(let start=0;start<indices.length;start+=10){
             const batch=indices.slice(start,start+10);

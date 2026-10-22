@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const v=require('../lib/quiz-vocabulary'),model=require('../lib/quiz-builder-model');
-function rows(n=15){return Array.from({length:n},(_,i)=>({word:'term'+i,definition:'meaning'+i,definitionDistractors:['wrong meaning '+i+'a','wrong meaning '+i+'b','wrong meaning '+i+'c'],wordDistractors:['decoy'+i+'a','decoy'+i+'b','decoy'+i+'c']}));}
+function rows(n=15){return Array.from({length:n},(_,i)=>({word:'מילה'+i,definition:'meaning'+i,definitionDistractors:['wrong meaning '+i+'a','wrong meaning '+i+'b','wrong meaning '+i+'c'],wordDistractors:['decoy'+i+'a','decoy'+i+'b','decoy'+i+'c']}));}
 function config(overrides={}){return {rows:rows(),count:15,types:['text','choice','multi','match','gaps','order'],wordBank:true,direction:'ltr',...overrides};}
 const sentenceAI=async prompt=>JSON.stringify({sentences:JSON.parse(prompt.split('\nData: ')[1]).map(r=>({index:r.index,sentence:'The context for '+r.definition+' is ___.'}))});
 test('CSV/TSV imports preserve quoted commas, multiline definitions, Unicode, BOM and optional headers',()=>{
@@ -36,7 +36,7 @@ test('All selected formats, exact counts, editable banks and grading survive gen
  const answers=all.map(q=>q.type==='text'?['A student explanation']:q.answer);
  assert(model.validAnswers(quiz,answers));assert.equal(model.grade(quiz,answers).automaticScore,all.filter(q=>q.type!=='text').length);
  assert.deepEqual(all[1].answer,['meaning1']);assert(all[1].choices.includes('wrong meaning 1a'));
- assert(all[3].choices.includes('wrong meaning 3a'));assert(all[4].choices.includes('decoy4a'));
+ assert(all[3].choices.includes('wrong meaning 3a'));assert(all[4].choices.includes('wrong meaning 4a'));assert.deepEqual(all[4].answer,['meaning4']);
  assert(model.publicQuestions(quiz).every(q=>!Object.hasOwn(q,'answer')));
 });
 test('100 questions are generated in bounded batches; selected type count and input bounds are enforced',async()=>{
@@ -45,9 +45,33 @@ test('100 questions are generated in bounded batches; selected type count and in
  assert.equal(all.length,100);
  for(const overrides of [{count:0},{count:101},{count:2},{types:[]},{offset:11},{offset:100},{rows:rows(1)}])await assert.rejects(v.questions(config(overrides),sentenceAI));
 });
-test('Typed blanks need no distractors; malformed AI output fails without accepting partial questions',async()=>{
+test('Translation blanks use opposite-language answers without requesting context sentences',async()=>{
  const c=config({count:3,types:['gaps'],wordBank:false,rows:rows().map(r=>({...r,wordDistractors:[],definitionDistractors:[]}))});
- const generated=await v.questions(c,sentenceAI);assert.equal(generated.length,3);assert.deepEqual(generated[0].choices,[]);assert.equal(generated[0].wordBank,false);
- for(const result of ['not json',JSON.stringify({sentences:[]}),JSON.stringify({sentences:[{index:0,sentence:'No blank'},{index:1,sentence:'___'},{index:2,sentence:'___'}]})])await assert.rejects(v.questions(c,async()=>result));
- await assert.rejects(v.questions({...c,wordBank:true},sentenceAI),/extra words/);
+ const generated=await v.questions(c,async()=>assert.fail('No context generation needed'));
+ assert.equal(generated.length,3);assert.deepEqual(generated[0].choices,[]);assert.deepEqual(generated[0].answer,['meaning0']);assert.equal(generated[0].wordBank,false);
+ await assert.rejects(v.questions({...c,wordBank:true}),/distractors/);
+});
+test('Hebrew terms generate English-only distractors and English terms generate Hebrew-only distractors',async()=>{
+ const input=[{word:'שָׁלוֹם',definition:'peace'},{word:'light',definition:'אור'}];
+ const result=await v.distractors({rows:input,indices:[0,1]},async(prompt,options)=>{
+  assert.match(prompt,/ENGLISH ONLY/);assert.match(prompt,/HEBREW ONLY/);
+  assert(!options.textFormat.schema.properties.rows.items.properties.wordDistractors);
+  return JSON.stringify({rows:[{index:0,definitionDistractors:['war','noise','darkness']},{index:1,definitionDistractors:['חושך','רעש','מים']}]});
+ });
+ assert.deepEqual(result[0].definitionDistractors,['war','noise','darkness']);assert.deepEqual(result[1].definitionDistractors,['חושך','רעש','מים']);assert.deepEqual(result[0].wordDistractors,[]);
+ await assert.rejects(v.distractors({rows:input,index:0},async()=>JSON.stringify({rows:[{index:0,definitionDistractors:['מלחמה','רעש','חושך']}]})),/English/);
+ await assert.rejects(v.distractors({rows:input,index:1},async()=>JSON.stringify({rows:[{index:1,definitionDistractors:['darkness','noise','water']}]})),/Hebrew/);
+});
+test('Every generated answer bank follows its term language, including mixed lists',async()=>{
+ const mixed=[{word:'שלום',definition:'peace',definitionDistractors:['war','noise']},{word:'אור',definition:'light',definitionDistractors:['darkness','water']},{word:'water',definition:'מים',definitionDistractors:['אש','אדמה']},{word:'night',definition:'לילה',definitionDistractors:['יום','בוקר']}];
+ for(const type of ['choice','multi','match','gaps','text']){
+  const generated=await v.questions(config({rows:mixed,count:4,types:[type]}));
+  for(let i=0;i<4;i++){
+   const q=generated[i],answers=type==='text'?[q.answer]:q.choices;
+   assert(answers.every(a=>i<2?!/[א-ת]/.test(a):/[א-ת]/.test(a)&&!/[a-z]/i.test(a)));
+   assert.equal(q.direction,i<2?'ltr':'rtl');
+  }
+ }
+ const bad=structuredClone(mixed);bad[0].definitionDistractors=['מלחמה'];await assert.rejects(v.questions(config({rows:bad,count:4,types:['choice']})),/English/);
+ bad[0].definitionDistractors=['war'];bad[2].definition='water';await assert.rejects(v.questions(config({rows:bad,count:4,types:['choice']})),/Hebrew/);
 });

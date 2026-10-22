@@ -20,9 +20,9 @@ test('A failed second question batch preserves the complete original draft',asyn
  const before=JSON.stringify(h.ctx.quiz);await h.$('vocabularyGenerate').onclick();assert.equal(JSON.stringify(h.ctx.quiz),before);assert.equal(h.state.error,'Service unavailable');assert.equal(h.$('vocabularyGenerate').disabled,false);
 });
 test('Whole-table regeneration is atomic and row regeneration preserves every other row',async()=>{
- const h=harness(async(_,body)=>{if(body.indices[0]===10)throw Error('Try again');return {rows:body.rows.map((r,i)=>body.indices.includes(i)?{...r,wordDistractors:['new word']}:r)};});
+ const h=harness(async(_,body)=>{if(body.indices[0]===10)throw Error('Try again');return {rows:body.rows.map((r,i)=>body.indices.includes(i)?{...r,definitionDistractors:['new definition']}:r)};});
  const before=JSON.stringify(h.ctx.quiz.vocabulary);await h.ctx.regenerateVocabulary();assert.equal(JSON.stringify(h.ctx.quiz.vocabulary),before);
- await h.ctx.regenerateVocabulary(2);assert.deepEqual(h.ctx.quiz.vocabulary.rows[2].wordDistractors,['new word']);assert.equal(h.ctx.quiz.vocabulary.rows[3].wordDistractors[0],'old word3');assert.equal(h.ctx.quiz.vocabulary.rows[2].definition,'definition2');
+ await h.ctx.regenerateVocabulary(2);assert.deepEqual(h.ctx.quiz.vocabulary.rows[2].definitionDistractors,['new definition']);assert.equal(h.ctx.quiz.vocabulary.rows[3].wordDistractors[0],'old word3');assert.equal(h.ctx.quiz.vocabulary.rows[2].definition,'definition2');
 });
 test('Cancelling regeneration retains manual edits and makes no provider request',async()=>{
  const h=harness(async()=>assert.fail('No request expected'));h.state.confirm=false;

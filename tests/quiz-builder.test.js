@@ -326,7 +326,7 @@ test('Vocabulary source persists encrypted in drafts and duplicates but never in
  const copy=await h.call(h.builder.handle,h.req({action:'save',quiz:{...published.data.quiz,published:false}}));assert.equal(copy.code,200);assert.notEqual(copy.data.quiz.id,id);assert.equal(copy.data.quiz.vocabulary.count,3);
 });
 test('Generated quiz endpoint honors edited distractors and returns a validated editable question list',async()=>{
- const h=harness(),rows=[{word:'lucid',definition:'clear',definitionDistractors:['teacher edited distractor'],wordDistractors:['slow']},{word:'reluctant',definition:'unwilling',definitionDistractors:['eager'],wordDistractors:['fast']}];
+ const h=harness(),rows=[{word:'ברור',definition:'clear',definitionDistractors:['teacher edited distractor'],wordDistractors:['slow']},{word:'מהסס',definition:'unwilling',definitionDistractors:['eager'],wordDistractors:['fast']}];
  const result=await h.call(h.builder.handle,h.req({action:'vocabulary-questions',rows,count:7,types:['choice','match'],offset:0}));assert.equal(result.code,200);assert.equal(result.data.questions.length,7);assert(result.data.questions[0].choices.includes('teacher edited distractor'));
  const draft={title:'Generated quiz',durationMinutes:null,questions:result.data.questions};const id=await h.publish(draft);assert.equal((await h.builder.published(id)).questions.length,7);
  h.state.aiGenerator=async()=>JSON.stringify({rows:[{index:0,definitionDistractors:['opaque','dark','rapid'],wordDistractors:['hazy','dim','quick']}]});

@@ -29,3 +29,5 @@ fieldset{border:0;padding:0;margin:0}select{max-width:100%;padding:10px;border:1
 .results-grid button{background:transparent;color:#243a3b;font-weight:700;padding:7px 14px;min-width:44px}.results-grid button:hover,.results-grid button:focus{background:#d3e3d9}.results-bonus{display:block;font-size:10px;color:#76500c}.question-summary-heading{margin-top:36px}
 
 .roster-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px 24px;margin-bottom:16px}.roster-heading h2{margin:0}.results-jump-links{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14px}.results-jump-links a{text-underline-offset:3px}#studentQuestionResults,#questionSummary{scroll-margin-top:20px}
+
+.sentence input[type="text"]{display:inline-block;width:12ch;max-width:100%;margin:0 6px;padding:6px 10px}.matching label{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:16px;margin:14px 0}.matching span{overflow-wrap:anywhere}.matching select{width:100%}@media(max-width:480px){.matching label{grid-template-columns:1fr;gap:6px}}

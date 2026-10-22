@@ -26,3 +26,22 @@ test('rapid repeated taps submit only once while a request is pending',async()=>
  await Promise.all([h.listeners.click({target:{closest:()=>button}}),h.listeners.click({target:{closest:()=>button}})]);
  assert.equal(h.requests.length,1);
 });
+
+test('touch answer survives a pause redraw and submits once even after completion',async()=>{
+ const h=setup(),data=question();h.client.present(data);
+ const button={disabled:false,dataset:{choice:'2'},hasAttribute:()=>false};
+ let prevented=false;
+ h.listeners.pointerdown({pointerType:'touch',isPrimary:true,button:0,target:{closest:()=>button},preventDefault(){prevented=true;}});
+ assert.equal(prevented,true);
+ assert.equal(h.requests.length,1,'submit before a click can be lost');
+ assert.deepEqual(h.requests[0],{action:'answer',code:'123456',version:2,index:1,round:1,choice:2});
+ const beforePause=h.renders;
+ h.client.present({...data,version:3,paused:true});
+ assert.equal(h.renders,beforePause+1);
+ assert.match(h.markup,/data-choice="0" disabled/);
+ // Let the request finish so busy cannot hide duplicate-click bugs.
+ await new Promise(resolve=>setImmediate(resolve));
+ await h.listeners.click({pointerType:'touch',target:{closest:()=>button}});
+ await h.listeners.click({target:{closest:()=>button}});
+ assert.equal(h.requests.length,1,'late compatibility clicks must not resubmit');
+});

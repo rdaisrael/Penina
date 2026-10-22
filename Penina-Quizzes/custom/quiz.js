@@ -18,7 +18,7 @@ function snapshot() {
 }
 function answer(q,i) {
     if(q.type==='multi')return [...form.querySelectorAll(`[data-question="${i}"] input:checked`)].map(c=>c.value);
-    const count=q.type==='gaps'?q.prompt.split('___').length-1:q.type==='order'?q.choices.length:1;
+    const count=q.type==='gaps'?q.prompt.split('___').length-1:q.type==='match'?q.items.length:q.type==='order'?q.choices.length:1;
     return Array.from({length:count},(_,j)=>form.elements.namedItem(`q${i}-${j}`)?.value || '');
 }
 function shuffled(values) {
@@ -31,7 +31,8 @@ function controls(q,i) {
     const select=(j,label)=>`<select name="q${i}-${j}" aria-label="${esc(label)}" ${q.extraCredit?'':'required'}><option value="">Choose a word</option>${choices.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>`;
     if(q.type==='choice')return `<label>Choose one answer${select(0,'Your answer')}</label>`;
     if(q.type==='multi')return `<fieldset><legend>${q.scoringMode==='response'?'Select exactly '+q.responseCount+' answers':'Check all that apply'}</legend>${choices.map((c,j)=>`<label class="choice"><input type="checkbox" name="q${i}-choice-${q.choices.indexOf(c)}" value="${esc(c)}"><span dir="auto">${esc(c)}</span></label>`).join('')}</fieldset>`;
-    if(q.type==='gaps')return `<div class="sentence" dir="${q.direction}">${q.prompt.split('___').map((part,j)=>esc(part)+(j<q.prompt.split('___').length-1?select(j,'Blank '+(j+1)):'')).join('')}</div>`;
+    if(q.type==='match')return `<div class="matching" dir="${q.direction}"><p class="muted">Choose the match for each item. Choices may be reused, and some may not be needed.</p>${q.items.map((item,j)=>`<label><span dir="auto">${esc(item)}</span>${select(j,item)}</label>`).join('')}</div>`;
+    if(q.type==='gaps')return `<div class="sentence" dir="${q.direction}">${q.prompt.split('___').map((part,j)=>esc(part)+(j<q.prompt.split('___').length-1?(q.wordBank===false?`<input type="text" name="q${i}-${j}" aria-label="Blank ${j+1}" maxlength="500" dir="auto" autocomplete="off" ${q.extraCredit?'':'required'}>`:select(j,'Blank '+(j+1))):'')).join('')}</div>`;
     if(q.type==='order')return `<p class="muted">Choose each item in order. Position 1 is on the ${q.direction==='rtl'?'right':'left'}. Use each item once.</p><div class="ordering" dir="${q.direction}">${choices.map((_,j)=>`<label><span>(${j+1})</span>${select(j,'Position '+(j+1))}</label>`).join('')}</div>`;
     return `<label>Your answer<textarea name="q${i}-0" dir="auto" spellcheck="true" maxlength="5000" ${q.extraCredit?'':'required'}></textarea></label>`;
 }
@@ -95,7 +96,7 @@ function showReceipt() {
     const automatic = new Map((submission.automatic || []).map(q=>[q.index,q]));
     document.getElementById('answerFeedback').innerHTML=questions.map((q,i)=>{
         const result=automatic.get(i);
-        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="auto">${i+1}. ${esc(q.prompt)}</h3><p class="answer">Your answer: ${submission.answers[i].map(a=>esc(a||'(Unanswered)')).join('<br>')}</p>${result?`<p class="${result.correct?'correct':'warning'}">${result.correct?'Correct':result.partial?'Partly correct':'Incorrect'}</p>`:'<p>Awaiting teacher correction.</p>'}</section>`;
+        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="auto">${i+1}. ${esc(q.prompt)}</h3><p class="answer">Your answer: ${submission.answers[i].map((a,j)=>esc((q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</p>${result?`<p class="${result.correct?'correct':'warning'}">${result.correct?'Correct':result.partial?'Partly correct':'Incorrect'}</p>`:'<p>Awaiting teacher correction.</p>'}</section>`;
     }).join('');
 }
 function tick() {

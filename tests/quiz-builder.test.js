@@ -273,3 +273,37 @@ test('Above-assigned automatic overrides persist and reach Classroom and email',
  const sent=await h.call(h.submissions,h.req({...body,emailStudent:true}));assert.equal(sent.code,200);assert.equal(h.state.emailed.grading.automatic[0].score,2);
  const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.data.submissions[0].grading.automatic[0].score,2);assert.equal(report.data.summary[1].correct,1);
 });
+
+function vocabularyFixture(){return {title:'Vocabulary options',durationMinutes:null,questions:[
+ {type:'match',prompt:'Match each word to its meaning.',items:['lucid','reluctant'],choices:['clear','unwilling','swift'],answer:['clear','unwilling'],points:2,scoringMode:'response'},
+ {type:'gaps',prompt:'Her explanation was ___.',wordBank:false,answer:['lucid'],points:1},
+ {type:'gaps',prompt:'He was ___ to leave.',wordBank:true,choices:['reluctant','lucid','swift'],answer:['reluctant'],points:1}
+]};}
+test('Vocabulary keys validate, hide answers, count matches and retain distractors',()=>{
+ const quiz=model.validateQuiz(vocabularyFixture(),true),safe=model.publicQuestions(quiz);
+ assert.equal(model.maxPoints(quiz.questions[0]),4);assert.deepEqual(safe[0].items,['lucid','reluctant']);
+ assert.deepEqual(safe[0].choices,['clear','unwilling','swift']);assert.equal(safe[1].wordBank,false);assert.deepEqual(safe[1].choices,[]);
+ assert(safe.every(q=>!Object.hasOwn(q,'answer')));
+ for(const mutate of [q=>q.questions[0].items=['lucid'],q=>q.questions[0].items=['','reluctant'],q=>q.questions[0].answer=['swift','absent'],q=>q.questions[1].answer=[''],q=>q.questions[1].prompt='No blank',q=>q.questions[1].wordBank='no']){
+  const q=vocabularyFixture();mutate(q);assert.throws(()=>model.validateQuiz(q,true));
+ }
+});
+test('Vocabulary grading excludes distractors, handles partial credit and typed normalization',()=>{
+ const quiz=model.validateQuiz(vocabularyFixture(),true),answers=[['clear','swift'],[' LUCID '],['reluctant']];
+ assert(model.validAnswers(quiz,answers));assert.equal(model.grade(quiz,answers).total,4);
+ answers[0]=['clear','unwilling'];assert.equal(model.grade(quiz,answers).total,6);
+ quiz.questions[0].scoringMode='total';answers[0]=['clear','swift'];assert.equal(model.grade(quiz,answers).total,2);
+ answers[0]=['absent','swift'];assert(!model.validAnswers(quiz,answers));
+ const empty=[['',''],[''],['']];assert(!model.validAnswers(quiz,empty));assert(model.validAnswers(quiz,empty,true));assert.equal(model.grade(quiz,empty).total,0);
+ quiz.questions.forEach(q=>q.extraCredit=true);assert(model.validAnswers(quiz,empty));
+});
+test('Vocabulary questions survive saving, publishing, student submission and reporting',async()=>{
+ const h=harness(),id=await h.publish(vocabularyFixture());
+ const assigned=await h.call(h.account.handle,h.req({action:'assign',courseId:'course',quiz:id}));assert.equal(assigned.code,200);
+ const classId=new URL(assigned.data.url).searchParams.get('class');assert.equal(h.state.work.maxPoints,6);
+ const request=h.req({},'student',{action:'student',quiz:id,classId});request.method='GET';
+ const identity=await h.call(h.account.handle,request);assert.equal(identity.code,200);assert.equal(identity.data.questions[0].items.length,2);assert(!Object.hasOwn(identity.data.questions[1],'answer'));
+ const attemptId='e'.repeat(32),start=await h.call(h.submissions,h.req({action:'start',id:attemptId,classId,quiz:id},'student'));assert.equal(start.code,200);
+ const result=await h.call(h.submissions,h.req({action:'submit',id:attemptId,classId,quiz:id,token:start.data.token,answers:[['clear','swift'],['LUCID'],['reluctant']]},'student'));assert.equal(result.code,200);
+ const report=await h.call(h.submissions,h.req({action:'report',quiz:id}));assert.equal(report.code,200);assert.equal(report.data.submissions[0].grading.total,4);assert.equal(report.data.submissions[0].grading.pending,0);
+});

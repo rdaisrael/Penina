@@ -208,6 +208,16 @@
   try{await request(action,{version:snapshot.version,index:snapshot.index,round:snapshot.round||0,...extra});busy=false;if(inFlight)timer=setTimeout(poll,300);else await poll();return true;}
   catch(e){busy=false;showError(e.message);if(snapshot)draw(snapshot);timer=setTimeout(poll,1800);return false;}
  }
+ // Submit touch answers before a poll can replace the button mid-tap.
+ const touchAnswers=new WeakSet();
+ stage.addEventListener('pointerdown',event=>{
+  if(host||event.pointerType!=='touch'||!event.isPrimary||event.button!==0)return;
+  const button=event.target.closest('button[data-choice]');
+  if(!button||button.disabled||busy)return;
+  touchAnswers.add(button);
+  event.preventDefault();
+  void act('answer',{choice:Number(button.dataset.choice)});
+ });
  stage.addEventListener('click',async event=>{
   const button=event.target.closest('button');if(!button||button.disabled)return;
   if(button.hasAttribute('data-email-retry')){button.disabled=true;stopped=false;await poll();return;}
@@ -217,7 +227,7 @@
    const dialog=document.createElement('dialog');dialog.className='live-confirm';dialog.innerHTML='<h2>End this game?</h2><p>Students will see the final scores. An unrevealed question will not count.</p><div class="actions"><button data-cancel>Keep playing</button><button class="danger" data-confirm>End game</button></div>';document.body.append(dialog);dialog.showModal();dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();dialog.querySelector('[data-confirm]').onclick=()=>{dialog.close();act('end');};return;
   }
   if(button.dataset.action)await act(button.dataset.action);
-  if(button.dataset.choice!==undefined)await act('answer',{choice:Number(button.dataset.choice)});
+  if(button.dataset.choice!==undefined&&event.pointerType!=='touch'&&!touchAnswers.has(button))await act('answer',{choice:Number(button.dataset.choice)});
  });
  setInterval(updateClock,100);
  window.addEventListener('pagehide',()=>{stopped=true;clearTimeout(timer);disconnectRealtime();});

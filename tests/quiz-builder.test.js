@@ -230,7 +230,7 @@ test('Extra credit adds to earned points but not the denominator, and is optiona
  assert.throws(()=>model.validateQuiz({...q,questions:[{...regular,extraCredit:true}]},true),/regular question/);
  assert.throws(()=>model.validateQuiz({...q,questions:[{...regular,extraCredit:'yes'}]},true));
  const written={...fixture(),questions:[regular,{type:'text',prompt:'Bonus explanation',points:2,extraCredit:true,answer:'Example'}]};
- assert(model.validAnswers(written,[['A'],['']]));assert.equal(model.grade(written,[['A'],['']]).total,1);
+ assert(model.validAnswers(written,[['A'],['']]));assert.equal(model.grade(written,[['A'],['']]).pending,1);
  assert.equal(model.grade(written,[['A'],['attempt']]).pending,1);
  const manual=model.grade(written,[['A'],['attempt']],{scores:[2]});assert.equal(manual.total,3);assert.equal(manual.baseMax,1);
 });
@@ -289,13 +289,13 @@ test('Vocabulary keys validate, hide answers, count matches and retain distracto
   const q=vocabularyFixture();mutate(q);assert.throws(()=>model.validateQuiz(q,true));
  }
 });
-test('Vocabulary grading excludes distractors, handles partial credit and typed normalization',()=>{
+test('Vocabulary grading excludes distractors, handles partial credit and leaves typed answers for correction',()=>{
  const quiz=model.validateQuiz(vocabularyFixture(),true),answers=[['clear','swift'],[' LUCID '],['reluctant']];
- assert(model.validAnswers(quiz,answers));assert.equal(model.grade(quiz,answers).total,4);
- answers[0]=['clear','unwilling'];assert.equal(model.grade(quiz,answers).total,6);
- quiz.questions[0].scoringMode='total';answers[0]=['clear','swift'];assert.equal(model.grade(quiz,answers).total,2);
+ assert(model.validAnswers(quiz,answers));assert.equal(model.grade(quiz,answers).earnedSoFar,3);assert.equal(model.grade(quiz,answers).pending,1);
+ answers[0]=['clear','unwilling'];assert.equal(model.grade(quiz,answers).earnedSoFar,5);
+ quiz.questions[0].scoringMode='total';answers[0]=['clear','swift'];assert.equal(model.grade(quiz,answers).earnedSoFar,1);
  answers[0]=['absent','swift'];assert(!model.validAnswers(quiz,answers));
- const empty=[['',''],[''],['']];assert(!model.validAnswers(quiz,empty));assert(model.validAnswers(quiz,empty,true));assert.equal(model.grade(quiz,empty).total,0);
+ const empty=[['',''],[''],['']];assert(!model.validAnswers(quiz,empty));assert(model.validAnswers(quiz,empty,true));assert.equal(model.grade(quiz,empty).total,null);
  quiz.questions.forEach(q=>q.extraCredit=true);assert(model.validAnswers(quiz,empty));
 });
 test('Vocabulary questions survive saving, publishing, student submission and reporting',async()=>{
@@ -306,7 +306,10 @@ test('Vocabulary questions survive saving, publishing, student submission and re
  const identity=await h.call(h.account.handle,request);assert.equal(identity.code,200);assert.equal(identity.data.questions[0].items.length,2);assert(!Object.hasOwn(identity.data.questions[1],'answer'));
  const attemptId='e'.repeat(32),start=await h.call(h.submissions,h.req({action:'start',id:attemptId,classId,quiz:id},'student'));assert.equal(start.code,200);
  const result=await h.call(h.submissions,h.req({action:'submit',id:attemptId,classId,quiz:id,token:start.data.token,answers:[['clear','swift'],['LUCID'],['reluctant']]},'student'));assert.equal(result.code,200);
- const report=await h.call(h.submissions,h.req({action:'report',quiz:id}));assert.equal(report.code,200);assert.equal(report.data.submissions[0].grading.total,4);assert.equal(report.data.submissions[0].grading.pending,0);
+ const report=await h.call(h.submissions,h.req({action:'report',quiz:id}));assert.equal(report.code,200);assert.equal(report.data.submissions[0].grading.total,null);assert.equal(report.data.submissions[0].grading.pending,1);
+ assert(!result.data.automatic.some(q=>q.index===1));
+ const corrected=await h.call(h.submissions,h.req({action:'correct',id:attemptId,quiz:id,scores:[1],feedback:'',sendToClassroom:true}));
+ assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,4);assert.equal(corrected.data.grading.pending,0);
 });
 
 
@@ -331,4 +334,22 @@ test('Generated quiz endpoint honors edited distractors and returns a validated 
  const draft={title:'Generated quiz',durationMinutes:null,questions:result.data.questions};const id=await h.publish(draft);assert.equal((await h.builder.published(id)).questions.length,7);
  h.state.aiGenerator=async()=>JSON.stringify({rows:[{index:0,definitionDistractors:['opaque','dark','rapid'],wordDistractors:['hazy','dim','quick']}]});
  const regenerated=await h.call(h.builder.handle,h.req({action:'vocabulary-distractors',rows,index:0}));assert.equal(regenerated.code,200);assert.equal(regenerated.data.rows[0].definition,'clear');assert.deepEqual(regenerated.data.rows[1],rows[1]);
+});
+
+test('Every typed answer waits for teacher correction regardless of content, timeout, or extra credit',()=>{
+ for(const extraCredit of [false,true])for(const value of ['lucid','LUCID','wrong','']){
+  const q=vocabularyFixture();q.questions.push({type:'text',prompt:'Explain',answer:'lucid',points:2,extraCredit});q.questions[1].extraCredit=extraCredit;
+  const answers=[['clear','unwilling'],[value],['reluctant'],[value]];
+  const g=model.grade(q,answers);assert.equal(g.pending,2);assert.equal(g.total,null);
+  assert.deepEqual(g.manual.map(a=>a.index),[1,3]);assert(g.manual.every(a=>a.score===null));
+  assert.deepEqual(g.automatic.map(a=>a.index),[0,2]);
+  assert.equal(model.summarize(q,[{grading:g}])[1].pending,1);
+  assert(model.validCorrections(q,[0,2]));const marked=model.grade(q,answers,{scores:[0,2]});assert.equal(marked.pending,0);
+ }
+});
+test('Legacy text marks stay with their questions when typed blanks become manual',()=>{
+ const q=vocabularyFixture();q.questions.push({type:'text',prompt:'Explain',answer:'model',points:2});
+ const g=model.grade(q,[['clear','unwilling'],['lucid'],['reluctant'],['explanation']],{scores:[2]});
+ assert.deepEqual(g.manual.map(a=>[a.index,a.score]),[[1,null],[3,2]]);
+ const prior=model.grade(q,[],{scores:[2],overrides:{1:1}});assert.deepEqual(prior.manual.map(a=>a.score),[1,2]);
 });

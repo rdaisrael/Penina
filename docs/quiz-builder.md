@@ -38,7 +38,7 @@ Question summaries show counts and percentages out of all submissions in the sel
 
 Matching questions pair each teacher-entered word or definition with an answer from a word bank. Use **Add word or distractor** to add extra choices and select the correct answer for each item. Choices may be reused. Unused choices are distractors and never earn credit. Scoring can apply to the complete question or each correct match.
 
-Fill-in-the-blank questions use `___` for each blank. **Use a word bank** defaults to checked and supports any number of distractors within the 50-choice limit. Uncheck it for typed answers, then enter the answer key for each blank. Typed answers ignore capitalization and surrounding spaces but otherwise require the entered spelling. Existing published blank questions retain their word banks and grading behavior.
+Fill-in-the-blank questions use `___` for each blank. **Use a word bank** defaults to checked and supports any number of distractors within the 50-choice limit. Uncheck it for typed answers, then enter the answer key for each blank. All typed answers, including blanks without a word bank, require teacher correction. They are never graded automatically, even if they exactly match the model answer or are blank on timeout or optional extra-credit questions. Until the teacher awards points they show blue “Needs correction”; correct is green, incorrect red, and partial credit remains separate. Existing saved text-question marks retain their question positions. Existing published blank questions retain their word banks and grading behavior.
 
 ## Generate a quiz from a vocabulary list
 

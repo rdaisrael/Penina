@@ -87,7 +87,7 @@ function resultState(item) {
     return !item || item.score==null?'pending':item.score>=item.max?'correct':item.score===0?'incorrect':'partial';
 }
 function renderResultsGrid() {
-    const labels={correct:'Correct',incorrect:'Incorrect',partial:'Partial credit',pending:'Awaiting correction',missing:'Not submitted'};
+    const labels={correct:'Correct',incorrect:'Incorrect',partial:'Partial credit',pending:'Needs correction',missing:'Not submitted'};
     const symbols={correct:'✓',incorrect:'✕',partial:'◐',pending:'…',missing:'—'};
     const head=document.getElementById('resultsHead');
     head.innerHTML='<tr><th scope="col">Student</th><th scope="col">Grade</th>'+questions.map((q,i)=>`<th scope="col"><button type="button" data-question="${i}" title="${esc(q.prompt)}" aria-label="Question ${i+1}${q.extraCredit?', extra credit':''}: ${esc(q.prompt)}">${i+1}${q.extraCredit?'<span class="results-bonus">Bonus</span>':''}</button></th>`).join('')+'</tr>';
@@ -114,7 +114,7 @@ function renderResultsGrid() {
         const items=new Map(g?[...g.automatic,...g.manual].map(item=>[item.index,item]):[]);
         return `<tr><th scope="row">${esc(student.name)}</th><td>${esc(grade)}</td>`+questions.map((q,index)=>{
             const item=items.get(index),state=record?resultState(item):'missing';
-            const points=state==='missing'?'':state==='pending'?'Pending':`${item.score} / ${item.max}`;
+            const points=state==='missing'?'':state==='pending'?'Needs correction':`${item.score} / ${item.max}`;
             const description=`${labels[state]}${points?' · '+points:''}`;
             return `<td data-result="${state}" title="${esc(description)}" aria-label="${esc(description)}"><span aria-hidden="true">${symbols[state]}</span> ${esc(points)}</td>`;
         }).join('')+'</tr>';
@@ -185,7 +185,7 @@ document.getElementById('export').addEventListener('click',()=>{
     const columns = questions.map((q,i)=>`${i+1}. ${q.extraCredit?'[Extra credit] ':''}${q.prompt}`);
     // Prevent answers or names being interpreted as spreadsheet formulas.
     const csvCell = v => { let s = String(v); if (/^[\s]*[=+\-@]/.test(s)) s = "'" + s; return '"'+s.replace(/"/g,'""')+'"'; };
-    const rows = [['Name','School email','Submitted at (Eastern Time)','Receipt','Automatic points',...questions.flatMap((q,i)=>q.type==='text'?['Q'+(i+1)+' points']:[]),'Final score','Questions awaiting correction','Teacher feedback',...columns],...records.map(r=>[r.name,r.email,formatResultTime(r.submittedAt),r.id,r.grading.automaticScore,...r.grading.manual.map(q=>q.score??''),r.grading.total??'',r.grading.pending,r.grading.feedback,...r.answers.map(values=>values.join(' | '))])];
+    const rows = [['Name','School email','Submitted at (Eastern Time)','Receipt','Automatic points',...questions.flatMap((q,i)=>(q.type==='text'||q.type==='gaps'&&q.wordBank===false)?['Q'+(i+1)+' points']:[]),'Final score','Questions awaiting correction','Teacher feedback',...columns],...records.map(r=>[r.name,r.email,formatResultTime(r.submittedAt),r.id,r.grading.automaticScore,...r.grading.manual.map(q=>q.score??''),r.grading.total??'',r.grading.pending,r.grading.feedback,...r.answers.map(values=>values.join(' | '))])];
     const url = URL.createObjectURL(new Blob(['\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
     const a = document.createElement('a'); a.href = url; a.download = 'PP-Quiz-submissions.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 });

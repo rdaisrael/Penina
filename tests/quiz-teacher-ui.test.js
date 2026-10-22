@@ -198,3 +198,14 @@ test('Question headings expose escaped prompts and show full text on hover, focu
   assert.equal(elements.get('resultsQuestion').textContent,'Question 2 · Extra credit: שאלה');
  }
 });
+
+test('Student receipt always shows typed responses as needs correction, even with cached automatic results',()=>{
+ const student=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/custom/quiz.js'),'utf8');
+ const elements=new Map(),context={clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['a'],['b'],['c'],['d'],['e']],automatic:[{index:0,correct:true},{index:1,correct:false},{index:2,correct:true},{index:3,correct:false},{index:4,partial:true}]},questions:[{type:'text',prompt:'Written'},{type:'gaps',wordBank:false,prompt:'Typed ___'},{type:'choice',prompt:'Correct'},{type:'choice',prompt:'Incorrect'},{type:'multi',prompt:'Partial'}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
+ vm.runInNewContext(student.slice(student.indexOf('function showReceipt()'),student.indexOf('function tick()')),context);context.showReceipt();
+ const html=elements.get('answerFeedback').innerHTML;
+ assert.equal((html.match(/class="needs-correction">Needs correction/g)||[]).length,2);
+ for(const kind of ['correct','incorrect','partial'])assert.match(html,new RegExp('class="'+kind+'"'));
+ const manual=QuizCorrection.question({prompt:'Typed blank'},0,['wrong'],undefined,{max:1,score:null,modelAnswer:'right'},1);
+ assert.match(manual,/data-grade="pending"/);assert.match(manual,/Needs correction/);assert.doesNotMatch(manual,/✓ Correct|✕ Incorrect/);
+});

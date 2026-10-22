@@ -26,8 +26,8 @@ async function vocabularyRun(fn){
 }
 $('vocabularyFile').addEventListener('change',async event=>{
     const file=event.target.files?.[0];if(!file || busy || quiz.published)return;
-    if(file.size>100000){vocabularyMessage('Choose a CSV or tab-separated text file smaller than 100 KB.');return;}
-    if(!/\.(csv|tsv|txt)$/i.test(file.name)){vocabularyMessage('Save the word list as CSV or tab-separated text, or paste two spreadsheet columns below.');return;}
+    if(file.size>100000){vocabularyMessage('Choose a CSV, tab-separated text, or Markdown file smaller than 100 KB.');return;}
+    if(!/\.(csv|tsv|txt|md)$/i.test(file.name)){vocabularyMessage('Use a CSV, TSV, TXT, or Markdown file, or paste a two-column table below.');return;}
     await vocabularyRun(async()=>{
         const text=await file.text();
         $('vocabularyPaste').value=text;

@@ -11,8 +11,8 @@
 <summary>Generate a quiz from vocabulary</summary>
 <p>Upload 10–15 words and definitions, review the suggested distractors, then choose your quiz. Lists of 2–50 words are supported.</p>
 <section><h2>1. Add your vocabulary</h2>
-<label>Upload a word list<input id="vocabularyFile" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain"></label>
-<p class="hint">CSV or tab-separated text, with two columns: word and definition. You can also copy two columns from Excel or Google Sheets and paste below.</p>
+<label>Upload a word list<input id="vocabularyFile" type="file" accept=".csv,.tsv,.txt,.md,text/csv,text/tab-separated-values,text/plain,text/markdown"></label>
+<p class="hint">CSV, tab-separated text, or a Markdown table with two columns: word and definition. Paste a table from chat, or copy two columns from Excel or Google Sheets.</p>
 <label>Paste words and definitions<textarea id="vocabularyPaste" maxlength="100000" placeholder="word&#9;definition&#10;שלום&#9;peace&#10;אור&#9;light"></textarea></label>
 <button id="vocabularyImport" class="secondary" type="button">Load vocabulary table</button>
 </section>

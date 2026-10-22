@@ -42,7 +42,7 @@ Fill-in-the-blank questions use `___` for each blank. **Use a word bank** defaul
 
 ## Generate a quiz from a vocabulary list
 
-Open **Generate a quiz from vocabulary** in the builder. Upload CSV/TSV/text or paste two columns copied from a spreadsheet: word and definition. A header row is optional. CSV definitions containing commas must be quoted. Lists support 2–50 entries (10–15 recommended), with 500 characters per word or definition and a 100 KB import limit.
+Open **Generate a quiz from vocabulary** in the builder. Upload CSV/TSV/text/Markdown, paste a Markdown table from chat, or paste two columns copied from a spreadsheet: word and definition. Markdown alignment separator rows are ignored. Only recognized column labels are removed as a header, so a vocabulary entry above a separator stays in the list. A header row is optional. CSV definitions containing commas must be quoted. Lists support 2–50 entries (10–15 recommended), with 500 characters per word or definition and a 100 KB import limit.
 
 The editable table has one distractor column: English-only distractors for Hebrew terms, and Hebrew-only distractors for English terms. The correct translation must use that same opposite language. **Generate distractors** suggests three distractors per word. Regenerate one row or all rows; replacement of existing edits requires confirmation. Generation failures leave the existing table untouched. Suggestions need teacher review for semantic correctness. Manual distractors can also be entered, one per line (up to ten in each cell).
 

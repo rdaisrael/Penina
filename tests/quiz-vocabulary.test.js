@@ -75,3 +75,38 @@ test('Every generated answer bank follows its term language, including mixed lis
  const bad=structuredClone(mixed);bad[0].definitionDistractors=['מלחמה'];await assert.rejects(v.questions(config({rows:bad,count:4,types:['choice']})),/English/);
  bad[0].definitionDistractors=['war'];bad[2].definition='water';await assert.rejects(v.questions(config({rows:bad,count:4,types:['choice']})),/Hebrew/);
 });
+
+test('Pasted Hebrew Markdown table retains all ten entries, including the apparent header entry',()=>{
+ const pasted=`| דָּבָר שֶׁלֹּא בָּא לָעוֹלָם | something which does not yet exist               |
+| ---------------------------: | ------------------------------------------------ |
+|              יוֹצֵא - לָצֵאת | fulfills his obligation - to fulfill obligation  |
+|                      כֵּלִים | objects                                          |
+|                      מַקְנֶה | initiate agreement (verb) / sell (verb)          |
+|       מֵתָה מֵחֲמַת מְלָאכָה | Died doing its normal work / being used normally |
+|           נְפַק / לַאֲפוּקָה | go out / take out                                |
+|                   פִּקָּדוֹן | A deposit (of an object/animal with a Shomer)    |
+|                   פְּשִׁיעָה | Negligent / doing less than the minimum required |
+|                     קָשְׁיָא | Objection/Attack                                 |
+|                      תֵּרוּץ | Solution / defense                               |`;
+ const result=v.parseTable(pasted);
+ assert.equal(result.length,10);
+ assert.deepEqual(result.map(r=>[r.word,r.definition]),[
+  ['דָּבָר שֶׁלֹּא בָּא לָעוֹלָם','something which does not yet exist'],
+  ['יוֹצֵא - לָצֵאת','fulfills his obligation - to fulfill obligation'],
+  ['כֵּלִים','objects'],['מַקְנֶה','initiate agreement (verb) / sell (verb)'],
+  ['מֵתָה מֵחֲמַת מְלָאכָה','Died doing its normal work / being used normally'],
+  ['נְפַק / לַאֲפוּקָה','go out / take out'],['פִּקָּדוֹן','A deposit (of an object/animal with a Shomer)'],
+  ['פְּשִׁיעָה','Negligent / doing less than the minimum required'],['קָשְׁיָא','Objection/Attack'],['תֵּרוּץ','Solution / defense']
+ ]);
+});
+test('Markdown accepts named headers, optional outside pipes, alignments and escaped pipes',()=>{
+ const data='Term | Translation\n:--- | ---:\nשלום | peace, calm\nאור | light';
+ assert.deepEqual(v.parseTable(data).map(r=>r.definition),['peace, calm','light']);
+ assert.equal(v.parseTable('```markdown\n'+data+'\n```').length,2);
+ assert.equal(v.parseTable('| מילה | פירוש |\n| --- | --- |\n| א | first |\n| ב | second |').length,2);
+ assert.equal(v.parseTable('| א | first \\| one |\n| ב | second |')[0].definition,'first | one');
+ assert.throws(()=>v.parseTable('| א | first | extra |\n| ב | second | extra |'),/two columns/);
+ assert.throws(()=>v.parseTable('| א | |\n| ב | second |'),/word and definition/);
+ assert.equal(v.parseTable('word,definition\nא,"first | one"\nב,second')[0].definition,'first | one');
+ assert.equal(v.parseTable('א\tfirst | one\nב\tsecond')[0].definition,'first | one');
+});

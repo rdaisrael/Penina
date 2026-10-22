@@ -13,3 +13,17 @@ fieldset{border:0;padding:0;margin:0}select{max-width:100%;padding:10px;border:1
 /* Bonus questions keep their grading colors and gain a distinct gold frame. */
 .extra-credit{outline:2px solid #b88a2c;outline-offset:2px;background-color:#fffaf0}
 .extra-credit-badge{display:inline-block;border:1px solid #c99c43;border-radius:6px;padding:3px 9px;background:#fff3d6;color:#76500c;font:600 13px/1.5 system-ui,sans-serif}.extra-credit-badge[hidden]{display:none}
+
+/* Results matrix: keep student names visible while scrolling through questions. */
+.results-legend{display:flex;flex-wrap:wrap;gap:8px;font-size:13px;margin:12px 0}.results-legend span{padding:4px 9px;border-radius:6px}
+.results-legend [data-result="correct"],.results-grid [data-result="correct"]{background:#a7e8c5;color:#174832}
+.results-legend [data-result="incorrect"],.results-grid [data-result="incorrect"]{background:#ffc0ba;color:#71251f}
+.results-legend [data-result="partial"],.results-grid [data-result="partial"]{background:#ffdb91;color:#654100}
+.results-legend [data-result="pending"],.results-grid [data-result="pending"]{background:#dce8f6;color:#24486c}
+.results-legend [data-result="missing"],.results-grid [data-result="missing"]{background:#e8ebed;color:#48535c}
+.results-question{background:#f0f4f3;border-radius:8px;padding:14px;min-height:58px;white-space:pre-wrap;overflow-wrap:anywhere}
+.results-scroll{max-height:520px;border:1px solid #dce5df;border-radius:8px}.results-scroll:focus-visible{outline:3px solid #bba858;outline-offset:3px}
+.results-grid{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}.results-grid th,.results-grid td{vertical-align:middle;border-right:1px solid #fff8;text-align:center;padding:10px;min-width:88px}
+.results-grid th:first-child{position:sticky;left:0;z-index:1;background:white;text-align:left;min-width:170px;max-width:230px;overflow-wrap:anywhere;border-right:1px solid #dce5df}
+.results-grid thead th{position:sticky;top:0;z-index:2;background:#edf3ee}.results-grid thead th:first-child{z-index:3;background:#edf3ee}
+.results-grid button{background:transparent;color:#243a3b;font-weight:700;padding:7px 14px;min-width:44px}.results-grid button:hover,.results-grid button:focus{background:#d3e3d9}.results-bonus{display:block;font-size:10px;color:#76500c}.question-summary-heading{margin-top:36px}

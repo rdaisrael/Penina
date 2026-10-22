@@ -170,3 +170,31 @@ for(const fieldName of ['manual9','auto9'])test(`${fieldName}: above-assigned sc
  input.value='1';handlers.submit.fn(event);assert.equal(prompts.length,3);
  input.value='';handlers.submit.fn(event);assert.equal(prompts.length,3);
 });
+
+function resultsView() {
+ const elements=new Map();
+ const context={questions:[{prompt:'What is <one>?'},{prompt:'שאלה',extraCredit:true},{prompt:'Third'},{prompt:'Fourth'},{prompt:'Fifth'}],records:[{id:'r',name:'Alice Adams',grading:{total:3.5,baseMax:5,pending:1,automatic:[{index:0,score:1,max:1},{index:1,score:0,max:1},{index:2,score:0.5,max:1},{index:4,score:2,max:1}],manual:[{index:3,score:null,max:1}]}}],currentRoster:{students:[{name:'Bob Brown'},{name:'Alice Adams',submissionId:'r'}]},QuizCorrection,esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
+ vm.runInNewContext(source.slice(source.indexOf('function resultState('),source.indexOf('function renderRoster(')),context);
+ context.renderResultsGrid();return {context,elements};
+}
+test('Results grid includes roster non-submitters and all grading states, including above-full credit',()=>{
+ const {context,elements}=resultsView(),html=elements.get('resultsRows').innerHTML;
+ assert.equal((html.match(/<tr>/g)||[]).length,2);
+ assert.ok(html.indexOf('Alice Adams')<html.indexOf('Bob Brown'));
+ for(const state of ['correct','incorrect','partial','pending','missing'])assert.match(html,new RegExp(`data-result="${state}"`));
+ assert.equal((html.match(/data-result="correct"/g)||[]).length,2);
+ assert.match(html,/0.5 \/ 1/);assert.match(html,/Not submitted/);
+ context.records[0].grading.manual[0].score=1;context.renderResultsGrid();
+ assert.doesNotMatch(elements.get('resultsRows').innerHTML,/data-result="pending"/);
+ context.currentRoster=null;context.renderResultsGrid();
+ assert.equal((elements.get('resultsRows').innerHTML.match(/<tr>/g)||[]).length,1);
+ context.records=[];context.renderResultsGrid();assert.match(elements.get('resultsRows').innerHTML,/No students or submissions/);
+});
+test('Question headings expose escaped prompts and show full text on hover, focus, and tap',()=>{
+ const {elements}=resultsView(),head=elements.get('resultsHead');
+ assert.match(head.innerHTML,/What is &lt;one>/);assert.match(head.innerHTML,/results-bonus/);
+ for(const event of ['onmouseover','onfocusin','onclick']) {
+  head[event]({target:{closest:()=>({dataset:{question:'1'}})}});
+  assert.equal(elements.get('resultsQuestion').textContent,'Question 2 · Extra credit: שאלה');
+ }
+});

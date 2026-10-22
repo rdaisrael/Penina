@@ -73,14 +73,52 @@ function render() {
     }).join('');
 }
 function renderSummary() {
+    renderResultsGrid();
     document.getElementById('summaryPanel').hidden=false;
     document.getElementById('summaryCaption').textContent=records.length?`${records.length} submitted quiz${records.length===1?'':'zes'}. Counts and percentages update when you save corrections.`:'No submissions yet. Percentages will appear after students submit.';
     document.getElementById('summaryRows').innerHTML=questions.map((q,index)=>{
         const counts={correct:0,incorrect:0,partial:0,pending:0};
-        for(const r of records){const item=[...r.grading.automatic,...r.grading.manual].find(v=>v.index===index);counts[!item || item.score===null?'pending':item.score===item.max?'correct':item.score===0?'incorrect':'partial']++;}
+        for(const r of records){const item=[...r.grading.automatic,...r.grading.manual].find(v=>v.index===index);counts[resultState(item)]++;}
         const cell=n=>`${n} (${records.length?Math.round(n/records.length*1000)/10+'%':'—'})`;
         return `<tr><th scope="row"><span>Q${index+1}${q.extraCredit?' · Extra credit':''}</span><div class="summary-prompt" dir="auto">${esc(q.prompt)}</div></th>${Object.values(counts).map(n=>`<td>${cell(n)}</td>`).join('')}</tr>`;
     }).join('');
+}
+function resultState(item) {
+    return !item || item.score==null?'pending':item.score>=item.max?'correct':item.score===0?'incorrect':'partial';
+}
+function renderResultsGrid() {
+    const labels={correct:'Correct',incorrect:'Incorrect',partial:'Partial credit',pending:'Awaiting correction',missing:'Not submitted'};
+    const symbols={correct:'✓',incorrect:'✕',partial:'◐',pending:'…',missing:'—'};
+    const head=document.getElementById('resultsHead');
+    head.innerHTML='<tr><th scope="col">Student</th><th scope="col">Grade</th>'+questions.map((q,i)=>`<th scope="col"><button type="button" data-question="${i}" title="${esc(q.prompt)}" aria-label="Question ${i+1}${q.extraCredit?', extra credit':''}: ${esc(q.prompt)}">${i+1}${q.extraCredit?'<span class="results-bonus">Bonus</span>':''}</button></th>`).join('')+'</tr>';
+    const showQuestion=event=>{
+        const button=event.target.closest('button[data-question]');
+        if(!button)return;
+        const index=Number(button.dataset.question),q=questions[index];
+        document.getElementById('resultsQuestion').textContent=`Question ${index+1}${q.extraCredit?' · Extra credit':''}: ${q.prompt}`;
+    };
+    head.onmouseover=showQuestion;head.onfocusin=showQuestion;head.onclick=showQuestion;
+    document.getElementById('resultsQuestion').textContent='Select a question number to read its text.';
+    const byId=new Map(records.map(r=>[r.id,r]));
+    const represented=new Set();
+    const students=(currentRoster?.students || []).map(student=>{
+        const record=byId.get(student.submissionId);
+        if(record)represented.add(record.id);
+        return {...student,record};
+    });
+    for(const record of records)if(!represented.has(record.id))students.push({...record,record});
+    students.sort(QuizCorrection.compareStudents);
+    document.getElementById('resultsRows').innerHTML=students.map(student=>{
+        const record=student.record,g=record?.grading;
+        const grade=!g?'Not submitted':g.pending?`${g.pending} awaiting correction`:`${g.total} / ${g.baseMax}`;
+        const items=new Map(g?[...g.automatic,...g.manual].map(item=>[item.index,item]):[]);
+        return `<tr><th scope="row">${esc(student.name)}</th><td>${esc(grade)}</td>`+questions.map((q,index)=>{
+            const item=items.get(index),state=record?resultState(item):'missing';
+            const points=state==='missing'?'':state==='pending'?'Pending':`${item.score} / ${item.max}`;
+            const description=`${labels[state]}${points?' · '+points:''}`;
+            return `<td data-result="${state}" title="${esc(description)}" aria-label="${esc(description)}"><span aria-hidden="true">${symbols[state]}</span> ${esc(points)}</td>`;
+        }).join('')+'</tr>';
+    }).join('') || `<tr><td colspan="${questions.length+2}">No students or submissions to show yet.</td></tr>`;
 }
 function renderRoster(roster) {
     document.getElementById('rosterPanel').hidden=false;

@@ -35,9 +35,9 @@ document.getElementById('chooseClass').addEventListener('submit',async event=>{
 });
 function scoreText(g) {
     const score=g.pending ? `${g.pending} question${g.pending===1?'':'s'} awaiting correction` : `Final: ${g.total}/${g.baseMax}`;
-    const lms=g.lmsSentAt ? 'Results sent to LMS: '+formatResultTime(g.lmsSentAt) : 'Results sent to LMS: Not yet recorded';
-    const student=g.studentSentAt ? 'Results sent to student: '+formatResultTime(g.studentSentAt) : 'Results sent to student: Not yet recorded';
-    return [score,lms,student].join('\n');
+    const lms=g.lmsSentAt ? 'Sent to LMS' : '';
+    const student=g.studentSentAt ? 'Emailed to Student' : '';
+    return [score,lms,student].filter(Boolean).join('\u2003\u2003');
 }
 function formatResultTime(value) {
     return new Date(value).toLocaleString('en-US', {timeZone:'America/New_York',timeZoneName:'short'});

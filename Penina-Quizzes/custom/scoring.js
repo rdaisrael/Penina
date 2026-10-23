@@ -6,7 +6,7 @@
     function score(q,a){
         const expected=q.answer;
         const correct=a.length===expected.length && (q.type==='multi'?new Set(a).size===a.length && expected.every(v=>a.includes(v)):expected.every((v,i)=>a[i]===v));
-        if(q.type==='multi')return correct?maxPoints(q):0;
+        if(q.type==='multi' || q.type==='order')return correct?maxPoints(q):0;
         return q.scoringMode==='response'?q.points*expected.filter((v,i)=>v!=='' && a[i]===v).length:correct?q.points:0;
     }
     function feedback(questions,answers){return questions.flatMap((q,index)=>{

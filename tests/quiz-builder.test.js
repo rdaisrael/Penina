@@ -170,7 +170,7 @@ test('Ordering earns points per correct position; multiple answers require an ex
  const graded=model.grade(q,answers,{scores:[2]});assert.equal(graded.baseMax,11);assert.equal(graded.total,7);assert.equal(graded.automatic.find(v=>v.index===2).score,0);
  answers[2]=['A','B','C'];assert(model.validAnswers(q,answers));assert.equal(model.grade(q,answers).automatic.find(v=>v.index===2).score,0);
  answers[2]=['A'];assert(model.validAnswers(q,answers));assert(model.validAnswers(q,answers,true));
- const order={type:'order',prompt:'Order',points:2,scoringMode:'response',choices:['A','B','C'],answer:['A','B','C']};assert.equal(model.grade({questions:[order]},[['A','C','B']]).total,2);
+ const order={type:'order',prompt:'Order',points:2,scoringMode:'response',choices:['A','B','C'],answer:['A','B','C']};assert.equal(model.grade({questions:[order]},[['A','C','B']]).total,0);
 });
 test('Per-response maxima persist through publishing, student data, reports and Classroom grades',async()=>{
  const h=harness(),q=fixture();q.questions.forEach(item=>item.scoringMode='response');const link=await assigned(h,q);assert.equal(h.state.work.maxPoints,11);
@@ -424,4 +424,17 @@ test('Draft sentence survives authenticated save/load and remains private after 
  const updated=await h.call(h.builder.handle,h.req({action:'save',id:finished.id,quiz:finished}));assert.equal(updated.code,200);
  const published=await h.call(h.builder.handle,h.req({action:'publish',id:finished.id}));assert.equal(published.code,200);
  const safe=model.publicQuestions(published.data.quiz)[0];assert(!('sentence' in safe));assert(!('distractors' in safe));assert(!('answer' in safe));assert.deepEqual(Array.from(safe.choices),['car','cat','mat']);
+});
+
+ test('Ordering awards full credit only for the complete correct sequence in both scoring modes',()=>{
+ const scoring=require('../Penina-Quizzes/custom/scoring');
+ for(const scoringMode of ['total','response']){
+  const q={type:'order',prompt:'Order',points:2,scoringMode,choices:['A','B','C'],answer:['A','B','C']};
+  for(const answers of [['A','B','C'],['A','C','B'],['A','B'],['A','A','C']]){
+   const correct=JSON.stringify(answers)===JSON.stringify(q.answer),expected=correct?(scoringMode==='response'?6:2):0;
+   assert.equal(model.grade({questions:[q]},[answers]).total,expected);
+   assert.equal(scoring.score(q,answers),expected);
+   assert.deepEqual(scoring.feedback([q],[answers]),[{index:0,correct,partial:false}]);
+  }
+ }
 });

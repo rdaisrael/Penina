@@ -107,7 +107,7 @@ function showReceipt() {
     const automatic = new Map((submission.automatic || []).map(q=>[q.index,q]));
     document.getElementById('answerFeedback').innerHTML=questions.map((q,i)=>{
         const result=q.type==='text' || q.type==='gaps' && q.wordBank===false?null:automatic.get(i);
-        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="auto">${i+1}. ${esc(q.prompt)}</h3><p class="answer">Your answer: ${submission.answers[i].map((a,j)=>esc((q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</p>${result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}</section>`;
+        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${i+1}. ${esc(q.prompt)}</h3><p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>${result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}</section>`;
     }).join('');
 }
 function tick() {
@@ -154,7 +154,7 @@ async function enterQuiz() {
         document.getElementById('studentIdentity').textContent=identity.name+' · '+identity.email+' · '+identity.className;
         form.elements.studentName.value=identity.name;form.elements.studentEmail.value=identity.email;
         try { saved = JSON.parse((previewQuiz?sessionStorage:localStorage).getItem(previewQuiz?previewKey+':progress':DRAFT)) || {}; } catch (_) {}
-        document.getElementById('questions').innerHTML=questions.map((q,i)=>`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${i+1}${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${q.scoringMode==='response'?' · '+q.points+' per correct response':''}</p><h2 class="prompt" dir="${q.direction}">${q.type==='gaps'?'Fill in the blanks':esc(q.prompt)}</h2>${controls(q,i)}</section>`).join('');
+        document.getElementById('questions').innerHTML=questions.map((q,i)=>`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${i+1}${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${q.type==='order' || q.type==='multi'?' · All or nothing':q.scoringMode==='response'?' · '+q.points+' per correct response':''}</p><h2 class="prompt" dir="${q.direction}">${q.type==='gaps'?'Fill in the blanks':esc(q.prompt)}</h2>${controls(q,i)}</section>`).join('');
         restoreAnswers();
         for(const select of form.querySelectorAll('.ordering select'))sizeOrderWord(select);
         form.hidden = false; status.textContent = 'Your work is saved on this browser as you go.';

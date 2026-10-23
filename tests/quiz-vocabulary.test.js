@@ -48,8 +48,8 @@ test('100 questions are generated in bounded batches; selected type count and in
 test('Translation blanks use opposite-language answers without requesting context sentences',async()=>{
  const c=config({count:3,types:['gaps'],wordBank:false,rows:rows().map(r=>({...r,wordDistractors:[],definitionDistractors:[]}))});
  const generated=await v.questions(c,async()=>assert.fail('No context generation needed'));
- assert.equal(generated.length,3);assert.deepEqual(generated[0].choices,[]);assert.deepEqual(generated[0].answer,['meaning0']);assert.equal(generated[0].wordBank,false);
- await assert.rejects(v.questions({...c,wordBank:true}),/distractors/);
+ assert.equal(generated.length,3);assert.deepEqual(generated[0].choices,['meaning0']);assert.deepEqual(generated[0].answer,['meaning0']);assert.equal(generated[0].wordBank,true);
+ assert((await v.questions({...c,wordBank:true})).every(q=>q.wordBank));
 });
 test('Hebrew terms generate English-only distractors and English terms generate Hebrew-only distractors',async()=>{
  const input=[{word:'שָׁלוֹם',definition:'peace'},{word:'light',definition:'אור'}];
@@ -188,7 +188,8 @@ test('Every incorrect generated choice comes exclusively from its participating 
 });
 test('Missing table distractors never fall back to other rows or generated choices',async()=>{
  const input=rows(3);input[0].definitionDistractors=[];
- for(const type of ['choice','multi','gaps'])await assert.rejects(v.questions(config({rows:input,count:1,types:[type]}),async()=>assert.fail('No invented distractors')),/table rows/);
+ for(const type of ['choice','multi'])await assert.rejects(v.questions(config({rows:input,count:1,types:[type]}),async()=>assert.fail('No invented distractors')),/table rows/);
+ const gaps=await v.questions(config({rows:input,count:1,types:['gaps'],wordBank:false}));assert.deepEqual(gaps[0].choices,[input[0].definition]);assert.equal(gaps[0].wordBank,true);
  const match=await v.questions(config({rows:input,count:1,types:['match']}));
  assert.deepEqual(new Set(match[0].choices.filter(c=>!match[0].answer.includes(c))),new Set(input.flatMap(r=>r.definitionDistractors)));
  input.forEach(r=>r.definitionDistractors=[]);

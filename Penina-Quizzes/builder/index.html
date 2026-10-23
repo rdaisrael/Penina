@@ -17,7 +17,7 @@
 <button id="vocabularyImport" class="secondary" type="button">Load vocabulary table</button>
 </section>
 <section id="vocabularyReview" hidden><h2>2. Review words and distractors</h2>
-<p>For Hebrew terms, enter English translations and distractors. For English terms, enter Hebrew translations and distractors. All answer choices use that opposite language. Edit any cell; put one distractor on each line. Generated questions use only the distractors in that term’s row. Matching word banks combine the correct definitions and table distractors for the terms being matched.</p>
+<p>For Hebrew terms, enter English translations and distractors. For English terms, enter Hebrew translations and distractors. All answer choices use that opposite language. Edit any cell; put one distractor on each line. Generated questions use only the distractors in that term’s row. Matching includes paired terms and definitions, plus distractors.</p>
 <div class="vocabulary-table-scroll" role="region" aria-label="Editable vocabulary and distractors" tabindex="0"><table class="vocabulary-table"><thead><tr><th scope="col">Word</th><th scope="col">Correct translation / definition</th><th scope="col">Distractors</th><th scope="col">Actions</th></tr></thead><tbody id="vocabularyRows"></tbody></table></div>
 <div class="vocabulary-actions"><button id="vocabularyAdd" class="quiet" type="button">＋ Add word</button><button id="vocabularyRegenerate" class="secondary" type="button">Generate distractors</button></div>
 <p class="hint">Regenerating replaces the distractors in the selected rows, including your edits. Words and correct definitions stay unchanged. Table edits affect future generation; existing questions stay unchanged. Save draft to keep this table with your quiz.</p>
@@ -27,7 +27,7 @@
 <fieldset id="vocabularyTypes"><legend>Question types to include</legend>
 <label><input type="checkbox" value="text">Written answer</label><label><input type="checkbox" value="choice" checked>Multiple choice</label><label><input type="checkbox" value="multi">Multiple answers</label><label><input type="checkbox" value="match" checked>Matching</label><label><input type="checkbox" value="gaps" checked>Fill in the blanks</label><label><input type="checkbox" value="order">Ordering (alphabetical)</label>
 </fieldset>
-<label class="vocabulary-check"><input id="vocabularyBank" type="checkbox" checked>Use word banks for translation blanks (includes your distractors)</label>
+<input id="vocabularyBank" type="checkbox" checked hidden>
 <label>Reading direction<select id="vocabularyDirection"><option value="ltr">Left to right</option><option value="rtl">Right to left (Hebrew)</option></select></label>
 <p class="hint">Multiple answers asks about one term with several correct answers. Enter those under Additional correct answers, one per line; distractors are incorrect choices. Questions are spread evenly across the selected types. A matching group counts as one question. Every word is covered before any word is reused, including words in groups. You will be warned before generating a quiz that needs repeats. Ordering questions ask for alphabetical order.</p>
 <button id="vocabularyGenerate" type="button">Generate editable quiz</button>

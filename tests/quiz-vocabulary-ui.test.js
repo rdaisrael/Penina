@@ -42,7 +42,7 @@ test('Settings and table edits are included in the next generation request',asyn
  h.$('vocabularyCount').value='1';h.$('vocabularyDirection').value='rtl';h.$('vocabularyBank').checked=false;
  for(const el of h.$('vocabularyTypes').querySelectorAll('input'))el.checked=el.value==='text';h.$('vocabularyCount').listeners.change();
  h.$('vocabularyRows').listeners.input({target:{dataset:{vocabField:'definitionDistractors'},value:'manual one\nmanual two',closest:()=>({dataset:{vocabRow:'0'}})}});
- await h.$('vocabularyGenerate').onclick();assert.equal(sent.count,1);assert.equal(sent.direction,'rtl');assert.equal(sent.wordBank,false);assert.deepEqual(Array.from(sent.types),['text']);assert.deepEqual(Array.from(sent.rows[0].definitionDistractors),['manual one','manual two']);
+ await h.$('vocabularyGenerate').onclick();assert.equal(sent.count,1);assert.equal(sent.direction,'rtl');assert.equal(sent.wordBank,true);assert.deepEqual(Array.from(sent.types),['text']);assert.deepEqual(Array.from(sent.rows[0].definitionDistractors),['manual one','manual two']);
 });
 
 test('Repeats require confirmation before questions are requested; cancel keeps the draft intact',async()=>{

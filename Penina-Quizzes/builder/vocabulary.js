@@ -1,7 +1,7 @@
 'use strict';
 // The vocabulary source lives on the draft so loading/duplicating quizzes retains teacher edits.
 function distractorLanguage(word){return /[א-ת]/u.test(word)?'English':'Hebrew';}
-function vocabularySource(){return quiz.vocabulary || {rows:[],count:15,types:['choice','match','gaps'],wordBank:true,direction:'ltr'};}
+function vocabularySource(){return quiz.vocabulary?{...quiz.vocabulary,wordBank:true}: {rows:[],count:15,types:['choice','match','gaps'],wordBank:true,direction:'ltr'};}
 function vocabularyMessage(message){$('vocabularyStatus').textContent=message;}
 function vocabularyButtons(){
     const panel=$('vocabularyPanel');if(!panel)return;
@@ -81,7 +81,7 @@ async function regenerateVocabulary(index){
 $('vocabularyRegenerate').onclick=()=>regenerateVocabulary();
 for(const id of ['vocabularyCount','vocabularyBank','vocabularyDirection','vocabularyTypes'])$(id).addEventListener('change',()=>{
     if(busy || quiz.published)return;
-    quiz.vocabulary={...vocabularySource(),count:Number($('vocabularyCount').value),wordBank:$('vocabularyBank').checked,direction:$('vocabularyDirection').value,types:[...$('vocabularyTypes').querySelectorAll('input:checked')].map(el=>el.value)};
+    quiz.vocabulary={...vocabularySource(),count:Number($('vocabularyCount').value),wordBank:true,direction:$('vocabularyDirection').value,types:[...$('vocabularyTypes').querySelectorAll('input:checked')].map(el=>el.value)};
     vocabularyChanged();
 });
 $('vocabularyGenerate').onclick=()=>vocabularyRun(async()=>{

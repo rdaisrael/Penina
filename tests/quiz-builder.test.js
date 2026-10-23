@@ -164,12 +164,12 @@ test('Per-response scoring gives each correct blank its configured points; total
  assert.equal(model.publicQuestions(validated)[0].maxPoints,3);assert.equal(model.publicQuestions(validated)[0].answer,undefined);
  assert.throws(()=>model.validateQuiz({...q,questions:[{...question,scoringMode:'invalid'}]},true));
 });
-test('Ordering earns points per correct position; multiple-answer scoring requires the specified selection count',()=>{
+test('Ordering earns points per correct position; multiple answers require an exact correct set',()=>{
  const q=fixture();q.questions.forEach(item=>item.scoringMode='response');
  const answers=correctAnswers();answers[2]=['A','B'];answers[4]=['א','ב'];
- const graded=model.grade(q,answers,{scores:[2]});assert.equal(graded.baseMax,11);assert.equal(graded.total,8);assert.equal(graded.automatic.find(v=>v.index===2).score,1);
- answers[2]=['A','B','C'];assert(!model.validAnswers(q,answers));assert.equal(model.grade(q,answers).automatic.find(v=>v.index===2).score,0);
- answers[2]=['A'];assert(!model.validAnswers(q,answers));assert(model.validAnswers(q,answers,true));
+ const graded=model.grade(q,answers,{scores:[2]});assert.equal(graded.baseMax,11);assert.equal(graded.total,7);assert.equal(graded.automatic.find(v=>v.index===2).score,0);
+ answers[2]=['A','B','C'];assert(model.validAnswers(q,answers));assert.equal(model.grade(q,answers).automatic.find(v=>v.index===2).score,0);
+ answers[2]=['A'];assert(model.validAnswers(q,answers));assert(model.validAnswers(q,answers,true));
  const order={type:'order',prompt:'Order',points:2,scoringMode:'response',choices:['A','B','C'],answer:['A','B','C']};assert.equal(model.grade({questions:[order]},[['A','C','B']]).total,2);
 });
 test('Per-response maxima persist through publishing, student data, reports and Classroom grades',async()=>{
@@ -283,7 +283,7 @@ function vocabularyFixture(){return {title:'Vocabulary options',durationMinutes:
 test('Vocabulary keys validate, hide answers, count matches and retain distractors',()=>{
  const quiz=model.validateQuiz(vocabularyFixture(),true),safe=model.publicQuestions(quiz);
  assert.equal(model.maxPoints(quiz.questions[0]),4);assert.deepEqual(safe[0].items,['lucid','reluctant']);
- assert.deepEqual(safe[0].choices,['clear','unwilling','swift']);assert.equal(safe[1].wordBank,false);assert.deepEqual(safe[1].choices,[]);
+ assert.deepEqual(safe[0].choices,['clear','swift','unwilling']);assert.equal(safe[1].wordBank,false);assert.deepEqual(safe[1].choices,[]);
  assert(safe.every(q=>!Object.hasOwn(q,'answer')));
  for(const mutate of [q=>q.questions[0].items=['lucid'],q=>q.questions[0].items=['','reluctant'],q=>q.questions[0].answer=['swift','absent'],q=>q.questions[1].answer=[''],q=>q.questions[1].prompt='No blank',q=>q.questions[1].wordBank='no']){
   const q=vocabularyFixture();mutate(q);assert.throws(()=>model.validateQuiz(q,true));
@@ -352,4 +352,76 @@ test('Legacy text marks stay with their questions when typed blanks become manua
  const g=model.grade(q,[['clear','unwilling'],['lucid'],['reluctant'],['explanation']],{scores:[2]});
  assert.deepEqual(g.manual.map(a=>[a.index,a.score]),[[1,null],[3,2]]);
  const prior=model.grade(q,[],{scores:[2],overrides:{1:1}});assert.deepEqual(prior.manual.map(a=>a.score),[1,2]);
+});
+
+test('Matching distractors on either side survive publishing and do not earn response points',()=>{
+ const q=model.validateQuiz({title:'Pairs',questions:[{type:'match',prompt:'Match',points:2,scoringMode:'response',items:['cat','car'],choices:['animal','building'],answer:['animal','']}]},true);
+ assert.equal(q.durationMinutes,null);assert.equal(model.maxPoints(q.questions[0]),2);
+ assert(model.validAnswers(q,[['animal','']]));assert.equal(model.grade(q,[['animal','']]).total,2);
+ const total={...q,questions:q.questions.map(v=>({...v,scoringMode:'total'}))};assert.equal(model.grade(total,[['animal','building']]).total,0);
+ assert(!('answer' in model.publicQuestions(q)[0]));
+});
+test('Marked Hebrew blanks normalize to student-safe blanks with editable distractors',()=>{
+ const q=model.validateQuiz({title:'Hebrew',questions:[{type:'gaps',prompt:'זה <<חתול>> וזה <<כלב>>',points:1,direction:'rtl',distractors:['בית']}]},true);
+ assert.deepEqual(q.questions[0].answer,['חתול','כלב']);assert.equal(q.questions[0].prompt,'זה ___ וזה ___');assert.deepEqual(q.questions[0].choices,['חתול','כלב','בית']);assert.equal(q.questions[0].direction,'rtl');
+ assert.equal(model.grade(q,[['חתול','כלב']]).total,1);
+});
+
+test('Public choices depend only on their text and never expose private authoring fields',()=>{
+ for(const type of ['gaps','order','match']){
+  const original={type,prompt:type==='gaps'?'___ then ___':'Question',points:1,choices:['zebra','apple','moon'],answer:type==='order'?['zebra','apple','moon']:['zebra','apple'],...(type==='match'?{items:['first','second']}:{}),sentence:'<<zebra>> then <<apple>>',distractors:['moon'],pairs:[['first','zebra']]};
+  const a=model.publicQuestions({questions:[original]})[0];
+  const b=model.publicQuestions({questions:[{...original,choices:[...original.choices].reverse(),answer:[...original.answer].reverse()}]})[0];
+  assert.deepEqual(a.choices,b.choices);assert.deepEqual(a.choices,['apple','moon','zebra']);
+  for(const privateField of ['answer','sentence','distractors','pairs'])assert(!Object.hasOwn(a,privateField));
+  assert.deepEqual(original.choices,['zebra','apple','moon']);
+ }
+});
+test('Unfinished marked sentences preserve completed answers across repeated draft saves and cannot publish',()=>{
+ const input={title:'Draft',questions:[{type:'gaps',points:1,prompt:'The ___ sits on <<unfinished',sentence:'The <<cat>> sits on <<unfinished',choices:['cat','car'],answer:['cat'],distractors:['car']}]};
+ const once=model.validateQuiz(input),twice=model.validateQuiz(once);
+ assert.deepEqual(twice,once);assert.equal(twice.questions[0].sentence,input.questions[0].sentence);assert.deepEqual(twice.questions[0].answer,['cat']);
+ assert.throws(()=>model.validateQuiz(twice,true),/finish each blank/);
+ twice.questions[0].sentence='The <<cat>> sits on the <<mat>>.';
+ const ready=model.validateQuiz(twice,true);assert.deepEqual(ready.questions[0].answer,['cat','mat']);
+ const oldDraft={...input,questions:input.questions.map(({sentence,distractors,...q})=>q)};
+ assert.deepEqual(model.validateQuiz(oldDraft).questions[0].answer,['cat']);
+ for(const sentence of ['The <<>> sits.','The <<cat>> sits on ___','The <<cat>> sits >>'])assert.throws(()=>model.validateQuiz({...input,questions:[{...input.questions[0],sentence}]},true));
+});
+test('Matching completeness allows distractors without accepting skipped required pairs',()=>{
+ const q=model.validateQuiz({title:'Match',questions:[{type:'match',prompt:'Match',points:1,items:['cat','house','car'],choices:['animal','building','river'],answer:['animal','building','']}]},true);
+ assert(!model.validAnswers(q,[['','','']]));assert(!model.validAnswers(q,[['animal','','']]));assert(model.validAnswers(q,[['animal','building','']]));
+ // A completed but wrong set is submitted and graded, not blocked by knowledge of the key.
+ assert(model.validAnswers(q,[['animal','','building']]));assert.equal(model.grade(q,[['animal','','building']]).total,0);
+ assert(model.validAnswers(q,[['','','']],true));q.questions[0].extraCredit=true;assert(model.validAnswers(q,[['','','']]));
+});
+test('Preview and server share feedback for correct, wrong, partial, and manual questions',()=>{
+ const scoring=require('../Penina-Quizzes/custom/scoring');
+ const q=fixture();q.questions[3].scoringMode='response';
+ for(const answers of [correctAnswers(),[['response'],['A'],['A','B'],['א','ב'],['א','ב']],q.questions.map(item=>Array.isArray(item.answer)?item.answer.map(()=> ''):[''])]){
+  const expected=model.grade(q,answers).automatic.map(({index,score,max})=>({index,correct:score===max,partial:score>0&&score<max}));
+  assert.deepEqual(scoring.feedback(q.questions,answers),expected);
+ }
+});
+
+test('Preview request returns real shared feedback without sending submissions',async()=>{
+ const code=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/custom/quiz.js'),'utf8'),previewQuiz=fixture();
+ previewQuiz.questions.push({type:'match',points:2,scoringMode:'response',prompt:'Match',items:['cat','car'],choices:['animal','building'],answer:['animal','']});
+ const context={previewQuiz,QuizScoring:require('../Penina-Quizzes/custom/scoring'),forwardOnly:false,lockedThrough:-1,saved:{},Date,fetch:()=>assert.fail('Preview must not submit to server')};
+ vm.createContext(context);vm.runInContext(code.slice(code.indexOf('async function request('),code.indexOf('function navigate(')),context);
+ const answers=[...correctAnswers(),['animal','']];const result=await context.request({action:'submit',answers});
+ assert.equal(result.accepted,true);assert.deepEqual(result.automatic,context.QuizScoring.feedback(previewQuiz.questions,answers));
+ assert.deepEqual(result.automatic.at(-1),{index:5,correct:true,partial:false});
+ const metadata=code.match(/questions:previewQuiz\.questions\.map\(q=>\(\{\.\.\.q,maxPoints:QuizScoring\.maxPoints\(q\),responseCount:QuizScoring\.responseCount\(q\)\}\)\)/);
+ assert(metadata,'Preview must use the shared response count so distractors do not count as required matches');
+});
+test('Draft sentence survives authenticated save/load and remains private after publishing',async()=>{
+ const h=harness(),quiz={title:'Sentence draft',questions:[{type:'gaps',points:1,sentence:'The <<cat>> sits on <<unfinished',prompt:'The ___ sits on <<unfinished',answer:['cat'],choices:['cat','car'],distractors:['car']}]};
+ const saved=await h.call(h.builder.handle,h.req({action:'save',quiz}));assert.equal(saved.code,200);
+ const loaded=await h.call(h.builder.handle,h.req({action:'load',id:saved.data.quiz.id}));assert.equal(loaded.data.quiz.questions[0].sentence,quiz.questions[0].sentence);assert.deepEqual(Array.from(loaded.data.quiz.questions[0].answer),['cat']);
+ const blocked=await h.call(h.builder.handle,h.req({action:'publish',id:saved.data.quiz.id}));assert.equal(blocked.code,400);
+ const finished=loaded.data.quiz;finished.questions[0].sentence='The <<cat>> sits on the <<mat>>.';
+ const updated=await h.call(h.builder.handle,h.req({action:'save',id:finished.id,quiz:finished}));assert.equal(updated.code,200);
+ const published=await h.call(h.builder.handle,h.req({action:'publish',id:finished.id}));assert.equal(published.code,200);
+ const safe=model.publicQuestions(published.data.quiz)[0];assert(!('sentence' in safe));assert(!('distractors' in safe));assert(!('answer' in safe));assert.deepEqual(Array.from(safe.choices),['car','cat','mat']);
 });

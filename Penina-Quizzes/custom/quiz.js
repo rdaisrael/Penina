@@ -1,4 +1,7 @@
 'use strict';
+const previewKey=new URLSearchParams(location.search).get('preview');
+const previewQuiz=previewKey?JSON.parse(sessionStorage.getItem(previewKey)||'null'):null;
+
 const quizId=new URLSearchParams(location.search).get('quiz') || '';
 const API = '/api/game-scores?game=assessment-custom&quiz='+encodeURIComponent(quizId);
 const ACCOUNT_API='/api/game-scores?game=quiz-account&quiz='+encodeURIComponent(quizId);
@@ -9,12 +12,25 @@ let forwardOnlyFrom=null,lockedThrough=-1,forwardOnly=false,onCheckpoint=false,m
 let questions, saved = {}, submission, page = 0, expired = false, sending = false, clock;
 const form = document.getElementById('quiz'), status = document.getElementById('status');
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function store() { try { localStorage.setItem(DRAFT, JSON.stringify(saved)); } catch (_) {} }
+function store() { try { (previewQuiz?sessionStorage:localStorage).setItem(previewQuiz?previewKey+':progress':DRAFT, JSON.stringify(saved)); } catch (_) {} }
 function snapshot() {
     saved.values = {};
     for(const control of form.querySelectorAll('#questions input, #questions textarea, #questions select'))
-        saved.values[control.name]=control.type==='checkbox'?control.checked:control.value;
+        saved.values[control.name]=control.type==='checkbox'?control.checked:control.type==='radio'?(form.elements.namedItem(control.name)?.value||''):control.value;
+    if(questions)saved.answers=questions.map(answer);
     store();
+}
+function restoreAnswers(){
+    for(const control of form.querySelectorAll('#questions input, #questions textarea, #questions select')){
+        const value=saved.values?.[control.name];
+        if(value!==undefined){if(control.type==='checkbox')control.checked=value===true;else if(control.type==='radio')control.checked=control.value===value;else control.value=value;}
+    }
+    // New drafts store answer values, so future display-order changes cannot move a selection.
+    if(Array.isArray(saved.answers))questions.forEach((q,i)=>{
+        const values=saved.answers[i];if(!Array.isArray(values))return;
+        if(q.type==='multi')form.querySelectorAll(`[data-question="${i}"] input[type=checkbox]`).forEach(control=>control.checked=values.includes(control.value));
+        else values.forEach((value,j)=>{const control=form.elements.namedItem(`q${i}-${j}`);if(control)control.value=value;});
+    });
 }
 function answer(q,i) {
     if(q.type==='multi')return [...form.querySelectorAll(`[data-question="${i}"] input:checked`)].map(c=>c.value);
@@ -26,17 +42,10 @@ function shuffled(values) {
     for(let i=copy.length-1;i>0;i--) {const j=Math.floor(Math.random()*(i+1));[copy[i],copy[j]]=[copy[j],copy[i]];}
     return copy;
 }
-function controls(q,i) {
-    const choices=q.choices?shuffled(q.choices):[];
-    const select=(j,label)=>`<select name="q${i}-${j}" aria-label="${esc(label)}" ${q.extraCredit?'':'required'}><option value="">Choose a word</option>${choices.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>`;
-    if(q.type==='choice')return `<label>Choose one answer${select(0,'Your answer')}</label>`;
-    if(q.type==='multi')return `<fieldset><legend>${q.scoringMode==='response'?'Select exactly '+q.responseCount+' answers':'Check all that apply'}</legend>${choices.map((c,j)=>`<label class="choice"><input type="checkbox" name="q${i}-choice-${q.choices.indexOf(c)}" value="${esc(c)}"><span dir="auto">${esc(c)}</span></label>`).join('')}</fieldset>`;
-    if(q.type==='match')return `<div class="matching" dir="${q.direction}"><p class="muted">Choose the match for each item. Choices may be reused, and some may not be needed.</p>${q.items.map((item,j)=>`<label><span dir="auto">${esc(item)}</span>${select(j,item)}</label>`).join('')}</div>`;
-    if(q.type==='gaps')return `<div class="sentence" dir="${q.direction}">${q.prompt.split('___').map((part,j)=>esc(part)+(j<q.prompt.split('___').length-1?(q.wordBank===false?`<input type="text" name="q${i}-${j}" aria-label="Blank ${j+1}" maxlength="500" dir="auto" autocomplete="off" ${q.extraCredit?'':'required'}>`:select(j,'Blank '+(j+1))):'')).join('')}</div>`;
-    if(q.type==='order')return `<p class="muted">Choose each item in order. Position 1 is on the ${q.direction==='rtl'?'right':'left'}. Use each item once.</p><div class="ordering" dir="${q.direction}">${choices.map((_,j)=>`<label><span>(${j+1})</span>${select(j,'Position '+(j+1))}</label>`).join('')}</div>`;
-    return `<label>Your answer<textarea name="q${i}-0" dir="auto" spellcheck="true" maxlength="5000" ${q.extraCredit?'':'required'}></textarea></label>`;
-}
+function controls(q,i){return QuizInteractions.controls(q,i);}
 async function request(record) {
+    if(previewQuiz){if(record.action==='start')return {id:'preview',token:'preview',deadline:previewQuiz.durationMinutes===null?null:Date.now()+previewQuiz.durationMinutes*60000};if(record.action==='state')return {lockedThrough:saved.lockedThrough??-1,forwardOnly:saved.forwardOnly===true,lockedAnswers:saved.lockedAnswers||[]};if(record.action==='advance'){lockedThrough=record.through;forwardOnly=true;saved.lockedAnswers=record.answers;saved.lockedThrough=lockedThrough;saved.forwardOnly=forwardOnly;store();return {lockedThrough,forwardOnly,lockedAnswers:record.answers};}if(record.action==='submit')return {accepted:true,answers:record.answers,submittedAt:new Date().toISOString(),automatic:QuizScoring.feedback(previewQuiz.questions,record.answers)};}
+
     const response = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,classId})});
     const result = await response.json(); if(response.status===401)document.getElementById('googleLogin').hidden=false; if (!response.ok) throw new Error(result.error || 'Your quiz could not be saved.'); return result;
 }
@@ -55,6 +64,7 @@ function navigate(value) {
     document.getElementById('progress').textContent=onCheckpoint?'Review checkpoint':page===questions.length?(forwardOnly?'Submit quiz':'Review and submit'):`Question ${page+1} of ${questions.length}`;
     document.getElementById('reviewHeading').textContent=forwardOnly?'Submit your quiz':'Review your answers';
     document.getElementById('reviewDescription').textContent=forwardOnly?'Your answers are locked. Submit them now to finish the quiz.':'Click the button to submit or go back to review your answers.';
+    QuizInteractions.refresh(form);
     document.getElementById('reviewedLabel').textContent=forwardOnly?'I am ready to submit my locked answers.':'I have reviewed my answers.';
 }
 function applyProgress(state) {
@@ -67,7 +77,7 @@ function applyProgress(state) {
     }
     snapshot();
 }
-function incomplete(index){const values=answer(questions[index],index);if(questions[index].extraCredit)return questions[index].type==='order' && new Set(values.filter(Boolean)).size!==values.filter(Boolean).length;return (questions[index].type==='multi' && questions[index].scoringMode==='response' && values.length!==questions[index].responseCount) || !values.length || values.some(v=>!v.trim()) || (questions[index].type==='order' && new Set(values).size!==values.length);}
+function incomplete(index){const values=answer(questions[index],index);if(questions[index].extraCredit)return questions[index].type==='order' && new Set(values.filter(Boolean)).size!==values.filter(Boolean).length;return !values.length || (questions[index].type==='match' && values.filter(Boolean).length<questions[index].responseCount) || (questions[index].type!=='match' && values.some(v=>!v.trim())) || (questions[index].type==='order' && new Set(values).size!==values.length);}
 async function advance(through) {
     if(moving || expired)return;
     for(let i=lockedThrough+1;i<=through;i++)if(incomplete(i)){navigate(i);status.textContent='Complete this answer before locking it and continuing.';return;}
@@ -92,6 +102,7 @@ function showReceipt() {
         document.getElementById('receiptMessage').textContent='Teacher practice complete. You can take the quiz again. These answers are kept separate from student submissions.';
         document.getElementById('repeatQuiz').hidden=false;
     }
+    if(previewQuiz){document.getElementById('receiptMessage').textContent='Preview complete. No student submission was sent.';document.getElementById('newStudent').textContent='Restart preview';}
     document.getElementById('receiptId').textContent = `Receipt: ${submission.id}`;
     const automatic = new Map((submission.automatic || []).map(q=>[q.index,q]));
     document.getElementById('answerFeedback').innerHTML=questions.map((q,i)=>{
@@ -123,11 +134,11 @@ async function enterQuiz() {
 }
 (async () => {
     try {
-        if(!/^[a-f0-9]{32}$/.test(classId)) {
+        if(!previewQuiz && !/^[a-f0-9]{32}$/.test(classId)) {
             document.getElementById('googleSignIn').hidden=true;
             throw new Error('Open the class-specific quiz link your teacher posted in Google Classroom.');
         }
-        const response = await fetch(ACCOUNT_API+'&action=student&classId='+encodeURIComponent(classId));
+        const response = previewQuiz?{ok:true,json:async()=>({...previewQuiz,name:'Student preview',email:'',className:'Preview — answers are not submitted',questions:previewQuiz.questions.map(q=>({...q,maxPoints:QuizScoring.maxPoints(q),responseCount:QuizScoring.responseCount(q)}))})}:await fetch(ACCOUNT_API+'&action=student&classId='+encodeURIComponent(classId));
         const identity=await response.json();
         if(!response.ok)throw new Error(identity.error || 'Sign in with Google to continue.');
         questions=identity.questions;
@@ -142,12 +153,9 @@ async function enterQuiz() {
         document.getElementById('googleLogin').hidden=true;
         document.getElementById('studentIdentity').textContent=identity.name+' · '+identity.email+' · '+identity.className;
         form.elements.studentName.value=identity.name;form.elements.studentEmail.value=identity.email;
-        try { saved = JSON.parse(localStorage.getItem(DRAFT)) || {}; } catch (_) {}
-        document.getElementById('questions').innerHTML=questions.map((q,i)=>`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${i+1}${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${q.scoringMode==='response'?' · '+q.points+' per correct response':''}</p><h2 class="prompt" dir="auto">${esc(q.prompt)}</h2>${controls(q,i)}</section>`).join('');
-        for(const control of form.querySelectorAll('#questions input, #questions textarea, #questions select')) {
-            const value=saved.values?.[control.name];
-            if(value!==undefined) {if(control.type==='checkbox')control.checked=value===true;else control.value=value;}
-        }
+        try { saved = JSON.parse((previewQuiz?sessionStorage:localStorage).getItem(previewQuiz?previewKey+':progress':DRAFT)) || {}; } catch (_) {}
+        document.getElementById('questions').innerHTML=questions.map((q,i)=>`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${i+1}${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${q.scoringMode==='response'?' · '+q.points+' per correct response':''}</p><h2 class="prompt" dir="${q.direction}">${q.type==='gaps'?'Fill in the blanks':esc(q.prompt)}</h2>${controls(q,i)}</section>`).join('');
+        restoreAnswers();
         for(const select of form.querySelectorAll('.ordering select'))sizeOrderWord(select);
         form.hidden = false; status.textContent = 'Your work is saved on this browser as you go.';
         if (saved.submission) { submission = saved.submission; showReceipt(); }
@@ -156,7 +164,7 @@ async function enterQuiz() {
 })();
 form.addEventListener('input',snapshot);
 document.getElementById('start').addEventListener('click',async()=>{
-    if(!form.elements.studentName.reportValidity() || !form.elements.studentEmail.reportValidity()) return;
+    if(!previewQuiz && (!form.elements.studentName.reportValidity() || !form.elements.studentEmail.reportValidity())) return;
     const button=document.getElementById('start');button.disabled=true;
     saved.id ||= Array.from(crypto.getRandomValues(new Uint8Array(16)), b=>b.toString(16).padStart(2,'0')).join('');snapshot();
     try {
@@ -169,7 +177,7 @@ async function submitQuiz() {
     if(sending || submission || !saved.attempt || moving) return;
     if(!expired) {
         for(let i=0;i<questions.length;i++) if(incomplete(i)) {
-            navigate(i);status.textContent='Complete this question before submitting. Follow the required number of choices, and use each ordering item only once.';
+            navigate(i);status.textContent=questions[i].type==='match'?'Make at least '+questions[i].responseCount+' matches before submitting. Leave distractor terms unmatched.':'Complete this question before submitting, and use each ordering item only once.';
             form.querySelector(`[data-question="${i}"] input, [data-question="${i}"] textarea, [data-question="${i}"] select`)?.focus(); return;
         }
         if(!document.getElementById('reviewed').checked) {document.getElementById('reviewed').reportValidity();return;}
@@ -190,6 +198,7 @@ document.getElementById('next').addEventListener('click',()=>forwardOnly?advance
 document.getElementById('confirmCheckpoint').addEventListener('click',()=>advance(forwardOnlyFrom-1));
 document.getElementById('reviewEarlier').addEventListener('click',()=>navigate(0));
 document.getElementById('newStudent').addEventListener('click',async()=>{
+    if(previewQuiz){sessionStorage.removeItem(previewKey+':progress');location.reload();return;}
     await fetch(ACCOUNT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})});location.reload();
 });
 document.getElementById('googleSignIn').addEventListener('click',async()=>{
@@ -227,3 +236,5 @@ form.addEventListener('change',event=>{
     for(const select of section.querySelectorAll('select'))sizeOrderWord(select);
     snapshot();
 });
+
+QuizInteractions.bind(form,snapshot,i=>!expired && !moving && i>lockedThrough);

@@ -44,7 +44,7 @@ function shuffled(values) {
 }
 function controls(q,i){return QuizInteractions.controls(q,i);}
 async function request(record) {
-    if(previewQuiz){if(record.action==='start')return {id:'preview',token:'preview',deadline:previewQuiz.durationMinutes===null?null:Date.now()+previewQuiz.durationMinutes*60000};if(record.action==='state')return {lockedThrough:saved.lockedThrough??-1,forwardOnly:saved.forwardOnly===true,lockedAnswers:saved.lockedAnswers||[]};if(record.action==='advance'){lockedThrough=record.through;forwardOnly=true;saved.lockedAnswers=record.answers;saved.lockedThrough=lockedThrough;saved.forwardOnly=forwardOnly;store();return {lockedThrough,forwardOnly,lockedAnswers:record.answers};}if(record.action==='submit')return {accepted:true,answers:record.answers,submittedAt:new Date().toISOString(),automatic:QuizScoring.feedback(previewQuiz.questions,record.answers)};}
+    if(previewQuiz){if(record.action==='start')return {id:'preview',token:'preview',deadline:previewQuiz.durationMinutes===null?null:Date.now()+previewQuiz.durationMinutes*60000};if(record.action==='state')return {lockedThrough:saved.lockedThrough??-1,forwardOnly:saved.forwardOnly===true,lockedAnswers:saved.lockedAnswers||[]};if(record.action==='advance'){lockedThrough=record.through;forwardOnly=true;saved.lockedAnswers=record.answers;saved.lockedThrough=lockedThrough;saved.forwardOnly=forwardOnly;store();return {lockedThrough,forwardOnly,lockedAnswers:record.answers};}if(record.action==='submit')return {accepted:true,answers:record.answers,submittedAt:new Date().toISOString(),automatic:QuizScoring.feedback(previewQuiz.questions,record.answers,true)};}
 
     const response = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,classId})});
     const result = await response.json(); if(response.status===401)document.getElementById('googleLogin').hidden=false; if (!response.ok) throw new Error(result.error || 'Your quiz could not be saved.'); return result;
@@ -104,10 +104,16 @@ function showReceipt() {
     }
     if(previewQuiz){document.getElementById('receiptMessage').textContent='Preview complete. No student submission was sent.';document.getElementById('newStudent').textContent='Restart preview';}
     document.getElementById('receiptId').textContent = `Receipt: ${submission.id}`;
-    const automatic = new Map((submission.automatic || []).map(q=>[q.index,q]));
+    const automatic = new Map((previewQuiz?QuizScoring.feedback(previewQuiz.questions,submission.answers,true):(submission.automatic || [])).map(q=>[q.index,q]));
     document.getElementById('answerFeedback').innerHTML=questions.map((q,i)=>{
         const result=q.type==='text' || q.type==='gaps' && q.wordBank===false?null:automatic.get(i);
-        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${i+1}. ${esc(q.prompt)}</h3><p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>${result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}</section>`;
+        const key=result?.correctAnswers;
+        const review=key && !result.correct?`<div class="response-review">${['match','gaps','order'].includes(q.type)?key.map((expected,j)=>{
+            const actual=submission.answers[i][j] || '',right=actual===expected;
+            const label=q.type==='match'?q.items[j]:`${q.type==='order'?'Position':'Blank'} ${j+1}`;
+            return `<p dir="ltr"><strong><bdi dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(label)}</bdi></strong>: ${right?'✓ Correct':'✕ Incorrect'}<br>Your answer: <bdi dir="auto">${esc(actual || '(Unanswered)')}</bdi>${right?'':`<br>Correct answer: <bdi dir="auto">${esc(expected || 'Leave unmatched (distractor)')}</bdi>`}</p>`;
+        }).join(''):`<p dir="ltr">Correct ${key.length>1?'answers':'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${key.map(v=>esc(v)).join('<br>')}</span></p>`}</div>`:'';
+        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${i+1}. ${esc(q.prompt)}</h3><p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>${result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}${review}</section>`;
     }).join('');
 }
 function tick() {

@@ -209,3 +209,12 @@ test('Student receipt always shows typed responses as needs correction, even wit
  const manual=QuizCorrection.question({prompt:'Typed blank'},0,['wrong'],undefined,{max:1,score:null,modelAnswer:'right'},1);
  assert.match(manual,/data-grade="pending"/);assert.match(manual,/Teacher will correct/);assert.doesNotMatch(manual,/✓ Correct|✕ Incorrect/);
 });
+
+test('Student feedback distinguishes correct matches and supplies corrections for wrong matches',()=>{
+ const student=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/custom/quiz.js'),'utf8');
+ const elements=new Map(),context={previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['animal','vehicle']],automatic:[{index:0,correct:false,partial:true,correctAnswers:['animal','building']}]},questions:[{type:'match',prompt:'Match',direction:'ltr',items:['cat','house']}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
+ vm.runInNewContext(student.slice(student.indexOf('function showReceipt()'),student.indexOf('function tick()')),context);context.showReceipt();
+ const html=elements.get('answerFeedback').innerHTML;
+ assert.match(html,/cat<\/bdi><\/strong>: ✓ Correct/);assert.match(html,/house<\/bdi><\/strong>: ✕ Incorrect/);
+ assert.match(html,/Correct answer: <bdi dir="auto">building/);assert.match(html,/Partial credit/);
+});

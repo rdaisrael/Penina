@@ -65,7 +65,7 @@ test('Custom attempts submit once, grade, restrict reports, and transfer teacher
  const h=harness(),id=await h.publish();const assigned=await h.call(h.account.handle,h.req({action:'assign',courseId:'course',quiz:id}));const classId=new URL(assigned.data.url).searchParams.get('class'),attemptId='a'.repeat(32);
  const start=await h.call(h.submissions,h.req({action:'start',id:attemptId,classId,quiz:id},'student'));assert.equal(start.code,200);assert(start.data.deadline>Date.now()+29*60000);
  const body={action:'submit',id:attemptId,classId,quiz:id,token:start.data.token,answers:[['answer'],['B'],['A','C'],['א','א'],['ב','א']]};
- const accepted=await h.call(h.submissions,h.req(body,'student'));assert.equal(accepted.code,200);assert(!JSON.stringify(accepted.data).includes('correctAnswer'));assert.equal((await h.call(h.submissions,h.req(body,'student'))).code,200);
+ const accepted=await h.call(h.submissions,h.req(body,'student'));assert.equal(accepted.code,200);assert.deepEqual(accepted.data.automatic[0].correctAnswers,fixture().questions[1].answer);assert.equal((await h.call(h.submissions,h.req(body,'student'))).code,200);
  assert.equal((await h.call(h.submissions,h.req({action:'start',id:'b'.repeat(32),classId,quiz:id},'student'))).code,409);
  assert.equal((await h.call(h.submissions,h.req({action:'report',quiz:id},'other'))).code,403);
  const report=await h.call(h.submissions,h.req({action:'report',quiz:id}));assert.equal(report.code,200);assert.equal(report.data.submissions.length,1);assert.equal(report.data.submissions[0].grading.pending,1);
@@ -410,8 +410,8 @@ test('Preview request returns real shared feedback without sending submissions',
  const context={previewQuiz,QuizScoring:require('../Penina-Quizzes/custom/scoring'),forwardOnly:false,lockedThrough:-1,saved:{},Date,fetch:()=>assert.fail('Preview must not submit to server')};
  vm.createContext(context);vm.runInContext(code.slice(code.indexOf('async function request('),code.indexOf('function navigate(')),context);
  const answers=[...correctAnswers(),['animal','']];const result=await context.request({action:'submit',answers});
- assert.equal(result.accepted,true);assert.deepEqual(result.automatic,context.QuizScoring.feedback(previewQuiz.questions,answers));
- assert.deepEqual(result.automatic.at(-1),{index:5,correct:true,partial:false});
+ assert.equal(result.accepted,true);assert.deepEqual(result.automatic,context.QuizScoring.feedback(previewQuiz.questions,answers,true));
+ assert.deepEqual(result.automatic.at(-1),{index:5,correct:true,partial:false,correctAnswers:['animal','']});
  const metadata=code.match(/questions:previewQuiz\.questions\.map\(q=>\(\{\.\.\.q,maxPoints:QuizScoring\.maxPoints\(q\),responseCount:QuizScoring\.responseCount\(q\)\}\)\)/);
  assert(metadata,'Preview must use the shared response count so distractors do not count as required matches');
 });

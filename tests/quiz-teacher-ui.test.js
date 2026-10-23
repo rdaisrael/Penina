@@ -66,11 +66,11 @@ test('Answer cards are alphabetical and provide roster link targets',()=>{
  assert.deepEqual(records.map(r=>r.name),['ben Adams','Zoe Adams','Amy Zimmer']);
  assert.match(reports.innerHTML,/id="submission-2"/);
 });
-test('Clicking a roster name opens and focuses the submitted answers',()=>{
+for(const tableId of ['rosterRows','resultsRows'])test('Clicking a name in '+tableId+' opens and focuses the submitted answers',()=>{
  let handler,scrolled=false,focused=false;
  const card={open:false,scrollIntoView(){scrolled=true;},querySelector(){return {focus(){focused=true;}};}};
- vm.runInNewContext(source.slice(source.indexOf("document.getElementById('rosterRows').addEventListener")),{
-  document:{getElementById:id=>id==='rosterRows'?{addEventListener(type,fn){handler=fn;}}:id==='submission-receipt'?card:null}
+ vm.runInNewContext(source.slice(source.indexOf("for(const tableId of ['rosterRows','resultsRows'])")),{
+  document:{getElementById:id=>['rosterRows','resultsRows'].includes(id)?{addEventListener(type,fn){if(id===tableId)handler=fn;}}:id==='submission-receipt'?card:null}
  });
  let prevented=false;
  handler({target:{closest:()=>({dataset:{submission:'receipt'}})},preventDefault(){prevented=true;}});
@@ -181,6 +181,9 @@ test('Results grid includes roster non-submitters and all grading states, includ
  const {context,elements}=resultsView(),html=elements.get('resultsRows').innerHTML;
  assert.equal((html.match(/<tr>/g)||[]).length,2);
  assert.ok(html.indexOf('Alice Adams')<html.indexOf('Bob Brown'));
+ assert.equal((html.match(/data-submission=/g)||[]).length,1);
+ assert.match(html,/<a href="#submission-[^"]+" data-submission="[^"]+">Alice Adams<\/a>/);
+ assert.match(html,/<th scope="row">Bob Brown<\/th>/);
  for(const state of ['correct','incorrect','partial','pending','missing'])assert.match(html,new RegExp(`data-result="${state}"`));
  assert.equal((html.match(/data-result="correct"/g)||[]).length,2);
  assert.match(html,/0.5 \/ 1/);assert.match(html,/Not submitted/);

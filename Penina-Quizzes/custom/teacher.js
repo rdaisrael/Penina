@@ -112,7 +112,8 @@ function renderResultsGrid() {
         const record=student.record,g=record?.grading;
         const grade=!g?'Not submitted':g.pending?`${g.pending} awaiting correction`:`${g.total} / ${g.baseMax}`;
         const items=new Map(g?[...g.automatic,...g.manual].map(item=>[item.index,item]):[]);
-        return `<tr><th scope="row">${esc(student.name)}</th><td>${esc(grade)}</td>`+questions.map((q,index)=>{
+        const name=record?`<a href="#submission-${esc(record.id)}" data-submission="${esc(record.id)}">${esc(student.name)}</a>`:esc(student.name);
+        return `<tr><th scope="row">${name}</th><td>${esc(grade)}</td>`+questions.map((q,index)=>{
             const item=items.get(index),state=record?resultState(item):'missing';
             const points=state==='missing'?'':state==='pending'?'Teacher will correct':`${item.score} / ${item.max}`;
             const description=`${labels[state]}${points?' · '+points:''}`;
@@ -192,7 +193,7 @@ document.getElementById('export').addEventListener('click',()=>{
 
 document.getElementById('classChoice').addEventListener('change',()=>{document.getElementById('classLink').hidden=true;});
 
-document.getElementById('rosterRows').addEventListener('click',event=>{
+for(const tableId of ['rosterRows','resultsRows'])document.getElementById(tableId).addEventListener('click',event=>{
     const link=event.target.closest('a[data-submission]');
     if(!link)return;
     const submission=document.getElementById('submission-'+link.dataset.submission);

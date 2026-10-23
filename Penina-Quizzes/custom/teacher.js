@@ -87,7 +87,7 @@ function resultState(item) {
     return !item || item.score==null?'pending':item.score>=item.max?'correct':item.score===0?'incorrect':'partial';
 }
 function renderResultsGrid() {
-    const labels={correct:'Correct',incorrect:'Incorrect',partial:'Partial credit',pending:'Needs correction',missing:'Not submitted'};
+    const labels={correct:'Correct',incorrect:'Incorrect',partial:'Partial credit',pending:'Teacher will correct',missing:'Not submitted'};
     const symbols={correct:'✓',incorrect:'✕',partial:'◐',pending:'…',missing:'—'};
     const head=document.getElementById('resultsHead');
     head.innerHTML='<tr><th scope="col">Student</th><th scope="col">Grade</th>'+questions.map((q,i)=>`<th scope="col"><button type="button" data-question="${i}" title="${esc(q.prompt)}" aria-label="Question ${i+1}${q.extraCredit?', extra credit':''}: ${esc(q.prompt)}">${i+1}${q.extraCredit?'<span class="results-bonus">Bonus</span>':''}</button></th>`).join('')+'</tr>';
@@ -114,7 +114,7 @@ function renderResultsGrid() {
         const items=new Map(g?[...g.automatic,...g.manual].map(item=>[item.index,item]):[]);
         return `<tr><th scope="row">${esc(student.name)}</th><td>${esc(grade)}</td>`+questions.map((q,index)=>{
             const item=items.get(index),state=record?resultState(item):'missing';
-            const points=state==='missing'?'':state==='pending'?'Needs correction':`${item.score} / ${item.max}`;
+            const points=state==='missing'?'':state==='pending'?'Teacher will correct':`${item.score} / ${item.max}`;
             const description=`${labels[state]}${points?' · '+points:''}`;
             return `<td data-result="${state}" title="${esc(description)}" aria-label="${esc(description)}"><span aria-hidden="true">${symbols[state]}</span> ${esc(points)}</td>`;
         }).join('')+'</tr>';

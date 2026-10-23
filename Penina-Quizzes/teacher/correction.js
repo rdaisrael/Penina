@@ -17,7 +17,7 @@ window.QuizCorrection = (() => {
         return compare(lastA, lastB) || compare(firstA, firstB) || compare(String(a.id || ''), String(b.id || ''));
     }
     function state(score, max) {
-        if (score === null || score === undefined) return ['pending', 'Needs correction'];
+        if (score === null || score === undefined) return ['pending', 'Teacher will correct'];
         if (score >= max) return ['correct', '✓ Correct'];
         if (score === 0) return ['incorrect', '✕ Incorrect'];
         return ['partial', '◐ Partial credit'];

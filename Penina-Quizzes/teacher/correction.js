@@ -23,7 +23,7 @@ window.QuizCorrection = (() => {
         return ['partial', '◐ Partial credit'];
     }
     function question(q, i, answers, auto, manual, step) {
-        const grade = auto || manual, max = grade.max, [kind, label] = state(grade.score, max);
+        const grade = auto || manual, max = grade.max, [kind, label] = state(grade.score, grade.correctnessMax ?? max);
         const reference = auto ? auto.correctAnswer : manual.modelAnswer;
         const handCorrected = kind !== 'pending' && (!auto || auto.overridden);
         return `<section class="review-question ${q.extraCredit?'extra-credit':''}" data-grade="${kind}">
@@ -31,7 +31,7 @@ window.QuizCorrection = (() => {
             <h2 class="review-prompt" dir="auto">${escape(q.prompt)}</h2>
             <div class="answer-comparison"><div class="student-response"><h3>Student’s answer</h3>${answers.map((a,j)=>`<div class="response-part">${q.fields ? `<span class="field-label" dir="auto">${escape(q.fields[j])}</span>` : answers.length > 1 ? `<span class="field-label">Part ${j+1}</span>` : ''}<p dir="auto">${escape(a || '(No answer)')}</p></div>`).join('')}</div>
             <div class="reference-response"><h3>${auto ? 'Correct answer' : 'Model answer'}</h3><p dir="auto">${escape(reference || 'No model answer provided.')}</p></div></div>
-            <div class="question-marking">${auto ? `<label>Points awarded <span class="points-range">(suggested: 0–${max})</span><input aria-label="Points for question ${i+1}" name="auto${i}" data-original="${auto.originalScore ?? auto.score}" type="number" min="0" data-max="${max}" step="${step}" value="${auto.score}" required></label><span class="marking-hint">Answer-key score: ${auto.originalScore ?? auto.score}/${max}. Change the points to override this student’s mark. <strong class="override-label">${auto.overridden ? 'Teacher override' : ''}</strong></span>` : `<label>Points awarded <span class="points-range">(suggested: 0–${max})</span><input aria-label="Points for question ${i+1}" name="manual${i}" type="number" min="0" data-max="${max}" step="${step}" value="${manual.score ?? ''}" placeholder="—"></label><span class="marking-hint">You may award more than the suggested points. Leave blank if this answer still needs correction.</span>`}</div>
+            <div class="question-marking">${auto ? `<label>Points awarded <span class="points-range">(suggested: 0–${max})</span><input aria-label="Points for question ${i+1}" name="auto${i}" data-original="${auto.originalScore ?? auto.score}" data-answer-max="${auto.answerMax ?? max}" type="number" min="0" data-max="${max}" step="${step}" value="${auto.score}" required></label><span class="marking-hint">Answer-key score: ${auto.originalScore ?? auto.score}/${max}. Change the points to override this student’s mark. <strong class="override-label">${auto.overridden ? 'Teacher override' : ''}</strong></span>` : `<label>Points awarded <span class="points-range">(suggested: 0–${max})</span><input aria-label="Points for question ${i+1}" name="manual${i}" type="number" min="0" data-max="${max}" step="${step}" value="${manual.score ?? ''}" placeholder="—"></label><span class="marking-hint">You may award more than the suggested points. Leave blank if this answer still needs correction.</span>`}</div>
             <label class="override-explanation">Explanation for the student <span class="muted">${auto?'(included in the email when you override this mark)':'(included in the corrected-test email)'}</span><textarea name="explanation${i}" maxlength="2000" dir="auto" placeholder="Explain the points awarded or why you revised this mark.">${escape(grade.explanation || '')}</textarea></label>
         </section>`;
     }
@@ -78,7 +78,8 @@ window.QuizCorrection = (() => {
         if (!card) return;
         const valid = input.validity.valid, score = input.value === '' ? null : Number(input.value);
         const max = Number(input.dataset.max ?? input.max);
-        const [kind,label] = valid ? state(score, max) : ['pending', 'Check points'];
+        const comparisonMax=input.name.startsWith('auto') && score===Number(input.dataset.original)?Number(input.dataset.answerMax ?? max):max;
+        const [kind,label] = valid ? state(score, comparisonMax) : ['pending', 'Check points'];
         const overrideLabel = card.querySelector('.override-label');
         if (overrideLabel) overrideLabel.textContent = valid && score !== Number(input.dataset.original) ? 'Teacher override' : '';
         card.querySelector('.hand-corrected-dot').hidden = !valid || score === null || (input.name.startsWith('auto') && score === Number(input.dataset.original));

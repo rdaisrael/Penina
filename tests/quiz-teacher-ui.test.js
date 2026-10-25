@@ -221,3 +221,22 @@ test('Student feedback distinguishes correct matches and supplies corrections fo
  assert.match(html,/cat<\/bdi><\/strong>: ✓ Correct/);assert.match(html,/house<\/bdi><\/strong>: ✕ Incorrect/);
  assert.match(html,/Correct answer: <bdi dir="auto">building/);assert.match(html,/Partial credit/);
 });
+
+test('Builder duplicate action converts revised points and clears source identity',()=>{
+ const script=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/builder/builder.js'),'utf8');
+ const scoring=require('../Penina-Quizzes/custom/scoring'),buttons=new Map();
+ const context={structuredClone,QuizScoring:scoring,$:id=>{if(!buttons.has(id))buttons.set(id,{});return buttons.get(id);},render(){},status(){}};
+ vm.runInNewContext("let busy=false,dirty=false,quiz={id:'source',owner:'owner',pointsRevision:4,published:true,title:'Test',questions:[{type:'choice',points:4,potentialPoints:5,choices:['A','B'],answer:['B']}]};"+script.slice(script.indexOf("$('duplicate').onclick="),script.indexOf("$('title').oninput=")),context);
+ buttons.get('duplicate').onclick();
+ const q=vm.runInNewContext('quiz',context);assert.equal(q.id,undefined);assert.equal(q.pointsRevision,undefined);assert.equal(q.published,false);assert.equal(q.questions[0].points,5);assert.equal(q.questions[0].potentialPoints,undefined);
+});
+
+test('Question cards and result grid use answer correctness independently of adjusted denominators',()=>{
+ const model=require('../lib/quiz-builder-model');
+ const q={type:'choice',prompt:'Pick B',points:4,potentialPoints:5,choices:['A','B'],answer:['B']};
+ const g=model.grade({questions:[q]},[['B']]),auto=g.automatic[0];
+ const html=QuizCorrection.question(q,0,['B'],auto,null,1);
+ assert.match(html,/data-grade="correct"/);assert.match(html,/4 \/ 5 points/);assert.match(html,/data-answer-max="4"/);
+ const context={};vm.runInNewContext(source.slice(source.indexOf('function resultState('),source.indexOf('function renderResultsGrid(')),context);
+ assert.equal(context.resultState(auto),'correct');assert.equal(context.resultState({...auto,score:2,overridden:true,correctnessMax:5}),'partial');
+});

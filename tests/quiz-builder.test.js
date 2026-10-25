@@ -438,3 +438,93 @@ test('Draft sentence survives authenticated save/load and remains private after 
   }
  }
 });
+
+test('Potential points are author-only, versioned, and leave the published answer key intact',async()=>{
+ const h=harness(),id=await h.publish();
+ const request=(action,extra={},user='owner')=>h.call(h.builder.handle,h.req({action,id,...extra},user));
+ const original=h.blobs.get('quiz-builder/published/'+id+'.txt');
+ assert.equal((await request('load-points',{},'other')).code,404);
+ assert.equal((await request('save-points',{revision:0,points:[4,5,6,7,8]},'student')).code,403);
+ const cross=h.req({action:'save-points',id,revision:0,points:[4,5,6,7,8]});cross.headers.origin='https://other.example';
+ assert.equal((await h.call(h.builder.handle,cross)).code,403);
+ for(const points of [[0,1,1,2,1],[1],[-1,1,1,2,1],[1.2,1,1,2,1],[5001,1,1,2,1]])assert.equal((await request('save-points',{revision:0,points})).code,400);
+ assert.equal((await request('save-points',{revision:0,points:[4,5,6,7,8]})).data.revision,1);
+ assert.equal((await request('save-points',{revision:0,points:[4,5,6,7,9]})).code,409);
+ assert.equal((await request('save-points',{revision:1,points:[4,5,6,7,8]})).data.revision,1);
+ assert.equal(h.blobs.get('quiz-builder/published/'+id+'.txt'),original);
+ const q=await h.builder.published(id),g=model.grade(q,correctAnswers(),{scores:[2],overrides:{1:2}});
+ assert.equal(g.total,8);assert.equal(g.baseMax,30);assert.equal(g.manual[0].score,2);assert.equal(g.manual[0].max,4);
+ assert.deepEqual(g.automatic.map(a=>a.score),[2,1,2,1]);
+ assert.equal((await h.builder.info(id)).maxPoints,30);
+});
+
+test('Denominator edits preserve per-response earnings, extra credit, and pending written marks',()=>{
+ const quiz=fixture();quiz.questions[3].scoringMode='response';quiz.questions[4].extraCredit=true;
+ const before=model.grade(quiz,correctAnswers());
+ quiz.pointsRevision=1;quiz.questions.forEach(q=>q.potentialPoints=5);
+ const after=model.grade(quiz,correctAnswers());
+ assert.equal(after.earnedSoFar,before.earnedSoFar);assert.equal(after.pending,1);assert.equal(after.total,null);
+ assert.equal(after.baseMax,20);assert.equal(after.extraMax,5);
+ const partial=correctAnswers();partial[3]=['א','ב'];assert.equal(model.grade(quiz,partial).automatic[2].score,2);
+});
+
+test('Edits work during an attempt and after grading; stale grades cannot be emailed as current',async()=>{
+ const h=harness(),{quiz:id,classId}=await assigned(h),receipt='e'.repeat(32);
+ const start=await h.call(h.submissions,h.req({action:'start',quiz:id,classId,id:receipt},'student'));
+ async function adjust(revision,points){const r=await h.call(h.builder.handle,h.req({action:'save-points',id,revision,points}));assert.equal(r.code,200);}
+ await adjust(0,[4,1,1,2,1]);
+ const submission=await h.call(h.submissions,h.req({action:'submit',quiz:id,classId,id:receipt,token:start.data.token,answers:correctAnswers()},'student'));assert.equal(submission.code,200);
+ const correction={action:'correct',quiz:id,id:receipt,scores:[2],feedback:'Good',pointsRevision:1};
+ let saved=await h.call(h.submissions,h.req({...correction,sendToClassroom:true}));assert(saved.data.classroomError);assert.equal(saved.data.grading.total,7);assert.equal(saved.data.grading.baseMax,9);
+ h.state.work.maxPoints=9;
+ saved=await h.call(h.submissions,h.req({...correction,sendToClassroom:true}));assert.equal(saved.data.grading.classroomDraft,true);
+ let email=await h.call(h.submissions,h.req({...correction,emailStudent:true}));assert.equal(email.code,200);assert.equal(h.state.emailed.grading.manual[0].max,4);
+ await adjust(1,[5,1,1,2,1]);
+ const report=await h.call(h.submissions,h.req({action:'report',quiz:id})),g=report.data.submissions[0].grading;
+ assert.equal(g.total,7);assert.equal(g.baseMax,10);assert.equal(g.pointsChanged,true);assert.equal(g.classroomDraft,false);assert.equal(g.lmsSentAt,null);assert.equal(g.studentSentAt,null);
+ assert.equal((await h.call(h.submissions,h.req({...correction,emailStudent:true}))).code,409);
+ correction.pointsRevision=2;
+ assert.equal((await h.call(h.submissions,h.req({...correction,emailStudent:true}))).code,409);
+ h.state.work.maxPoints=10;
+ assert.equal((await h.call(h.submissions,h.req({...correction,sendToClassroom:true}))).data.grading.classroomDraft,true);
+ email=await h.call(h.submissions,h.req({...correction,emailStudent:true}));assert.equal(email.code,200);assert.equal(h.state.emailed.grading.manual[0].score,2);assert.equal(h.state.emailed.grading.manual[0].max,5);assert.equal(h.state.emailed.grading.baseMax,10);
+});
+
+test('Builder reload and duplicate carry revised totals into fresh grading without changing the source',async()=>{
+ const scoring=require('../Penina-Quizzes/custom/scoring'),h=harness(),q=fixture();q.questions[3].scoringMode='response';q.questions[4].extraCredit=true;
+ const id=await h.publish(q);
+ const changed=await h.call(h.builder.handle,h.req({action:'save-points',id,revision:0,points:[5,5,5,5,5]}));assert.equal(changed.code,200);
+ const loaded=(await h.call(h.builder.handle,h.req({action:'load',id}))).data.quiz;
+ assert.equal(model.maxPoints(loaded.questions[0]),5);assert.equal(loaded.pointsRevision,1);
+ const copy={...loaded,questions:scoring.duplicateQuestions(loaded.questions)};
+ const copyId=await h.publish(copy);assert.notEqual(copyId,id);
+ const published=await h.builder.published(copyId),grade=model.grade(published,correctAnswers(),{scores:[5]});
+ assert.equal(grade.total,25);assert.equal(grade.baseMax,20);assert.equal(grade.extraMax,5);assert.equal(published.pointsRevision,0);
+ const partial=correctAnswers();partial[3]=['א','ב'];assert.equal(model.grade(published,partial).automatic[2].score,2.5);
+ assert.equal(model.grade(await h.builder.published(id),correctAnswers(),{scores:[2]}).total,9);
+ assert.equal(scoring.feedback(published.questions,correctAnswers()).every(item=>item.correct),true);
+});
+
+test('Copied distributed totals preserve non-divisible partial credit and validate saved overrides',()=>{
+ const scoring=require('../Penina-Quizzes/custom/scoring');
+ const original={type:'match',prompt:'Match',points:1,scoringMode:'response',items:['a','b','c'],choices:['A','B','C'],answer:['A','B','C'],potentialPoints:5};
+ const quiz=model.validateQuiz({title:'Copy',questions:scoring.duplicateQuestions([original])},true);
+ const g=model.grade(quiz,[['A','C','B']]);assert.equal(g.total,1.67);assert.equal(g.baseMax,5);
+ assert(model.validOverrides({0:1.67},g.automatic));assert(!model.validOverrides({0:1.675},g.automatic));
+ const whole=model.grade(quiz,[['A','B','C']]);assert.equal(whole.total,5);
+ const large=model.validateQuiz({title:'Large',questions:scoring.duplicateQuestions([{...original,potentialPoints:5000}])},true);assert.equal(model.maxPoints(large.questions[0]),5000);
+});
+
+test('Denominator changes preserve answer correctness across feedback, summary, and email',()=>{
+ const scoring=require('../Penina-Quizzes/custom/scoring'),{correctedTest}=require('../lib/quiz-correction-email');
+ const q={type:'choice',prompt:'Pick B',points:4,potentialPoints:5,choices:['A','B'],answer:['B']};
+ const quiz={questions:[q]},answers=[['B']],grading=model.grade(quiz,answers);
+ assert.equal(scoring.feedback([q],answers)[0].correct,true);
+ assert.equal(model.summarize(quiz,[{grading}])[0].correct,1);
+ assert.match(correctedTest({record:{name:'Test',answers},questions:[q],grading,title:'Quiz'}).text,/Correct · 4\/5 points/);
+ const override=model.grade(quiz,answers,{overrides:{0:2}});
+ assert.equal(model.summarize(quiz,[{grading:override}])[0].partial,1);
+ assert.match(correctedTest({record:{name:'Test',answers},questions:[q],grading:override,title:'Quiz'}).text,/Partial credit · 2\/5 points/);
+ const match={type:'match',prompt:'Match',points:2,scoringMode:'response',potentialPoints:1,items:['a','b'],choices:['A','B'],answer:['A','B']};
+ const partial=model.grade({questions:[match]},[['A','A']]);assert.equal(model.summarize({questions:[match]},[{grading:partial}])[0].partial,1);
+});

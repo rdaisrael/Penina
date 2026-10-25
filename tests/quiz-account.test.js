@@ -8,7 +8,8 @@ function harness() {
         async getToken(options){state.exchange=options;return {tokens:{id_token:'verified-by-library',refresh_token:state.noRefresh?undefined:'refresh-secret',scope:[...state.options.scope].join(' ')}};}
         async verifyIdToken(options){state.verification=options;if(state.invalidToken)throw Error('Invalid signature or audience');return {getPayload:()=>({sub:'student-id',email:state.email || 'student@school.org',name:'Student',email_verified:!state.unverified,nonce:state.wrongNonce?'wrong':state.options.nonce})};}
         async request({url,params,paramsSerializer,method='GET',data}) {
-            requests.push({url,params,method,data,query:paramsSerializer(params)});
+            requests.push({url,params,method,data,credentials:this.credentials,query:paramsSerializer(params)});
+            if(url.endsWith(':turnIn')){if(state.turnInFailure)throw {response:{status:503}};state.submissionState='TURNED_IN';return {data:{}};}
             if(url.endsWith(':return')) {if(state.returnFailure)throw {response:{status:503}};return {data:{}};}
             if(method==='PATCH')return {data:{...data,id:'submission-1'}};
             if(url.endsWith('/studentSubmissions'))return {data:{studentSubmissions:[{id:'submission-1',userId:state.wrongStudent?'other':'student-id',courseId:'course-1',courseWorkId:'work-1',associatedWithDeveloper:!state.foreignWork,state:state.submissionState || 'TURNED_IN'}]}};
@@ -83,7 +84,7 @@ test('OAuth callback validates state, nonce, audience and PKCE before issuing a 
     callback.query.state=h.state.options.state;
     const response=await h.run(callback);assert.equal(response.code,303);assert(response.headers.Location.endsWith('?class='+'c'.repeat(32)));
     assert.equal(h.state.verification.audience,'test-client');assert(h.state.exchange.codeVerifier);
-    assert.equal(h.state.options.scope.length,3);assert.equal(h.state.options.prompt,'select_account');
+    assert.equal(h.state.options.scope.length,4);assert(h.state.options.scope.includes('https://www.googleapis.com/auth/classroom.coursework.me'));assert.equal(h.state.options.access_type,'offline');assert(h.blobs.has('quiz-google/students/student-id.txt'));assert(!h.blobs.get('quiz-google/students/student-id.txt').includes('refresh-secret'));assert.equal(h.api.unseal(h.blobs.get('quiz-google/students/student-id.txt')).refreshToken,'refresh-secret');assert.equal(h.state.options.prompt,'select_account');
     h.state.wrongNonce=true;assert.equal((await h.run(callback)).code,401);h.state.wrongNonce=false;
     h.state.invalidToken=true;assert.notEqual((await h.run(callback)).code,303);
 });
@@ -353,3 +354,36 @@ test('Missing offline access requests consent once, while explicit reconnect req
  assert.equal((await h.run(h.request({headers,query:{action:'assignments'}}))).data.assignments.length,1);
  assert.equal((await h.run(h.request({headers,query:{action:'assignments',archived:'true'}}))).data.assignments.length,0);
  });
+
+
+function turnInFixture(h){
+ const classId='c'.repeat(32);
+ h.blobs.set('quiz-google/classes/'+classId+'.txt',h.api.seal({quiz:'gemara-6-wl-2',owner:'teacher-id',courseId:'course-1',courseWorkId:'work-1'}));
+ h.blobs.set('quiz-google/students/student-id.txt',h.api.seal({scope:'https://www.googleapis.com/auth/classroom.coursework.me',refreshToken:'student-refresh'}));
+ h.state.submissionState='CREATED';
+ return {req:h.request({method:'POST'}),record:{sub:'student-id',classId}};
+}
+test('Turn-in uses only the submitting student credentials and never changes grades',async()=>{
+ const h=harness(),f=turnInFixture(h);
+ assert.equal((await h.api.turnInSubmission(f.req,f.record)).turnedIn,true);
+ const call=h.requests.find(r=>r.url.endsWith(':turnIn'));assert(call);assert.equal(call.method,'POST');assert.equal(call.credentials.refresh_token,'student-refresh');assert(call.url.endsWith('/courseWork/work-1/studentSubmissions/submission-1:turnIn'));
+ assert(!h.requests.some(r=>r.method==='PATCH' || r.url.endsWith(':return')));
+ await h.api.turnInSubmission(f.req,f.record);assert.equal(h.requests.filter(r=>r.url.endsWith(':turnIn')).length,1);
+ h.state.submissionState='RETURNED';await h.api.turnInSubmission(f.req,f.record);assert.equal(h.requests.filter(r=>r.url.endsWith(':turnIn')).length,1);
+});
+test('Turn-in rejects missing permission, wrong student, teacher sessions and foreign assignments',async()=>{
+ for(const mutate of [
+  (h,f)=>h.blobs.delete('quiz-google/students/student-id.txt'),
+  (h,f)=>f.record.sub='someone-else',
+  (h,f)=>f.req.headers.cookie=h.cookie({role:'teacher'}),
+  h=>h.state.foreignWork=true,
+  h=>h.state.wrongStudent=true,
+  (h,f)=>f.record.classId='d'.repeat(32),
+  (h,f)=>f.req.headers.origin='https://other.example'
+ ]){const h=harness(),f=turnInFixture(h);mutate(h,f);await assert.rejects(()=>h.api.turnInSubmission(f.req,f.record));assert(!h.requests.some(r=>r.url.endsWith(':turnIn')));}
+});
+test('Turn-in failures can retry without publishing a grade',async()=>{
+ const h=harness(),f=turnInFixture(h);h.state.turnInFailure=true;
+ await assert.rejects(()=>h.api.turnInSubmission(f.req,f.record));h.state.turnInFailure=false;
+ assert.equal((await h.api.turnInSubmission(f.req,f.record)).turnedIn,true);assert(!h.requests.some(r=>r.method==='PATCH'));
+});

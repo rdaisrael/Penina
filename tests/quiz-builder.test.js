@@ -9,8 +9,14 @@ function fixture(){return {title:'Hebrew review',durationMinutes:30,questions:[
 function harness(){
  const blobs=new Map(),cache=new Map(),state={enrolled:true,teacher:true,work:null,grade:null},ORIGIN='https://www.penina-hebrew.org';
  class OAuth2Client {setCredentials(){} generateAuthUrl(options){state.oauth=options;return 'https://accounts.google.com/test';}async getToken(){return {tokens:{id_token:'test',refresh_token:'test',scope:state.oauth.scope.join(' ')}};}async verifyIdToken(){return {getPayload:()=>({sub:'owner',name:'Teacher',email:'teacher@school.org',email_verified:true,nonce:state.oauth.nonce})};}async request({url,method,data,params={}}){
+  if(url.endsWith(':turnIn')){state.turnInCalls=(state.turnInCalls || 0)+1;if(state.turnInFailure)throw {response:{status:503}};return {data:{}};}
+  if(method==='PATCH' && params.updateMask==='maxPoints'){
+   (state.pointsPatches ||= []).push({url,data,params});
+   if(state.pointsFailure)throw {response:{status:403}};
+   state.work={...state.work,...data};return {data:state.work};
+  }
   if(method==='PATCH'){state.grade=data;return {data};}if(url.endsWith(':return'))return {data:{}};
-  if(url.endsWith('/studentSubmissions'))return {data:{studentSubmissions:[{id:'submission',userId:'student',courseId:'course',courseWorkId:'work',associatedWithDeveloper:true,state:'TURNED_IN'}]}};
+  if(url.endsWith('/studentSubmissions'))return {data:{studentSubmissions:[{id:'submission',userId:'student',courseId:'course',courseWorkId:'work',associatedWithDeveloper:true,state:state.submissionState || 'TURNED_IN'}]}};
   if(url.endsWith('/courseWork/work'))return {data:{...state.work,state:'PUBLISHED',maxPoints:state.work.maxPoints}};
   if(url.endsWith('/courseWork')){if(method==='POST'){state.work={...data,id:'work',associatedWithDeveloper:true};return {data:state.work};}return {data:{courseWork:state.work?[state.work]:[]}};}
   if(url.includes('/teachers/')){if(!state.teacher || !url.endsWith('/owner'))throw {response:{status:404}};return {data:{userId:'owner'}};}
@@ -476,7 +482,7 @@ test('Edits work during an attempt and after grading; stale grades cannot be ema
  await adjust(0,[4,1,1,2,1]);
  const submission=await h.call(h.submissions,h.req({action:'submit',quiz:id,classId,id:receipt,token:start.data.token,answers:correctAnswers()},'student'));assert.equal(submission.code,200);
  const correction={action:'correct',quiz:id,id:receipt,scores:[2],feedback:'Good',pointsRevision:1};
- let saved=await h.call(h.submissions,h.req({...correction,sendToClassroom:true}));assert(saved.data.classroomError);assert.equal(saved.data.grading.total,7);assert.equal(saved.data.grading.baseMax,9);
+ let saved=await h.call(h.submissions,h.req({...correction,sendToClassroom:true}));assert.equal(saved.data.grading.classroomDraft,true);assert.equal(saved.data.grading.total,7);assert.equal(saved.data.grading.baseMax,9);
  h.state.work.maxPoints=9;
  saved=await h.call(h.submissions,h.req({...correction,sendToClassroom:true}));assert.equal(saved.data.grading.classroomDraft,true);
  let email=await h.call(h.submissions,h.req({...correction,emailStudent:true}));assert.equal(email.code,200);assert.equal(h.state.emailed.grading.manual[0].max,4);
@@ -549,4 +555,46 @@ test('Potential-points mode changes recalculate existing answers both ways and p
  quiz=await h.builder.published(id);g=model.grade(quiz,answers,{scores:[1.5],overrides:{1:2}});
  assert.deepEqual(g.automatic.map(q=>q.score),[2,0,0,0]);assert.equal(g.manual[0].score,1.5);
  assert.equal((await save(2,[2,1,2,2,1],modes)).code,409);
+});
+
+
+test('Saving potential points syncs only owned linked assignments and retries failed Classroom updates',async()=>{
+ const h=harness(),link=await assigned(h),id=link.quiz;
+ const record=[...h.blobs.entries()].find(([key])=>key.startsWith('quiz-google/classes/'));
+ const assignment=h.account.unseal(record[1]);
+ h.blobs.set('quiz-google/classes/'+'b'.repeat(32)+'.txt',h.account.seal({...assignment,courseId:'second',className:'Second class'}));
+ h.blobs.set('quiz-google/classes/'+'c'.repeat(32)+'.txt',h.account.seal({...assignment,owner:'other'}));
+ h.blobs.set('quiz-google/classes/'+'d'.repeat(32)+'.txt',h.account.seal({...assignment,quiz:'other-quiz'}));
+ const save=(revision,points)=>h.call(h.builder.handle,h.req({action:'save-points',id,revision,points}));
+ h.state.pointsFailure=true;
+ let result=await save(0,[4,1,1,2,1]);assert.equal(result.code,200);assert.equal(result.data.revision,1);
+ assert.equal(result.data.classroom.failures.length,2);assert.equal(h.state.pointsPatches.length,2);assert.equal(h.state.work.maxPoints,7);
+ h.state.pointsFailure=false;
+ result=await save(1,[4,1,1,2,1]);assert.equal(result.data.revision,1);assert.equal(result.data.classroom.failures.length,0);
+ assert.equal(result.data.classroom.updated+result.data.classroom.unchanged,2);assert.equal(h.state.work.maxPoints,9);
+ const patch=h.state.pointsPatches.at(-1);assert.equal(JSON.stringify(patch.params),JSON.stringify({updateMask:'maxPoints'}));assert.equal(JSON.stringify(patch.data),JSON.stringify({maxPoints:9}));assert.equal(h.state.grade,null);
+ const count=h.state.pointsPatches.length;
+ result=await save(1,[4.5,1,1,2,1]);assert.equal(result.data.revision,2);assert.match(result.data.classroom.warning,/whole-number/);assert.equal(h.state.pointsPatches.length,count);assert.equal(h.state.work.maxPoints,9);
+ result=await save(2,[5,1,1,2,1]);assert.equal(result.data.classroom.maxPoints,10);assert.equal(h.state.work.maxPoints,10);
+});
+
+test('Classroom point syncing excludes extra credit',async()=>{
+ const h=harness(),q=fixture();q.questions[4].extraCredit=true;
+ const link=await assigned(h,q);
+ const result=await h.call(h.builder.handle,h.req({action:'save-points',id:link.quiz,revision:0,points:[3,1,1,2,4.5]}));
+ assert.equal(result.code,200);assert.equal(result.data.classroom.maxPoints,7);assert.equal(h.state.work.maxPoints,7);assert.equal(result.data.classroom.warning,undefined);
+});
+
+
+
+test('Student answers remain saved when Classroom turn-in fails; retry turns in without releasing grades',async()=>{
+ const h=harness(),link=await assigned(h),id='f'.repeat(32);
+ h.blobs.set('quiz-google/students/student.txt',h.account.seal({scope:'https://www.googleapis.com/auth/classroom.coursework.me',refreshToken:'student-refresh'}));
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ const body={...link,action:'submit',id,token:start.data.token,answers:correctAnswers()};
+ h.state.submissionState='CREATED';h.state.turnInFailure=true;
+ const failed=await h.call(h.submissions,h.req(body,'student'));assert.equal(failed.data.accepted,true);assert.equal(failed.data.classroom.turnedIn,false);assert.match(failed.data.classroom.message,/answers are saved/);
+ h.state.turnInFailure=false;
+ const retried=await h.call(h.submissions,h.req(body,'student'));assert.equal(retried.data.classroom.turnedIn,true);assert.equal(retried.data.submittedAt,failed.data.submittedAt);assert.equal(h.state.grade,null);
+ const corrected=await h.call(h.submissions,h.req({...link,id,action:'correct',scores:[2],feedback:'',sendToClassroom:true}));assert.equal(corrected.data.classroom.draft,true);assert.equal(h.state.grade.assignedGrade,undefined);
 });

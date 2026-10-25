@@ -33,3 +33,13 @@ test('Potential-points answer column preserves repeated blanks, matching labels,
  const order=context.pointsAnswerKey({type:'order',answer:['ב','א']});assert.equal(order.children[1].textContent,'2 items in the correct order');assert.deepEqual(order.children[2].children.map(item=>item.textContent),['ב','א']);
  const written=context.pointsAnswerKey({type:'text',answer:'Explain <this>\nSecond line'});assert.equal(written.children[2].textContent,'Explain <this>\nSecond line');assert.equal(written.children[0].textContent,'Model answer');
 });
+
+
+test('Classroom sync status shows successes, per-class failures and fractional totals',()=>{
+ const source=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/teacher.js'),'utf8'),context={};
+ vm.runInNewContext(source.slice(source.indexOf('function classroomPointsStatus('),source.indexOf('function pointsValues(')),context);
+ assert.match(context.classroomPointsStatus({maxPoints:12,updated:1,unchanged:1,failures:[]}),/12 in 2 linked assignments/);
+ const failure=context.classroomPointsStatus({maxPoints:12,updated:1,unchanged:0,failures:[{className:'Class B',message:'Reconnect Classroom.'}]});
+ assert.match(failure,/Class B: Reconnect Classroom/);assert.match(failure,/Save again to retry/);
+ assert.equal(context.classroomPointsStatus({warning:'Choose a whole-number total.'}),'Choose a whole-number total.');
+});

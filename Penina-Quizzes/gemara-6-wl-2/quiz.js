@@ -29,6 +29,7 @@ function navigate(value) {
 function showReceipt() {
     clearInterval(clock); form.hidden = true; status.textContent = '';
     document.getElementById('receipt').hidden = false;
+    if(!isClassTeacher)document.getElementById('receiptMessage').textContent=submission.classroom?.turnedIn?'Your answers are saved in Penina and your work is turned in to Classroom. Your teacher will review and return your grade.':(submission.classroom?.message || 'Your answers are saved in Penina. Open Classroom and mark this assignment as done.');
     if(isClassTeacher) {
         document.getElementById('receiptMessage').textContent='Teacher practice complete. You can take the quiz again. These answers are kept separate from student submissions.';
         document.getElementById('repeatQuiz').hidden=false;
@@ -108,7 +109,7 @@ async function submitQuiz() {
     const record = {action:'submit',token:saved.attempt.token,id:saved.id,name:form.elements.studentName.value.trim(),email:form.elements.studentEmail.value.trim(),answers:expired?saved.expiredAnswers:questions.map(answer)};
     try {
         const result=await request(record);if(!result.accepted) throw new Error('Your quiz was not saved.');
-        submission = {...record,answers:result.answers,submittedAt:result.submittedAt,automatic:result.automatic};
+        submission = {...record,answers:result.answers,submittedAt:result.submittedAt,automatic:result.automatic,classroom:result.classroom};
         delete submission.token; saved.submission = submission; store(); showReceipt();
     } catch(error) {message.textContent=error.message+' Your answers remain saved here. Try submitting again.';message.className='warning';}
     finally {sending=false;button.disabled = false;}

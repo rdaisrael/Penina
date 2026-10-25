@@ -122,7 +122,7 @@
   ],
   "functions": {
     "api/game-scores.js": {
-      "includeFiles": "{Penina-Reader/index.html,PeninaPlus-Reader/{index,bold}.html,PeninaPlus-vocab-builder/index.html,PeninaPlus-Binyan-Builder/index.html,Penina-Quizzes/builder/index.html,Penina-Quizzes/custom/teacher.html,Penina-Quizzes/{gemara-6-wl-2,gemara-6-intro-retake,gemara-8-intro-retake}/{teacher.html,questions.json,talmud-page.png},PeninaPlus-vocab-builder/Penina-Vocabulary-Template.xlsx}"
+      "includeFiles": "{Penina{,Plus}-Reader/{index,bold}.html,PeninaPlus-{vocab-builder,Binyan-Builder}/index.html,Penina-Quizzes/{builder/index.html,custom/teacher.html,gemara-*/{teacher.html,questions.json,talmud-page.png}},PeninaPlus-vocab-builder/*.xlsx}"
     }
   }
 }

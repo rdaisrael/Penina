@@ -94,6 +94,7 @@
         }
 
         .cards-container {
+            box-sizing: border-box;
             display: flex;
             gap: 100px 40px;
             justify-content: center;
@@ -295,6 +296,16 @@
         }
         #teacher-numbers label { display: grid; gap: 6px; margin: 16px 0; }
         #teacher-numbers input { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--silver-border); border-radius: 6px; font: inherit; }
+        #teacher-app-access input { width: auto; min-width: auto; margin: 0; }
+        #teacher-app-access label { display: flex; align-items: center; gap: 10px; }
+        [data-webapp][hidden] { display: none !important; }
+        #teacher-numbers .delete-webpages-option { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+        #teacher-numbers .delete-webpages-option input { width: auto; min-width: auto; margin: 0; }
+        #teacher-numbers .user-app-access { margin: 16px 0 24px; }
+        #teacher-numbers .user-app-access label { display: flex; align-items: center; gap: 10px; }
+        #teacher-numbers .user-app-access input { width: auto; min-width: auto; margin: 0; }
+        #teacher-list li { margin: 12px 0; }
+        #teacher-list button { margin-left: 12px; }
         #teacher-numbers button { cursor: pointer; font: inherit; min-height: 44px; }
         #teacher-numbers button:not(.password-visibility) { padding: 10px 16px; background: #f9f6ef; color: var(--text-dark); border: 1px solid var(--gold-border); border-radius: 6px; }
         #teacher-list { overflow-wrap: anywhere; }
@@ -321,6 +332,7 @@
         </nav>
     </header>
     
+    <p id="app-access-status" role="status" style="text-align:center">Sign in to see your available webapps.</p>
     <div class="cards-container">
         
         <!-- Penina Hebrew Reader (Silver Theme): temporarily hidden; remove hidden to restore. -->
@@ -336,7 +348,7 @@
         </div>
 
         <!-- PeninaPlus Hebrew Reader (Gold Theme) -->
-        <div class="card">
+        <div class="card" data-webapp="reader" hidden>
             <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
                 <img src="/peninaplus-logo.png" alt="PeninaPlus Gold Logo">
@@ -347,7 +359,7 @@
         </div>
 
         <!-- PeninaPlus Vocabulary Builder (Gold Theme) -->
-        <div class="card">
+        <div class="card" data-webapp="vocabulary" hidden>
             <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
                 <img src="/peninaplus-logo.png" alt="PeninaPlus Gold Logo">
@@ -357,7 +369,7 @@
 <a href="/PeninaPlus-vocab-builder/" class="btn">Launch</a>
         </div>
 
-        <div class="card">
+        <div class="card" data-webapp="binyan" hidden>
             <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
                 <img src="/peninaplus-logo.png" alt="PeninaPlus Gold Logo">
@@ -366,7 +378,7 @@
             <p>Build Hebrew conjugation worksheets from mastered vocabulary. Introduce a new binyan and tense with guided models, or mix learned patterns for practice, with a separate answer key.</p>
             <a href="/PeninaPlus-Binyan-Builder/" class="btn">Launch</a>
         </div>
-        <div class="card">
+        <div class="card" data-webapp="quizzes" hidden>
             <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
                 <img src="/penina-logo.png" alt="Penina Logo">
@@ -377,7 +389,7 @@
         </div>
     </div>
 
-    <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Number 1 belongs to David Israel. Assign a different number to each teacher.</p><button id="load-teachers" type="button">Show assigned numbers</button><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><label>Teacher sign-in password<input name="password" type="password" maxlength="256" autocomplete="new-password" placeholder="Start with their number and a hyphen" required></label><label>Teacher assignment password<input name="assignmentPassword" type="password" autocomplete="off" required></label><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
+    <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Number 1 belongs to David Israel. Assign a different number to each teacher.</p><button id="load-teachers" type="button">Show assigned numbers</button><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> PeninaPlus Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> PeninaPlus Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> PeninaPlus Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email a welcome message and Google sign-in instructions to this school email.</p><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
 
     <footer>
         <div style="display: flex; flex-direction: column; align-items: center;">

@@ -68,8 +68,10 @@ function publishingApi(storedHtml) {
     const pathname='vocabulary-cards/sixth/20260907--'+Buffer.from(title).toString('base64url')+'.html';
     const blob={pathname,url:'https://storage.example/cards.html',uploadedAt:'2026-09-07T00:00:00Z'};
     const operations=[];
-    const context={module:{exports:{}},Buffer,console,process:{env:{CARD_PUBLISH_KEY_SIXTH:'test-only-key'}},fetch:async url=>{assert.equal(url,blob.url);return{ok:true,text:async()=>storedHtml}},require:name=>{
+    const context={module:{exports:{}},Buffer,console,process:{env:{CARD_PUBLISH_KEY_SIXTH:'1-test-only-key'}},fetch:async url=>{assert.equal(url,blob.url);return{ok:true,text:async()=>storedHtml}},require:name=>{
+        if(name==='../lib/teacher-apps')return {requireApps:async()=>({userId:1})};
         if(name==='crypto')return require('node:crypto');
+        if(name==='./quiz-account')return {session:req=>{if(req.headers.cookie!=='owner-session')throw Error('Sign in');return {role:'teacher',userId:1};}};
         if(name.includes('offline-study-cards'))return app;
         if(name.includes('vocabulary-sheets'))return require('../PeninaPlus-vocab-builder/vocabulary-sheets');
         if(name.includes('lib/vocabulary-pages')) {
@@ -85,10 +87,10 @@ function publishingApi(storedHtml) {
     return {handler:context.module.exports,pathname,operations,res};
 }
 
-test('Publishing accepts new cards without the old subtitle and still checks the password',async()=>{
+test('Publishing accepts new cards without the old subtitle and still checks the signed-in owner',async()=>{
     const html=app.makeApp(title,cards);
     const {handler,operations,res}=publishingApi(html);
-    const request={method:'POST',headers:{'x-penina-publish-key':'test-only-key'},body:{grade:'sixth',title,html}};
+    const request={method:'POST',headers:{cookie:'owner-session',origin:'https://www.penina-hebrew.org'},body:{grade:'sixth',title,html}};
     const valid=res();await handler(request,valid);assert.equal(valid.code,201);assert.equal(operations.length,1);
     const badPassword=res();await handler({...request,headers:{}},badPassword);assert.equal(badPassword.code,401);
     const badHtml=res();await handler({...request,body:{...request.body,html:'<html>unrelated</html>'}},badHtml);assert.equal(badHtml.code,400);

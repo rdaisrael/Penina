@@ -1,11 +1,8 @@
 (function () {
     'use strict';
     const dropdown = document.getElementById('publish-card-grade');
-    const publishPassword = document.getElementById('publish-card-password');
     const form = document.getElementById('add-webpage-form');
-    const creationPasswordInput = document.getElementById('page-creation-password');
     const nameInput = document.getElementById('new-page-name');
-    const passwordInput = document.getElementById('new-page-password');
     const createButton = document.getElementById('create-webpage-btn');
     const status = document.getElementById('vocabulary-pages-status');
     const retryButton = document.getElementById('retry-vocabulary-pages');
@@ -69,8 +66,9 @@
             if (data.pages.some(page => page.id === selected)) dropdown.value = selected;
             updateLinks();
             showStatus(data.pages.length ? '' : 'No webpages are assigned to your teacher number yet.');
-        } catch (_error) {
-            showStatus('Saved webpages could not be loaded. Retry to see all publishing destinations.', true);
+        } catch (error) {
+            dropdown.replaceChildren(); updateLinks();
+            showStatus(error.message || 'Saved webpages could not be loaded.', true);
             retryButton.hidden = false;
         }
     }
@@ -88,23 +86,12 @@
     });
     let loadingPages = loadPages();
     retryButton.addEventListener('click', () => { loadingPages = loadPages(); });
-    dropdown.addEventListener('change', () => { publishPassword.value = ''; updateLinks(); });
+    dropdown.addEventListener('change', updateLinks);
     form.addEventListener('submit', async event => {
         event.preventDefault();
         if (createButton.disabled) return;
-        const creationPassword = creationPasswordInput.value;
-        if (!creationPassword) {
-            showStatus('Enter the webpage creation password.', true);
-            creationPasswordInput.focus();
-            return;
-        }
         const name = nameInput.value.trim();
-        const password = passwordInput.value;
-        if (!name || !password.trim()) {
-            showStatus('Enter a page name and publishing password.', true);
-            (!name ? nameInput : passwordInput).focus();
-            return;
-        }
+        if (!name) { showStatus('Enter a page name.', true); nameInput.focus(); return; }
         createButton.disabled = true;
         createButton.textContent = 'Creating…';
         try {
@@ -122,23 +109,18 @@
             const response = await fetch('/api/vocabulary-pages', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, password, creationPassword })
+                body: JSON.stringify({ name })
             });
             const data = await response.json();
             if (!response.ok) {
-                if (response.status === 401) {
-                    creationPasswordInput.value = '';
-                    creationPasswordInput.focus();
-                }
                 throw new Error(data.error || 'The webpage could not be created.');
             }
             addOption(data.page);
             dropdown.value = data.page.id;
             updateLinks();
-            publishPassword.value = password;
             form.reset();
             document.getElementById('add-webpage').open = false;
-            showStatus(`“${data.page.name}” was created and selected. Save its publishing password for future use.`, false, data.page.url);
+            showStatus(`“${data.page.name}” was created and selected. It belongs to your signed-in teacher account.`, false, data.page.url);
             dropdown.focus();
         } catch (error) {
             showStatus(error.message || 'The webpage could not be created. Please try again.', true);

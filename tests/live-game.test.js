@@ -1,9 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const harness=require('./helpers/live-harness');
 async function setup(){const h=harness(),created=await h.create();assert.equal(created.code,201);const {code,hostToken}=created.body;const joined=await h.join(code);return{...h,code,hostToken,studentToken:joined.body.studentToken};}
-test('Only the class editing code creates rooms; selected sets and approved language are validated',async()=>{
+test('Only the signed-in page owner creates rooms; selected sets and approved language are validated',async()=>{
  const h=harness(),body={grade:'sixth',password:'wrong',pathnames:[h.setPath],language:'english',count:5};
- assert.equal((await h.request('create',body)).code,401);
+ assert.equal((await harness({signedOut:true}).request('create',body)).code,401);
  assert.equal((await h.request('create',{...body,password:'demo',pathnames:['vocabulary-cards/seventh/x.html']})).code,400);
  assert.equal((await h.request('create',{...body,password:'demo',language:'hebrew'})).code,400);
  const result=await h.create();assert.equal(result.body.total,5);assert.match(result.body.code,/^\d{6}$/);

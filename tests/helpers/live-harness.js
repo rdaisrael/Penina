@@ -14,10 +14,10 @@ module.exports=function liveHarness(options={}){
   realtime:topic=>options.database?{url:'https://test.supabase.co',key:'publishable-test',topic}:null,
   list:async prefix=>{operations.dbLists++;return [...storage.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,payload:storage.get(p).body}));},
   put:async(p,body)=>{operations.dbWrites++;if(storage.has(p)){const e=new Error('Already saved');e.status=409;throw e;}storage.set(p,{body,uploadedAt:new Date(now).toISOString()});},prune:async()=>{}
- }:name==='node:crypto'?crypto:name==='@vercel/blob'?blobApi:name==='./vocabulary-pages'?{getPage:async id=>id==='sixth'?page:null,authenticatePage:(_p,p)=>p==='demo'?null:{status:401,error:'Incorrect class editing code.'}}:app,fetch:async (url,init)=>{if(url==='https://api.resend.com/emails'){emails.push({headers:init.headers,body:JSON.parse(init.body)});return{ok:!options.emailFailure};}const p=url.replace('https://blob.test/',''),entry=storage.get(p);return{ok:!!entry,text:async()=>entry.body,json:async()=>JSON.parse(entry.body)};}};
+ }:name==='node:crypto'?crypto:name==='@vercel/blob'?blobApi:name==='./vocabulary-pages'?{getPage:async id=>id==='sixth'?page:null,authorizePage:req=>req.headers.cookie==='owner-session'?null:{status:401,error:'Sign in as the page owner.'}}:app,fetch:async (url,init)=>{if(url==='https://api.resend.com/emails'){emails.push({headers:init.headers,body:JSON.parse(init.body)});return{ok:!options.emailFailure};}const p=url.replace('https://blob.test/',''),entry=storage.get(p);return{ok:!!entry,text:async()=>entry.body,json:async()=>JSON.parse(entry.body)};}};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../lib/live-game.js'),'utf8'),ctx);
  async function request(action,body={},auth=''){
-  const req={method:action?'POST':'GET',query:{code:body.code},headers:{'content-type':'application/json',...(auth?{authorization:'Bearer '+auth}:{})},body:{...body,...(action?{action}:{})}};
+  const req={method:action?'POST':'GET',query:{code:body.code},headers:{cookie:options.signedOut?'':'owner-session','content-type':'application/json',...(auth?{authorization:'Bearer '+auth}:{})},body:{...body,...(action?{action}:{})}};
   const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.code=n;return this;},json(data){this.body=JSON.parse(JSON.stringify(data));return this;}};
   await ctx.module.exports(req,res);return res;
  }

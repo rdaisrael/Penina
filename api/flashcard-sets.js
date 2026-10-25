@@ -1,5 +1,5 @@
 const { del, list, put } = require('@vercel/blob');
-const { getPage, publicPage, authenticatePage, rememberOwner } = require('../lib/vocabulary-pages');
+const { getPage, publicPage, authorizePage } = require('../lib/vocabulary-pages');
 const { makeApp, makeClassGames, practiceRows } = require('../PeninaPlus-vocab-builder/offline-study-cards');
 
 const { makeSheet } = require('../PeninaPlus-vocab-builder/vocabulary-sheets');
@@ -142,10 +142,10 @@ module.exports = async function (req, res) {
 
         if (!['POST', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method Not Allowed' });
 
-        const authenticationError = authenticatePage(page, req.body && req.body.password !== undefined
-            ? req.body.password : req.headers['x-penina-publish-key']);
+        if((req.headers?.cookie || '').includes('__Host-penina-quiz-session=')) await require('../lib/quiz-teachers').rejectDeletedSession(req);
+        await require('../lib/teacher-apps').requireApps(req,['vocabulary']);
+        const authenticationError = authorizePage(req, page);
         if (authenticationError) return send(res, authenticationError.status, { error: authenticationError.error });
-        await rememberOwner(page, req.body?.password !== undefined ? req.body.password : req.headers['x-penina-publish-key']);
 
         if (req.method === 'DELETE') {
             const prefix = `vocabulary-cards/${grade}/`;
@@ -210,6 +210,7 @@ module.exports = async function (req, res) {
 
         return send(res, 201, { grade, page: publicPage(page), set: { ...formatSet(blob, grade), hasGames: ['english', 'hebrew'].some(language => practiceRows(savedCards(html), language).length > 0) } });
     } catch (error) {
+        if(error.status) return send(res,error.status,{error:error.message});
         console.error('Flashcard publishing failed:', error);
         return send(res, 500, { error: 'The flashcard library could not be reached. Please try again.' });
     }

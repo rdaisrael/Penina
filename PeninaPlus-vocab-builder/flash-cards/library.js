@@ -40,7 +40,7 @@
         saveGames.disabled = true; gameStatus.textContent = 'Saving…';
         try {
             const selected = Array.from(gameChoices.querySelectorAll('input:not(:checked)'), input => input.value);
-            const response = await fetch('/api/flashcard-sets', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({grade, action:'game-settings', password:managementPassword, disabledGames:selected}) });
+            const response = await fetch('/api/flashcard-sets', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({grade, action:'game-settings', disabledGames:selected}) });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Game choices could not be saved.');
             disabledGames = data.disabledGames;
@@ -50,7 +50,7 @@
     });
     document.getElementById('close-teacher-tools').onclick = () => teacherDialog.close();
     teacherDialog.addEventListener('close', () => {
-        managementMode = false; managementPassword = ''; management.hidden = true; manageTrigger.hidden = false; gameStatus.textContent = ''; render();
+        managementMode = false; management.hidden = true; manageTrigger.hidden = false; gameStatus.textContent = ''; render();
     });
     manageTrigger.textContent = '●';
     manageTrigger.setAttribute('aria-label', 'Open teacher tools');
@@ -110,7 +110,6 @@
     let sets = [];
     const selectedForCombination = new Set();
     let managementMode = false;
-    let managementPassword = '';
 
     const inputDialog = document.createElement('dialog');
     inputDialog.className = 'input-dialog';
@@ -336,7 +335,7 @@
             if (!pathnames.length) { note.textContent = 'Choose at least one vocabulary set.'; return; }
             creating = true;note.textContent = 'Opening the lobby…';form.querySelectorAll('button').forEach(button => { button.disabled = true; });
             try {
-                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, password: managementPassword, pathnames, language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), revealSeconds: Number(form.elements.revealSeconds.value), sendScoresToTeacher: !!scoreEmail, teacherEmail: scoreEmail, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
+                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, pathnames, language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), revealSeconds: Number(form.elements.revealSeconds.value), sendScoresToTeacher: !!scoreEmail, teacherEmail: scoreEmail, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
                 const data = await response.json();if (!response.ok) throw new Error(data.error || 'Unable to open a lobby.');
                 sessionStorage.setItem('penina-live-host-' + data.code, data.hostToken);
                 window.location.assign('/PeninaPlus-vocab-builder/flash-cards/live/?host=1&code=' + data.code);
@@ -345,26 +344,19 @@
     }
 
     async function enterManagementMode() {
-        const password = await openInputDialog({
-            title: 'Teacher tools',
-            label: 'Class editing code',
-            input: true,
-            type: 'password',
-            confirmText: 'Unlock'
-        });
-        if (!password) return;
+        if (manageTrigger.disabled) return;
         manageTrigger.disabled = true;
         try {
             const response = await fetch('/api/flashcard-sets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ grade, action: 'authenticate', password })
+                body: JSON.stringify({ grade, action: 'authenticate' })
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'The password could not be verified.');
+            if (!response.ok) throw new Error(data.error || 'Sign in with the teacher account that owns this webpage.');
             disabledGames = data.disabledGames || [];
             excludedWordlists = data.excludedWordlists || [];
-            managementPassword = password;
+
             managementMode = true;
             selectedForCombination.clear();
             manageTrigger.hidden = true;
@@ -372,7 +364,7 @@
             render();
             teacherDialog.showModal();
         } catch (error) {
-            await showMessage('Unable to unlock teacher tools', error && error.message ? error.message : 'The password could not be verified.');
+            await showMessage('Unable to unlock teacher tools', error && error.message ? error.message : 'Sign in with the teacher account that owns this webpage.');
         } finally {
             manageTrigger.disabled = false;
         }

@@ -29,6 +29,7 @@ function harness() {
         if(n==='crypto')return require('crypto');
         if(n==='google-auth-library')return {OAuth2Client};
         if(n==='@vercel/blob')return {del:async p=>blobs.delete(p),list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,options)=>{if(options?.allowOverwrite===false && blobs.has(p))throw Error('Already exists');blobs.set(p,s);}};
+        if(n==='./teacher-apps')return require('../lib/teacher-apps');
         if(n==='./quiz-teachers')return {registered:async email=>email==='disrael@saracademy.org'?{userId:1,email}:email==='second@school.org'?{userId:2,email}:null};
         if(n==='./vocabulary-pages')return {getPage:async()=>({}),authenticatePage:(_,p)=>p==='teacher-secret'?null:{status:401,error:'Incorrect password'}};
         if(n.endsWith('questions.json'))return require(n);

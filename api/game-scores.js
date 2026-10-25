@@ -3,8 +3,21 @@ const flappy = require('../lib/flappy-scores');
 const matching = require('../lib/matching-scores');
 
 // Share one serverless function so both class boards fit within the hosting limit.
-module.exports = function (req, res) {
-    const game = req.query?.game;
+module.exports = async function (req, res) {
+    const game = typeof req.query?.game==='string'?req.query.game:'';
+    const accountAction=req.query?.action || req.body?.action;
+    const changingIdentity=game==='quiz-account' && ['login','callback','logout','config'].includes(accountAction);
+    try { if(!changingIdentity && (req.headers?.cookie || '').includes('__Host-penina-quiz-session=')) await require('../lib/quiz-teachers').rejectDeletedSession(req); }
+    catch(error) { res.setHeader('Cache-Control','no-store'); return res.status(error.status || 503).json({error:error.status?error.message:'Teacher access could not be checked. Please try again.'}); }
+    if(game==='app-page' || game==='app-api')return require('../lib/webapp-gateway').handle(req,res);
+    // Match the action source used by each downstream handler; query strings must not mask body actions.
+    const action=game==='quiz-account'?accountAction:req.body?.action;
+    const quizAction=game==='quiz-builder' || (game.startsWith('assessment') && ['report','correct'].includes(action)) || (game==='quiz-account' && ['assignments','publish-assignment','courses','assign'].includes(action));
+    if(quizAction || (game==='live' && action==='create')) {
+        try {await require('../lib/teacher-apps').requireApps(req,[quizAction?'quizzes':'vocabulary']);}
+        catch(error){res.setHeader('Cache-Control','no-store');return res.status(error.status || 503).json({error:error.status?error.message:'App access could not be checked.'});}
+    }
+
     if (game === 'quiz-builder') return require('../lib/quiz-builder').handle(req,res);
     if (game === 'assessment-custom') return require('../lib/quiz-custom-submissions')(req,res);
     if (game === 'quiz-account') return require('../lib/quiz-account').handle(req, res);

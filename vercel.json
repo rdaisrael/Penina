@@ -2,6 +2,97 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
     {
+      "src": "^/(?:Penina-Reader|PeninaPlus-Reader|PeninaPlus-vocab-builder)/(?:archive|Archive)/.*$",
+      "status": 404
+    },
+    {
+      "src": "^/PeninaPlus-Reader/bold(?:\\.html)?$",
+      "dest": "/api/game-scores?game=app-page&page=reader-bold"
+    },
+    {
+      "src": "^/PeninaPlus-Reader$",
+      "status": 308,
+      "headers": {
+        "Location": "/PeninaPlus-Reader/"
+      }
+    },
+    {
+      "src": "^/PeninaPlus-Reader/(?:index(?:\\.html)?)?$",
+      "dest": "/api/game-scores?game=app-page&page=reader"
+    },
+    {
+      "src": "^/Penina-Reader$",
+      "status": 308,
+      "headers": {
+        "Location": "/Penina-Reader/"
+      }
+    },
+    {
+      "src": "^/Penina-Reader/(?:index(?:\\.html)?)?$",
+      "dest": "/api/game-scores?game=app-page&page=reader-original"
+    },
+    {
+      "src": "^/PeninaPlus-vocab-builder$",
+      "status": 308,
+      "headers": {
+        "Location": "/PeninaPlus-vocab-builder/"
+      }
+    },
+    {
+      "src": "^/PeninaPlus-vocab-builder/(?:index(?:\\.html)?)?$",
+      "dest": "/api/game-scores?game=app-page&page=vocabulary"
+    },
+    {
+      "src": "^/PeninaPlus-Binyan-Builder$",
+      "status": 308,
+      "headers": {
+        "Location": "/PeninaPlus-Binyan-Builder/"
+      }
+    },
+    {
+      "src": "^/PeninaPlus-Binyan-Builder/(?:index(?:\\.html)?)?$",
+      "dest": "/api/game-scores?game=app-page&page=binyan"
+    },
+    {
+      "src": "^/Penina-Quizzes/builder$",
+      "status": 308,
+      "headers": {
+        "Location": "/Penina-Quizzes/builder/"
+      }
+    },
+    {
+      "src": "^/Penina-Quizzes/builder/(?:index(?:\\.html)?)?$",
+      "dest": "/api/game-scores?game=app-page&page=quiz-builder"
+    },
+    {
+      "src": "^/Penina-Quizzes/custom/teacher(?:\\.html)?$",
+      "dest": "/api/game-scores?game=app-page&page=quiz-custom"
+    },
+    {
+      "src": "^/Penina-Quizzes/gemara-6-wl-2/teacher(?:\\.html)?$",
+      "dest": "/api/game-scores?game=app-page&page=quiz-sixth"
+    },
+    {
+      "src": "^/Penina-Quizzes/gemara-6-intro-retake/teacher(?:\\.html)?$",
+      "dest": "/api/game-scores?game=app-page&page=quiz-sixth-retake"
+    },
+    {
+      "src": "^/Penina-Quizzes/gemara-8-intro-retake/teacher(?:\\.html)?$",
+      "dest": "/api/game-scores?game=app-page&page=quiz-eighth-retake"
+    },
+    {
+      "src": "^/api/(?<endpoint>generate|translate|vocabulary-workbook|vocabulary-alternatives|sefaria-search|dicta-search)(?:\\.js)?/?$",
+      "dest": "/api/game-scores?game=app-api&endpoint=$endpoint"
+    },
+    {
+      "src": "^/api/Archive/.*$",
+      "status": 404
+    },
+    {
+      "src": "^/(?:lib|tests)/.*$",
+      "status": 404
+    },
+    {
       "src": "^/(lib|tests)/quiz[^/]*$",
       "status": 404
     },
@@ -31,7 +122,7 @@
   ],
   "functions": {
     "api/game-scores.js": {
-      "includeFiles": "Penina-Quizzes/{gemara-6-wl-2,gemara-6-intro-retake,gemara-8-intro-retake}/{questions.json,talmud-page.png}"
+      "includeFiles": "{Penina-Reader/index.html,PeninaPlus-Reader/{index,bold}.html,PeninaPlus-vocab-builder/index.html,PeninaPlus-Binyan-Builder/index.html,Penina-Quizzes/builder/index.html,Penina-Quizzes/custom/teacher.html,Penina-Quizzes/{gemara-6-wl-2,gemara-6-intro-retake,gemara-8-intro-retake}/{teacher.html,questions.json,talmud-page.png},PeninaPlus-vocab-builder/Penina-Vocabulary-Template.xlsx}"
     }
   }
 }

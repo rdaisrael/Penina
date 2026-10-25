@@ -195,7 +195,7 @@
         @media (max-width: 600px) { .font-settings-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         label { font-weight: bold; display: block; margin-bottom: 8px; color: #5a5248; }
         
-        input[type="text"], textarea, select, #publish-card-password, #new-page-password, #page-creation-password {
+        input[type="text"], textarea, select {
             width: 100%; padding: 10px; border: 1px solid #dcd3c6; 
             border-radius: 5px; box-sizing: border-box; font-size: 16px; 
             background-color: #fdfdfa; color: #3a332a; transition: border-color 0.2s;
@@ -232,7 +232,7 @@
         #word-list {
             unicode-bidi: plaintext;
         }
-        select:focus, textarea:focus, input[type="text"]:focus, #publish-card-password:focus {
+        select:focus, textarea:focus, input[type="text"]:focus {
             outline: none; border-color: #b5a898; background-color: #ffffff; 
         }
         
@@ -808,33 +808,16 @@
                         <a id="selected-page-link" target="_blank" rel="noopener"></a>
                         <details style="margin-top:10px"><summary>Open a published class webpage</summary><nav id="published-page-links" aria-label="Published class webpages" style="display:grid;gap:10px;padding:12px 0"></nav></details>
                     </div>
-                    <div class="form-group">
-                        <label for="publish-card-password">Publishing password:</label>
-                        <input id="publish-card-password" type="password" autocomplete="current-password">
-                    </div>
                     <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish Flashcards, Sheets, and Practice Exercises</button>
                 </div>
                 <div id="publish-study-cards-status" role="status" style="display: none; margin-top: 12px; padding: 9px 11px; border-radius: 6px; background: #edf6ed; color: #285b2a; line-height: 1.4;"></div>
                 <details class="add-webpage" id="add-webpage">
                     <summary>Add webpage</summary>
-                    <p>Create a page for your vocabulary. Anyone with its link can study; the publishing password is required to add or remove sets.</p>
+                    <p>Create a page for your vocabulary. Anyone with its link can study. Your signed-in teacher account owns the page and can manage its sets.</p>
                     <form id="add-webpage-form" class="publish-card-controls">
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label for="page-creation-password">Webpage creation password:</label>
-                            <input id="page-creation-password" type="password" autocomplete="off" required>
-                        </div>
                         <div class="form-group">
                             <label for="new-page-name">Page name:</label>
                             <input id="new-page-name" type="text" maxlength="120" required placeholder="e.g. Ninth Grade Vocabulary">
-                        </div>
-                        <div class="form-group">
-                            <div class="password-label-row">
-                                <label for="new-page-password">Choose a publishing password:</label>
-                                <button type="button" id="toggle-new-page-password" class="password-visibility-toggle" aria-label="Show publishing password" title="Show publishing password" aria-controls="new-page-password" aria-pressed="false">
-                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg>
-                                </button>
-                            </div>
-                            <input id="new-page-password" type="password" maxlength="256" autocomplete="new-password" required>
                         </div>
                         <button type="submit" id="create-webpage-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;">Create webpage</button>
                     </form>
@@ -987,23 +970,7 @@
         const downloadOfflineStudyCardsButton = document.getElementById('download-offline-study-cards-btn');
         const publishStudyCardsButton = document.getElementById('publish-study-cards-btn');
         const publishCardGrade = document.getElementById('publish-card-grade');
-        const publishCardPassword = document.getElementById('publish-card-password');
         const publishStudyCardsStatus = document.getElementById('publish-study-cards-status');
-        const newPagePassword = document.getElementById('new-page-password');
-        const toggleNewPagePassword = document.getElementById('toggle-new-page-password');
-        function setNewPagePasswordVisibility(visible) {
-            newPagePassword.type = visible ? 'text' : 'password';
-            const label = visible ? 'Hide publishing password' : 'Show publishing password';
-            toggleNewPagePassword.setAttribute('aria-label', label);
-            toggleNewPagePassword.setAttribute('aria-pressed', String(visible));
-            toggleNewPagePassword.title = label;
-        }
-        toggleNewPagePassword.addEventListener('click', () => {
-            setNewPagePasswordVisibility(newPagePassword.type === 'password');
-        });
-        document.getElementById('add-webpage-form').addEventListener('reset', () => {
-            setNewPagePasswordVisibility(false);
-        });
         let importedVocabularyRows = [];
         let vocabularyUploadVersion = 0;
         ['english-translation', 'hebrew-translation', 'context-quotes'].forEach(id => {
@@ -1241,13 +1208,6 @@
                 return;
             }
             const grade = publishCardGrade.value;
-            const key = publishCardPassword.value;
-            if (!key) {
-                setPublishStudyCardsStatus('Enter the publishing password for the selected webpage.', true);
-                publishCardPassword.focus();
-                return;
-            }
-
             publishStudyCardsButton.disabled = true;
             publishStudyCardsButton.textContent = 'Publishing...';
             setPublishStudyCardsStatus('Preparing and publishing the flashcards and sheets...');
@@ -1262,14 +1222,10 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ grade, title, html, password: key })
+                    body: JSON.stringify({ grade, title, html })
                 });
                 const data = await response.json();
                 if (!response.ok) {
-                    if (response.status === 401) {
-                        publishCardPassword.value = '';
-                        publishCardPassword.focus();
-                    }
                     throw new Error(data.error || 'The flashcards and sheets could not be published.');
                 }
                 setPublishStudyCardsStatus(`“${title}” was published successfully.`, false, data.page.url);

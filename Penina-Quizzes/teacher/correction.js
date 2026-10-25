@@ -46,6 +46,18 @@ window.QuizCorrection = (() => {
             }
         });
     }, true);
+    // Keep native numeric validation, but require deliberate text entry for scores.
+    const isScoreInput = target => target.matches('.question-marking input[type="number"]');
+    document.addEventListener('keydown', event => {
+        if (isScoreInput(event.target) && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+            event.preventDefault();
+        }
+    });
+    document.addEventListener('wheel', event => {
+        if (isScoreInput(event.target) && document.activeElement === event.target) {
+            event.preventDefault();
+        }
+    }, {passive:false});
     const confirmedExtraPoints = new WeakMap();
     // Confirm before any save, Classroom transfer, or email handler can run.
     document.addEventListener('submit', event => {

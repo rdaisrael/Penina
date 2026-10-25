@@ -43,3 +43,8 @@ summary [id^="score-"]{display:block;white-space:pre-line}
 .grade-result{display:inline-flex;align-items:center;gap:8px}
 .hand-corrected-dot{display:inline-block;width:10px;height:10px;flex:none;border-radius:50%;background:#2563eb}
 .hand-corrected-dot[hidden]{display:none}
+
+/* Scores are entered by typing, without native increment controls. */
+.question-marking input[type="number"]{-moz-appearance:textfield;appearance:textfield}
+.question-marking input[type="number"]::-webkit-inner-spin-button,
+.question-marking input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}

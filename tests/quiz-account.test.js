@@ -336,3 +336,20 @@ test('Missing offline access requests consent once, while explicit reconnect req
  h.state.noRefresh=false;assert.equal((await h.run(callback(retry.headers['Set-Cookie']))).headers.Location,'/Penina-Quizzes/teacher/');
  req.body.reconnect=true;await h.run(req);assert.equal(h.state.options.prompt,'select_account consent');
 });
+
+ test('Archiving skips Classroom lookups until requested, persists, restores, and rejects other teachers',async()=>{
+ const h=harness(),id='d'.repeat(32);
+ h.blobs.set('quiz-google/classes/'+id+'.txt',h.api.seal({quiz:'gemara-6-wl-2',owner:'teacher-id',courseId:'course-1',courseWorkId:'work-1',className:'Gemara'}));
+ const headers={cookie:h.cookie({sub:'teacher-id',role:'teacher',userId:1,email:'disrael@saracademy.org'}),origin:'https://www.penina-hebrew.org'};
+ const change=archived=>h.run(h.request({method:'POST',headers,query:{},body:{action:'archive-assignment',classId:id,archived}}));
+ assert.equal((await change(true)).code,200);
+ h.requests.length=0;
+ const active=await h.run(h.request({headers,query:{action:'assignments'}}));
+ assert.equal(active.data.assignments.length,0);assert.equal(h.requests.length,0);
+ const archive=await h.run(h.request({headers,query:{action:'assignments',archived:'true'}}));
+ assert.equal(archive.data.assignments.length,1);assert.equal(archive.data.assignments[0].classId,id);
+ assert.equal((await h.run(h.request({method:'POST',headers:{...headers,cookie:h.cookie({sub:'other',role:'teacher',userId:2})},query:{},body:{action:'archive-assignment',classId:id,archived:false}}))).code,403);
+ assert.equal((await change(false)).code,200);
+ assert.equal((await h.run(h.request({headers,query:{action:'assignments'}}))).data.assignments.length,1);
+ assert.equal((await h.run(h.request({headers,query:{action:'assignments',archived:'true'}}))).data.assignments.length,0);
+ });

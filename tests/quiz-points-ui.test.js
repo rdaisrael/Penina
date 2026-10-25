@@ -7,7 +7,7 @@ test('Dashboard opens the denominator editor, totals changes, saves its revision
  const quiz={id:'custom-test',title:'Quiz <one>',revision:3,questions:[{prompt:'Explain <this>',potentialPoints:4,extraCredit:false},{prompt:'Bonus',potentialPoints:2,extraCredit:true}]};
  const context={URL,location:{href:'https://www.penina-hebrew.org/Penina-Quizzes/teacher/'},document:{getElementById:$,createElement:element},fetch:async(url,options)=>{const body=JSON.parse(options.body);calls.push(body);return {ok:!fail,json:async()=>fail?{error:'Close and reopen the editor'}:{...quiz,revision:body.action==='save-points'?4:3}};}};
  const source=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/teacher.js'),'utf8');
- vm.runInNewContext("const $=id=>document.getElementById(id);let assignments=[{quiz:'custom-test',title:'Quiz',className:'Class',courseId:'course',classId:'class',state:'PUBLISHED'}];"+source.slice(source.indexOf('function render()'),source.indexOf('async function load()'))+source.slice(source.indexOf('let pointsQuiz=null')),context);
+ vm.runInNewContext("const $=id=>document.getElementById(id);let assignments=[{quiz:'custom-test',title:'Quiz',className:'Class',courseId:'course',classId:'class',state:'PUBLISHED'}];"+source.slice(source.indexOf('function render('),source.indexOf('async function load()'))+source.slice(source.indexOf('let pointsQuiz=null')),context);
  vm.runInNewContext('render()',context);
  const card=$('assignments').children[0];assert.equal(card.children[1].textContent,'Edit Potential Points');assert.equal(card.children[0].className,'assignment-review');
  await card.children[1].onclick();assert.equal($('pointsDialog').open,true);assert.equal($('pointsQuiz').textContent,'Quiz <one>');

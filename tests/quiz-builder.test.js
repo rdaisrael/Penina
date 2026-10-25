@@ -529,3 +529,24 @@ test('Denominator changes preserve answer correctness across feedback, summary, 
  const match={type:'match',prompt:'Match',points:2,scoringMode:'response',potentialPoints:1,items:['a','b'],choices:['A','B'],answer:['A','B']};
  const partial=model.grade({questions:[match]},[['A','A']]);assert.equal(model.summarize({questions:[match]},[{grading:partial}])[0].partial,1);
 });
+
+
+test('Potential-points mode changes recalculate existing answers both ways and preserve overrides',async()=>{
+ const h=harness(),id=await h.publish();
+ const save=(revision,points,scoringModes)=>h.call(h.builder.handle,h.req({action:'save-points',id,revision,points,scoringModes}));
+ const modes=['total','total','response','response','response'];
+ assert.equal((await save(0,[2,1,2,4,2],['bad',...modes.slice(1)])).code,400);
+ assert.equal((await save(0,[2,1,2,4,2],modes)).data.revision,1);
+ const answers=correctAnswers();answers[2]=['A'];answers[3]=['א','ב'];answers[4]=['ב','ב'];
+ let quiz=await h.builder.published(id),g=model.grade(quiz,answers,{scores:[1.5],overrides:{1:2}});
+ assert.deepEqual(g.automatic.map(q=>q.score),[2,1,2,1]);assert.equal(g.manual[0].score,1.5);
+ assert.equal(g.pointsChanged,true);assert.equal(g.classroomDraft,false);
+ assert.equal(model.publicQuestions(quiz)[2].perResponseCredit,true);
+ assert.equal((await save(1,[2,1,2,4,2],modes)).data.revision,1);
+ assert.equal((await save(1,[2,1,3,5,3],modes)).data.revision,2);
+ quiz=await h.builder.published(id);assert.equal(model.grade(quiz,answers).automatic[2].score,2);
+ assert.equal((await save(2,[2,1,2,2,1],Array(5).fill('total'))).data.revision,3);
+ quiz=await h.builder.published(id);g=model.grade(quiz,answers,{scores:[1.5],overrides:{1:2}});
+ assert.deepEqual(g.automatic.map(q=>q.score),[2,0,0,0]);assert.equal(g.manual[0].score,1.5);
+ assert.equal((await save(2,[2,1,2,2,1],modes)).code,409);
+});

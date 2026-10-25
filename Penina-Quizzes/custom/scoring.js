@@ -7,7 +7,8 @@
     function score(q,a){
         const expected=q.answer;
         const correct=a.length===expected.length && (q.type==='multi'?new Set(a).size===a.length && expected.every(v=>a.includes(v)):expected.every((v,i)=>a[i]===v));
-        if(q.type==='multi' || q.type==='order')return correct?originalMax(q):0;
+        if((q.type==='multi' || q.type==='order') && !q.perResponseCredit)return correct?originalMax(q):0;
+        if(q.type==='multi' && q.scoringMode==='response')return q.points*Math.max(0,new Set(a.filter(v=>expected.includes(v))).size-new Set(a.filter(v=>!expected.includes(v))).size);
         if(q.scoringMode==='proportional')return Math.round(q.points*expected.filter((v,i)=>v!=='' && a[i]===v).length/responseCount(q)*100)/100;
         return q.scoringMode==='response'?q.points*expected.filter((v,i)=>v!=='' && a[i]===v).length:correct?q.points:0;
     }

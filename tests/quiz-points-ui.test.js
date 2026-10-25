@@ -17,3 +17,18 @@ test('Dashboard opens the denominator editor, totals changes, saves its revision
  fail=true;await $('pointsForm').onsubmit({preventDefault(){}});assert.equal(calls.at(-1).revision,4);assert.equal($('pointsStatus').textContent,'Close and reopen the editor');assert.equal(inputs[0].disabled,false);
  $('closePoints').onclick();assert.equal($('pointsDialog').open,false);
 });
+
+
+test('Potential-points answer column preserves repeated blanks, matching labels, sequence order, and model text',()=>{
+ const source=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/teacher.js'),'utf8');
+ const element=tag=>({tag,children:[],textContent:'',append(...items){this.children.push(...items);}});
+ const context={document:{createElement:element}};
+ vm.runInNewContext(source.slice(source.indexOf('function pointsAnswerKey('),source.indexOf('async function openPoints(')),context);
+ const blank=context.pointsAnswerKey({type:'gaps',answer:['א','א'],wordBank:false});
+ assert.equal(blank.children[1].textContent,'2 blanks to complete · teacher graded');
+ assert.deepEqual(blank.children[2].children.map(item=>item.textContent),['א','א']);
+ const match=context.pointsAnswerKey({type:'match',items:['First','Unused','Third'],answer:['A','','C']});
+ assert.equal(match.children[1].textContent,'2 correct matches');assert.deepEqual(match.children[2].children.map(item=>item.textContent),['First: A','Third: C']);
+ const order=context.pointsAnswerKey({type:'order',answer:['ב','א']});assert.equal(order.children[1].textContent,'2 items in the correct order');assert.deepEqual(order.children[2].children.map(item=>item.textContent),['ב','א']);
+ const written=context.pointsAnswerKey({type:'text',answer:'Explain <this>\nSecond line'});assert.equal(written.children[2].textContent,'Explain <this>\nSecond line');assert.equal(written.children[0].textContent,'Model answer');
+});

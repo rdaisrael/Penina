@@ -13,8 +13,26 @@ $('refresh').onclick=load;$('classFilter').onchange=render;
 let pointsQuiz=null,pointsBusy=false;
 async function pointsRequest(action,body){const response=await fetch('/api/game-scores?game=quiz-builder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})});const data=await response.json();if(!response.ok)throw Error(data.error || 'Potential points could not be saved.');return data;}
 function pointsTotal(){if(!pointsQuiz)return;let regular=0,extra=0;[...$('pointsQuestions').querySelectorAll('input')].forEach((input,i)=>{const value=Number(input.value)||0;if(pointsQuiz.questions[i].extraCredit)extra+=value;else regular+=value;});$('pointsTotal').textContent=regular+' regular points possible · '+extra+' extra-credit points';}
+function pointsAnswerKey(q){
+    const panel=document.createElement('div');panel.className='points-answer-key';
+    const heading=document.createElement('h3');heading.textContent=q.type==='text'?'Model answer':'Correct answers';panel.append(heading);
+    const summary=document.createElement('p');summary.className='points-answer-count';panel.append(summary);
+    if(q.type==='text'){
+        summary.textContent='Written response · teacher graded';
+        const answer=document.createElement('p');answer.className='points-answer-text';answer.dir='auto';answer.textContent=q.answer || 'No model answer provided.';panel.append(answer);return panel;
+    }
+    const answers=Array.isArray(q.answer)?q.answer:[];
+    const entries=answers.map((answer,index)=>({answer,index})).filter(entry=>entry.answer!=='');
+    const count=entries.length;
+    summary.textContent=q.type==='order'?count+' items in the correct order':q.type==='gaps'?count+' blank'+(count===1?'':'s')+' to complete':q.type==='match'?count+' correct match'+(count===1?'':'es'):count+' correct answer'+(count===1?'':'s');
+    if(q.type==='gaps' && q.wordBank===false)summary.textContent+=' · teacher graded';
+    if(!count){const empty=document.createElement('p');empty.textContent='No answer key provided.';panel.append(empty);return panel;}
+    const list=document.createElement('ol');
+    entries.forEach(({answer,index})=>{const item=document.createElement('li');item.dir='auto';item.textContent=q.type==='match'?(q.items?.[index] || 'Item '+(index+1))+': '+answer:answer;list.append(item);});
+    panel.append(list);return panel;
+}
 async function openPoints(id){pointsQuiz=null;$('pointsForm').reset();$('pointsQuestions').replaceChildren();$('pointsTotal').textContent='';$('pointsQuiz').textContent='';$('pointsStatus').textContent='Loading potential points…';$('savePoints').disabled=true;$('closePoints').textContent='Cancel';$('pointsDialog').showModal();pointsBusy=true;
-try{const quiz=await pointsRequest('load-points',{id});pointsQuiz=quiz;$('pointsQuiz').textContent=quiz.title;quiz.questions.forEach((q,i)=>{const row=document.createElement('div');row.className='points-question';const label=document.createElement('label');label.textContent='Question '+(i+1)+(q.extraCredit?' · Extra credit':'')+': '+q.prompt;label.dir='auto';const input=document.createElement('input');input.type='number';input.min='0.5';input.max='5000';input.step='0.5';input.required=true;input.value=q.potentialPoints;input.setAttribute('aria-label','Potential points for question '+(i+1));input.oninput=pointsTotal;label.append(input);row.append(label);$('pointsQuestions').append(row);});pointsTotal();$('pointsStatus').textContent='';$('savePoints').disabled=false;}catch(error){$('pointsStatus').textContent=error.message;}finally{pointsBusy=false;}}
+try{const quiz=await pointsRequest('load-points',{id});pointsQuiz=quiz;$('pointsQuiz').textContent=quiz.title;quiz.questions.forEach((q,i)=>{const row=document.createElement('div');row.className='points-question';const label=document.createElement('label');label.textContent='Question '+(i+1)+(q.extraCredit?' · Extra credit':'')+': '+q.prompt;label.dir='auto';const input=document.createElement('input');input.type='number';input.min='0.5';input.max='5000';input.step='0.5';input.required=true;input.value=q.potentialPoints;input.setAttribute('aria-label','Potential points for question '+(i+1));input.oninput=pointsTotal;label.append(input);row.append(label,pointsAnswerKey(q));$('pointsQuestions').append(row);});pointsTotal();$('pointsStatus').textContent='';$('savePoints').disabled=false;}catch(error){$('pointsStatus').textContent=error.message;}finally{pointsBusy=false;}}
 $('closePoints').onclick=()=>{if(!pointsBusy)$('pointsDialog').close();};
 $('pointsDialog').addEventListener('cancel',event=>{if(pointsBusy)event.preventDefault();});
 $('pointsForm').onsubmit=async event=>{event.preventDefault();if(!pointsQuiz || pointsBusy || !$('pointsForm').reportValidity())return;const inputs=[...$('pointsQuestions').querySelectorAll('input')];pointsBusy=true;$('savePoints').disabled=true;inputs.forEach(input=>input.disabled=true);$('pointsStatus').textContent='Saving potential points…';try{pointsQuiz=await pointsRequest('save-points',{id:pointsQuiz.id,revision:pointsQuiz.revision,points:inputs.map(input=>Number(input.value))});$('pointsStatus').textContent='Saved. Earned points are unchanged. Review student work to send revised grades and emails. If the regular total changed, match that total in Classroom first.';$('closePoints').textContent='Done';}catch(error){$('pointsStatus').textContent=error.message;}finally{pointsBusy=false;$('savePoints').disabled=false;inputs.forEach(input=>input.disabled=false);}};

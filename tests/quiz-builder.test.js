@@ -444,6 +444,7 @@ test('Potential points are author-only, versioned, and leave the published answe
  const request=(action,extra={},user='owner')=>h.call(h.builder.handle,h.req({action,id,...extra},user));
  const original=h.blobs.get('quiz-builder/published/'+id+'.txt');
  assert.equal((await request('load-points',{},'other')).code,404);
+ const answerView=await request('load-points');assert.equal(answerView.code,200);assert.equal(answerView.data.questions[0].answer,'Model answer');assert.deepEqual(Array.from(answerView.data.questions[2].answer),['A','C']);assert.equal(answerView.data.questions[3].type,'gaps');
  assert.equal((await request('save-points',{revision:0,points:[4,5,6,7,8]},'student')).code,403);
  const cross=h.req({action:'save-points',id,revision:0,points:[4,5,6,7,8]});cross.headers.origin='https://other.example';
  assert.equal((await h.call(h.builder.handle,cross)).code,403);

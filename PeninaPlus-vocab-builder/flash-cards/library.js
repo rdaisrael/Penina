@@ -100,8 +100,8 @@
     }
     management.append(
         teacherSection('teacher-live-heading', 'Start Live Game', [setChoices, scoreEmailControls, liveActions]),
-        teacherSection('teacher-wordlists-heading', 'Remove Wordlists', [removalChoices, removeButton]),
-        teacherSection('teacher-games-heading', 'Student Exercises and Games', [gameChoices, saveGames, gameStatus])
+        teacherSection('teacher-games-heading', 'Student Exercises and Games', [gameChoices, saveGames, gameStatus]),
+        teacherSection('teacher-wordlists-heading', 'Remove Wordlists', [removalChoices, removeButton])
     );
     const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';
     lockTools.onclick = () => teacherDialog.close();

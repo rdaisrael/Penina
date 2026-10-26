@@ -11,7 +11,11 @@
     const manageTrigger = document.getElementById('manage-trigger');
     const management = document.getElementById('management');
     const removeButton = document.getElementById('remove-sets');
-    removeButton.textContent = 'Remove selected wordlists';
+    removeButton.textContent = 'Delete';
+    const hideButton = document.createElement('button');
+    hideButton.type = 'button'; hideButton.className = 'combine-action'; hideButton.textContent = 'Hide';
+    const listActions = document.createElement('div'); listActions.className = 'teacher-live-actions';
+    listActions.append(hideButton, removeButton);
     const removalChoices = document.createElement('fieldset');
     removalChoices.className = 'teacher-choices';
     const teacherDialog = document.createElement('dialog');
@@ -33,13 +37,14 @@
     saveGames.type = 'button'; saveGames.className = 'combine-action primary'; saveGames.textContent = 'Save exercises and games';
     management.appendChild(saveGames);
     const gameStatus = document.createElement('p'); gameStatus.setAttribute('role','status'); management.appendChild(gameStatus);
-    let disabledGames = [], excludedWordlists = [];
+    let disabledGames = [], excludedWordlists = [], hiddenWordlists = [];
     function renderTeacherChoices() {
-        removalChoices.innerHTML = '<legend>Choose wordlists to remove from this webpage</legend>' + sets.map(set => `<label><input type="checkbox" class="delete-select" value="${escapeHtml(set.pathname)}"><span>${escapeHtml(set.title)}</span></label>`).join('');
+        removalChoices.innerHTML = '<legend>Choose lists to hide or delete</legend>' + sets.map(set => `<label><input type="checkbox" class="delete-select" value="${escapeHtml(set.pathname)}"><span>${escapeHtml(set.title)}${hiddenWordlists.includes(set.pathname) ? ' (hidden)' : ''}</span>${hiddenWordlists.includes(set.pathname) ? `<button type="button" class="combine-action show-list" data-path="${escapeHtml(set.pathname)}">Show again</button>` : ''}</label>`).join('');
+        hideButton.disabled = !sets.length;
         removeButton.disabled = !sets.length;
-        setChoices.innerHTML = '<legend>Included wordlists</legend>' + sets.map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(set.title)}</span></label>`).join('');
+        setChoices.innerHTML = '<legend>Included wordlists</legend>' + sets.filter(set => !hiddenWordlists.includes(set.pathname)).map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(set.title)}</span></label>`).join('');
         gameChoices.querySelectorAll('input').forEach(input => { input.checked = !disabledGames.includes(input.value); });
-        classGamify.hidden = !sets.some(set => set.hasGames) || disabledGames.length === gameCatalog.length;
+        classGamify.hidden = !sets.some(set => set.hasGames && !hiddenWordlists.includes(set.pathname)) || disabledGames.length === gameCatalog.length;
     }
     saveGames.addEventListener('click', async () => {
         saveGames.disabled = true; gameStatus.textContent = 'Saving…';
@@ -49,7 +54,7 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Game choices could not be saved.');
             disabledGames = data.disabledGames;
-            classGamify.hidden = !sets.some(set => set.hasGames) || disabledGames.length === gameCatalog.length; gameStatus.textContent = 'Game choices saved. Students will see the updated menu when they open Gamify.';
+            classGamify.hidden = !sets.some(set => set.hasGames && !hiddenWordlists.includes(set.pathname)) || disabledGames.length === gameCatalog.length; gameStatus.textContent = 'Game choices saved. Students will see the updated menu when they open Gamify.';
         } catch(error) { gameStatus.textContent = error.message || 'Game choices could not be saved.'; }
         finally { saveGames.disabled = false; }
     });
@@ -101,7 +106,7 @@
     management.append(
         teacherSection('teacher-live-heading', 'Start Live Game', [setChoices, scoreEmailControls, liveActions]),
         teacherSection('teacher-games-heading', 'Student Exercises and Games', [gameChoices, saveGames, gameStatus]),
-        teacherSection('teacher-wordlists-heading', 'Remove Wordlists', [removalChoices, removeButton])
+        teacherSection('teacher-wordlists-heading', 'Hide or Remove Lists', [removalChoices, listActions])
     );
     const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';
     lockTools.onclick = () => teacherDialog.close();
@@ -184,7 +189,7 @@
 
     function render() {
         const query = search.value.trim().toLowerCase();
-        const visible = sets.filter(set => set.title.toLowerCase().includes(query));
+        const visible = sets.filter(set => !hiddenWordlists.includes(set.pathname) && set.title.toLowerCase().includes(query));
         status.hidden = true;
         setsElement.innerHTML = visible.map(set => {
             const date = new Date(set.publishedAt);
@@ -230,7 +235,8 @@
             sets = Array.isArray(data.sets) ? data.sets : [];
             disabledGames = data.disabledGames || [];
             excludedWordlists = data.excludedWordlists || [];
-            classGamify.hidden = !sets.some(set => set.hasGames);
+            if (data.hiddenWordlists) hiddenWordlists = data.hiddenWordlists;
+            classGamify.hidden = !sets.some(set => set.hasGames && !hiddenWordlists.includes(set.pathname));
             render();
         } catch (error) {
             status.textContent = error && error.message ? error.message : 'Unable to load vocabulary sets.';
@@ -363,6 +369,7 @@
             if (!response.ok) throw new Error(data.error || 'Sign in with the teacher account that owns this webpage.');
             disabledGames = data.disabledGames || [];
             excludedWordlists = data.excludedWordlists || [];
+            if (data.hiddenWordlists) hiddenWordlists = data.hiddenWordlists;
 
             managementMode = true;
             selectedForCombination.clear();
@@ -377,17 +384,36 @@
         }
     }
 
+    async function setListVisibility(pathnames, hidden) {
+        if (!pathnames.length) { await showMessage('Nothing selected', 'Choose at least one list to hide.'); return; }
+        hideButton.disabled = true;
+        try {
+            const response = await fetch('/api/flashcard-sets', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grade,action:'wordlist-visibility',pathnames,hidden})});
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to change list visibility.');
+            hiddenWordlists = data.hiddenWordlists;
+            hiddenWordlists.forEach(path => selectedForCombination.delete(path));
+            render();
+        } catch(error) { await showMessage('Unable to change visibility', error.message); }
+        finally { hideButton.disabled = !sets.length; }
+    }
+    hideButton.addEventListener('click', () => setListVisibility(Array.from(removalChoices.querySelectorAll('input:checked'), input => input.value), true));
+    removalChoices.addEventListener('click', event => {
+        const button = event.target.closest('.show-list');
+        if (button) { event.preventDefault(); setListVisibility([button.dataset.path], false); }
+    });
+
     async function removeSelectedSets() {
         const selected = new Set(Array.from(removalChoices.querySelectorAll('input:checked'), input => input.value));
         const chosen = sets.filter(set => selected.has(set.pathname));
         if (!chosen.length) {
-            await showMessage('Nothing selected', 'Choose at least one wordlist in Remove Wordlists.');
+            await showMessage('Nothing selected', 'Choose at least one list in Hide or Remove Lists.');
             return;
         }
         const confirmed = await openInputDialog({
-            title: 'Remove selected wordlists?',
+            title: 'Delete selected lists?',
             message: `Remove these wordlists from this webpage: ${chosen.map(set => set.title).join(', ')}? This permanently deletes their published copies and cannot be undone.`,
-            confirmText: 'Remove', destructive: true
+            confirmText: 'Delete', destructive: true
         });
         if (!confirmed) return;
         removeButton.disabled = true;
@@ -407,7 +433,7 @@
             await showMessage('Unable to remove wordlists', error.message || 'Please try again.');
         } finally {
             removeButton.disabled = !sets.length;
-            removeButton.textContent = 'Remove selected wordlists';
+            removeButton.textContent = 'Delete';
         }
     }
     removeButton.addEventListener('click', removeSelectedSets);

@@ -287,7 +287,7 @@ test('New webpage ownership comes from the session, ignoring submitted teacher n
 test('Every page mutation rejects other teachers, students, signed-out and cross-site requests',async()=>{
  const h=server();await h.request('api/vocabulary-pages.js','POST',{name:'Owned page'});
  const grade='owned-page';
- const attempts=[['POST',{action:'authenticate'}],['POST',{title:'Review',html:'<html>test</html>'}],['POST',{action:'game-settings',disabledGames:[]}],['POST',{action:'wordlist-settings',excludedWordlists:[]}],['DELETE',{pathnames:['vocabulary-cards/owned-page/test.html']}]];
+ const attempts=[['POST',{action:'wordlist-visibility',pathnames:['vocabulary-cards/owned-page/test.html'],hidden:true}],['POST',{action:'authenticate'}],['POST',{title:'Review',html:'<html>test</html>'}],['POST',{action:'game-settings',disabledGames:[]}],['POST',{action:'wordlist-settings',excludedWordlists:[]}],['DELETE',{pathnames:['vocabulary-cards/owned-page/test.html']}]];
  for(const [method,body] of attempts) {
   for(const headers of [{},{cookie:'__Host-penina-quiz-session=2',origin:'https://www.penina-hebrew.org'},{cookie:'__Host-penina-quiz-session=99',origin:'https://www.penina-hebrew.org'},{cookie:'__Host-penina-quiz-session=1',origin:'https://other.example'}]) {
    const result=await h.request('api/flashcard-sets.js',method,{grade,...body,password:'1-6'}, {},headers);
@@ -310,4 +310,24 @@ test('Deleting teacher webpages removes only owned page records, published conte
  for(const pathname of ['vocabulary-pages/class.json','vocabulary-pages/another.json','vocabulary-cards/class/one.html','vocabulary-cards/class/two.html','vocabulary-cards/another/one.html','vocabulary-game-settings/class.json'])assert(!h.blobs.has(pathname),pathname);
  for(const pathname of ['vocabulary-pages/class-extra.json','vocabulary-cards/class-extra/one.html','vocabulary-game-settings/class-extra.json','vocabulary-game-settings/class.json.backup','quiz-content/keep.txt'])assert(h.blobs.has(pathname),pathname);
  assert.equal(await h.deleteOwnedPages(2),0);
+});
+
+test('Hiding persists without deleting a list, preserves game choices, and can be undone',async()=>{
+ const {request,create}=server();await create({name:'Hidden Class',password:'1-code'});
+ const base={grade:'hidden-class'};
+ const html=require('../PeninaPlus-vocab-builder/offline-study-cards').makeApp('Review',[{term:'סוס',english:'horse',alternativeAnswers:{english:{term:'סוס',definition:'horse',answers:['cow','dog','cat','bird']}}}]);
+ await request('api/flashcard-sets.js','POST',{...base,title:'Review',html});
+ let listing=await request('api/flashcard-sets.js','GET',{},base);const pathname=listing.body.sets[0].pathname;
+ const settings={...base,action:'wordlist-visibility',pathnames:[pathname],hidden:true};
+ assert.equal((await request('api/flashcard-sets.js','POST',{...settings,pathnames:['other/list.html']})).code,400);
+ await request('api/flashcard-sets.js','POST',{...base,action:'game-settings',disabledGames:['cards']});
+ assert.equal((await request('api/flashcard-sets.js','POST',settings)).code,200);
+ listing=await request('api/flashcard-sets.js','GET',{},base);
+ assert.equal(listing.body.sets.length,1);assert.deepEqual(listing.body.hiddenWordlists,[pathname]);assert.deepEqual(listing.body.disabledGames,['cards']);
+ assert.match((await request('api/flashcard-sets.js','GET',{}, {...base,games:'1'})).body,/No games are currently available/);
+ await request('api/flashcard-sets.js','POST',{...base,action:'game-settings',disabledGames:[]});
+ assert.deepEqual((await request('api/flashcard-sets.js','GET',{},base)).body.hiddenWordlists,[pathname]);
+ await request('api/flashcard-sets.js','POST',{...settings,hidden:false});
+ assert.deepEqual((await request('api/flashcard-sets.js','GET',{},base)).body.hiddenWordlists,[]);
+ assert.match((await request('api/flashcard-sets.js','GET',{}, {...base,games:'1'})).body,/data-game="quiz"/);
 });

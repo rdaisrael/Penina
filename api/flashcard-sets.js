@@ -10,11 +10,11 @@ async function readGameSettings(grade) {
     const pathname = `vocabulary-game-settings/${grade}.json`;
     const result = await list({ prefix: pathname, limit: 1 });
     const blob = result.blobs.find(item => item.pathname === pathname);
-    if (!blob) return { disabledGames: [], excludedWordlists: [] };
+    if (!blob) return { disabledGames: [], excludedWordlists: [], hiddenWordlists: [] };
     const response = await fetch(blob.url, { cache: 'no-store' });
     if (!response.ok) throw new Error('Game settings could not be loaded.');
     const data = await response.json();
-    return { disabledGames: Array.isArray(data.disabledGames) ? data.disabledGames.filter(id => GAME_IDS.includes(id)) : [], excludedWordlists: Array.isArray(data.excludedWordlists) ? data.excludedWordlists.filter(p => typeof p === 'string') : [] };
+    return { hiddenWordlists: Array.isArray(data.hiddenWordlists) ? data.hiddenWordlists.filter(p => typeof p === 'string') : [], disabledGames: Array.isArray(data.disabledGames) ? data.disabledGames.filter(id => GAME_IDS.includes(id)) : [], excludedWordlists: Array.isArray(data.excludedWordlists) ? data.excludedWordlists.filter(p => typeof p === 'string') : [] };
 }
 
 
@@ -87,11 +87,11 @@ module.exports = async function (req, res) {
         const page = await getPage(grade);
         if (!page) return send(res, 400, { error: 'Choose an existing vocabulary webpage.' });
         if (req.method === 'GET') {
-            const { disabledGames, excludedWordlists } = await readGameSettings(grade);
+            const { disabledGames, excludedWordlists, hiddenWordlists } = await readGameSettings(grade);
             const blobs = await listAll(`vocabulary-cards/${grade}/`);
             if (req.query.games === '1') {
                 const dateFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
-                const groups = await Promise.all(blobs.filter(blob => !excludedWordlists.includes(blob.pathname)).map(async blob => {
+                const groups = await Promise.all(blobs.filter(blob => !excludedWordlists.includes(blob.pathname) && !hiddenWordlists.includes(blob.pathname)).map(async blob => {
                     const response = await fetch(blob.url);
                     if (!response.ok) throw new Error('A class set could not be loaded.');
                     const parts = Object.fromEntries(dateFormat.formatToParts(new Date(blob.uploadedAt)).map(part => [part.type, part.value]));
@@ -137,7 +137,7 @@ module.exports = async function (req, res) {
             }
             sets.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
             res.setHeader('Cache-Control', 'no-store');
-            return send(res, 200, { grade, page: publicPage(page), sets, disabledGames, excludedWordlists });
+            return send(res, 200, { grade, page: publicPage(page), sets, disabledGames, excludedWordlists, hiddenWordlists });
         }
 
         if (!['POST', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method Not Allowed' });
@@ -163,6 +163,18 @@ module.exports = async function (req, res) {
             if (urls.some(url => !url)) return send(res, 404, { error: 'One or more selected sets no longer exist.' });
             await del(urls);
             return send(res, 200, { grade, removed: pathnames });
+        }
+
+        if (req.body && req.body.action === 'wordlist-visibility') {
+            const paths = req.body.pathnames;
+            const existing = await listAll(`vocabulary-cards/${grade}/`);
+            if (typeof req.body.hidden !== 'boolean' || !Array.isArray(paths) || !paths.length || paths.length > 100 || paths.some(p => !existing.some(b => b.pathname === p))) return send(res, 400, {error:'Choose valid wordlists.'});
+            const settings = await readGameSettings(grade);
+            const hidden = new Set(settings.hiddenWordlists.filter(p => existing.some(b => b.pathname === p)));
+            paths.forEach(p => req.body.hidden ? hidden.add(p) : hidden.delete(p));
+            settings.hiddenWordlists = [...hidden];
+            await put(`vocabulary-game-settings/${grade}.json`, JSON.stringify(settings), {access:'public',contentType:'application/json',addRandomSuffix:false,allowOverwrite:true,cacheControlMaxAge:0});
+            return send(res, 200, {hiddenWordlists:settings.hiddenWordlists});
         }
 
         if (req.body && req.body.action === 'wordlist-settings') {

@@ -3,12 +3,34 @@
 (() => {
 const $ = id => document.getElementById(id);
 const appChoices=[['reader','PeninaPlus Hebrew Reader'],['vocabulary','PeninaPlus Vocabulary Builder'],['binyan','PeninaPlus Binyan Builder'],['quizzes','Penina Quizzes']];
+function greetingName(name) {
+    const parts=String(name || '').trim().split(/\s+/);
+    const titled=/^(mr|mrs|ms|miss|mx|dr|prof|professor|rabbi|rav|reb|rebbe|rebbetzin|rebbitzen|morah|mora|moreh|chazzan|cantor)\.?$/i.test(parts[0]);
+    return titled && parts.length>1 ? parts[0]+' '+parts[parts.length-1] : parts[0];
+}
+function showAccount(user) {
+    const name=greetingName(user?.name);
+    $('account-greeting').textContent=user?'Welcome'+(name?' '+name:''):'';
+    $('signed-in-account').hidden=!user;
+    $('teacher-signin').hidden=!!user;
+    $('account-error').textContent='';
+}
+$('account-logout').onclick=async()=>{
+    const button=$('account-logout');button.disabled=true;
+    try {
+        const response=await fetch('/api/game-scores?game=quiz-account&action=logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+        if(!response.ok)throw Error('Could not log out. Please try again.');
+        hideManagement();
+    } catch(error) { $('account-error').textContent=error.message; }
+    finally { button.disabled=false; }
+};
 function showApps(user) {
     const apps=user?.userId===1?['reader','vocabulary','binyan','quizzes']:(user?.apps || []);
     document.querySelectorAll('[data-webapp]').forEach(card=>{card.hidden=!apps.includes(card.dataset.webapp);});
     $('app-access-status').textContent=user?(apps.length?'':'No webapps have been assigned to you yet. Contact David Israel for access.'):'Sign in to see your available webapps.';
 }
 function hideManagement() {
+    showAccount(null);
     showApps(null);
     $('teacher-numbers').hidden = true;
     $('teacher-list').replaceChildren();
@@ -21,6 +43,7 @@ async function checkOwner() {
         const response = await fetch('/api/game-scores?game=quiz-account&action=teacher', {cache:'no-store'});
         if (!response.ok) return;
         const user = await response.json();
+        showAccount(user);
         showApps(user);
         if (user.userId !== 1 || user.email?.toLowerCase() !== 'disrael@saracademy.org') return;
         await teacherNumbers();

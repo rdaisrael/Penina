@@ -76,6 +76,26 @@
             font-family: Arial, sans-serif;
         }
 
+        .signed-in-account {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            max-width: 45%;
+            text-align: right;
+            overflow-wrap: anywhere;
+            font: 1rem/1.5 Arial, sans-serif;
+        }
+        .signed-in-account p { margin: 0; }
+        .signed-in-account button {
+            background: none; border: none; padding: 6px 0;
+            color: var(--text-dark); font: inherit;
+            text-decoration: underline; cursor: pointer;
+        }
+        @media (max-width: 700px) {
+            .top-links { position: static !important; align-self: flex-start; margin: 15px 20px; }
+            .signed-in-account { position: static; align-self: flex-end; margin: 0 20px; max-width: calc(100% - 40px); }
+        }
+
         .teacher-account {
             margin-top: 24px;
         }
@@ -322,11 +342,16 @@
     </div>
 
 
+    <nav id="signed-in-account" class="signed-in-account" aria-label="Signed-in account" hidden>
+        <p id="account-greeting"></p>
+        <button id="account-logout" type="button">Log Out</button>
+        <p id="account-error" role="status"></p>
+    </nav>
     <div class="bg-pattern"></div>
 
     <header>
         <h1>Penina-Hebrew Suite</h1>
-        <nav class="teacher-account" aria-label="Teacher account">
+        <nav id="teacher-signin" class="teacher-account" aria-label="Teacher account">
             <a href="/Penina-Quizzes/teacher/" class="btn">Teacher sign-in</a>
             <p>Open your vocabulary and quiz tools.</p>
         </nav>

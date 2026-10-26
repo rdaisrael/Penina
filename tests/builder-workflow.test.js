@@ -17,12 +17,13 @@ function harness() {
         addEventListener(type, fn) { this.click = fn; }
     }));
     let sync;
+    const listeners = {};
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../PeninaPlus-vocab-builder/builder-workflow.js'), 'utf8'), {
-        document: { body, getElementById: element, querySelectorAll: () => buttons,
+        document: { body, addEventListener: (type, fn) => { listeners[type] = fn; }, getElementById: element, querySelectorAll: () => buttons,
             querySelector: () => ({ scrollIntoView() {} }) },
         MutationObserver: class { constructor(fn) { sync = fn; } observe() {} }
     });
-    return { body, buttons, element, sync: () => sync() };
+    return { body, buttons, element, sync: () => sync(), restore: () => listeners['vocabulary-draft-restored']() };
 }
 
 test('stages unlock after generation or draft restore and preserve edits when navigating', () => {
@@ -58,4 +59,23 @@ test('generation progress and failures remain visible in Add Words', () => {
     sync();
     assert.equal(body.dataset.workflowStage, 'add');
     assert.match(element('workflow-generation-status').textContent, /Unable to generate/);
+});
+
+
+test('uploading another completed draft opens Review even when the previous list was ready', () => {
+    const { body, buttons, element, sync, restore } = harness();
+    element('export-vocabulary-workbook-btn').disabled = false;
+    sync();
+    buttons[0].click();
+    assert.equal(body.dataset.workflowStage, 'add');
+    element('vocab-tbody').textContent = 'Restored definitions and context';
+    restore();
+    assert.equal(body.dataset.workflowStage, 'review');
+    assert.equal(element('vocab-tbody').textContent, 'Restored definitions and context');
+    buttons[2].click();
+    restore();
+    assert.equal(body.dataset.workflowStage, 'review');
+    element('export-vocabulary-workbook-btn').disabled = true;
+    restore();
+    assert.equal(body.dataset.workflowStage, 'add');
 });

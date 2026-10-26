@@ -40,6 +40,13 @@
         status.style.color = error ? '#8a2525' : '';
     }
 
+    document.addEventListener('vocabulary-draft-restored', () => {
+        sync();
+        // A replacement draft can be ready while the previous list was also ready.
+        // Always open its saved rows, without requiring a readiness transition.
+        showStage(ready ? 'review' : 'add');
+    });
+
     buttons.forEach(button => button.addEventListener('click', () => showStage(button.dataset.goStage)));
     // Existing import, reset, and generation paths already update export availability.
     // Observe that shared state so navigation follows all of those paths.

@@ -804,10 +804,6 @@
             <section data-stage="review" aria-labelledby="review-stage-title">
                 <h2 id="review-stage-title" tabindex="-1">Review Your List</h2>
                 <p>Review and edit the highlighted fields below. Penina can make mistakes.</p>
-                <div class="workflow-actions">
-                    <button type="button" data-go-stage="add">Back to Add Terms</button>
-                    <button type="button" data-go-stage="share">Continue to Share</button>
-                </div>
 
             <details class="formatting-section appearance-panel">
                 <summary>Appearance <span>Fonts, Size, Spacing &amp; Print Margins</span></summary>
@@ -1549,6 +1545,7 @@
             refreshOriginalHebrewDatasets();
             updateTextDisplay();
             updateVocabInputWarning();
+            document.dispatchEvent?.(new Event('vocabulary-draft-restored'));
         }
 
         function clearVocabularyForm() {

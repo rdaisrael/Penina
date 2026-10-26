@@ -568,6 +568,21 @@
         }
         .chip-x:hover { color: #ff0000; }
 
+        .workflow-nav { display: flex; gap: 8px; margin: 20px 0 10px; }
+        .workflow-nav button { flex: 1; width: auto; padding: 12px 8px; background: #f8f6ef; color: #5a5248; border: 1px solid #dcd3c6; }
+        .workflow-nav button[aria-current="step"] { background: #0056b3; color: white; border-color: #0056b3; }
+        .workflow-nav button:disabled { background-color: #edeae3 !important; color: #6b655d; opacity: 1; cursor: not-allowed; }
+        .workflow-nav button:focus-visible, .workflow-actions button:focus-visible { outline: 3px solid #0056b3; outline-offset: 3px; }
+        .workflow-guidance { color: #5a5248; font-size: 14px; line-height: 1.5; }
+        .workflow-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+        .workflow-actions button { width: auto; padding: 10px 18px; }
+        [data-stage] h2 { margin-top: 0; color: #5a5248; }
+        @media screen {
+            body[data-workflow-stage="add"] [data-stage]:not([data-stage="add"]),
+            body[data-workflow-stage="review"] [data-stage]:not([data-stage="review"]),
+            body[data-workflow-stage="share"] [data-stage]:not([data-stage="share"]) { display: none !important; }
+        }
+
         @media print {
             @page { size: letter; margin: 0.75in; }
             html, body { margin: 0; min-height: 100%; }
@@ -618,7 +633,7 @@
     </style>
     <!-- build: separated-translation-blocks-2026-09-01 -->
 </head>
-<body class="mode-full">
+<body class="mode-full" data-workflow-stage="add">
 
     <div class="bg-pattern"></div>
 <a href="/" class="home-btn temporarily-hidden-feature" aria-label="Return to Home">
@@ -650,7 +665,15 @@
             </div>
         </details>
 
+        <nav class="workflow-nav" aria-label="Vocabulary Builder Steps">
+            <button type="button" data-go-stage="add" aria-current="step">1. Add Words</button>
+            <button type="button" data-go-stage="review" disabled>2. Review</button>
+            <button type="button" data-go-stage="share" disabled>3. Share</button>
+        </nav>
+        <p id="workflow-guidance" class="workflow-guidance">Start by uploading your words. Review and Share will become available when your list is ready.</p>
         <div class="control-panel">
+            <section data-stage="add" aria-labelledby="add-stage-title">
+                <h2 id="add-stage-title" tabindex="-1">Add Words</h2>
             <div class="form-group">
                 <label>Vocabulary Spreadsheet:</label>
                 <div class="template-workflow">
@@ -745,7 +768,15 @@
                 Penina utilizes AI and can make mistakes. Traditional Hebrew texts are pulled directly from Sefaria.
             </div>
 
-            <hr style="border: 0; height: 1px; background: #dcd3c6; margin: 30px 0;">
+                <p id="workflow-generation-status" role="status"></p>
+            </section>
+            <section data-stage="review" aria-labelledby="review-stage-title">
+                <h2 id="review-stage-title" tabindex="-1">Review Your List</h2>
+                <p>Check the vocabulary below and click a translation or context quote to edit it. Penina can make mistakes.</p>
+                <div class="workflow-actions">
+                    <button type="button" data-go-stage="add">Back to Add Words</button>
+                    <button type="button" data-go-stage="share">Continue to Share</button>
+                </div>
 
             <div class="formatting-section">
                 <h3>Word Styling and Formatting</h3>
@@ -802,16 +833,21 @@
                 </div>
             </div>
             
+            <div style="text-align: center; margin-top: 10px;">
+                <button type="button" id="create-practice-exercises-btn" style="background-color: #7024b5; width: auto; max-width: 100%; padding: 12px 25px;" disabled>Gamify and Generate Alternate Answers</button>
+            </div>
+            <p id="practice-saved-status" role="status" style="text-align: center;"></p>
+            </section>
+            <section data-stage="share" aria-labelledby="share-stage-title">
+                <h2 id="share-stage-title" tabindex="-1">Share Your List</h2>
+                <p>Print or download your list, or publish it to a class page for students.</p>
+                <div class="workflow-actions"><button type="button" data-go-stage="review">Back to Review</button></div>
             <div style="text-align: center; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background-color: #28a745; width: auto; padding: 10px 40px;">Print Vocabulary Sheet</button>
                 <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Export Filled Spreadsheet</button>
                 <button type="button" id="save-draft-btn" style="background-color: #b58900; width: auto; padding: 10px 40px;">Download Draft</button>
                 <button type="button" id="download-offline-study-cards-btn" class="temporarily-hidden-feature" hidden style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
             </div>
-            <div style="text-align: center; margin-top: 10px;">
-                <button type="button" id="create-practice-exercises-btn" style="background-color: #7024b5; width: auto; max-width: 100%; padding: 12px 25px;" disabled>Gamify and Generate Alternate Answers</button>
-            </div>
-            <p id="practice-saved-status" role="status" style="text-align: center;"></p>
             <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
                 <div class="publish-card-controls">
                     <div class="form-group">
@@ -842,10 +878,11 @@
                 <div id="vocabulary-pages-status" role="status" aria-live="polite"></div>
                 <button type="button" id="retry-vocabulary-pages" hidden>Retry loading webpages</button>
             </div>
+            </section>
         </div>
     </div>
 
-        <div id="draft-context-tools" class="draft-context-tools">
+        <div data-stage="review" id="draft-context-tools" class="draft-context-tools">
             <div class="draft-tools-message">Include choices apply to this preview, cards, sheets, and games. Save Draft preserves all content and settings, including unchecked content.<br>Click any context quote or translation to edit it directly. To regenerate quotes, check the desired quotes and click 'Regenerate Selected Context Quotes'.</div>
             <div class="draft-tools-buttons">
                 <div class="display-options" role="group" aria-label="Include in preview, cards, sheets, and games">
@@ -859,7 +896,7 @@
             </div>
         </div>
 
-    <div class="paper-viewport">
+    <div class="paper-viewport" data-stage="review">
         <div id="page" class="page-container" style="display: none;">
             <h1 id="doc-title" class="doc-title"></h1>
             <table id="vocab-table">
@@ -4316,5 +4353,6 @@ applyTitleText(document.getElementById('list-title').value);
 updateViewModeLock();
         
     </script>
+    <script src="builder-workflow.js"></script>
 </body>
 </html>

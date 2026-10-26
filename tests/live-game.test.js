@@ -199,9 +199,9 @@ test('Realtime scheduling uses a quiet fallback and local deadlines rather than 
  context.failures=4;assert.equal(context.nextPollDelay(),30000);
 });
 
-test('Score email is opt-in, validates recipient, and requires configured sending service',async()=>{
+test('Score email is opt-in, validates the signed-in email, and requires configured sending service',async()=>{
  const h=harness();
- assert.equal((await h.create({sendScoresToTeacher:true,teacherEmail:'invalid'})).code,400);
+ assert.equal((await harness({teacherEmail:'invalid'}).create({sendScoresToTeacher:true})).code,400);
  assert.equal((await h.create({sendScoresToTeacher:true,teacherEmail:'teacher@example.com'})).code,503);
  assert.equal((await h.create({sendScoresToTeacher:false,teacherEmail:'ignored@example.com'})).code,201);
  assert.equal(h.emails.length,0);
@@ -209,7 +209,7 @@ test('Score email is opt-in, validates recipient, and requires configured sendin
 
 test('Final score email includes every student, stays private, and is not resent after refresh',async()=>{
  const h=harness({env:{RESEND_API_KEY:'test-key',LIVE_SCORE_EMAIL_FROM:'Penina <scores@example.com>'}});
- const created=await h.create({sendScoresToTeacher:true,teacherEmail:' teacher@example.com '}),{code,hostToken}=created.body;
+ const created=await h.create({sendScoresToTeacher:true,teacherEmail:'untrusted@example.com'}),{code,hostToken}=created.body;
  assert.equal(created.code,201);
  const students=await Promise.all(['AA','BB','CC','DD'].map(name=>h.join(code,name)));
  await h.request('start',{code,version:0},hostToken);

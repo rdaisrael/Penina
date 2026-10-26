@@ -74,7 +74,7 @@
     startLive.addEventListener('click', openLiveSetup);management.prepend(startLive);
     const scoreEmailControls = document.createElement('div');
     scoreEmailControls.className = 'score-email-controls';
-    scoreEmailControls.innerHTML = '<label class="score-email-choice"><input type="checkbox" id="send-scores-to-teacher"><span>Send scores to teacher</span></label><input type="email" id="teacher-score-email" placeholder="Enter teacher email" aria-label="Teacher email for scores" autocomplete="email" maxlength="254" disabled>';
+    scoreEmailControls.innerHTML = '<label class="score-email-choice"><input type="checkbox" id="send-scores-to-teacher"><span>Send scores to teacher</span></label>';
     const adjustMusic = document.createElement('button');
     adjustMusic.type = 'button'; adjustMusic.className = 'combine-action'; adjustMusic.textContent = 'Adjust Lobby Music';
     const liveActions = document.createElement('div');
@@ -87,12 +87,6 @@
     };
     liveActions.append(startLive, adjustMusic);
     const sendScoresToTeacher = scoreEmailControls.querySelector('#send-scores-to-teacher');
-    const teacherScoreEmail = scoreEmailControls.querySelector('#teacher-score-email');
-    sendScoresToTeacher.addEventListener('change', () => {
-        teacherScoreEmail.disabled = !sendScoresToTeacher.checked;
-        teacherScoreEmail.required = sendScoresToTeacher.checked;
-        if (sendScoresToTeacher.checked) teacherScoreEmail.focus();
-    });
     function teacherSection(id, title, controls) {
         const section = document.createElement('section');
         section.className = 'teacher-tool-section';
@@ -326,8 +320,7 @@
     }
 
     async function openLiveSetup() {
-        if (sendScoresToTeacher.checked && !teacherScoreEmail.reportValidity()) return;
-        const scoreEmail = sendScoresToTeacher.checked ? teacherScoreEmail.value.trim() : '';
+        const sendScores = sendScoresToTeacher.checked;
         const selected = new Set(selectedPathnames());
         const eligible = sets.filter(set => set.hasGames && selected.has(set.pathname));
         if (!selected.size) { await showMessage('Choose wordlists', 'Check at least one wordlist to include.'); return; }
@@ -348,7 +341,7 @@
             if (!pathnames.length) { note.textContent = 'Choose at least one vocabulary set.'; return; }
             creating = true;note.textContent = 'Opening the lobby…';form.querySelectorAll('button').forEach(button => { button.disabled = true; });
             try {
-                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, pathnames, language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), revealSeconds: Number(form.elements.revealSeconds.value), sendScoresToTeacher: !!scoreEmail, teacherEmail: scoreEmail, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
+                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, pathnames, language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), revealSeconds: Number(form.elements.revealSeconds.value), sendScoresToTeacher: sendScores, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
                 const data = await response.json();if (!response.ok) throw new Error(data.error || 'Unable to open a lobby.');
                 sessionStorage.setItem('penina-live-host-' + data.code, data.hostToken);
                 window.location.assign('/PeninaPlus-vocab-builder/flash-cards/live/?host=1&code=' + data.code);

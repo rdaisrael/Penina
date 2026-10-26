@@ -72,14 +72,15 @@
     scoreEmailControls.innerHTML = '<label class="score-email-choice"><input type="checkbox" id="send-scores-to-teacher"><span>Send scores to teacher</span></label><input type="email" id="teacher-score-email" placeholder="Enter teacher email" aria-label="Teacher email for scores" autocomplete="email" maxlength="254" disabled>';
     const adjustMusic = document.createElement('button');
     adjustMusic.type = 'button'; adjustMusic.className = 'combine-action'; adjustMusic.textContent = 'Adjust Lobby Music';
-    scoreEmailControls.querySelector('.score-email-choice').after(adjustMusic);
+    const liveActions = document.createElement('div');
+    liveActions.className = 'teacher-live-actions';
     adjustMusic.onclick = async () => {
         try {
         if (!window.PeninaMusic) await new Promise((resolve, reject) => { const script=document.createElement('script');script.src='/PeninaPlus-vocab-builder/flash-cards/live/music.js';script.onload=resolve;script.onerror=reject;document.head.append(script); });
         window.PeninaMusic.openSettings();
         } catch(error) { showMessage('Music settings', 'Music settings could not load. Please try again.'); }
     };
-    startLive.after(scoreEmailControls);
+    liveActions.append(startLive, adjustMusic);
     const sendScoresToTeacher = scoreEmailControls.querySelector('#send-scores-to-teacher');
     const teacherScoreEmail = scoreEmailControls.querySelector('#teacher-score-email');
     sendScoresToTeacher.addEventListener('change', () => {
@@ -98,7 +99,7 @@
         return section;
     }
     management.append(
-        teacherSection('teacher-live-heading', 'Start Live Game', [setChoices, scoreEmailControls, startLive]),
+        teacherSection('teacher-live-heading', 'Start Live Game', [setChoices, scoreEmailControls, liveActions]),
         teacherSection('teacher-wordlists-heading', 'Remove Wordlists', [removalChoices, removeButton]),
         teacherSection('teacher-games-heading', 'Student Exercises and Games', [gameChoices, saveGames, gameStatus])
     );

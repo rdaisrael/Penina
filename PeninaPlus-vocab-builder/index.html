@@ -252,6 +252,11 @@
 
         .template-workflow { background: #f8f6ef; border: 1px solid #dcd3c6; border-radius: 7px; padding: 14px; margin-bottom: 12px; }
         .template-instructions { margin: 0 0 10px; color: #5a5248; font-size: 14px; line-height: 1.45; }
+        .spreadsheet-tips { margin-top: 12px; color: #5a5248; font-size: 14px; line-height: 1.45; }
+        .spreadsheet-tips summary { cursor: pointer; width: fit-content; font-weight: bold; }
+        .spreadsheet-tips summary:focus-visible { outline: 2px solid #8b7355; outline-offset: 4px; }
+        .spreadsheet-tips ul { margin: 10px 0 0; padding-left: 22px; }
+        .spreadsheet-tips li + li { margin-top: 7px; }
         .template-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         .template-button { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: auto; min-width: 190px; padding: 10px 18px; border: none; border-radius: 5px; background: #0056b3; color: #fff; font-size: 14px; font-weight: bold; text-decoration: none; cursor: pointer; }
         .template-button:hover { opacity: 0.9; }
@@ -649,12 +654,22 @@
             <div class="form-group">
                 <label>Vocabulary Spreadsheet:</label>
                 <div class="template-workflow">
-                    <p class="template-instructions"><strong>Only the Term column is required.</strong> Download the template and enter one Hebrew term per row. Two Hebrew words may be separated by <strong>/</strong> or <strong> / </strong>, using either the Hebrew or English keyboard. Do not use commas or tabs in the Term field; put definitions in the separate translation columns. Upload the spreadsheet, then enter the list title below. Optionally complete any translation, context quote, or citation fields. Any optional field you provide will override the corresponding AI-generated or Sefaria-provided content. Blank optional fields will be completed by Penina when applicable. Enter <strong>N</strong> in an optional field to leave it blank without generating it; the N will not appear on sheets or flashcards.</p>
+                    <p class="template-instructions">Download the template, add one Hebrew term per row, and upload it here. <strong>Only the Term column is required.</strong> Then enter your list title below.</p>
                     <div class="template-actions">
-                        <a class="template-button" href="Penina-Vocabulary-Template.xlsx" download="Penina-Vocabulary-Template.xlsx">Download Spreadsheet Template</a>
-                        <label class="template-button secondary" for="vocabulary-workbook-input" style="margin: 0; color: #fff;">Upload Completed Template or JSON Draft</label>
+                        <a class="template-button" href="Penina-Vocabulary-Template.xlsx" download="Penina-Vocabulary-Template.xlsx">Download Template</a>
+                        <label class="template-button secondary" for="vocabulary-workbook-input" style="margin: 0; color: #fff;">Upload Spreadsheet or Draft</label>
                         <input type="file" id="vocabulary-workbook-input" accept=".xlsx,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" hidden>
                     </div>
+                    <details class="spreadsheet-tips">
+                        <summary>Spreadsheet tips</summary>
+                        <ul>
+                            <li><strong>Word Pairs:</strong> To include two Hebrew forms in one entry, separate them with a slash—for example, <bdi dir="rtl">ספר/ספרים</bdi>.</li>
+                            <li><strong>Definitions:</strong> Put definitions in the separate translation columns. Do not use commas or tabs in the Term field.</li>
+                            <li><strong>Optional content:</strong> You may fill in translation, context quote, or citation fields. Your entries replace the corresponding AI-generated or Sefaria-provided content.</li>
+                            <li><strong>Blank fields:</strong> Penina completes blank optional fields when applicable.</li>
+                            <li><strong>Leave a field empty:</strong> Enter <strong>N</strong> in an optional field to prevent content from being generated. The N will not appear on sheets or flashcards.</li>
+                        </ul>
+                    </details>
                     <div id="vocabulary-workbook-status" class="template-status" role="status"></div>
                 </div>
                 <div class="temporarily-hidden-feature">
@@ -666,7 +681,7 @@
 
             <div class="form-group title-draft-row">
                 <div class="title-draft-title">
-                    <label for="list-title">Title for this list:</label>
+                    <label for="list-title">List Title:</label>
                     <input type="text" id="list-title" placeholder="e.g., מילים בארמית - פרק ראשון">
                 </div>
                 <div class="title-draft-buttons temporarily-hidden-feature" aria-label="Draft controls">
@@ -790,7 +805,7 @@
             <div style="text-align: center; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background-color: #28a745; width: auto; padding: 10px 40px;">Print Vocabulary Sheet</button>
                 <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Export Filled Spreadsheet</button>
-                <button type="button" id="save-draft-btn" style="background-color: #b58900; width: auto; padding: 10px 40px;">Save JSON Draft</button>
+                <button type="button" id="save-draft-btn" style="background-color: #b58900; width: auto; padding: 10px 40px;">Download Draft</button>
                 <button type="button" id="download-offline-study-cards-btn" class="temporarily-hidden-feature" hidden style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
             </div>
             <div style="text-align: center; margin-top: 10px;">
@@ -2345,7 +2360,7 @@ function updateTalmudModeVisibility() {
                     replaceRenderedRow(index);
                 });
                 document.getElementById('practice-saved-status').textContent =
-                    `${language === 'hebrew' ? 'Hebrew' : 'English'} alternate answers saved to this vocabulary list. Use Save JSON Draft to keep them after leaving this page.`;
+                    `${language === 'hebrew' ? 'Hebrew' : 'English'} alternate answers saved to this vocabulary list. Use Download Draft to keep them after leaving this page.`;
             }
         });
         const semanticContextValidationCache = new Map();

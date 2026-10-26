@@ -266,6 +266,7 @@
         .manual-entry-label { margin-top: 14px; }
         /* Retain temporarily hidden features in the DOM so they can be restored later. */
         .temporarily-hidden-feature { display: none !important; }
+        [data-stage="add"] h2.add-context-title { margin-top: 64px; }
         .context-source-controls { display: flex; gap: 20px; }
         .context-source-controls[hidden] { display: none; }
 
@@ -694,14 +695,14 @@
         </details>
 
         <nav class="workflow-nav" aria-label="Vocabulary Builder Steps">
-            <button type="button" data-go-stage="add" aria-current="step">1. Add Words</button>
+            <button type="button" data-go-stage="add" aria-current="step">1. Add Terms</button>
             <button type="button" data-go-stage="review" disabled>2. Review</button>
             <button type="button" data-go-stage="share" disabled>3. Share</button>
         </nav>
         <p id="workflow-guidance" class="workflow-guidance">Start by uploading your words. Review and Share will become available when your list is ready.</p>
         <div class="control-panel">
             <section data-stage="add" aria-labelledby="add-stage-title">
-                <h2 id="add-stage-title" tabindex="-1">Add Words</h2>
+                <h2 id="add-stage-title" tabindex="-1">Add Terms</h2>
             <div class="form-group">
                 <label>Vocabulary Spreadsheet:</label>
                 <div class="template-workflow">
@@ -742,6 +743,7 @@
                 </div>
             </div>
 
+            <h2 class="add-context-title">Add Context</h2>
             <div id="context-source-controls" class="form-group context-source-controls">
                 <div style="flex: 0 0 230px;">
                     <label for="source-type">Context Source:</label>
@@ -802,7 +804,7 @@
                 <h2 id="review-stage-title" tabindex="-1">Review Your List</h2>
                 <p>Review and edit the highlighted fields below. Penina can make mistakes.</p>
                 <div class="workflow-actions">
-                    <button type="button" data-go-stage="add">Back to Add Words</button>
+                    <button type="button" data-go-stage="add">Back to Add Terms</button>
                     <button type="button" data-go-stage="share">Continue to Share</button>
                 </div>
 

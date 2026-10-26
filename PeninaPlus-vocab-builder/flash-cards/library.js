@@ -10,7 +10,10 @@
     const downloadCombinedButton = document.getElementById('download-combined');
     const manageTrigger = document.getElementById('manage-trigger');
     const management = document.getElementById('management');
-    document.getElementById('remove-sets')?.remove();
+    const removeButton = document.getElementById('remove-sets');
+    removeButton.textContent = 'Remove selected wordlists';
+    const removalChoices = document.createElement('fieldset');
+    removalChoices.className = 'teacher-choices';
     const teacherDialog = document.createElement('dialog');
     teacherDialog.className = 'input-dialog teacher-dialog';
     teacherDialog.setAttribute('aria-labelledby', 'teacher-tools-title');
@@ -32,6 +35,8 @@
     const gameStatus = document.createElement('p'); gameStatus.setAttribute('role','status'); management.appendChild(gameStatus);
     let disabledGames = [], excludedWordlists = [];
     function renderTeacherChoices() {
+        removalChoices.innerHTML = '<legend>Choose wordlists to remove from this webpage</legend>' + sets.map(set => `<label><input type="checkbox" class="delete-select" value="${escapeHtml(set.pathname)}"><span>${escapeHtml(set.title)}</span></label>`).join('');
+        removeButton.disabled = !sets.length;
         setChoices.innerHTML = '<legend>Included wordlists</legend>' + sets.map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(set.title)}</span></label>`).join('');
         gameChoices.querySelectorAll('input').forEach(input => { input.checked = !disabledGames.includes(input.value); });
         classGamify.hidden = !sets.some(set => set.hasGames) || disabledGames.length === gameCatalog.length;
@@ -94,6 +99,7 @@
     }
     management.append(
         teacherSection('teacher-live-heading', 'Start Live Game', [setChoices, scoreEmailControls, startLive]),
+        teacherSection('teacher-wordlists-heading', 'Remove Wordlists', [removalChoices, removeButton]),
         teacherSection('teacher-games-heading', 'Student Exercises and Games', [gameChoices, saveGames, gameStatus])
     );
     const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';
@@ -369,6 +375,41 @@
             manageTrigger.disabled = false;
         }
     }
+
+    async function removeSelectedSets() {
+        const selected = new Set(Array.from(removalChoices.querySelectorAll('input:checked'), input => input.value));
+        const chosen = sets.filter(set => selected.has(set.pathname));
+        if (!chosen.length) {
+            await showMessage('Nothing selected', 'Choose at least one wordlist in Remove Wordlists.');
+            return;
+        }
+        const confirmed = await openInputDialog({
+            title: 'Remove selected wordlists?',
+            message: `Remove these wordlists from this webpage: ${chosen.map(set => set.title).join(', ')}? This permanently deletes their published copies and cannot be undone.`,
+            confirmText: 'Remove', destructive: true
+        });
+        if (!confirmed) return;
+        removeButton.disabled = true;
+        removeButton.textContent = 'Removing…';
+        try {
+            const response = await fetch('/api/flashcard-sets', {
+                method: 'DELETE', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({grade, pathnames: chosen.map(set => set.pathname)})
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'The selected wordlists could not be removed.');
+            const removed = new Set(data.removed || []);
+            sets = sets.filter(set => !removed.has(set.pathname));
+            removed.forEach(pathname => selectedForCombination.delete(pathname));
+            render();
+        } catch (error) {
+            await showMessage('Unable to remove wordlists', error.message || 'Please try again.');
+        } finally {
+            removeButton.disabled = !sets.length;
+            removeButton.textContent = 'Remove selected wordlists';
+        }
+    }
+    removeButton.addEventListener('click', removeSelectedSets);
 
     search.addEventListener('input', render);
     setsElement.addEventListener('change', event => {

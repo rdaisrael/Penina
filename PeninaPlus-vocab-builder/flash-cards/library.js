@@ -11,10 +11,10 @@
     const manageTrigger = document.getElementById('manage-trigger');
     const management = document.getElementById('management');
     const removeButton = document.getElementById('remove-sets');
-    removeButton.textContent = 'Delete';
+    removeButton.textContent = 'Remove';
     const hideButton = document.createElement('button');
     hideButton.type = 'button'; hideButton.className = 'combine-action'; hideButton.textContent = 'Hide';
-    const listActions = document.createElement('div'); listActions.className = 'teacher-live-actions';
+    const listActions = document.createElement('div'); listActions.className = 'teacher-list-actions';
     listActions.append(hideButton, removeButton);
     const removalChoices = document.createElement('fieldset');
     removalChoices.className = 'teacher-choices';
@@ -411,9 +411,9 @@
             return;
         }
         const confirmed = await openInputDialog({
-            title: 'Delete selected lists?',
+            title: 'Remove selected lists?',
             message: `Remove these wordlists from this webpage: ${chosen.map(set => set.title).join(', ')}? This permanently deletes their published copies and cannot be undone.`,
-            confirmText: 'Delete', destructive: true
+            confirmText: 'Remove', destructive: true
         });
         if (!confirmed) return;
         removeButton.disabled = true;
@@ -433,7 +433,7 @@
             await showMessage('Unable to remove wordlists', error.message || 'Please try again.');
         } finally {
             removeButton.disabled = !sets.length;
-            removeButton.textContent = 'Delete';
+            removeButton.textContent = 'Remove';
         }
     }
     removeButton.addEventListener('click', removeSelectedSets);

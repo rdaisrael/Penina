@@ -114,8 +114,10 @@
         };
     }
 
-    function mount({ button, getRows, onSubmit, onSubmitted = () => {}, document: doc = document, fetchImpl = (...args) => fetch(...args) }) {
-        const dialog = doc.createElement('dialog');
+    function mount({ button, container = null, getRows, onSubmit, onSubmitted = () => {}, document: doc = document, fetchImpl = (...args) => fetch(...args) }) {
+        const inline = !!container;
+        const dialog = doc.createElement(inline ? 'div' : 'dialog');
+        if (inline) dialog.className = 'practice-inline';
         dialog.id = 'practice-exercises-dialog';
         dialog.setAttribute('aria-labelledby', 'practice-title');
         dialog.setAttribute('aria-describedby', 'practice-help');
@@ -144,7 +146,23 @@
             <p id="practice-status" role="status" aria-live="polite" aria-atomic="true"></p>
             <p id="practice-error" role="alert"></p>
             <button type="button" id="practice-cancel">Cancel</button>`;
-        doc.body.appendChild(dialog);
+        (container || doc.body).appendChild(dialog);
+        if (inline) {
+            dialog.querySelector('#practice-title').textContent = 'Alternate Answers';
+            dialog.querySelector('#practice-help').textContent = 'Choose the answer language. Saved answers appear here without being regenerated. Save your changes before switching languages.';
+            dialog.querySelector('[data-language="english"]').textContent = 'English Answers';
+            dialog.querySelector('[data-language="hebrew"]').textContent = 'Hebrew Answers';
+            dialog.querySelector('#practice-form > p').textContent = 'Edit the correct definition and four incorrect answers. Generate Missing Answers fills empty cells. Check answers to replace, then choose Regenerate Selected Answers. Save applies your changes to the vocabulary list and games.';
+            dialog.querySelector('#practice-regenerate').textContent = 'Regenerate Selected Answers';
+            dialog.querySelector('#practice-submit').textContent = 'Save Answers';
+            dialog.querySelector('#practice-cancel').textContent = 'Discard Unsaved Changes';
+            const generateMissing = doc.createElement('button');
+            generateMissing.type = 'button';
+            generateMissing.id = 'practice-generate-missing';
+            generateMissing.textContent = 'Generate Missing Answers';
+            dialog.querySelector('.practice-actions').prepend(generateMissing);
+            generateMissing.addEventListener('click', () => generate(true));
+        }
         const find = selector => dialog.querySelector(selector);
         const form = find('form'), tbody = find('tbody');
         const choices = [...dialog.querySelectorAll('[data-language]')];
@@ -202,7 +220,9 @@
         }
         function cancel() {
             run++; controller?.abort(); busy = false;
-            session = null; dialog.close(); button.focus();
+            session = null;
+            if (inline) { start(); status('Unsaved changes discarded.'); }
+            else { dialog.close(); button.focus(); }
         }
         async function generate(emptyOnly) {
             if (busy) return;
@@ -246,15 +266,29 @@
                 if (currentRun === run) { busy = false; refresh(); }
             }
         }
-        button.addEventListener('click', () => {
+        function start() {
             session = createSession(getRows());
-            if (!session.source.length) return;
-            busy = false; error(''); status(''); tbody.replaceChildren(); refresh(); dialog.showModal(); choices[0].focus();
-        });
+            busy = false; error(''); status(''); tbody.replaceChildren(); refresh();
+        }
+        if (inline) {
+            doc.addEventListener('vocabulary-stage-changed', event => {
+                if (event.detail.stage === 'practice' && !session) start();
+            });
+            const reset = () => { run++; controller?.abort(); busy = false; session = null; };
+            doc.addEventListener('vocabulary-draft-restored', reset);
+            doc.addEventListener('vocabulary-list-reset', reset);
+        } else {
+            button.addEventListener('click', () => {
+                start();
+                if (!session.source.length) return;
+                dialog.showModal(); choices[0].focus();
+            });
+        }
         choices.forEach(choice => choice.addEventListener('click', () => {
             if (busy) return;
             if (session.language === choice.dataset.language || session.choose(choice.dataset.language)) {
-                error(''); status(''); renderRows(); refresh(); return generate(true);
+                error(''); status(''); renderRows(); refresh();
+                if (!inline) return generate(true);
             }
         }));
         find('#practice-cancel').addEventListener('click', cancel);
@@ -262,7 +296,16 @@
         find('#practice-regenerate').addEventListener('click', () => generate(false));
         form.addEventListener('submit', event => {
             event.preventDefault(); if (busy) return;
-            try { const saved = session.submit(); onSubmit(session.language, saved); cancel(); onSubmitted(); }
+            try {
+                const saved = session.submit();
+                const language = session.language;
+                onSubmit(language, saved);
+                if (inline) {
+                    start(); session.choose(language); renderRows(); refresh();
+                    status('Answers saved. You can keep editing or continue to Share.');
+                } else cancel();
+                onSubmitted();
+            }
             catch (err) { error(err.message); }
         });
         return { dialog };

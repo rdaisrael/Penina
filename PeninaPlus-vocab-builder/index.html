@@ -598,6 +598,18 @@
         }
         @media print { .review-followup { display: none !important; } }
 
+        .practice-stage { max-width: 1100px; margin: 0 auto 24px; padding: 24px; box-sizing: border-box; background: #fffefb; border: 1px solid #dcd3c6; border-radius: 8px; }
+        #practice-exercises-dialog.practice-inline { display: block; position: static; width: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; box-shadow: none; overflow: visible; background: transparent; box-sizing: border-box; }
+        .practice-inline .practice-table-scroll { overflow-x: auto; }
+        .practice-inline table { min-width: 850px; table-layout: fixed; }
+        .practice-inline input, .practice-inline textarea { width: 100%; box-sizing: border-box; }
+        .practice-inline .practice-choices, .practice-inline .practice-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+        .practice-inline button { width: auto; padding: 10px 16px; }
+        .workflow-nav { flex-wrap: wrap; }
+        .workflow-nav button { min-width: 130px; }
+        @media screen and (max-width: 860px) { .practice-stage { width: calc(100% - 40px); padding: 16px; } }
+        @media print { .practice-stage { display: none !important; } }
+
         .workflow-nav { display: flex; gap: 8px; margin: 20px 0 10px; }
         .workflow-nav button { flex: 1; width: auto; padding: 12px 8px; background: #f8f6ef; color: #5a5248; border: 1px solid #dcd3c6; }
         .workflow-nav button[aria-current="step"] { background: #0056b3; color: white; border-color: #0056b3; }
@@ -611,6 +623,7 @@
         @media screen {
             body[data-workflow-stage="add"] [data-stage]:not([data-stage="add"]),
             body[data-workflow-stage="review"] [data-stage]:not([data-stage="review"]),
+            body[data-workflow-stage="practice"] [data-stage]:not([data-stage="practice"]),
             body[data-workflow-stage="share"] [data-stage]:not([data-stage="share"]) { display: none !important; }
         }
 
@@ -699,9 +712,10 @@
         <nav class="workflow-nav" aria-label="Vocabulary Builder Steps">
             <button type="button" data-go-stage="add" aria-current="step">1. Add Terms</button>
             <button type="button" data-go-stage="review" disabled>2. Review</button>
-            <button type="button" data-go-stage="share" disabled>3. Share</button>
+            <button type="button" id="create-practice-exercises-btn" data-go-stage="practice" disabled>3. Create Practice Activities</button>
+            <button type="button" data-go-stage="share" disabled>4. Share</button>
         </nav>
-        <p id="workflow-guidance" class="workflow-guidance">Start by uploading your words. Review and Share will become available when your list is ready.</p>
+        <p id="workflow-guidance" class="workflow-guidance">Start by uploading your words. Review, Practice Activities, and Share will become available when your list is ready.</p>
         <div class="control-panel">
             <section data-stage="add" aria-labelledby="add-stage-title">
                 <h2 id="add-stage-title" tabindex="-1">Add Terms</h2>
@@ -951,13 +965,14 @@
         </div>
     </div>
 
-    <section class="review-followup" data-stage="review" aria-label="Practice activities">
-        <h2>Practice Activities</h2>
-        <p>Create activities and generate alternate answers for your vocabulary list.</p>
-            <div style="text-align: center; margin-top: 10px;">
-                <button type="button" id="create-practice-exercises-btn" style="background-color: #7024b5; width: auto; max-width: 100%; padding: 12px 25px;" disabled>Create Practice Activities</button>
-            </div>
-            <p id="practice-saved-status" role="status" style="text-align: center;"></p>
+    <section class="review-followup" data-stage="review" aria-label="Next step">
+        <div class="workflow-actions"><button type="button" data-go-stage="practice">Continue to Create Practice Activities</button></div>
+    </section>
+    <section class="practice-stage" data-stage="practice" aria-labelledby="practice-stage-title">
+        <h2 id="practice-stage-title" tabindex="-1">Create Practice Activities</h2>
+        <p>Prepare four incorrect answers for each term to enable games. Choose a language, then enter answers yourself or generate them.</p>
+        <div id="practice-editor"></div>
+        <p id="practice-saved-status" role="status"></p>
         <div class="workflow-actions"><button type="button" data-go-stage="share">Continue to Share</button></div>
     </section>
 
@@ -1081,6 +1096,7 @@
 
         function updateWorkbookExportAvailability() {
             const exportDisabled = !generatedRows.length;
+            if (exportDisabled) document.dispatchEvent?.(new Event('vocabulary-list-reset'));
             document.getElementById('practice-saved-status').textContent = '';
             if (createPracticeExercisesButton) createPracticeExercisesButton.disabled = exportDisabled;
             if (exportVocabularyWorkbookButton) exportVocabularyWorkbookButton.disabled = exportDisabled;
@@ -2422,6 +2438,7 @@ function updateTalmudModeVisibility() {
         let generatedRows = [];
         PeninaPracticeExercises.mount({
             button: createPracticeExercisesButton,
+            container: document.getElementById('practice-editor'),
             getRows() {
                 for (let i = 0; i < generatedRows.length; i++) syncGeneratedRowFromDom(i);
                 return generatedRows;

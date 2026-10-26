@@ -11,6 +11,7 @@
     function showStage(stage, focus = true) {
         if (stage !== 'add' && !ready) return;
         body.dataset.workflowStage = stage;
+        document.dispatchEvent?.(new CustomEvent('vocabulary-stage-changed', { detail: { stage } }));
         buttons.forEach(button => {
             if (button.closest('.workflow-nav') && button.dataset.goStage === stage) {
                 button.setAttribute('aria-current', 'step');
@@ -31,7 +32,7 @@
         buttons.forEach(button => { button.disabled = button.dataset.goStage !== 'add' && !ready; });
         guidance.textContent = ready
             ? 'Move between steps at any time. Your edits and settings stay with this list.'
-            : 'Start by uploading your words. Review and Share will become available when your list is ready.';
+            : 'Start by uploading your words. Review, Practice Activities, and Share will become available when your list is ready.';
         if (ready && !wasReady) showStage('review');
         else if (!ready && body.dataset.workflowStage !== 'add') showStage('add');
         const generating = generateButton.textContent.includes('Generating');

@@ -568,6 +568,34 @@
         }
         .chip-x:hover { color: #ff0000; }
 
+        .appearance-panel { padding: 12px 16px; margin: 12px 0 0; }
+        .appearance-panel summary { cursor: pointer; font-weight: bold; color: #4a4238; }
+        .appearance-panel summary span { font-size: 13px; font-weight: normal; margin-left: 8px; }
+        .appearance-panel summary:focus-visible { outline: 2px solid #0056b3; outline-offset: 4px; }
+        .appearance-content { padding-top: 20px; }
+        .appearance-preview { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; padding: 14px; background: white; border: 1px solid #dcd3c6; border-radius: 6px; }
+        .appearance-preview-label { font-size: 13px; color: #5a5248; }
+        .appearance-hebrew, .appearance-english { font-size: var(--base-font-size, 14pt); letter-spacing: var(--global-letter-spacing, 1px); }
+        .appearance-hebrew { font-family: var(--hebrew-font, Arial, sans-serif); }
+        .appearance-english { font-family: var(--english-font, Arial, sans-serif); }
+        .appearance-note, .publish-description { font-size: 13px; line-height: 1.5; color: #5a5248; }
+        .review-followup { max-width: 860px; margin: 0 auto 24px; padding: 20px; box-sizing: border-box; background: #fffefb; border: 1px solid #dcd3c6; border-radius: 8px; }
+        @media screen {
+            .draft-context-tools { position: static; width: calc(100% - 40px); max-width: 860px; padding: 12px 16px; }
+            .draft-tools-message { font-size: 13px; }
+            .review-followup { width: calc(100% - 40px); }
+            #page { min-height: 0; }
+            #vocab-table [contenteditable="true"] { border: 1px dashed #9dabb6; border-radius: 4px; background: #f6faff; padding: 5px; min-height: 1.25em; cursor: text; }
+            #vocab-table [contenteditable="true"]:hover { background: #edf5ff; border-color: #0056b3; }
+            #vocab-table [contenteditable="true"]:focus { background: #fff; outline: 2px solid #0056b3; }
+        }
+        @media screen and (max-width: 860px) {
+            .paper-viewport #page { width: calc(100% - 40px); padding: 16px !important; }
+            .font-settings-row { flex-wrap: wrap; gap: 12px; }
+            .font-settings-row > .form-group { flex: 1 1 180px; }
+        }
+        @media print { .review-followup { display: none !important; } }
+
         .workflow-nav { display: flex; gap: 8px; margin: 20px 0 10px; }
         .workflow-nav button { flex: 1; width: auto; padding: 12px 8px; background: #f8f6ef; color: #5a5248; border: 1px solid #dcd3c6; }
         .workflow-nav button[aria-current="step"] { background: #0056b3; color: white; border-color: #0056b3; }
@@ -772,14 +800,15 @@
             </section>
             <section data-stage="review" aria-labelledby="review-stage-title">
                 <h2 id="review-stage-title" tabindex="-1">Review Your List</h2>
-                <p>Check the vocabulary below and click a translation or context quote to edit it. Penina can make mistakes.</p>
+                <p>Review and edit the highlighted fields below. Penina can make mistakes.</p>
                 <div class="workflow-actions">
                     <button type="button" data-go-stage="add">Back to Add Words</button>
                     <button type="button" data-go-stage="share">Continue to Share</button>
                 </div>
 
-            <div class="formatting-section">
-                <h3>Word Styling and Formatting</h3>
+            <details class="formatting-section appearance-panel">
+                <summary>Appearance <span>Fonts, Size, Spacing &amp; Print Margins</span></summary>
+                <div class="appearance-content">
                 
                 <div class="checkbox-group" style="margin-bottom: 20px;">
                     <label><input type="checkbox" id="substitute-names" onchange="updateTextDisplay()" checked> Substitute 'ה and אלוקים</label>
@@ -831,12 +860,15 @@
                         </select>
                     </div>
                 </div>
-            </div>
+                <div class="appearance-preview" aria-label="Font and spacing preview">
+                    <span class="appearance-preview-label">Preview</span>
+                    <span class="appearance-hebrew" lang="he" dir="rtl">ספר / בית</span>
+                    <span class="appearance-english">Book / House</span>
+                </div>
+                <p class="appearance-note">Font and spacing changes appear here and in your list. Margins apply to the printed sheet.</p>
+                </div>
+            </details>
             
-            <div style="text-align: center; margin-top: 10px;">
-                <button type="button" id="create-practice-exercises-btn" style="background-color: #7024b5; width: auto; max-width: 100%; padding: 12px 25px;" disabled>Gamify and Generate Alternate Answers</button>
-            </div>
-            <p id="practice-saved-status" role="status" style="text-align: center;"></p>
             </section>
             <section data-stage="share" aria-labelledby="share-stage-title">
                 <h2 id="share-stage-title" tabindex="-1">Share Your List</h2>
@@ -844,14 +876,15 @@
                 <div class="workflow-actions"><button type="button" data-go-stage="review">Back to Review</button></div>
             <div style="text-align: center; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background-color: #28a745; width: auto; padding: 10px 40px;">Print Vocabulary Sheet</button>
-                <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Export Filled Spreadsheet</button>
+                <button type="button" id="export-vocabulary-workbook-btn" style="background-color: #6b5b4b; width: auto; padding: 10px 40px;" disabled>Download Spreadsheet</button>
                 <button type="button" id="save-draft-btn" style="background-color: #b58900; width: auto; padding: 10px 40px;">Download Draft</button>
                 <button type="button" id="download-offline-study-cards-btn" class="temporarily-hidden-feature" hidden style="background-color: #4353ff; width: auto; padding: 10px 40px;" disabled>Download Offline Study Cards</button>
             </div>
             <div style="max-width: 720px; margin: 18px auto 0; padding: 16px; border: 1px solid #dcd3c6; border-radius: 8px; background: #fffefb;">
                 <div class="publish-card-controls">
                     <div class="form-group">
-                        <label for="publish-card-grade">Publish Flashcards, Sheets, and Practice Exercises to:</label>
+                        <p class="publish-description">Publish flashcards, vocabulary sheets, and practice activities for your students.</p>
+                        <label for="publish-card-grade">Class Page:</label>
                         <select id="publish-card-grade">
                         </select>
                     </div>
@@ -859,7 +892,7 @@
                         <a id="selected-page-link" target="_blank" rel="noopener"></a>
                         <details style="margin-top:10px"><summary>Open a published class webpage</summary><nav id="published-page-links" aria-label="Published class webpages" style="display:grid;gap:10px;padding:12px 0"></nav></details>
                     </div>
-                    <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish Flashcards, Sheets, and Practice Exercises</button>
+                    <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish to Class Page</button>
                 </div>
                 <div id="publish-study-cards-status" role="status" style="display: none; margin-top: 12px; padding: 9px 11px; border-radius: 6px; background: #edf6ed; color: #285b2a; line-height: 1.4;"></div>
                 <details class="add-webpage" id="add-webpage">
@@ -883,7 +916,7 @@
     </div>
 
         <div data-stage="review" id="draft-context-tools" class="draft-context-tools">
-            <div class="draft-tools-message">Include choices apply to this preview, cards, sheets, and games. Save Draft preserves all content and settings, including unchecked content.<br>Click any context quote or translation to edit it directly. To regenerate quotes, check the desired quotes and click 'Regenerate Selected Context Quotes'.</div>
+            <div class="draft-tools-message">Choose what appears in your sheet, cards, and games. Select quote checkboxes to regenerate those quotes. Download Draft keeps all content and settings.</div>
             <div class="draft-tools-buttons">
                 <div class="display-options" role="group" aria-label="Include in preview, cards, sheets, and games">
                     <strong>Include:</strong>
@@ -892,7 +925,7 @@
                     <label><input type="checkbox" id="context-quotes" checked> Context Quote</label>
                 </div>
                 <button type="button" id="regenerate-selected-context-quotes-btn">Regenerate Selected Context Quotes &#8634;</button>
-                <button type="button" id="save-draft-context-btn">Save Draft</button>
+                <button type="button" id="save-draft-context-btn">Download Draft</button>
             </div>
         </div>
 
@@ -917,6 +950,16 @@
             <div class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>
         </div>
     </div>
+
+    <section class="review-followup" data-stage="review" aria-label="Practice activities">
+        <h2>Practice Activities</h2>
+        <p>Create activities and generate alternate answers for your vocabulary list.</p>
+            <div style="text-align: center; margin-top: 10px;">
+                <button type="button" id="create-practice-exercises-btn" style="background-color: #7024b5; width: auto; max-width: 100%; padding: 12px 25px;" disabled>Create Practice Activities</button>
+            </div>
+            <p id="practice-saved-status" role="status" style="text-align: center;"></p>
+        <div class="workflow-actions"><button type="button" data-go-stage="share">Continue to Share</button></div>
+    </section>
 
     <script src="practice-exercises.js"></script>
     <script src="offline-study-cards.js"></script>
@@ -1213,7 +1256,7 @@
             } catch (error) {
                 alert(error && error.message ? error.message : 'The spreadsheet could not be exported.');
             } finally {
-                exportVocabularyWorkbookButton.textContent = 'Export Filled Spreadsheet';
+                exportVocabularyWorkbookButton.textContent = 'Download Spreadsheet';
                 updateWorkbookExportAvailability();
             }
         }
@@ -1284,7 +1327,7 @@
             } catch (error) {
                 setPublishStudyCardsStatus(error && error.message ? error.message : 'The flashcards and sheets could not be published.', true);
             } finally {
-                publishStudyCardsButton.textContent = 'Publish Flashcards, Sheets, and Practice Exercises';
+                publishStudyCardsButton.textContent = 'Publish to Class Page';
                 updateWorkbookExportAvailability();
             }
         }
@@ -2898,13 +2941,13 @@ function updateTalmudModeVisibility() {
                     <tr data-row-index="${rowIndex}">
                         <td class="col-hebrew"><span class="hebrew-word">${escapeVocabularyHtml(row.item.hebrew)}</span></td>
                         <td class="col-translation">
-                            ${showHebrewTranslation ? `<div class="modern-hebrew-term-translation" contenteditable="true">${escapeVocabularyHtml(row.modernHebrewTranslation)}</div>` : ''}
-                            ${showEnglishTranslation ? `<div class="col-english term-english-translation" contenteditable="true">${escapeVocabularyHtml(row.item.english)}</div>` : ''}
+                            ${showHebrewTranslation ? `<div class="modern-hebrew-term-translation" contenteditable="true" role="textbox" aria-label="Hebrew Translation">${escapeVocabularyHtml(row.modernHebrewTranslation)}</div>` : ''}
+                            ${showEnglishTranslation ? `<div class="col-english term-english-translation" contenteditable="true" role="textbox" aria-label="English Translation">${escapeVocabularyHtml(row.item.english)}</div>` : ''}
                         </td>
                         <td class="col-context">
-                            <div class="hebrew-text" contenteditable="true">${highlightedHebrew}</div>
-                            ${showHebrewTranslation && row.modernHebrewContext ? `<div class="modern-hebrew-context" contenteditable="true">${highlightedModernHebrew}</div>` : ''}
-                            ${showEnglishTranslation ? `<div class="english-text" contenteditable="true">${highlightedEnglish}</div>` : ''}
+                            <div class="hebrew-text" contenteditable="true" role="textbox" aria-label="Hebrew Context">${highlightedHebrew}</div>
+                            ${showHebrewTranslation && row.modernHebrewContext ? `<div class="modern-hebrew-context" contenteditable="true" role="textbox" aria-label="Hebrew Context Translation">${highlightedModernHebrew}</div>` : ''}
+                            ${showEnglishTranslation ? `<div class="english-text" contenteditable="true" role="textbox" aria-label="English Context Translation">${highlightedEnglish}</div>` : ''}
                             <div class="english-citation-row">
                             ${row.hebrewCitation ? `<div class="citation hebrew-citation" dir="rtl" contenteditable="true">${escapeVocabularyHtml(row.hebrewCitation)}</div>` : ''}
                                 ${showEnglishTranslation && row.englishCitation ? `<div class="citation english-citation" dir="ltr" contenteditable="true">${escapeVocabularyHtml(row.englishCitation)}</div>` : '<div class="citation english-citation" dir="ltr" contenteditable="true"></div>'}

@@ -1,6 +1,14 @@
 'use strict';
 (() => {
-    if (location.protocol === 'file:' || location.pathname === '/' || document.getElementById('return-to-penina')) return;
+    const path = location.pathname.toLowerCase();
+    const pageType = document.querySelector('meta[name="penina-page-type"]')?.content?.toLowerCase()
+        || document.body?.dataset.peninaPageType?.toLowerCase();
+    const classGradeOrStudentRoute = /(?:^|[\/_-])(?:class(?:es|room)?|grade|student)(?:s)?(?:$|[\/_-])/.test(path);
+    const studentPage = pageType === 'student' || pageType === 'class' || pageType === 'grade'
+        || !!document.querySelector('[data-penina-page-type="student"], #googleLogin, #studentIdentity, form#quiz');
+    if (location.protocol === 'file:' || path === '/' || path === '/index.html'
+        || document.getElementById('return-to-penina') || classGradeOrStudentRoute || studentPage
+        || path.includes('/flash-cards/')) return;
     const link = document.createElement('a');
     link.id = 'return-to-penina';
     link.href = '/';

@@ -78,17 +78,28 @@
 
         .signed-in-account {
             position: absolute;
-            top: 15px;
-            right: 20px;
+            top: 12px;
+            right: 16px;
+            z-index: 10000;
+            display: grid;
+            justify-items: end;
+            gap: 0;
+            padding: 10px 14px;
             max-width: 45%;
             text-align: right;
             overflow-wrap: anywhere;
-            font: 1rem/1.5 Arial, sans-serif;
+            border: 1px solid #d8c79d;
+            border-radius: 10px;
+            background: rgba(255,255,255,.96);
+            box-shadow: 0 4px 16px rgba(0,0,0,.12);
+            color: #302c25;
+            font: 14px/1.4 Arial, sans-serif;
         }
         .signed-in-account p { margin: 0; }
         .signed-in-account button {
-            background: none; border: none; padding: 6px 0;
-            color: var(--text-dark); font: inherit;
+            justify-self: end;
+            background: none; border: none; padding: 2px 0;
+            color: inherit; font: inherit;
             text-decoration: underline; cursor: pointer;
         }
         @media (max-width: 700px) {

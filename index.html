@@ -371,19 +371,20 @@
     <header>
         <h1>Penina-Hebrew Suite</h1>
         <nav id="teacher-signin" class="teacher-account" aria-label="Teacher account">
-            <a href="/Penina-Quizzes/teacher/" class="btn">Teacher sign-in</a>
+            <button id="teacher-signin-button" class="btn" type="button">Teacher sign-in</button>
+            <p id="teacher-signin-status" role="status" aria-live="polite"></p>
             <p>To upload a video, sign in with David Israel’s account, then return here and scroll below the app cards to My videos. Each uploaded MP4 is added to the public video library automatically.</p>
         </nav>
     </header>
     
-    <p id="app-access-status" role="status" style="text-align:center">Sign in to see your available webapps.</p>
+    <p id="app-access-status" role="status" style="text-align:center">Checking your sign-in…</p>
     <div class="cards-container">
         
         <!-- Penina Hebrew Reader (Silver Theme): temporarily hidden; remove hidden to restore. -->
         <div class="card silver-theme" hidden>
             <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
-                <img src="/penina-logo.png" alt="Penina Silver Logo">
+                <img src="/peninaplus-logo.png" alt="Penina Gold Logo">
             </div>
             <h2>Penina<br>Hebrew Reader</h2>
             <p>Create differentiated introductory Hebrew reading materials with options for varied reading levels, length, spacing, color-coded Nikkud and learner/dyslexic-friendly fonts.</p>
@@ -391,24 +392,24 @@
 
         </div>
 
-        <!-- PeninaPlus Hebrew Reader (Gold Theme) -->
+        <!-- Penina Hebrew Reader -->
         <div class="card" data-webapp="reader" hidden>
             <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
-                <img src="/peninaplus-logo.png" alt="PeninaPlus Gold Logo">
+                <img src="/peninaplus-logo.png" alt="Penina Gold Logo">
             </div>
-            <h2>PeninaPlus<br>Hebrew Reader</h2>
+            <h2>Penina<br>Hebrew Reader</h2>
             <p>Create differentiated intermediate-advanced Hebrew reading materials with options to automatically footnote as-yet-unmastered Hebrew vocabulary/conjugations and generate reading comprehension exercises.</p>
 <a href="/PeninaPlus-Reader/" class="btn">Launch</a>
         </div>
 
-        <!-- PeninaPlus Vocabulary Builder (Gold Theme) -->
+        <!-- Penina Vocabulary Builder -->
         <div class="card" data-webapp="vocabulary" hidden>
             <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
-                <img src="/peninaplus-logo.png" alt="PeninaPlus Gold Logo">
+                <img src="/peninaplus-logo.png" alt="Penina Gold Logo">
             </div>
-            <h2>PeninaPlus<br>Vocabulary Builder</h2>
+            <h2>Penina<br>Vocabulary Builder</h2>
             <p>Create student-friendly, professionally-formatted Hebrew or Aramaic vocabulary sheets with generated or user provided English translations and an option to generate samples - or pull directly from Rabbinic or biblical texts - to illustrate how the word is used in context.</p>
 <a href="/PeninaPlus-vocab-builder/" class="btn">Launch</a>
         </div>
@@ -416,20 +417,20 @@
         <div class="card" data-webapp="binyan" hidden>
             <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
-                <img src="/peninaplus-logo.png" alt="PeninaPlus Gold Logo">
+                <img src="/peninaplus-logo.png" alt="Penina Gold Logo">
             </div>
-            <h2>PeninaPlus<br>Binyan Builder</h2>
+            <h2>Penina<br>Binyan Builder</h2>
             <p>Build Hebrew conjugation worksheets from mastered vocabulary. Introduce a new binyan and tense with guided models, or mix learned patterns for practice, with a separate answer key.</p>
             <a href="/PeninaPlus-Binyan-Builder/" class="btn">Launch</a>
         </div>
         <div class="card" data-webapp="quizzes" hidden>
             <div class="beta-badge">BETA</div>
             <div class="logo-wrapper">
-                <img src="/penina-logo.png" alt="Penina Logo">
+                <img src="/peninaplus-logo.png" alt="Penina Gold Logo">
             </div>
             <h2>Penina<br>Quizzes</h2>
             <p>Teachers: sign in to write and assign quizzes, or review student work and send grades to Google Classroom.</p>
-            <a href="/Penina-Quizzes/teacher/" class="btn">Teacher tools</a>
+            <a href="/Penina-Quizzes/teacher/" class="btn">Launch</a>
         </div>
     </div>
 
@@ -459,7 +460,7 @@
         <p id="video-empty" hidden>No videos uploaded yet.</p>
         <ul id="video-list"></ul>
     </section>
-    <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Number 1 belongs to David Israel. Assign a different number to each teacher.</p><button id="load-teachers" type="button">Show assigned numbers</button><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> PeninaPlus Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> PeninaPlus Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> PeninaPlus Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email a welcome message and Google sign-in instructions to this school email.</p><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
+    <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Number 1 belongs to David Israel. Assign a different number to each teacher.</p><button id="load-teachers" type="button">Show assigned numbers</button><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> Penina Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> Penina Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> Penina Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email a welcome message and Google sign-in instructions to this school email.</p><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
 
     <footer>
         <div style="display: flex; flex-direction: column; align-items: center;">
@@ -468,5 +469,6 @@
         </div>
     </footer>
 
+    <script src="/session-idle.js" defer></script>
 </body>
 </html>

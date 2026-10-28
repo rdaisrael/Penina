@@ -1,4 +1,6 @@
 'use strict';
+const idleSessionScript=document.createElement('script');idleSessionScript.src='/session-idle.js';document.head.append(idleSessionScript);
+const returnHomeScript=document.createElement('script');returnHomeScript.src='/return-to-penina.js';document.head.append(returnHomeScript);
 const previewKey=new URLSearchParams(location.search).get('preview');
 const previewQuiz=previewKey?JSON.parse(sessionStorage.getItem(previewKey)||'null'):null;
 

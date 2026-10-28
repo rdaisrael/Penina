@@ -7,7 +7,7 @@ module.exports = async function (req, res) {
     const game = typeof req.query?.game==='string'?req.query.game:'';
     const accountAction=req.query?.action || req.body?.action;
     const changingIdentity=game==='quiz-account' && ['login','callback','logout','config'].includes(accountAction);
-    try { if(!changingIdentity && (req.headers?.cookie || '').includes('__Host-penina-quiz-session=')) await require('../lib/quiz-teachers').rejectDeletedSession(req); }
+    try { if((req.headers?.cookie || '').includes('__Host-penina-quiz-session=')){if(!changingIdentity)await require('../lib/quiz-teachers').rejectDeletedSession(req);require('../lib/quiz-account').touchSession(req,res);} }
     catch(error) { res.setHeader('Cache-Control','no-store'); return res.status(error.status || 503).json({error:error.status?error.message:'Teacher access could not be checked. Please try again.'}); }
     if(game==='app-page' || game==='app-api')return require('../lib/webapp-gateway').handle(req,res);
     // Match the action source used by each downstream handler; query strings must not mask body actions.

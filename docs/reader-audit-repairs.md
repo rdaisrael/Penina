@@ -1,10 +1,10 @@
-# PeninaPlus Reader consistency repairs
+# Penina Hebrew Reader consistency repairs
 
-Scope: the nine findings in `audits/PeninaPlus-Reader-audit-2026-09-13.md` (audit stored in the parent workspace). These changes build on the deployed native Dicta qamatz-qatan/dagesh fixes. They are not changes to the legacy reader's vocabulary workflow.
+Scope: the nine findings in `audits/Penina-Reader-audit-2026-09-13.md` (audit stored in the parent workspace). These changes build on the deployed native Dicta qamatz-qatan/dagesh fixes. They are not changes to the legacy reader's vocabulary workflow.
 
 ## Result consistency
 
-The reader now requests a strict JSON response from OpenAI with the story and one analysis entry per Hebrew word, including repetitions and the title. Each entry has its surface word, mastery decision, contextual English gloss, matching vocabulary entry, and selected verb form. The server validates word count/order and rejects missing or malformed entries. The structured result replaces the old footnote-delimiter protocol for PeninaPlus only; legacy `/api/generate` clients retain their plain-text contract.
+The reader now requests a strict JSON response from OpenAI with the story and one analysis entry per Hebrew word, including repetitions and the title. Each entry has its surface word, mastery decision, contextual English gloss, matching vocabulary entry, and selected verb form. The server validates word count/order and rejects missing or malformed entries. The structured result replaces the old footnote-delimiter protocol for the Penina Hebrew Reader; legacy `/api/generate` clients retain their plain-text contract.
 
 The same saved per-word decision controls both emphasis and footnotes. Pointed vocabulary is normalized on both sides. Parts-of-speech and uploaded lists retain roots and exact selected binyan/tense combinations. A claimed verb-root match cannot be mastered if its form is not selected; an empty form selection permits no derived verbs. Fabricated vocabulary matches cannot become mastered. Uncertain linguistic cases are instructed to remain unmastered.
 

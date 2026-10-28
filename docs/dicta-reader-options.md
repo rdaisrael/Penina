@@ -1,8 +1,8 @@
-# Dicta options for PeninaPlus Reader
+# Dicta options for Penina Hebrew Reader
 
 ## Behavior
 
-PeninaPlus requests `keepqq: true` (distinct Unicode kamatz katan) and
+Penina requests `keepqq: true` (distinct Unicode kamatz katan) and
 `addmorph: true` (lexical/morphological information) for stories, supplied text,
 and worksheets. `matchpartial: true` remains enabled. Special rabbinic dagesh
 and biblical-style מה rules are explicitly false. Other callers of
@@ -13,7 +13,7 @@ The API continues to return `text`. When morphology is requested, it also return
 The current reader still uses `text`; morphology-based vocabulary classification
 and a manual correction interface are not implemented by this change.
 
-The PeninaPlus renderer uses Dicta's U+05C7 marks directly for kamatz-katan color.
+The Penina renderer uses Dicta's U+05C7 marks directly for kamatz-katan color.
 It no longer converts vowels based on a hardcoded word list, strips dagesh, or
 rewrites the pointing of Daniel. The existing divine-name display preferences
 remain available. The simpler Penina Reader is not changed.
@@ -31,7 +31,7 @@ For `כל ילד לומד חכמה. הילדה חכמה מאוד.`:
 
 `keepmetagim: true` did not preserve the meteg in the supplied test word
 `הָֽאִישׁ`; do not assume it guarantees preservation of user-entered meteg.
-It is therefore not requested by default in PeninaPlus. If Dicta returns meteg,
+It is therefore not requested by default in Penina. If Dicta returns meteg,
 the parser and renderer retain the mark.
 
 The fixture in `tests/fixtures/dicta-nikkud-public.json` records the public-service

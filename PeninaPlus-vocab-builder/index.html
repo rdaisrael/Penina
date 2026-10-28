@@ -6,7 +6,7 @@
     <!-- Penina Vocab Builder build: offline-study-cards-2026-09-07 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <title>PeninaPlus Vocabulary Builder</title>
+   <title>Penina Vocabulary Builder</title>
     <link rel="icon" type="image/png" href="./Penina-favicon.png?v=4">
     <link rel="shortcut icon" href="./Penina-favicon.png?v=4">
     <link rel="stylesheet" href="practice-exercises.css">
@@ -690,8 +690,8 @@
     <div class="control-panel-wrapper">
         
         <div class="header-container">
-            <img src="peninaplus-logo.png" alt="Penina Plus Logo" class="app-logo">
-<h1 class="app-title">PeninaPlus Vocabulary Builder</h1>        </div>
+            <img src="peninaplus-logo.png" alt="Penina gold pearl logo" class="app-logo">
+<h1 class="app-title">Penina Vocabulary Builder</h1>        </div>
         <div class="copyright">&copy; 2026 David Israel</div>
 
         <details class="about-details">
@@ -1478,12 +1478,12 @@
         }
 
         function safeDraftFileName(title) {
-            const cleaned = String(title || 'PeninaPlus Vocabulary Draft')
+            const cleaned = String(title || 'Penina Vocabulary Draft')
                 .replace(/[\\/:*?"<>|]+/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim()
                 .slice(0, 80);
-            return (cleaned || 'PeninaPlus Vocabulary Draft') + '.json';
+            return (cleaned || 'Penina Vocabulary Draft') + '.json';
         }
 
         function saveDraftToFile() {
@@ -1505,7 +1505,7 @@
 
         function applyDraftPayload(payload) {
             if (!payload || payload.draftType !== 'PeninaPlusVocabularyBuilderDraft') {
-                throw new Error('This does not look like a PeninaPlus Vocabulary Builder draft.');
+                throw new Error('This does not look like a Penina Vocabulary Builder draft.');
             }
             const inputs = payload.inputs || {};
             setControlValue('list-title', inputs.listTitle || '');

@@ -1,5 +1,6 @@
 (function () {
     'use strict';
+const returnHomeScript=document.createElement('script');returnHomeScript.src='/return-to-penina.js';document.head.append(returnHomeScript);
 
     const grade = document.body.dataset.grade || new URLSearchParams(window.location.search).get('page') || '';
     const status = document.getElementById('status');

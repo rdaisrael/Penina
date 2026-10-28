@@ -1,4 +1,6 @@
 'use strict';
+const idleSessionScript=document.createElement('script');idleSessionScript.src='/session-idle.js';document.head.append(idleSessionScript);
+const returnHomeScript=document.createElement('script');returnHomeScript.src='/return-to-penina.js';document.head.append(returnHomeScript);
 const API = '/api/game-scores?game=assessment-retake-8';
 const ACCOUNT_API='/api/game-scores?game=quiz-account&quiz=gemara-8-intro-retake';
 const classId=new URLSearchParams(location.search).get('class') || '';

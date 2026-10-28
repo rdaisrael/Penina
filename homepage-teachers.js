@@ -3,7 +3,7 @@
 (() => {
 const $ = id => document.getElementById(id);
 let accountCheck = 0;
-const appChoices=[['reader','PeninaPlus Hebrew Reader'],['vocabulary','PeninaPlus Vocabulary Builder'],['binyan','PeninaPlus Binyan Builder'],['quizzes','Penina Quizzes']];
+const appChoices=[['reader','Penina Hebrew Reader'],['vocabulary','Penina Vocabulary Builder'],['binyan','Penina Binyan Builder'],['quizzes','Penina Quizzes']];
 function greetingName(name) {
     const parts=String(name || '').trim().split(/\s+/);
     const titled=/^(mr|mrs|ms|miss|mx|dr|prof|professor|rabbi|rav|reb|rebbe|rebbetzin|rebbitzen|morah|mora|moreh|chazzan|cantor)\.?$/i.test(parts[0]);
@@ -24,6 +24,16 @@ $('account-logout').onclick=async()=>{
         hideManagement();
     } catch(error) { $('account-error').textContent=error.message; }
     finally { button.disabled=false; }
+};
+$('teacher-signin-button').onclick=async()=>{
+    const button=$('teacher-signin-button');button.disabled=true;$('teacher-signin-status').textContent='Connecting to Google…';
+    try {
+        const response=await fetch('/api/game-scores?game=quiz-account&action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'teacher',portal:true,returnHome:true})});
+        const result=await response.json();
+        if(!response.ok)throw Error(result.error || 'Google sign-in could not be started. Please try again.');
+        if(typeof result.url!=='string')throw Error('Google sign-in could not be started. Please try again.');
+        location.assign(result.url);
+    } catch(error) {$('teacher-signin-status').textContent=error.message;button.disabled=false;}
 };
 function showApps(user) {
     const apps=user?.userId===1?['reader','vocabulary','binyan','quizzes']:(user?.apps || []);

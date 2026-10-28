@@ -1,4 +1,5 @@
-#create-practice-exercises-btn { width: auto; }
+#create-practice-exercises-btn { width: auto; background: #f8f6ef; color: #5a5248; border-color: #dcd3c6; }
+#create-practice-exercises-btn[aria-current="step"] { background: #0056b3; color: #fff; border-color: #0056b3; }
 #practice-exercises-dialog { box-sizing: border-box; width: min(1400px, 96vw); max-height: 90dvh; padding: 24px; border: 1px solid #dcd3c6; border-radius: 12px; background: #fffefb; color: #332c24; overflow: auto; }
 #practice-exercises-dialog::backdrop { background: rgb(30 20 40 / 55%); }
 #practice-exercises-dialog h2 { margin-top: 0; color: #6731bd; }

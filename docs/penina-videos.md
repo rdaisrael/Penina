@@ -1,13 +1,15 @@
 # Penina video library and viewer
 
-Local implementation only; the Worker and homepage changes have not been published.
+The initial video Worker and library hostname are deployed. The standalone viewer and clearer upload instructions described below are local changes and have not been published yet.
 
 ## Intended flow
 
-1. David signs in to Penina and uploads an MP4 from the **My videos** panel on the homepage. The existing signed Penina session is verified server-side; only David can list or upload from this panel.
+1. David opens the Penina homepage, chooses **Teacher sign-in** in the upper right, and signs in. His **My videos** panel appears below the app cards. He uploads an MP4 there. The existing signed Penina session is verified server-side; only David can list or upload from this panel.
 2. The video is stored in the `penina-video-test` R2 bucket. Its title and upload details are kept as object metadata.
 3. The public library at `https://video.penina-hebrew.org/` lists the uploaded video and displays its viewer address.
-4. The viewer address opens a Penina webpage with native playback controls. David can copy the exact viewer URL from **My videos** and paste it into a Google Classroom assignment. Students open the viewer page and stream the video there.
+4. The viewer address opens a standalone Penina webpage with native playback controls and starts playback after the page finishes loading. David can copy the exact viewer URL from **My videos** and paste it into a Google Classroom assignment. Students open the viewer page and stream the video there.
+
+To add a video, enter a title, choose an MP4 up to 1 GB, and select **Upload video**. Keep the homepage open until the upload completes. Its standalone viewer URL then appears in **My videos** and in the public library automatically. Select the clipboard icon beside the viewer URL to copy it for Google Classroom.
 
 The library and viewer pages are public. Anyone can browse the library or watch a listed video. Do not upload student records or videos that should be private. Direct R2 access is not needed; the Worker reads media through its bucket binding and supports byte ranges for seeking.
 

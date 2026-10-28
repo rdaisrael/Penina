@@ -29,15 +29,33 @@
         const details = document.createElement('p'); details.textContent = sizeText(video.size);
         const address = document.createElement('input'); address.type = 'text'; address.readOnly = true;
         address.value = video.url || new URL(video.path,location.origin).href;
-        address.setAttribute('aria-label','Penina address for ' + video.title);
+        address.setAttribute('aria-label','Standalone viewer URL for ' + video.title);
         address.onclick = () => address.select();
+        const urlRow = document.createElement('div'); urlRow.className = 'video-url';
+        const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'copy-url';
+        copy.setAttribute('aria-label','Copy viewer URL for Classroom: ' + video.title);
+        copy.title = 'Copy viewer URL for Classroom';
+        const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        icon.setAttribute('viewBox','0 0 24 24'); icon.setAttribute('aria-hidden','true');
+        const paper = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        paper.setAttribute('x','5'); paper.setAttribute('y','5'); paper.setAttribute('width','14'); paper.setAttribute('height','16'); paper.setAttribute('rx','2');
+        const tab = document.createElementNS('http://www.w3.org/2000/svg','path');
+        tab.setAttribute('d','M9 5V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1');
+        const lines = document.createElementNS('http://www.w3.org/2000/svg','path');
+        lines.setAttribute('d','M9 11h6M9 15h6');
+        icon.append(paper,tab,lines); copy.append(icon);
+        urlRow.append(address,copy);
         const open = document.createElement('a'); open.href = address.value; open.target = '_blank'; open.rel = 'noopener'; open.textContent = 'Preview viewer page';
-        const copy = document.createElement('button'); copy.type = 'button'; copy.textContent = 'Copy URL for Classroom';
         copy.onclick = async () => {
-            try { await navigator.clipboard.writeText(address.value); copy.textContent = 'Copied'; }
-            catch (_) { address.focus(); address.select(); $('video-status').textContent = 'The address is selected. Copy it to share.'; }
+            let copied = false;
+            try { await navigator.clipboard.writeText(address.value); copied = true; } catch (_) {}
+            if (!copied) {
+                address.focus(); address.select();
+                try { copied = document.execCommand('copy'); } catch (_) {}
+            }
+            $('video-status').textContent = copied ? 'Viewer URL copied for Google Classroom.' : 'Copy was blocked. The viewer URL is selected so you can copy it.';
         };
-        item.append(title,details,address,open,copy);
+        item.append(title,details,urlRow,open);
         return item;
     }
     async function refresh(token = generation) {
@@ -112,7 +130,7 @@
             if (token !== generation) return;
             $('video-upload-form').reset();
             await refresh(token);
-            if (token === generation) $('video-status').textContent = 'Video uploaded. Your Penina address is ready below.';
+            if (token === generation) $('video-status').textContent = 'Video uploaded. Its viewer URL is below and the video is now listed in the public library.';
         } catch (error) {
             if (id && !completed) { try { await post({action:'abort',id}); } catch (_) {} }
             if (token === generation) $('video-status').textContent = controller.signal.aborted ? 'Upload cancelled.' : (completed ? 'Video uploaded, but the list could not refresh. Choose Refresh videos.' : error.message);

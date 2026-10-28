@@ -335,6 +335,10 @@
         #video-manager input { box-sizing:border-box; width:100%; min-width:0; padding:12px; border:1px solid var(--silver-border); border-radius:6px; font:inherit; }
         #video-manager fieldset { border:0; padding:0; margin:0; min-width:0; }
         #video-manager button, #video-list a { display:inline-block; box-sizing:border-box; cursor:pointer; min-height:44px; padding:10px 16px; margin:8px 8px 0 0; font:inherit; background:#f9f6ef; color:var(--text-dark); border:1px solid var(--gold-border); border-radius:6px; text-decoration:none; }
+        #video-manager .video-url { display:flex; align-items:center; gap:8px; min-width:0; }
+        #video-manager .video-url input { flex:1; width:0; margin:8px 0 0; }
+        #video-manager .video-url .copy-url { display:grid; flex:0 0 44px; width:44px; height:44px; place-items:center; padding:9px; margin:8px 0 0; }
+        #video-manager .copy-url svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
         #video-manager button:disabled { opacity:.55; cursor:wait; }
         #video-list { list-style:none; padding:0; }
         #video-list li { padding:18px 0; border-top:1px solid var(--silver-border); overflow-wrap:anywhere; }
@@ -368,7 +372,7 @@
         <h1>Penina-Hebrew Suite</h1>
         <nav id="teacher-signin" class="teacher-account" aria-label="Teacher account">
             <a href="/Penina-Quizzes/teacher/" class="btn">Teacher sign-in</a>
-            <p>Open your vocabulary and quiz tools.</p>
+            <p>Sign in here. David’s account also has the My videos uploader below the app cards.</p>
         </nav>
     </header>
     
@@ -431,7 +435,14 @@
 
     <section id="video-manager" hidden aria-labelledby="video-manager-heading">
         <h2 id="video-manager-heading">My videos</h2>
-        <p>Upload a lesson here. It will appear in the <a href="https://video.penina-hebrew.org/" target="_blank" rel="noopener">public video library</a>. Preview its viewer page, or copy that page’s URL into a Google Classroom assignment. Anyone can browse the library and watch its videos.</p>
+        <p>To add a video, sign in with David Israel’s account using Teacher sign-in in the upper right. This My videos panel appears below the app cards.</p>
+        <ol>
+            <li>Enter a title and choose an MP4 video up to 1 GB. H.264 video with AAC audio works in the widest range of browsers.</li>
+            <li>Click <strong>Upload video</strong> and keep this page open until it finishes.</li>
+            <li>The new viewer URL will appear in this My videos list and automatically on the <a href="https://video.penina-hebrew.org/" target="_blank" rel="noopener">public video library</a>.</li>
+            <li>Click the clipboard icon beside the viewer URL to copy the standalone page, then paste it into a Google Classroom assignment.</li>
+        </ol>
+        <p>Anyone who can access the library or viewer URL can watch its videos.</p>
         <form id="video-upload-form">
             <fieldset id="video-upload-fields" disabled>
                 <label>Video title<input id="video-title" name="title" maxlength="120" required></label>

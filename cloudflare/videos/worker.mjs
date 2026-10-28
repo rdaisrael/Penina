@@ -225,6 +225,14 @@ export async function handle(request,env,authFetch=fetch) {
         try { rootKey=decodeURIComponent(url.pathname.slice(1)); } catch (_) { fail(404,'Video not found.'); }
         if (rootKey && isVideoKey(rootKey) && !rootKey.includes('/')) return Response.redirect(`${VIDEO_ORIGIN}/watch/${keyToken(rootKey)}`,308);
         fail(404,'Video not found.');
-    } catch (error) { return json({error:error.status?error.message:'Video storage could not complete the request. Please try again.'},error.status || 503); }
+    } catch (error) {
+        if (!error.status) console.error('Penina video request failed', {
+            method: request.method,
+            path: new URL(request.url).pathname,
+            errorName: error?.name || 'Error',
+            errorMessage: String(error?.message || 'Unknown error').slice(0, 300)
+        });
+        return json({error:error.status?error.message:'Video storage could not complete the request. Please try again.'},error.status || 503);
+    }
 }
 export default {fetch(request,env) { return handle(request,env); }};

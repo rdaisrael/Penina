@@ -15,6 +15,9 @@
     link.setAttribute('aria-label', 'Return to Penina Suite');
     link.title = 'Return to Penina Suite';
     link.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:fit-content;min-width:78px;padding:5px 8px 6px;margin:6px 0 10px 8px;border:1px solid #d8c79d;border-radius:8px;background:rgba(255,255,255,.96);color:#302c25;text-decoration:none;font:10px/1.2 Arial,sans-serif;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.1);position:relative;z-index:10000';
+    const printStyles = document.createElement('style');
+    printStyles.textContent = '@media print { #return-to-penina { display: none !important; } }';
+    document.head.appendChild(printStyles);
     if (location.pathname.startsWith('/coming-soon/')) {
         link.style.position = 'fixed';
         link.style.top = '8px';

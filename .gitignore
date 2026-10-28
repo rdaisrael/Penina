@@ -1,2 +1,7 @@
 .DS_Store
 node_modules/
+
+# Local Cloudflare tooling and secrets
+.wrangler/
+.dev.vars
+.dev.vars.*

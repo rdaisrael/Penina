@@ -2,6 +2,7 @@
 'use strict';
 (() => {
 const $ = id => document.getElementById(id);
+let accountCheck = 0;
 const appChoices=[['reader','PeninaPlus Hebrew Reader'],['vocabulary','PeninaPlus Vocabulary Builder'],['binyan','PeninaPlus Binyan Builder'],['quizzes','Penina Quizzes']];
 function greetingName(name) {
     const parts=String(name || '').trim().split(/\s+/);
@@ -30,6 +31,8 @@ function showApps(user) {
     $('app-access-status').textContent=user?(apps.length?'':'No webapps have been assigned to you yet. Contact David Israel for access.'):'Sign in to see your available webapps.';
 }
 function hideManagement() {
+    accountCheck++;
+    window.PeninaVideos?.hide();
     showAccount(null);
     showApps(null);
     $('teacher-numbers').hidden = true;
@@ -39,16 +42,20 @@ function hideManagement() {
 }
 async function checkOwner() {
     hideManagement();
+    const check = accountCheck;
     try {
         const response = await fetch('/api/game-scores?game=quiz-account&action=teacher', {cache:'no-store'});
         if (!response.ok) return;
         const user = await response.json();
+        if (check !== accountCheck) return;
         showAccount(user);
         showApps(user);
         if (user.userId !== 1 || user.email?.toLowerCase() !== 'disrael@saracademy.org') return;
+        window.PeninaVideos?.show(user);
         await teacherNumbers();
+        if (check !== accountCheck) return;
         $('teacher-numbers').hidden = false;
-    } catch (_) { hideManagement(); }
+    } catch (_) { if (check === accountCheck) hideManagement(); }
 }
 window.addEventListener('pageshow', checkOwner);
 window.addEventListener('pagehide', hideManagement);

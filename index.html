@@ -329,7 +329,22 @@
         #teacher-numbers button { cursor: pointer; font: inherit; min-height: 44px; }
         #teacher-numbers button:not(.password-visibility) { padding: 10px 16px; background: #f9f6ef; color: var(--text-dark); border: 1px solid var(--gold-border); border-radius: 6px; }
         #teacher-list { overflow-wrap: anywhere; }
+        #video-manager { box-sizing:border-box; width:calc(100% - 40px); max-width:720px; margin:40px auto; padding:28px; background:white; border:2px solid var(--gold-border); border-radius:15px; font:1rem/1.5 Arial,sans-serif; text-align:left; }
+        #video-manager h2 { text-align:center; }
+        #video-manager label { display:grid; gap:6px; margin:16px 0; }
+        #video-manager input { box-sizing:border-box; width:100%; min-width:0; padding:12px; border:1px solid var(--silver-border); border-radius:6px; font:inherit; }
+        #video-manager fieldset { border:0; padding:0; margin:0; min-width:0; }
+        #video-manager button, #video-list a { display:inline-block; box-sizing:border-box; cursor:pointer; min-height:44px; padding:10px 16px; margin:8px 8px 0 0; font:inherit; background:#f9f6ef; color:var(--text-dark); border:1px solid var(--gold-border); border-radius:6px; text-decoration:none; }
+        #video-manager button:disabled { opacity:.55; cursor:wait; }
+        #video-list { list-style:none; padding:0; }
+        #video-list li { padding:18px 0; border-top:1px solid var(--silver-border); overflow-wrap:anywhere; }
+        #video-list h3 { margin:0; }
+        #video-list p { margin:6px 0; }
+        #video-progress { width:100%; margin-top:16px; }
+        #video-status { overflow-wrap:anywhere; }
+        #video-storage, #video-file-help { font-size:14px; }
     </style>
+    <script src="/homepage-videos.js" defer></script>
     <script src="/homepage-teachers.js" defer></script>
     <link rel="stylesheet" href="/Penina-Quizzes/password-toggle.css">
     <script src="/Penina-Quizzes/password-toggle.js" defer></script>
@@ -414,6 +429,25 @@
         </div>
     </div>
 
+    <section id="video-manager" hidden aria-labelledby="video-manager-heading">
+        <h2 id="video-manager-heading">My videos</h2>
+        <p>Upload a lesson here. It will appear in the <a href="https://video.penina-hebrew.org/" target="_blank" rel="noopener">public video library</a>. Preview its viewer page, or copy that page’s URL into a Google Classroom assignment. Anyone can browse the library and watch its videos.</p>
+        <form id="video-upload-form">
+            <fieldset id="video-upload-fields" disabled>
+                <label>Video title<input id="video-title" name="title" maxlength="120" required></label>
+                <label>Video file<input id="video-file" name="video" type="file" accept=".mp4,video/mp4" aria-describedby="video-file-help" required></label>
+                <p id="video-file-help">MP4, up to 1 GB. For broad playback support, export with H.264 video and AAC audio. Keep this page open until the upload finishes.</p>
+                <button type="submit">Upload video</button>
+            </fieldset>
+        </form>
+        <progress id="video-progress" max="100" value="0" aria-label="Video upload progress" hidden></progress>
+        <button id="video-cancel" type="button" hidden>Cancel upload</button>
+        <p id="video-status" role="status" aria-live="polite"></p>
+        <button id="video-refresh" type="button">Refresh videos</button>
+        <p id="video-storage"></p>
+        <p id="video-empty" hidden>No videos uploaded yet.</p>
+        <ul id="video-list"></ul>
+    </section>
     <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Number 1 belongs to David Israel. Assign a different number to each teacher.</p><button id="load-teachers" type="button">Show assigned numbers</button><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> PeninaPlus Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> PeninaPlus Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> PeninaPlus Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email a welcome message and Google sign-in instructions to this school email.</p><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
 
     <footer>

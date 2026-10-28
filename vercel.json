@@ -2,6 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
     {
+      "src": "^/cloudflare/.*$",
+      "status": 404
+    },
+    {
       "src": "^/(?:Penina-Reader|PeninaPlus-Reader|PeninaPlus-vocab-builder)/(?:archive|Archive)/.*$",
       "status": 404
     },

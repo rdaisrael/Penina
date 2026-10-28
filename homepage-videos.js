@@ -8,6 +8,7 @@
         generation++;
         active?.controller.abort();
         $('video-manager').hidden = true;
+        $('video-upload-fields').disabled = true;
         $('video-list').replaceChildren();
         $('video-upload-form').reset();
         $('video-status').textContent = '';
@@ -73,7 +74,8 @@
         if (user?.userId !== 1 || user.email?.toLowerCase() !== 'disrael@saracademy.org') return;
         const token = generation;
         $('video-manager').hidden = false;
-        $('video-upload-fields').disabled = true;
+        // The picker must not depend on the separate list request succeeding.
+        $('video-upload-fields').disabled = false;
         $('video-status').textContent = 'Loading videos…';
         try { await refresh(token); if (token === generation) $('video-status').textContent = ''; }
         catch (error) { if (token === generation) { if ([401,403].includes(error.status)) hide(); else $('video-status').textContent = error.message; } }

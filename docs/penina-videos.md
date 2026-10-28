@@ -1,6 +1,6 @@
 # Penina video library and viewer
 
-The initial video Worker and library hostname are deployed. The standalone viewer and clearer upload instructions described below are local changes and have not been published yet.
+The initial video Worker and library hostname are deployed. The standalone viewer, clipboard control on the library, and clearer upload instructions described below are local changes and have not been published yet.
 
 ## Intended flow
 

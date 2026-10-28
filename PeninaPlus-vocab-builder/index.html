@@ -622,6 +622,7 @@
         [data-stage="add"] #add-stage-title,
         [data-stage="add"] h2.add-context-title { color: #0056b3; }
         [data-stage="review"] #review-stage-title { color: #0056b3; }
+        [data-stage="practice"] #practice-stage-title { color: #0056b3; }
         [data-stage] h2[tabindex="-1"]:focus { outline: none; }
         @media screen {
             body[data-workflow-stage="add"] [data-stage]:not([data-stage="add"]),
@@ -972,7 +973,7 @@
         <div class="workflow-actions"><button type="button" data-go-stage="practice">Continue to Create Practice Activities</button></div>
     </section>
     <section class="practice-stage" data-stage="practice" aria-labelledby="practice-stage-title">
-        <h2 id="practice-stage-title" tabindex="-1">Create Practice Activities</h2>
+        <h2 id="practice-stage-title" tabindex="-1">Create Distractors for Practice Activities</h2>
         <p>Prepare four incorrect answers for each term to enable games. Choose a language, then enter answers yourself or generate them.</p>
         <div id="practice-editor"></div>
         <p id="practice-saved-status" role="status"></p>

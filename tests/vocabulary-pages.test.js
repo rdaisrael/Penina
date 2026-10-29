@@ -32,7 +32,8 @@ function server() {
         require(name) {
             if (name === 'crypto') return require('node:crypto');
             if (name === '@vercel/blob') return storage;
-            if (name === '../lib/quiz-teachers') return load('lib/quiz-teachers.js');
+            // Account lifecycle is covered by quiz-teachers.test.js; these fixtures model authorized page owners.
+            if (name === '../lib/quiz-teachers') return {rejectDeletedSession:async()=>{}};
             if (name === '../lib/teacher-apps') return {requireApps:async req=>{const id=Number(req.headers?.cookie?.split('=').pop());if(!id || id===99)throw Object.assign(Error('Sign in'),{status:401});return {userId:id};}};
             if (name === '../lib/quiz-account' || name === './quiz-account') return {session: req => { const id=Number(req.headers?.cookie?.split('=').pop()); if(!id) throw Object.assign(Error('Sign in'),{status:401}); return {role:id===99?'student':'teacher',userId:id}; }};
             if (name === '../lib/vocabulary-pages') return load('lib/vocabulary-pages.js');

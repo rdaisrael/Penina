@@ -598,3 +598,9 @@ test('Student answers remain saved when Classroom turn-in fails; retry turns in 
  const retried=await h.call(h.submissions,h.req(body,'student'));assert.equal(retried.data.classroom.turnedIn,true);assert.equal(retried.data.submittedAt,failed.data.submittedAt);assert.equal(h.state.grade,null);
  const corrected=await h.call(h.submissions,h.req({...link,id,action:'correct',scores:[2],feedback:'',sendToClassroom:true}));assert.equal(corrected.data.classroom.draft,true);assert.equal(h.state.grade.assignedGrade,undefined);
 });
+
+test('Email-only accounts are directed to Google before creating Classroom-owned quizzes',async()=>{
+ const h=harness(),result=await h.call(h.builder.handle,h.req({action:'save',quiz:fixture()},'email:2'));
+ assert.equal(result.code,403);assert.match(result.data.error,/Sign in with Google from Penina Home/);
+ assert.equal([...h.blobs.keys()].filter(key=>key.startsWith('quiz-builder/')).length,0);
+});

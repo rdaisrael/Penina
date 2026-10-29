@@ -62,8 +62,8 @@ test('Welcome email uses saved school email and lists only granted apps, with no
  const h=mailHarness(),teacher={userId:2,name:'Teacher',email:'school@example.org',apps:['reader']};
  await h.sendWelcome(teacher);await h.sendWelcome(teacher);
  assert.deepEqual(Array.from(h.calls[0].body.to),['school@example.org']);
- assert.match(h.calls[0].body.text,/PeninaPlus Hebrew Reader/);assert(!h.calls[0].body.text.includes('Vocabulary Builder'));
- assert.match(h.calls[0].body.text,/No separate Penina password/);assert.equal(h.calls[0].headers['Idempotency-Key'],h.calls[1].headers['Idempotency-Key']);
+ assert.match(h.calls[0].body.text,/Penina Hebrew Reader/);assert(!h.calls[0].body.text.includes('Vocabulary Builder'));
+ assert.match(h.calls[0].body.text,/Sign in with another email address/);assert.match(h.calls[0].body.text,/No separate Penina password/);assert.equal(h.calls[0].headers['Idempotency-Key'],h.calls[1].headers['Idempotency-Key']);
  await assert.rejects(mailHarness(false).sendWelcome(teacher));await assert.rejects(mailHarness(true,false).sendWelcome(teacher));
 });
 

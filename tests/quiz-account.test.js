@@ -30,6 +30,7 @@ function harness() {
         if(n==='crypto')return require('crypto');
         if(n==='google-auth-library')return {OAuth2Client};
         if(n==='@vercel/blob')return {del:async p=>blobs.delete(p),list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,options)=>{if(options?.allowOverwrite===false && blobs.has(p))throw Error('Already exists');blobs.set(p,s);}};
+        if(n==='./quiz-email-login')return {request:async()=>({message:'Check your email.'}),verify:async()=>({sub:'email:2',email:'teacher@outlook.com',name:'Teacher',userId:2,role:'teacher',authMethod:'email'})};
         if(n==='./teacher-apps')return require('../lib/teacher-apps');
         if(n==='./quiz-teachers')return {registered:async email=>email==='disrael@saracademy.org'?{userId:1,email}:email==='second@school.org'?{userId:2,email}:null};
         if(n==='./vocabulary-pages')return {getPage:async()=>({}),authenticatePage:(_,p)=>p==='teacher-secret'?null:{status:401,error:'Incorrect password'}};
@@ -386,4 +387,18 @@ test('Turn-in failures can retry without publishing a grade',async()=>{
  const h=harness(),f=turnInFixture(h);h.state.turnInFailure=true;
  await assert.rejects(()=>h.api.turnInSubmission(f.req,f.record));h.state.turnInFailure=false;
  assert.equal((await h.api.turnInSubmission(f.req,f.record)).turnedIn,true);assert(!h.requests.some(r=>r.method==='PATCH'));
+});
+
+
+test('Email routes require same-origin POST and issue the normal secure teacher session',async()=>{
+ const h=harness();
+ for(const action of ['email-login','email-verify']){
+  const req=h.request({method:'POST',query:{action},body:{},headers:{origin:'https://attacker.example'}});
+  assert.equal((await h.run(req)).code,403);
+  req.headers.origin='https://www.penina-hebrew.org';const result=await h.run(req);assert.equal(result.code,200);
+  if(action==='email-verify'){
+   const cookie=result.headers['Set-Cookie'][0];assert.match(cookie,/HttpOnly; Secure; SameSite=Lax/);
+   const user=h.api.session({headers:{cookie:cookie.split(';')[0]}});assert.equal(user.userId,2);assert.equal(user.email,'teacher@outlook.com');assert.equal(user.role,'teacher');
+  }
+ }
 });

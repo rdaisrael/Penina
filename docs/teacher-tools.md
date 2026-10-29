@@ -1,3 +1,11 @@
+# Email sign-in
+
+Penina Home offers **Sign in with another email address** for registered teachers. It sends a single-use link, valid for 10 minutes, through the existing Resend configuration (`RESEND_API_KEY` and `QUIZ_EMAIL_FROM`, falling back to `LIVE_SCORE_EMAIL_FROM`). Blob storage and the existing account encryption secret are also required. No Gmail address or Google account is needed. Unregistered addresses receive the same request acknowledgement without an email. Requests are limited to one per address per five-minute bucket. Links require explicit confirmation on Penina Home, then a same-origin POST; their fragments are removed from browser history. Redemption checks the current teacher registry and claims the token atomically before issuing the usual teacher session.
+
+Existing Google-connected teachers keep their Google subject identity and existing content when signing in by email. Email-only teachers receive a stable identity based on their teacher number. Reader, Vocabulary Builder, and Binyan Builder work with email sign-in; Google Classroom quiz tools require Google sign-in before creating quizzes so content is not split across email and Google identities. Normal app grants and account deletion checks still apply. Welcome emails explain both sign-in options.
+
+Request and redemption markers are retained in Blob storage; expired markers can be removed as maintenance after their five-minute request bucket or ten-minute token lifetime respectively. Email delivery and live Google behavior are not validated by the mocked local tests.
+
 # Teacher entrance
 
 Open `/Penina-Quizzes/teacher/` from Teacher tools on the Penina home page. Teachers use Sign in with Google with their registered school account. After Google verifies the identity, the server looks up that email in the teacher registry and assigns its teacher number. Unregistered accounts cannot enter. No Penina password is needed for this entrance. Existing Google subject IDs continue to own quizzes, assignments, and submissions.

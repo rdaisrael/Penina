@@ -117,6 +117,10 @@
             letter-spacing: normal;
         }
 
+        .email-signin { max-width: 420px; margin: 16px auto; font: 1rem/1.5 Arial, sans-serif; }
+        .email-signin summary { cursor: pointer; text-decoration: underline; }
+        .email-signin form { display: grid; gap: 10px; margin-top: 14px; text-align: left; }
+        .email-signin input { box-sizing: border-box; width: 100%; padding: 12px; font: inherit; border: 1px solid #aaa; border-radius: 6px; }
         .teacher-account p {
             max-width: 420px;
             margin: 12px auto 0;
@@ -382,7 +386,13 @@
     <header>
         <h1>Penina-Hebrew Suite</h1>
         <nav id="teacher-signin" class="teacher-account" aria-label="Teacher account">
-            <button id="teacher-signin-button" class="btn" type="button">Teacher sign-in</button>
+            <button id="teacher-signin-button" class="btn" type="button">Sign in with Google</button>
+            <details class="email-signin"><summary>Sign in with another email address</summary>
+                <p>Use the email address registered with Penina. No Google account or password is needed.</p>
+                <form id="email-signin-form"><label for="signin-email">Email address</label><input id="signin-email" name="email" type="email" autocomplete="email" maxlength="254" required><button class="btn" type="submit">Email me a sign-in link</button></form>
+            </details>
+            <div id="email-signin-confirm" hidden><p>Confirm to sign in with the account that received this email link.</p><button id="email-signin-confirm-button" class="btn" type="button">Confirm email sign-in</button></div>
+            <p>Google Classroom quiz tools require a Google connection.</p>
             <p id="teacher-signin-status" role="status" aria-live="polite"></p>
             <p>To upload a video, sign in with David Israel’s account, then return here and scroll below the app cards to My videos. Each uploaded MP4 is added to the public video library automatically.</p>
         </nav>
@@ -471,7 +481,7 @@
         <p id="video-empty" hidden>No videos uploaded yet.</p>
         <ul id="video-list"></ul>
     </section>
-    <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Number 1 belongs to David Israel. Assign a different number to each teacher.</p><button id="load-teachers" type="button">Show assigned numbers</button><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> Penina Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> Penina Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> Penina Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email a welcome message and Google sign-in instructions to this school email.</p><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
+    <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Number 1 belongs to David Israel. Assign a different number to each teacher.</p><button id="load-teachers" type="button">Show assigned numbers</button><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> Penina Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> Penina Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> Penina Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email a welcome message and sign-in instructions to this school email.</p><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
 
     <footer>
         <div style="display: flex; flex-direction: column; align-items: center;">

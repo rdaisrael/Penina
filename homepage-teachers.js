@@ -13,7 +13,7 @@ function showAccount(user) {
     const name=greetingName(user?.name);
     $('account-greeting').textContent=user?'Welcome'+(name?' '+name:''):'';
     $('signed-in-account').hidden=!user;
-    $('teacher-signin').hidden=!!user;
+    $('teacher-signin').hidden=!!user && $('email-signin-confirm').hidden;
     $('account-error').textContent='';
 }
 $('account-logout').onclick=async()=>{
@@ -35,6 +35,31 @@ $('teacher-signin-button').onclick=async()=>{
         location.assign(result.url);
     } catch(error) {$('teacher-signin-status').textContent=error.message;button.disabled=false;}
 };
+async function emailRequest(action,body) {
+    const response=await fetch('/api/game-scores?game=quiz-account&action='+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const result=await response.json();
+    if(!response.ok)throw Error(result.error || 'Email sign-in could not be completed. Please try again.');
+    return result;
+}
+$('email-signin-form').onsubmit=async event=>{
+    event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;
+    $('teacher-signin-status').textContent='Sending your sign-in link…';
+    try {const result=await emailRequest('email-login',{email:$('signin-email').value});$('teacher-signin-status').textContent=result.message;}
+    catch(error){$('teacher-signin-status').textContent=error.message;}
+    finally{button.disabled=false;}
+};
+// Keep the credential out of server request URLs and remove it from browser history.
+if(typeof location!=='undefined' && location.hash.startsWith('#email-signin=')) {
+    const token=location.hash.slice('#email-signin='.length);
+    history.replaceState(null,'',location.pathname+location.search);
+    $('email-signin-confirm').hidden=false;
+    $('email-signin-confirm-button').onclick=async()=>{
+        const button=$('email-signin-confirm-button');button.disabled=true;
+        $('teacher-signin-status').textContent='Signing in…';
+        try {await emailRequest('email-verify',{token});location.replace('/');}
+        catch(error){$('teacher-signin-status').textContent=error.message;button.disabled=false;}
+    };
+}
 function showApps(user) {
     const apps=user?.userId===1?['reader','vocabulary','binyan','quizzes']:(user?.apps || []);
     document.querySelectorAll('[data-webapp]').forEach(card=>{card.hidden=!apps.includes(card.dataset.webapp);});
@@ -128,7 +153,7 @@ async function teacherNumbers(body) {
 $('load-teachers').onclick=async()=>{try{await teacherNumbers();$('teacher-number-status').textContent='';}catch(error){$('teacher-number-status').textContent=error.message;}};
 $('assign-teacher').onsubmit=async event=>{
     event.preventDefault();const form=event.target,button=form.querySelector('button[type=submit]');button.disabled=true;
-    try{const fields=new FormData(form);const result=await teacherNumbers({...Object.fromEntries(fields),apps:fields.getAll('apps')});form.reset();$('teacher-number-status').textContent=result.welcomeEmail?.status==='accepted'?'Teacher added. Welcome email sent with Google sign-in instructions.':'Teacher added, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Use Resend welcome email to retry.');}
+    try{const fields=new FormData(form);const result=await teacherNumbers({...Object.fromEntries(fields),apps:fields.getAll('apps')});form.reset();$('teacher-number-status').textContent=result.welcomeEmail?.status==='accepted'?'Teacher added. Welcome email sent with sign-in instructions.':'Teacher added, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Use Resend welcome email to retry.');}
     catch(error){$('teacher-number-status').textContent=error.message;}finally{button.disabled=false;}
 };
 

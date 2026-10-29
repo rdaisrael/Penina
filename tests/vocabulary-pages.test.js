@@ -306,10 +306,12 @@ test('Deleting teacher webpages removes only owned page records, published conte
  const h=server();await h.create({name:'Class',password:'2-owned'});await h.create({name:'Class Extra',password:'3-other'});await h.create({name:'Another',password:'2-owned'});
  const seed=pathname=>h.blobs.set(pathname,{pathname,url:'https://storage.example/'+pathname,content:'{}'});
  for(const pathname of ['vocabulary-cards/class/one.html','vocabulary-cards/class/two.html','vocabulary-cards/another/one.html','vocabulary-game-settings/class.json','vocabulary-game-settings/class.json.backup','vocabulary-cards/class-extra/one.html','vocabulary-game-settings/class-extra.json','quiz-content/keep.txt'])seed(pathname);
+ for(const prefix of ['flappy-scores/','asteroids-scores/','snowblaster-scores/','matching-scores/']){seed(prefix+'class/result.json');seed(prefix+'class-extra/result.json');}
  const before=h.blobs.size;await assert.rejects(h.deleteOwnedPages(1));assert.equal(h.blobs.size,before);
  assert.equal(await h.deleteOwnedPages(2),2);
  for(const pathname of ['vocabulary-pages/class.json','vocabulary-pages/another.json','vocabulary-cards/class/one.html','vocabulary-cards/class/two.html','vocabulary-cards/another/one.html','vocabulary-game-settings/class.json'])assert(!h.blobs.has(pathname),pathname);
  for(const pathname of ['vocabulary-pages/class-extra.json','vocabulary-cards/class-extra/one.html','vocabulary-game-settings/class-extra.json','vocabulary-game-settings/class.json.backup','quiz-content/keep.txt'])assert(h.blobs.has(pathname),pathname);
+ for(const prefix of ['flappy-scores/','asteroids-scores/','snowblaster-scores/','matching-scores/']){assert(!h.blobs.has(prefix+'class/result.json'));assert(h.blobs.has(prefix+'class-extra/result.json'));}
  assert.equal(await h.deleteOwnedPages(2),0);
 });
 

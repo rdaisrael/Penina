@@ -580,3 +580,32 @@ test('Podium groups tied winners on each level with initials above their figures
  const levels=html.split('<li ').slice(1);levels.forEach((level,i)=>{assert(level.includes('P'+(i*2)));assert(level.includes('P'+(i*2+1)));assert(level.includes('points each'));});
  assert(html.indexOf('P0')<html.indexOf('<figure>1</figure>'));
 });
+
+for(const database of [false,true])test('User deletion removes live rooms and invalidates their tokens in '+(database?'database':'Blob'),async()=>{
+ const h=harness({database}),created=await h.create(),{code,hostToken}=created.body;
+ await h.join(code);
+ await h.request(null,{code},hostToken);
+ await h.handler.deleteOwnedGames({userId:2,email:'teacher@example.com'},['sixth']);
+ assert(![...h.storage.keys()].some(p=>p.startsWith('live-vocab/')));
+ assert.notEqual((await h.request(null,{code},hostToken)).code,200);
+ assert(h.storage.has(h.setPath));
+});
+
+for(const database of [false,true])test('Deletion removes a user from another teacher’s room without removing classmates in '+(database?'Supabase':'Blob'),async()=>{
+ const h=harness({database}),created=await h.create(),{code,hostToken}=created.body;
+ const deleted=await h.join(code,'AB',crypto.randomUUID(),'Deleted@school.example');
+ const kept=await h.join(code,'CD',crypto.randomUUID(),'kept@school.example');
+ await h.request('start',{code,version:0},hostToken);
+ await h.request('answer',{code,index:0,choice:0},deleted.body.studentToken);
+ await h.request('answer',{code,index:0,choice:1},kept.body.studentToken);
+ await h.request(null,{code},hostToken);
+ await h.handler.deleteOwnedGames({userId:2,email:'deleted@school.example'},[]);
+ const state=await h.request(null,{code},hostToken);
+ assert.equal(state.code,200);assert.equal(state.body.playerCount,1);assert.equal(state.body.players[0].name,'CD');
+ assert.equal(state.body.answeredCount,1);
+ assert.equal((await h.request(null,{code},deleted.body.studentToken)).code,401);
+ assert.equal((await h.request(null,{code},kept.body.studentToken)).code,200);
+ assert.equal([...h.storage.keys()].filter(p=>p.includes('/players/')).length,1);
+ assert.equal([...h.storage.keys()].filter(p=>p.includes('/answers/')).length,1);
+ await h.handler.deleteOwnedGames({userId:2,email:'deleted@school.example'},[]);
+});

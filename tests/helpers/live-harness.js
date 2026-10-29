@@ -7,9 +7,11 @@ module.exports=function liveHarness(options={}){
  const setPath='vocabulary-cards/sixth/demo--'+Buffer.from('Class vocabulary').toString('base64url')+'.html';
  storage.set(setPath,{body:'<script id="peninaCardData" type="application/json">'+JSON.stringify(cards)+'</script>',uploadedAt:new Date(now).toISOString()});
  const blob=p=>({pathname:p,url:'https://blob.test/'+p,uploadedAt:storage.get(p).uploadedAt});
- const blobApi={list:async({prefix,cursor,limit=1000})=>{operations.lists++;const matches=[...storage.keys()].filter(k=>k.startsWith(prefix));const start=Number(cursor)||0;return{blobs:matches.slice(start,start+limit).map(blob),hasMore:start+limit<matches.length,cursor:String(start+limit)};},put:async(p,body)=>{operations.writes++;if(storage.has(p))throw new Error('Exists');storage.set(p,{body,uploadedAt:new Date(now).toISOString()});return blob(p);}};
+ const blobApi={del:async urls=>{for(const url of Array.isArray(urls)?urls:[urls])storage.delete(url.replace('https://blob.test/',''));},list:async({prefix,cursor,limit=1000})=>{operations.lists++;const matches=[...storage.keys()].filter(k=>k.startsWith(prefix));const start=Number(cursor)||0;return{blobs:matches.slice(start,start+limit).map(blob),hasMore:start+limit<matches.length,cursor:String(start+limit)};},put:async(p,body)=>{operations.writes++;if(storage.has(p))throw new Error('Exists');storage.set(p,{body,uploadedAt:new Date(now).toISOString()});return blob(p);}};
  const page={id:'sixth',name:'Demo Class Vocabulary',url:'/PeninaPlus-vocab-builder/flash-cards/?page=sixth'};
  const ctx={module:{exports:{}},Buffer,console,AbortSignal,process:{env:{...options.env,VOCABULARY_PAGE_SECRET:'test-only-secret-not-for-production'}},Date:class extends Date{static now(){return now;}},require:name=>name==='./live-store'?{
+  removePath:async path=>{storage.delete(path);},
+  removePrefix:async prefix=>{for(const path of storage.keys())if(path.startsWith(prefix))storage.delete(path);},
   configured:()=>!!options.database,
   realtime:topic=>options.database?{url:'https://test.supabase.co',key:'publishable-test',topic}:null,
   list:async prefix=>{operations.dbLists++;return [...storage.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,payload:storage.get(p).body}));},

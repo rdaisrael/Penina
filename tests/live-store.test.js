@@ -12,3 +12,13 @@ test('Immutable database writes preserve conflicts and never overwrite another a
 test('Database errors fail closed and expired record cleanup is limited by expiry',async()=>{
  const h=harness([{status:503},{status:204}]);await assert.rejects(h.store.list('prefix'),/503/);await h.store.prune();assert.equal(h.calls[1].options.method,'DELETE');assert(h.calls[1].url.includes('expires_at=lt.'));
 });
+
+test('Room cleanup deletes only the exact room prefix',async()=>{
+ const h=harness([{status:204}]);await h.store.removePrefix('live-vocab/v1/123456/');
+ assert.equal(h.calls[0].options.method,'DELETE');assert.equal(new URL(h.calls[0].url).searchParams.get('path'),'like.live-vocab/v1/123456/*');
+});
+
+test('Individual data deletion uses an exact path instead of a wildcard',async()=>{
+ const h=harness([{status:204}]);await h.store.removePath('live-vocab/v1/123456/players/abc.enc');
+ assert.equal(h.calls[0].options.method,'DELETE');assert.equal(new URL(h.calls[0].url).searchParams.get('path'),'eq.live-vocab/v1/123456/players/abc.enc');
+});

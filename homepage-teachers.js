@@ -192,18 +192,14 @@ async function teacherNumbers(body,check=accountCheck) {
             const button=document.createElement('button');
             button.type='button';button.textContent='Delete user';
             button.setAttribute('aria-label','Delete user '+teacher.name+' ('+teacher.email+')');
-            const deletePages=document.createElement('input');deletePages.type='checkbox';deletePages.checked=!!teacher.deletingPages;
-            const deletePagesLabel=document.createElement('label');deletePagesLabel.className='delete-webpages-option';
-            deletePagesLabel.append(deletePages,document.createTextNode('Also permanently delete this user’s webpages, quizzes, and their published content (free this number for reuse)'));
             button.onclick=async()=>{
-                const removePages=deletePages.checked;
-                const warning=removePages?'Permanently delete '+teacher.name+' ('+teacher.email+'), teacher #'+teacher.userId+', AND all of their webpages, quizzes, and published content? This cannot be undone. Their number will become available for reuse.':'Delete '+teacher.name+' ('+teacher.email+'), teacher #'+teacher.userId+'? They will lose teacher access. Their quizzes and webpages will be kept, and their number will remain reserved.';
+                const warning='Permanently delete '+teacher.name+' ('+teacher.email+'), user #'+teacher.userId+', and ALL their Penina data, including webpages, quizzes, results, and saved account connections? This cannot be undone. Their email and number will be available for reuse when deletion finishes. Google Classroom and Drive will remain unchanged.';
                 if(!window.confirm(warning))return;
                 button.disabled=true;
-                try{await teacherNumbers({operation:'delete',userId:teacher.userId,email:teacher.email,deleteWebpages:removePages,deleteQuizzes:removePages,confirmPermanentDeletion:removePages});$('teacher-number-status').textContent=removePages?'User, webpages, and quizzes permanently deleted. Their number is now available for reuse.':'User deleted. Their quizzes and webpages have been kept.';}
+                try{await teacherNumbers({operation:'delete',userId:teacher.userId,email:teacher.email,confirmPermanentDeletion:true});$('teacher-number-status').textContent='User deleted. All their Penina data has been removed. Their email and number are now available for reuse.';}
                 catch(error){$('teacher-number-status').textContent=error.message;button.disabled=false;}
             };
-            item.append(button,deletePagesLabel);
+            item.append(button);
             const resend=document.createElement('button');resend.type='button';resend.textContent='Resend welcome email';
             resend.onclick=async()=>{resend.disabled=true;$('teacher-number-status').textContent='Sending welcome email…';try{const result=await teacherRequest({operation:'welcome',userId:teacher.userId});$('teacher-number-status').textContent=result.welcomeEmail?.status==='accepted'?'Welcome email sent.':'User exists, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Please retry.');}catch(error){$('teacher-number-status').textContent=error.message;}finally{resend.disabled=false;}};
             item.append(resend);

@@ -246,7 +246,7 @@ test('Google-only teacher login derives privileges from the verified registered 
     assert.equal((await h.run(callback)).code,403);
     assert.equal(h.blobs.has('quiz-google/teachers/student-id.txt'),false);
     h.state.email='disrael@saracademy.org';h.state.unverified=true;assert.equal((await h.run(callback)).code,401);h.state.unverified=false;
-    const result=await h.run(callback);assert.equal(result.code,303);assert.equal(result.headers.Location,'/Penina-Quizzes/teacher/');
+    const result=await h.run(callback);assert.equal(result.code,303);assert.equal(result.headers.Location,'/');
     const cookie=result.headers['Set-Cookie'][1].split(';')[0];
     assert(result.headers['Set-Cookie'][1].includes('Max-Age=2592000'));
     assert.equal(h.api.isAccountOwner({headers:{cookie}}),true);
@@ -324,7 +324,7 @@ test('Returning teachers reuse saved refresh tokens without repeating consent',a
  h.blobs.set('quiz-google/teachers/student-id.txt',h.api.seal({refreshToken:'existing-token'}));
  const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true}}));
  const result=await h.run(h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));
- assert.equal(result.code,303);assert.equal(result.headers.Location,'/Penina-Quizzes/teacher/');
+ assert.equal(result.code,303);assert.equal(result.headers.Location,'/');
  assert.equal(h.api.unseal(h.blobs.get('quiz-google/teachers/student-id.txt')).refreshToken,'existing-token');
  assert.equal(h.state.options.prompt,'select_account');
 });
@@ -335,7 +335,7 @@ test('Missing offline access requests consent once, while explicit reconnect req
  const callback=(cookie)=>h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:cookie.split(';')[0]}});
  const retry=await h.run(callback(login.headers['Set-Cookie']));assert.equal(retry.code,303);assert(retry.headers.Location.startsWith('https://accounts.google.com/'));assert.equal(h.state.options.prompt,'consent');
  assert.equal((await h.run(callback(retry.headers['Set-Cookie']))).code,403);
- h.state.noRefresh=false;assert.equal((await h.run(callback(retry.headers['Set-Cookie']))).headers.Location,'/Penina-Quizzes/teacher/');
+ h.state.noRefresh=false;assert.equal((await h.run(callback(retry.headers['Set-Cookie']))).headers.Location,'/');
  req.body.reconnect=true;await h.run(req);assert.equal(h.state.options.prompt,'select_account consent');
 });
 
@@ -402,3 +402,13 @@ test('Email routes require same-origin POST and issue the normal secure teacher 
   }
  }
 });
+
+for (const returnHome of [undefined, false, true]) {
+ test(`Account sign-in returns home with returnHome=${returnHome}`,async()=>{
+  const h=harness();h.state.email='second@school.org';
+  const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true,...(returnHome===undefined?{}:{returnHome})}}));
+  assert.equal(login.code,200);
+  const result=await h.run(h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));
+  assert.equal(result.code,303);assert.equal(result.headers.Location,'/');
+ });
+}

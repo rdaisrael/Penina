@@ -180,13 +180,13 @@ async function teacherNumbers(body,check=accountCheck) {
             button.setAttribute('aria-label','Delete user '+teacher.name+' ('+teacher.email+')');
             const deletePages=document.createElement('input');deletePages.type='checkbox';deletePages.checked=!!teacher.deletingPages;
             const deletePagesLabel=document.createElement('label');deletePagesLabel.className='delete-webpages-option';
-            deletePagesLabel.append(deletePages,document.createTextNode('Also permanently delete this user’s webpages and their published content'));
+            deletePagesLabel.append(deletePages,document.createTextNode('Also permanently delete this user’s webpages, quizzes, and their published content (free this number for reuse)'));
             button.onclick=async()=>{
                 const removePages=deletePages.checked;
-                const warning=removePages?'Permanently delete '+teacher.name+' ('+teacher.email+'), teacher #'+teacher.userId+', AND all of their webpages and published content? This cannot be undone. Their quizzes will be kept.':'Delete '+teacher.name+' ('+teacher.email+'), teacher #'+teacher.userId+'? They will lose teacher access. Their quizzes and webpages will be kept, and their number will remain reserved.';
+                const warning=removePages?'Permanently delete '+teacher.name+' ('+teacher.email+'), teacher #'+teacher.userId+', AND all of their webpages, quizzes, and published content? This cannot be undone. Their number will become available for reuse.':'Delete '+teacher.name+' ('+teacher.email+'), teacher #'+teacher.userId+'? They will lose teacher access. Their quizzes and webpages will be kept, and their number will remain reserved.';
                 if(!window.confirm(warning))return;
                 button.disabled=true;
-                try{await teacherNumbers({operation:'delete',userId:teacher.userId,email:teacher.email,deleteWebpages:removePages,confirmPermanentDeletion:removePages});$('teacher-number-status').textContent=removePages?'User and webpages permanently deleted. Their quizzes have been kept.':'User deleted. Their quizzes and webpages have been kept.';}
+                try{await teacherNumbers({operation:'delete',userId:teacher.userId,email:teacher.email,deleteWebpages:removePages,deleteQuizzes:removePages,confirmPermanentDeletion:removePages});$('teacher-number-status').textContent=removePages?'User, webpages, and quizzes permanently deleted. Their number is now available for reuse.':'User deleted. Their quizzes and webpages have been kept.';}
                 catch(error){$('teacher-number-status').textContent=error.message;button.disabled=false;}
             };
             item.append(button,deletePagesLabel);

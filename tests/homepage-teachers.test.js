@@ -40,7 +40,7 @@ test('Deleting webpages is opt-in and shows an irreversible warning before sendi
  const v=await view(owner,false,true,true),row=v.elements.get('teacher-list').items[1];
  const checkbox=row.items[1].items[0];assert.equal(checkbox.checked,false);checkbox.checked=true;
  await row.items[0].onclick();assert.match(v.warnings[0],/cannot be undone/);assert.match(v.warnings[0],/all of their webpages/);
- assert.equal(v.payloads[0].deleteWebpages,true);assert.equal(v.payloads[0].confirmPermanentDeletion,true);
+ assert.equal(v.payloads[0].deleteWebpages,true);assert.equal(v.payloads[0].deleteQuizzes,true);assert.equal(v.payloads[0].confirmPermanentDeletion,true);
  const cancelled=await view(owner,false,true,false),other=cancelled.elements.get('teacher-list').items[1];other.items[1].items[0].checked=true;await other.items[0].onclick();assert.equal(cancelled.payloads.length,0);
 });
 

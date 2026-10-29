@@ -63,7 +63,7 @@ if(typeof location!=='undefined' && location.hash.startsWith('#email-signin=')) 
 function showApps(user) {
     const apps=user?.userId===1?['reader','vocabulary','binyan','quizzes']:(user?.apps || []);
     document.querySelectorAll('[data-webapp]').forEach(card=>{card.hidden=!apps.includes(card.dataset.webapp);});
-    $('app-access-status').textContent=user?(apps.length?'':'No webapps have been assigned to you yet. Contact David Israel for access.'):'Sign in to see your available webapps.';
+    $('app-access-status').textContent=user?(apps.length?'':'No webapps have been assigned to you yet. Contact David Israel for access.'):'';
 }
 function hideManagement() {
     accountCheck++;
@@ -124,7 +124,7 @@ async function teacherNumbers(body) {
             };
             item.append(button,deletePagesLabel);
             const resend=document.createElement('button');resend.type='button';resend.textContent='Resend welcome email';
-            resend.onclick=async()=>{resend.disabled=true;try{const result=await teacherNumbers({operation:'welcome',userId:teacher.userId});$('teacher-number-status').textContent=result.welcomeEmail?.status==='accepted'?'Welcome email sent.':'User exists, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Please retry.');}catch(error){$('teacher-number-status').textContent=error.message;}finally{resend.disabled=false;}};
+            resend.onclick=async()=>{resend.disabled=true;$('teacher-number-status').textContent='Sending welcome email…';try{const result=await teacherRequest({operation:'welcome',userId:teacher.userId});$('teacher-number-status').textContent=result.welcomeEmail?.status==='accepted'?'Welcome email sent.':'User exists, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Please retry.');}catch(error){$('teacher-number-status').textContent=error.message;}finally{resend.disabled=false;}};
             item.append(resend);
             const access=document.createElement('fieldset');access.className='user-app-access';access.disabled=!!teacher.deletingPages;
             const legend=document.createElement('legend');legend.textContent='Webapp access';access.append(legend);

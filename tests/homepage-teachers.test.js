@@ -1,9 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const source=fs.readFileSync(require.resolve('../homepage-teachers.js'),'utf8');
-async function view(user,denied=false,extraTeacher=false,confirmed=true) {
+async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResult=null) {
  const elements=new Map(),events={},calls=[],warnings=[],payloads=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,replaceChildren(){this.items=[];},append(...items){this.items.push(...items);},reset(){},textContent:''});return elements.get(id);};
- vm.runInNewContext(source,{document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(options?.method==='POST'){payloads.push(JSON.parse(options.body));extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user,json:async()=>user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
+ vm.runInNewContext(source,{document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user,json:async()=>user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
  await events.pageshow();return {elements,events,calls,warnings,payloads};
 }
 test('Homepage hides user management for visitors and all other accounts',async()=>{
@@ -65,3 +65,17 @@ test('Email request form submits the entered address and displays the acknowledg
  assert.equal(v.payloads[0].email,'teacher@outlook.com');assert(v.calls.at(-1).endsWith('action=email-login'));
  assert.equal(v.elements.get('teacher-signin-status').textContent,'Check your inbox.');assert.equal(button.disabled,false);
 });
+
+for(const result of [{status:'accepted'}, {status:'failed',error:'Email unavailable'}, new Error('Connection failed')]) {
+ test('Resend button reports '+(result.status || 'connection failure')+' and allows retry without resetting edits',async()=>{
+  const v=await view({userId:1,email:'disrael@saracademy.org'},false,true,true,result);
+  const row=v.elements.get('teacher-list').items[1],button=row.items.find(item=>item.textContent==='Resend welcome email');
+  const editor=row.items.find(item=>item.className==='user-app-access');editor.items[1].items[0].checked=false;
+  const pending=button.onclick();assert.equal(button.disabled,true);assert.match(v.elements.get('teacher-number-status').textContent,/Sending/);
+  await pending;assert.equal(button.disabled,false);
+  assert.deepEqual(v.payloads[0],{operation:'welcome',userId:2,action:'teachers'});
+  assert.equal(v.elements.get('teacher-list').items[1],row);assert.equal(editor.items[1].items[0].checked,false);
+  assert.match(v.elements.get('teacher-number-status').textContent,result.status==='accepted'?/Welcome email sent/:result.status==='failed'?/Email unavailable/:/Connection failed/);
+  await button.onclick();assert.equal(v.payloads.length,2);
+ });
+}

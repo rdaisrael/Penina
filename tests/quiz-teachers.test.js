@@ -1,9 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),crypto=require('node:crypto');
 function harness(emailFails=false,pageDeletionFails=false){
- let beforePut=async()=>{};const etag=value=>crypto.createHash('sha256').update(value).digest('hex');const blobs=new Map(),emails=[],deletedOwners=[];const account={session:req=>({role:'teacher',userId:2,email:'second@example.org'}),isAccountOwner:req=>req.headers?.cookie==='david',verifyTeacher:()=>false,seal:value=>Buffer.from(JSON.stringify(value)).toString('base64'),unseal:raw=>JSON.parse(Buffer.from(raw,'base64').toString())};
- const ctx={module:{exports:{}},Buffer,Response,fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:n=>n==='crypto'?crypto:n==='./vocabulary-pages'?{deleteOwnedPages:async id=>{deletedOwners.push(id);if(pageDeletionFails)throw Error('Storage failed');return 2;}}:n==='./teacher-apps'?require('../lib/teacher-apps'):n==='./teacher-welcome-email'?{sendWelcome:async teacher=>{if(emailFails)throw Error('Email unavailable');emails.push(teacher);return {status:'accepted',to:teacher.email};}}:n==='./quiz-account'?account:{get:async(url,options)=>{assert.equal(options.useCache,false);const value=blobs.get(url);return value===undefined?null:{statusCode:200,stream:new Response(value).body,blob:{etag:etag(value)}};},list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,value,options)=>{await beforePut(value,options);if(options.ifMatch && options.ifMatch!==etag(blobs.get(p)||''))throw Object.assign(Error('Conflict'),{name:'BlobPreconditionFailedError'});if(blobs.has(p)&&!options.allowOverwrite)throw Error('exists');blobs.set(p,value);return {etag:etag(value)};}}};
+ let beforePut=async()=>{};const etag=value=>crypto.createHash('sha256').update(value).digest('hex');const blobs=new Map(),emails=[],emailOptions=[],deletedOwners=[];const account={session:req=>({role:'teacher',userId:2,email:'second@example.org'}),isAccountOwner:req=>req.headers?.cookie==='david',verifyTeacher:()=>false,seal:value=>Buffer.from(JSON.stringify(value)).toString('base64'),unseal:raw=>JSON.parse(Buffer.from(raw,'base64').toString())};
+ const ctx={module:{exports:{}},Buffer,Response,fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:n=>n==='crypto'?crypto:n==='./vocabulary-pages'?{deleteOwnedPages:async id=>{deletedOwners.push(id);if(pageDeletionFails)throw Error('Storage failed');return 2;}}:n==='./teacher-apps'?require('../lib/teacher-apps'):n==='./teacher-welcome-email'?{sendWelcome:async (teacher,options)=>{if(emailFails)throw Error('Email unavailable');emails.push(teacher);emailOptions.push(options);return {status:'accepted',to:teacher.email};}}:n==='./quiz-account'?account:{get:async(url,options)=>{assert.equal(options.useCache,false);const value=blobs.get(url);return value===undefined?null:{statusCode:200,stream:new Response(value).body,blob:{etag:etag(value)}};},list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,value,options)=>{await beforePut(value,options);if(options.ifMatch && options.ifMatch!==etag(blobs.get(p)||''))throw Object.assign(Error('Conflict'),{name:'BlobPreconditionFailedError'});if(blobs.has(p)&&!options.allowOverwrite)throw Error('exists');blobs.set(p,value);return {etag:etag(value)};}}};
  vm.runInNewContext(fs.readFileSync(require.resolve('../lib/quiz-teachers'),'utf8'),ctx);
- return {api:ctx.module.exports,blobs,emails,deletedOwners,setBeforePut:fn=>{beforePut=fn;},setPageDeletionFails:value=>{pageDeletionFails=value;},req:(body={},cookie='david')=>({method:'POST',headers:{cookie,origin:'https://www.penina-hebrew.org'},body})};
+ return {api:ctx.module.exports,blobs,emails,emailOptions,deletedOwners,setBeforePut:fn=>{beforePut=fn;},setPageDeletionFails:value=>{pageDeletionFails=value;},req:(body={},cookie='david')=>({method:'POST',headers:{cookie,origin:'https://www.penina-hebrew.org'},body})};
 }
 const teacher={userId:2,name:'Second Teacher',email:'second@example.org',apps:['reader','vocabulary']};
 test('Only signed-in David can allocate a number without an assignment password; records persist without exposing verifiers',async()=>{
@@ -114,4 +114,13 @@ test('A stale access save cannot resurrect a user deleted by another request',as
  const rejected=assert.rejects(save,e=>e.status===409);
  await reached;await h.api.manage(h.req({operation:'delete',userId:2,email:teacher.email}));release();await rejected;
  assert.equal(await h.api.registered(teacher.email),null);
+});
+
+test('Welcome resend uses saved teacher details and requests a fresh delivery',async()=>{
+ const h=harness();await h.api.manage(h.req(teacher));
+ const result=await h.api.manage(h.req({operation:'welcome',userId:2,email:'wrong@example.org'}));
+ assert.equal(result.welcomeEmail.status,'accepted');assert.equal(h.emails[1].email,teacher.email);assert.equal(h.emailOptions[1].resend,true);
+ const cross=h.req({operation:'welcome',userId:2});cross.headers.origin='https://other.example';await assert.rejects(h.api.manage(cross),e=>e.status===403);
+ await assert.rejects(h.api.manage(h.req({operation:'welcome',userId:999})),e=>e.status===404);
+ assert.equal(h.emails.length,2);
 });

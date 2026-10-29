@@ -11,9 +11,12 @@ test('Homepage hides user management for visitors and all other accounts',async(
   const v=await view(user);assert.equal(v.elements.get('teacher-numbers').hidden,true);assert.equal(v.calls.length,user?2:1);
  }
 });
-test('Homepage shows owner management only after the protected directory authorizes access',async()=>{
+test('Homepage preserves owner controls and reports protected directory failures',async()=>{
  const owner={userId:1,email:'disrael@saracademy.org'};
- const denied=await view(owner,true);assert.equal(denied.elements.get('teacher-numbers').hidden,true);
+ const denied=await view(owner,true);assert.equal(denied.elements.get('teacher-numbers').hidden,false);
+ assert.equal(denied.elements.get('teacher-number-status').textContent,'Denied');
+ assert.equal(denied.elements.get('signed-in-account').hidden,false);
+ assert.equal(denied.elements.get('your-webpages').hidden,false);
  const v=await view(owner);assert.equal(v.elements.get('teacher-numbers').hidden,false);assert.equal(v.elements.get('teacher-list').items.length,1);
  v.events.pagehide();assert.equal(v.elements.get('teacher-numbers').hidden,true);assert.equal(v.elements.get('teacher-list').items.length,0);
 });
@@ -103,3 +106,13 @@ test('Webpages shows empty and failure states without hiding the signed-in accou
  const empty=await view(user);assert.match(empty.elements.get('your-webpages-status').textContent,/haven’t published/);
  const failed=await view(user,false,false,true,null,null,{error:'Please retry'});assert.equal(failed.elements.get('your-webpages-status').textContent,'Please retry');assert.equal(failed.elements.get('signed-in-account').hidden,false);
 });
+
+ test('Directory failure preserves published links and provides a retry without clearing the account',async()=>{
+ const v=await view({userId:1,email:'disrael@saracademy.org'},true,false,true,null,null,{pages:[{name:'Published class',url:'/PeninaPlus-vocab-builder/flash-cards/?page=class'}]});
+ assert.equal(v.elements.get('your-webpages-list').items[0].items[0].textContent,'Published class');
+ await v.elements.get('teacher-retry').onclick();
+ assert.equal(v.elements.get('teacher-number-status').textContent,'Denied');
+ assert.equal(v.elements.get('signed-in-account').hidden,false);
+ await v.elements.get('webpages-retry').onclick();
+ assert.equal(v.elements.get('your-webpages-list').items.length,1);
+ });

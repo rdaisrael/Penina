@@ -90,6 +90,7 @@ function showApps(user) {
 async function showWebpages(check) {
     $('your-webpages').hidden=false;
     $('your-webpages-status').textContent='Loading your webpages…';
+    $('your-webpages-list').replaceChildren();
     try {
         const response=await fetch('/api/vocabulary-pages?action=my-pages',{cache:'no-store'});
         const data=await response.json();
@@ -120,25 +121,42 @@ function hideManagement() {
     $('assign-teacher').reset();
     $('teacher-number-status').textContent = '';
 }
+async function loadManagement(check) {
+    $('teacher-numbers').hidden=false;
+    $('teacher-number-status').textContent='Loading users…';
+    try {
+        await teacherNumbers(undefined,check);
+        if(check===accountCheck)$('teacher-number-status').textContent='';
+    } catch(error) {
+        if(check===accountCheck)$('teacher-number-status').textContent=error.message;
+    }
+}
+$('teacher-retry').onclick=()=>loadManagement(accountCheck);
+$('webpages-retry').onclick=()=>showWebpages(accountCheck);
 async function checkOwner() {
     hideManagement();
     const check = accountCheck;
+    let user;
     try {
         const response = await fetch('/api/game-scores?game=quiz-account&action=teacher', {cache:'no-store'});
-        if (!response.ok) return;
-        const user = await response.json();
-        if (check !== accountCheck) return;
-        if(user.passwordChangeRequired){showPasswordChange();return;}
-        showAccount(user);
-        showApps(user);
-        await showWebpages(check);
         if(check!==accountCheck)return;
-        if (user.userId !== 1 || user.email?.toLowerCase() !== 'disrael@saracademy.org') return;
+        if(response.status===401)return;
+        user=await response.json();
+        if(check!==accountCheck)return;
+        if(!response.ok || !user)throw Error(user?.error || 'Your account could not be loaded. Please refresh to try again.');
+    } catch(error) {
+        if(check===accountCheck)$('teacher-signin-status').textContent=error.message;
+        return;
+    }
+    if(user.passwordChangeRequired){showPasswordChange();return;}
+    showAccount(user);
+    showApps(user);
+    const loading=[showWebpages(check)];
+    if(user.userId===1 && user.email?.toLowerCase()==='disrael@saracademy.org') {
+        loading.push(loadManagement(check));
         window.PeninaVideos?.show(user);
-        await teacherNumbers();
-        if (check !== accountCheck) return;
-        $('teacher-numbers').hidden = false;
-    } catch (_) { if (check === accountCheck) hideManagement(); }
+    }
+    await Promise.all(loading);
 }
 window.addEventListener('pageshow', checkOwner);
 window.addEventListener('pagehide', hideManagement);
@@ -149,8 +167,9 @@ async function teacherRequest(body) {
     if(!response.ok)throw Error(data.error || 'Teacher numbers could not be loaded.');
     return data;
 }
-async function teacherNumbers(body) {
+async function teacherNumbers(body,check=accountCheck) {
     const data=await teacherRequest(body);
+    if(check!==accountCheck)return data;
     $('teacher-list').replaceChildren();
     for(const teacher of data.teachers){
         const item=document.createElement('li');

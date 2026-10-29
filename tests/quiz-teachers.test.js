@@ -201,3 +201,25 @@ test('Deletion ignores old keep-content flags and erases the stored identity',as
  assert.deepEqual(marker,{userId:2,deleted:true,reusable:true});
  await h.api.manage(h.req(teacher));assert.equal((await h.api.registered(teacher.email)).userId,2);
 });
+
+for(const reusable of [false,true])test(`Legacy deleted identity can be cleaned and reused (reusable=${reusable})`,async()=>{
+ const h=harness();
+ const legacy={userId:2,email:'beta@penina-hebrew.org',deleted:true,reusable};
+ h.blobs.set('quiz-teacher-numbers/2.txt',Buffer.from(JSON.stringify(legacy)).toString('base64'));
+ const list=await h.api.manage({method:'GET',headers:{cookie:'david'}});
+ assert.equal(list.teachers[1].email,legacy.email);assert.equal(list.teachers[1].deletingPages,true);
+ assert.equal(await h.api.registered(legacy.email),null);
+ await assert.rejects(h.api.manage(h.req({...teacher,email:legacy.email})),e=>e.status===409 && /cleanup is unfinished/.test(e.message));
+ const deletion={operation:'delete',userId:2,email:legacy.email};
+ await assert.rejects(h.api.manage(h.req({...deletion,email:'wrong@example.org'})),e=>e.status===409);
+ h.setPageDeletionFails(true);
+ await assert.rejects(h.api.manage(h.req(deletion)),e=>e.status===503);
+ assert.equal((await h.api.manage({method:'GET',headers:{cookie:'david'}})).teachers.length,2);
+ h.setPageDeletionFails(false);
+ await h.api.manage(h.req(deletion));
+ const marker=JSON.parse(Buffer.from(h.blobs.get('quiz-teacher-numbers/2.txt'),'base64').toString());
+ assert.deepEqual(marker,{userId:2,deleted:true,reusable:true});
+ assert.deepEqual(h.deletedOwners,[2]);
+ await h.api.manage(h.req({...teacher,email:legacy.email}));
+ assert.equal((await h.api.registered(legacy.email)).userId,2);
+});

@@ -3,6 +3,13 @@
 (() => {
 const $ = id => document.getElementById(id);
 let accountCheck = 0;
+let assignmentStatusTimer;
+function setAssignmentStatus(message, dismiss=false) {
+    clearTimeout(assignmentStatusTimer);
+    $('assign-teacher-status').textContent=message;
+    if(dismiss)assignmentStatusTimer=setTimeout(()=>setAssignmentStatus(''),8000);
+}
+$('assign-teacher').oninput=()=>setAssignmentStatus('');
 const appChoices=[['reader','Penina Hebrew Reader'],['vocabulary','Penina Vocabulary Builder'],['binyan','Penina Binyan Builder'],['quizzes','Penina Quizzes']];
 function greetingName(name) {
     const parts=String(name || '').trim().split(/\s+/);
@@ -120,7 +127,7 @@ function hideManagement() {
     $('teacher-list').replaceChildren();
     $('assign-teacher').reset();
     $('teacher-number-status').textContent = '';
-    $('assign-teacher-status').textContent = '';
+    setAssignmentStatus('');
 }
 async function loadManagement(check) {
     $('teacher-numbers').hidden=false;
@@ -231,9 +238,9 @@ $('assign-teacher').onsubmit=async event=>{
     event.preventDefault();const form=event.target,button=form.querySelector('button[type=submit]');
     if(button.disabled)return;
     button.disabled=true;button.textContent='Adding user…';
-    $('assign-teacher-status').textContent='Adding user and sending welcome email…';
-    try{const fields=new FormData(form);const result=await teacherNumbers({...Object.fromEntries(fields),apps:fields.getAll('apps')});form.reset();$('assign-teacher-status').textContent=result.welcomeEmail?.status==='accepted'?'Teacher added. Welcome email sent with sign-in instructions.':'Teacher added, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Use Resend welcome email to retry.');}
-    catch(error){$('assign-teacher-status').textContent=error.message;}finally{button.disabled=false;button.textContent='Assign teacher number';}
+    setAssignmentStatus('Adding user and sending welcome email…');
+    try{const fields=new FormData(form);const result=await teacherNumbers({...Object.fromEntries(fields),apps:fields.getAll('apps')});form.reset();setAssignmentStatus(result.welcomeEmail?.status==='accepted'?'Teacher added. Welcome email sent with sign-in instructions.':'Teacher added, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Use Resend welcome email to retry.'),true);}
+    catch(error){setAssignmentStatus(error.message,true);}finally{button.disabled=false;button.textContent='Assign teacher number';}
 };
 
 })();

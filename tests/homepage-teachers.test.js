@@ -1,10 +1,11 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const source=fs.readFileSync(require.resolve('../homepage-teachers.js'),'utf8');
 async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResult=null,accountResult=null,pagesResult={pages:[]}) {
+ const timers=new Map();let timerId=0;
  const elements=new Map(),events={},calls=[],warnings=[],payloads=[],redirects=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,replaceChildren(){this.items=[];},append(...items){this.items.push(...items);},reset(){},textContent:''});return elements.get(id);};
- vm.runInNewContext(source,{AbortSignal,FormData:class {constructor(form){return form.fields;}},location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
- await events.pageshow();return {elements,events,calls,warnings,payloads,redirects};
+ vm.runInNewContext(source,{setTimeout:(callback,delay)=>{timers.set(++timerId,{callback,delay});return timerId;},clearTimeout:id=>timers.delete(id),AbortSignal,FormData:class {constructor(form){return form.fields;}},location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
+ await events.pageshow();return {elements,events,calls,warnings,payloads,redirects,timers};
 }
 test('Homepage hides user management for visitors and all other accounts',async()=>{
  for(const user of [null,{userId:2,email:'teacher@example.org'},{userId:1,email:'other@example.org'}]) {
@@ -130,4 +131,16 @@ test('Assign user reports progress and failure beside the form and preserves ent
  const pending=v.elements.get('assign-teacher').onsubmit(event);
  assert.equal(button.textContent,'Adding user…');assert.match(v.elements.get('assign-teacher-status').textContent,/Adding user/);
  await pending;assert.equal(button.disabled,false);assert.equal(resets,0);assert.equal(v.elements.get('assign-teacher-status').textContent,'Denied');
+});
+
+test('Assignment errors disappear after eight seconds or when the form is edited',async()=>{
+ const v=await view({userId:1,email:'disrael@saracademy.org'},true);
+ const form=v.elements.get('assign-teacher'),status=v.elements.get('assign-teacher-status');
+ const button={disabled:false};form.querySelector=()=>button;form.fields=new URLSearchParams();
+ await form.onsubmit({preventDefault(){},target:form});
+ assert.equal(status.textContent,'Denied');
+ const timer=[...v.timers.values()][0];assert.equal(timer.delay,8000);timer.callback();
+ assert.equal(status.textContent,'');assert.equal(v.timers.size,0);
+ await form.onsubmit({preventDefault(){},target:form});
+ form.oninput();assert.equal(status.textContent,'');assert.equal(v.timers.size,0);
 });

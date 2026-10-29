@@ -1,14 +1,14 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const source=fs.readFileSync(require.resolve('../homepage-teachers.js'),'utf8');
-async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResult=null,accountResult=null) {
+async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResult=null,accountResult=null,pagesResult={pages:[]}) {
  const elements=new Map(),events={},calls=[],warnings=[],payloads=[],redirects=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,replaceChildren(){this.items=[];},append(...items){this.items.push(...items);},reset(){},textContent:''});return elements.get(id);};
- vm.runInNewContext(source,{location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
+ vm.runInNewContext(source,{location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
  await events.pageshow();return {elements,events,calls,warnings,payloads,redirects};
 }
 test('Homepage hides user management for visitors and all other accounts',async()=>{
  for(const user of [null,{userId:2,email:'teacher@example.org'},{userId:1,email:'other@example.org'}]) {
-  const v=await view(user);assert.equal(v.elements.get('teacher-numbers').hidden,true);assert.equal(v.calls.length,1);
+  const v=await view(user);assert.equal(v.elements.get('teacher-numbers').hidden,true);assert.equal(v.calls.length,user?2:1);
  }
 });
 test('Homepage shows owner management only after the protected directory authorizes access',async()=>{
@@ -24,7 +24,7 @@ test('Delete user is offered only for other teachers, requires confirmation, and
  const cancelled=await view(owner,false,true,false);
  assert.equal(cancelled.elements.get('teacher-list').items[0].items.length,0);
  const cancelButton=cancelled.elements.get('teacher-list').items[1].items[0];
- assert.equal(cancelButton.textContent,'Delete user');await cancelButton.onclick();assert.equal(cancelled.calls.length,2);
+ assert.equal(cancelButton.textContent,'Delete user');await cancelButton.onclick();assert.equal(cancelled.calls.length,3);
  const accepted=await view(owner,false,true,true);
  await accepted.elements.get('teacher-list').items[1].items[0].onclick();
  assert.equal(accepted.elements.get('teacher-list').items.length,1);
@@ -90,4 +90,16 @@ test('Temporary password login requires matching new passwords before continuing
  await v.elements.get('password-change-form').onsubmit(event);assert.match(v.elements.get('password-change-status').textContent,/do not match/);assert.equal(v.payloads.length,1);
  v.elements.get('confirm-password').value='My new long password!';await v.elements.get('password-change-form').onsubmit(event);
  assert(v.calls.at(-1).endsWith('action=password-change'));assert.deepEqual(v.redirects,['/']);assert.equal(button.disabled,false);
+});
+
+test('Signed-in users see their linked webpages below their apps and logout clears them',async()=>{
+ const v=await view({userId:2,email:'second@example.org',apps:[]},false,false,true,null,null,{pages:[{name:'My class',url:'/PeninaPlus-vocab-builder/flash-cards/?page=my-class'}]});
+ assert.equal(v.elements.get('your-webpages').hidden,false);
+ const link=v.elements.get('your-webpages-list').items[0].items[0];assert.equal(link.textContent,'My class');assert.equal(link.href,'/PeninaPlus-vocab-builder/flash-cards/?page=my-class');
+ v.events.pagehide();assert.equal(v.elements.get('your-webpages').hidden,true);assert.equal(v.elements.get('your-webpages-list').items.length,0);
+});
+test('Webpages shows empty and failure states without hiding the signed-in account',async()=>{
+ const user={userId:2,email:'second@example.org'};
+ const empty=await view(user);assert.match(empty.elements.get('your-webpages-status').textContent,/haven’t published/);
+ const failed=await view(user,false,false,true,null,null,{error:'Please retry'});assert.equal(failed.elements.get('your-webpages-status').textContent,'Please retry');assert.equal(failed.elements.get('signed-in-account').hidden,false);
 });

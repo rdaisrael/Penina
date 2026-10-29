@@ -87,7 +87,29 @@ function showApps(user) {
     document.querySelectorAll('[data-webapp]').forEach(card=>{card.hidden=!apps.includes(card.dataset.webapp);});
     $('app-access-status').textContent=user?(apps.length?'':'No webapps have been assigned to you yet. Contact David Israel for access.'):'';
 }
+async function showWebpages(check) {
+    $('your-webpages').hidden=false;
+    $('your-webpages-status').textContent='Loading your webpages…';
+    try {
+        const response=await fetch('/api/vocabulary-pages?action=my-pages',{cache:'no-store'});
+        const data=await response.json();
+        if(check!==accountCheck)return;
+        if(!response.ok)throw Error(data.error || 'Your webpages could not be loaded. Refresh the page to try again.');
+        for(const page of data.pages || []) {
+            // Public page links must stay within Penina's published webpage routes.
+            if(typeof page.url!=='string' || !page.url.startsWith('/PeninaPlus-vocab-builder/flash-cards/'))continue;
+            const item=document.createElement('li'),link=document.createElement('a');
+            link.href=page.url;link.textContent=page.name;item.append(link);$('your-webpages-list').append(item);
+        }
+        $('your-webpages-status').textContent=data.pages?.length?'':'You haven’t published any webpages yet.';
+    } catch(error) {
+        if(check===accountCheck)$('your-webpages-status').textContent=error.message;
+    }
+}
 function hideManagement() {
+    $('your-webpages').hidden=true;
+    $('your-webpages-list').replaceChildren();
+    $('your-webpages-status').textContent='';
     $('password-change-panel').hidden=true;
     accountCheck++;
     window.PeninaVideos?.hide();
@@ -109,6 +131,8 @@ async function checkOwner() {
         if(user.passwordChangeRequired){showPasswordChange();return;}
         showAccount(user);
         showApps(user);
+        await showWebpages(check);
+        if(check!==accountCheck)return;
         if (user.userId !== 1 || user.email?.toLowerCase() !== 'disrael@saracademy.org') return;
         window.PeninaVideos?.show(user);
         await teacherNumbers();

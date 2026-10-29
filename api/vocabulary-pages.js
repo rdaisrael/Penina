@@ -6,6 +6,12 @@ module.exports = async function(req,res) {
         await teachers.rejectDeletedSession(req);
         if (!['GET','POST'].includes(req.method)) return res.status(405).json({error:'Method Not Allowed'});
         if ((req.query?.action || req.body?.action)==='teachers') return res.status(200).json(await teachers.manage(req));
+        if(req.method==='GET' && req.query?.action==='my-pages') {
+            const user=require('../lib/quiz-account').session(req);
+            const teacher=user.role==='teacher' && await teachers.registered(user.email);
+            if(!teacher || teacher.userId!==user.userId || !Number.isSafeInteger(user.userId) || user.userId<1)return res.status(403).json({error:'Sign in with your registered teacher account to see your webpages.'});
+            return res.status(200).json({pages:await listPages(user.userId)});
+        }
         await require('../lib/teacher-apps').requireApps(req,['vocabulary']);
         let user;
         if ((req.headers?.cookie || '').includes('__Host-penina-quiz-session=')) {

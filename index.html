@@ -353,6 +353,12 @@
         #teacher-numbers button { cursor: pointer; font: inherit; min-height: 44px; }
         #teacher-numbers button:not(.password-visibility) { padding: 10px 16px; background: #f9f6ef; color: var(--text-dark); border: 1px solid var(--gold-border); border-radius: 6px; }
         #teacher-list { overflow-wrap: anywhere; }
+        #your-webpages { box-sizing: border-box; width: min(100% - 40px, 1000px); margin: 32px auto; padding: 24px; background: #fff; border: 1px solid #d8c79d; border-radius: 12px; }
+        #your-webpages h2 { margin-top: 0; }
+        #your-webpages-list { padding-left: 24px; overflow-wrap: anywhere; }
+        #your-webpages-list li { margin: 12px 0; }
+        #your-webpages-list a { color: inherit; text-underline-offset: 3px; }
+
         #video-manager { box-sizing:border-box; width:calc(100% - 40px); max-width:720px; margin:40px auto; padding:28px; background:white; border:2px solid var(--gold-border); border-radius:15px; font:1rem/1.5 Arial,sans-serif; text-align:left; }
         #video-manager h2 { text-align:center; }
         #video-manager label { display:grid; gap:6px; margin:16px 0; }
@@ -465,6 +471,12 @@
             <a href="/Penina-Quizzes/teacher/" class="btn">Launch</a>
         </div>
     </div>
+
+    <section id="your-webpages" class="panel" hidden aria-labelledby="your-webpages-heading">
+        <h2 id="your-webpages-heading">Your Webpages</h2>
+        <p id="your-webpages-status" role="status" aria-live="polite"></p>
+        <ul id="your-webpages-list"></ul>
+    </section>
 
     <section id="video-manager" hidden aria-labelledby="video-manager-heading">
         <h2 id="video-manager-heading">My videos</h2>

@@ -413,15 +413,10 @@ for (const returnHome of [undefined, false, true]) {
  });
 }
 
-for(const action of ['password-login','email-verify','google']) {
+for(const action of ['password-login','email-verify']) {
  test(action+' requires password setup before any full session is issued',async()=>{
   const h=harness();h.state.mustChangePassword=true;h.state.email='second@school.org';
-  let result;
-  if(action==='google'){
-   const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true}}));
-   result=await h.run(h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));
-   assert.equal(result.headers.Location,'/');
-  }else result=await h.run(h.request({method:'POST',query:{},body:{action,email:'second@school.org',password:'temporary-password',token:'test'}}));
+  const result=await h.run(h.request({method:'POST',query:{},body:{action,email:'second@school.org',password:'temporary-password',token:'test'}}));
   const cookie=result.headers['Set-Cookie'].find(c=>c.startsWith('__Host-penina-quiz-session=')).split(';')[0];
   const pending=h.api.unseal(cookie.split('=')[1]);assert.equal(pending.kind,'password-change');
   assert.throws(()=>h.api.session({headers:{cookie}}),e=>e.status===401);
@@ -437,4 +432,16 @@ test('Password setup rejects expired, missing and ordinary session cookies',asyn
  for(const cookie of ['',h.cookie({role:'teacher',userId:2}),h.cookie({kind:'password-change',role:'teacher',userId:2,credentialVersion:'version-1',exp:Date.now()-1})]){
   const result=await h.run(h.request({method:'POST',query:{},body:{action:'password-change',password:'New long password!'},headers:{cookie,origin:'https://www.penina-hebrew.org'}}));assert.equal(result.code,401);
  }
+});
+
+test('Registered Google Workspace sign-in goes home without changing the unused Penina password',async()=>{
+ const h=harness();h.state.mustChangePassword=true;h.state.email='second@school.org';
+ const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true}}));
+ const result=await h.run(h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));
+ assert.equal(result.code,303);assert.equal(result.headers.Location,'/');
+ const cookie=result.headers['Set-Cookie'].find(c=>c.startsWith('__Host-penina-quiz-session=')).split(';')[0];
+ const user=h.api.session({headers:{cookie}});assert.equal(user.authMethod,'google');assert.equal(user.email,h.state.email);assert.equal(user.userId,2);
+ const status=await h.run(h.request({query:{action:'teacher'},headers:{cookie}}));assert.equal(status.code,200);assert.equal(status.data.passwordChangeRequired,undefined);
+ assert.equal(h.state.mustChangePassword,true);assert.equal(h.state.changedPassword,undefined);
+ const password=await h.run(h.request({method:'POST',query:{},body:{action:'password-login',email:h.state.email,password:'temporary-password',authMethod:'google'}}));assert.equal(password.data.passwordChangeRequired,true);
 });

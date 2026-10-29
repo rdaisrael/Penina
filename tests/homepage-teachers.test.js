@@ -57,14 +57,7 @@ test('Existing user access can be added and removed without resetting other unsa
 });
 
 
-test('Email request form submits the entered address and displays the acknowledgement',async()=>{
- const v=await view({userId:2,email:'teacher@outlook.com',message:'Check your inbox.'});
- v.elements.set('signin-email',{value:'teacher@outlook.com'});
- const button={disabled:false};
- await v.elements.get('email-signin-form').onsubmit({preventDefault(){},target:{querySelector:()=>button}});
- assert.equal(v.payloads[0].email,'teacher@outlook.com');assert(v.calls.at(-1).endsWith('action=email-login'));
- assert.equal(v.elements.get('teacher-signin-status').textContent,'Check your inbox.');assert.equal(button.disabled,false);
-});
+
 
 for(const result of [{status:'accepted'}, {status:'failed',error:'Email unavailable'}, new Error('Connection failed')]) {
  test('Resend button reports '+(result.status || 'connection failure')+' and allows retry without resetting edits',async()=>{

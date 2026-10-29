@@ -70,13 +70,6 @@ $('password-change-cancel').onclick=async()=>{
     try{await emailRequest('logout',{});location.replace('/');}
     catch(error){$('password-change-status').textContent=error.message;}
 };
-$('email-signin-form').onsubmit=async event=>{
-    event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;
-    $('teacher-signin-status').textContent='Sending your sign-in link…';
-    try {const result=await emailRequest('email-login',{email:$('signin-email').value});$('teacher-signin-status').textContent=result.message;}
-    catch(error){$('teacher-signin-status').textContent=error.message;}
-    finally{button.disabled=false;}
-};
 // Keep the credential out of server request URLs and remove it from browser history.
 if(typeof location!=='undefined' && location.hash.startsWith('#email-signin=')) {
     const token=location.hash.slice('#email-signin='.length);
@@ -158,7 +151,7 @@ async function teacherNumbers(body) {
             resend.onclick=async()=>{resend.disabled=true;$('teacher-number-status').textContent='Sending welcome email…';try{const result=await teacherRequest({operation:'welcome',userId:teacher.userId});$('teacher-number-status').textContent=result.welcomeEmail?.status==='accepted'?'Welcome email sent.':'User exists, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Please retry.');}catch(error){$('teacher-number-status').textContent=error.message;}finally{resend.disabled=false;}};
             item.append(resend);
             const access=document.createElement('fieldset');access.className='user-app-access';access.disabled=!!teacher.deletingPages;
-            const legend=document.createElement('legend');legend.textContent='Webapp access';access.append(legend);
+            const legend=document.createElement('legend');legend.textContent='Webapp access for #'+teacher.userId+' — '+teacher.name;access.append(legend);
             const checks=appChoices.map(([id,name])=>{
                 const label=document.createElement('label'),input=document.createElement('input');
                 input.type='checkbox';input.value=id;input.checked=(teacher.apps || appChoices.map(app=>app[0])).includes(id);
@@ -181,7 +174,6 @@ async function teacherNumbers(body) {
     }
     return data;
 }
-$('load-teachers').onclick=async()=>{try{await teacherNumbers();$('teacher-number-status').textContent='';}catch(error){$('teacher-number-status').textContent=error.message;}};
 $('assign-teacher').onsubmit=async event=>{
     event.preventDefault();const form=event.target,button=form.querySelector('button[type=submit]');button.disabled=true;
     try{const fields=new FormData(form);const result=await teacherNumbers({...Object.fromEntries(fields),apps:fields.getAll('apps')});form.reset();$('teacher-number-status').textContent=result.welcomeEmail?.status==='accepted'?'Teacher added. Welcome email sent with sign-in instructions.':'Teacher added, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Use Resend welcome email to retry.');}

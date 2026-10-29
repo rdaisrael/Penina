@@ -117,6 +117,15 @@
             letter-spacing: normal;
         }
 
+        #password-signin-form > .btn,
+        #teacher-signin-button {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 420px;
+            min-height: 52px;
+            line-height: 24px;
+        }
+
         .email-signin { max-width: 420px; margin: 16px auto; font: 1rem/1.5 Arial, sans-serif; }
         .email-signin summary { cursor: pointer; text-decoration: underline; }
         .email-signin form { display: grid; gap: 10px; margin-top: 14px; text-align: left; }
@@ -388,12 +397,7 @@
         <nav id="teacher-signin" class="teacher-account" aria-label="Teacher account">
             <div class="email-signin"><form id="password-signin-form"><label for="password-email">Email address</label><input id="password-email" type="email" autocomplete="username" maxlength="254" required><label for="signin-password">Password</label><input id="signin-password" type="password" autocomplete="current-password" maxlength="256" required><button class="btn" type="submit">Sign in</button></form></div>
             <button id="teacher-signin-button" class="btn" type="button">Sign in with Google</button>
-            <details class="email-signin"><summary>Sign in with an email link</summary>
-                <p>Use your registered email address to receive a secure sign-in link. New users must still choose a new password before accessing their apps.</p>
-                <form id="email-signin-form"><label for="signin-email">Email address</label><input id="signin-email" name="email" type="email" autocomplete="email" maxlength="254" required><button class="btn" type="submit">Email me a sign-in link</button></form>
-            </details>
             <div id="email-signin-confirm" hidden><p>Confirm to sign in with the account that received this email link.</p><button id="email-signin-confirm-button" class="btn" type="button">Confirm email sign-in</button></div>
-            <p>Google Classroom quiz tools require a Google connection.</p>
             <p id="teacher-signin-status" role="status" aria-live="polite"></p>
         </nav>
         <section id="password-change-panel" class="email-signin" hidden aria-labelledby="password-change-heading">
@@ -488,7 +492,7 @@
         <p id="video-empty" hidden>No videos uploaded yet.</p>
         <ul id="video-list"></ul>
     </section>
-    <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Number 1 belongs to David Israel. Assign a different number to each teacher.</p><button id="load-teachers" type="button">Show assigned numbers</button><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> Penina Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> Penina Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> Penina Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email a temporary password and instructions to this school email. The user must choose a new password on first sign-in.</p><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
+    <section id="teacher-numbers" class="panel" hidden><h2>Manage users</h2><p>Each user below has their own app checkboxes. Scroll to the user you want to edit, check or uncheck apps, then click Save access in that user’s box.</p><ul id="teacher-list"></ul><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> Penina Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> Penina Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> Penina Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email instructions for both sign-in options. Users can sign in with Google using their registered email address, with no Penina password change. If they use the temporary Penina password instead, they must choose a new password the first time.</p><button type="submit">Assign teacher number</button></form><p id="teacher-number-status" role="status" aria-live="polite"></p></section>
 
     <footer>
         <div style="display: flex; flex-direction: column; align-items: center;">

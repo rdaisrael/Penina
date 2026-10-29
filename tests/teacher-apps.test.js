@@ -63,7 +63,7 @@ test('Welcome email explains the temporary password and required first-login cha
  await h.sendWelcome(teacher);await h.sendWelcome(teacher);
  assert.deepEqual(Array.from(h.calls[0].body.to),['school@example.org']);
  assert.match(h.calls[0].body.text,/Penina Hebrew Reader/);assert(!h.calls[0].body.text.includes('Vocabulary Builder'));
- assert.match(h.calls[0].body.text,/Sign in with an email link/);assert.match(h.calls[0].body.text,/Temporary password: random-temporary-password/);assert.match(h.calls[0].body.text,/land directly on the Penina home page/);assert.equal(h.calls[0].headers['Idempotency-Key'],h.calls[1].headers['Idempotency-Key']);
+ assert.match(h.calls[0].body.text,/contact David Israel/);assert.match(h.calls[0].body.text,/Temporary password: random-temporary-password/);assert.match(h.calls[0].body.text,/land directly on the Penina home page/);assert.equal(h.calls[0].headers['Idempotency-Key'],h.calls[1].headers['Idempotency-Key']);
  await assert.rejects(mailHarness(false).sendWelcome(teacher));await assert.rejects(mailHarness(true,false).sendWelcome(teacher));
 });
 
@@ -87,4 +87,15 @@ test('Welcome email has actual line breaks and explicit resend produces a new de
 test('Welcome resend after password setup does not promise a new temporary password',async()=>{
  const h=mailHarness();await h.sendWelcome({userId:2,name:'Teacher',email:'school@example.org',apps:[],mustChangePassword:false},{resend:true});
  assert.match(h.calls[0].body.text,/existing password has not changed/);assert(!h.calls[0].body.text.includes('Temporary password:'));
+});
+
+test('Google sessions bypass Penina password setup but still require assigned app access',async()=>{
+ const teacher={...user,apps:['reader'],mustChangePassword:true};
+ await access({...user,authMethod:'google'},teacher).requireApps({},['reader']);
+ await assert.rejects(access({...user,authMethod:'google'},teacher).requireApps({},['quizzes']),e=>e.status===403);
+ for(const authMethod of [undefined,'email','password'])await assert.rejects(access({...user,authMethod},teacher).requireApps({},['reader']),e=>e.status===403);
+});
+test('Welcome email offers Google Workspace and Penina password choices with separate passwords',async()=>{
+ const h=mailHarness();await h.sendWelcome({userId:2,name:'Teacher',email:'teacher@saracademy.org',apps:['reader'],mustChangePassword:true,temporaryPassword:'temporary-example'});
+ const text=h.calls[0].body.text;assert.match(text,/school Google Workspace account/);assert.match(text,/do not need to use or change a Penina password/);assert.match(text,/first time you use this method/);assert.match(text,/does not change your Google password/);assert.match(text,/Temporary password: temporary-example/);
 });

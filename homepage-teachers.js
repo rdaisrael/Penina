@@ -120,16 +120,20 @@ function hideManagement() {
     $('teacher-list').replaceChildren();
     $('assign-teacher').reset();
     $('teacher-number-status').textContent = '';
+    $('assign-teacher-status').textContent = '';
 }
 async function loadManagement(check) {
     $('teacher-numbers').hidden=false;
+    const button=$('teacher-retry');
+    if(button.disabled)return;
+    button.disabled=true;button.textContent='Refreshing users…';
     $('teacher-number-status').textContent='Loading users…';
     try {
-        await teacherNumbers(undefined,check);
-        if(check===accountCheck)$('teacher-number-status').textContent='';
+        const data=await teacherNumbers(undefined,check);
+        if(check===accountCheck)$('teacher-number-status').textContent='User list refreshed. '+data.teachers.length+' users.';
     } catch(error) {
         if(check===accountCheck)$('teacher-number-status').textContent=error.message;
-    }
+    } finally {button.disabled=false;button.textContent='Refresh users';}
 }
 $('teacher-retry').onclick=()=>loadManagement(accountCheck);
 $('webpages-retry').onclick=()=>showWebpages(accountCheck);
@@ -162,9 +166,19 @@ window.addEventListener('pageshow', checkOwner);
 window.addEventListener('pagehide', hideManagement);
 
 async function teacherRequest(body) {
-    const response=await fetch('/api/vocabulary-pages?action=teachers',body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,action:'teachers'})}:{cache:'no-store'});
-    const data=await response.json();
-    if(!response.ok)throw Error(data.error || 'Teacher numbers could not be loaded.');
+    let response,data;
+    try {
+        response=await fetch('/api/vocabulary-pages?action=teachers',{
+            ...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,action:'teachers'})}:{cache:'no-store'}),
+            signal:AbortSignal.timeout(30000)
+        });
+        try {data=await response.json();}
+        catch(_){throw Error('The user service returned an unreadable response. Refresh users to check the current list.');}
+    } catch(error) {
+        if(error.name==='TimeoutError' || error.name==='AbortError')throw Error(body?'The request timed out. It may still have completed. Refresh users before trying again.':'Loading users timed out. Please try Refresh users again.');
+        throw error;
+    }
+    if(!response.ok)throw Error(data.error || 'Users could not be loaded or saved. Please try again.');
     return data;
 }
 async function teacherNumbers(body,check=accountCheck) {
@@ -218,9 +232,12 @@ async function teacherNumbers(body,check=accountCheck) {
     return data;
 }
 $('assign-teacher').onsubmit=async event=>{
-    event.preventDefault();const form=event.target,button=form.querySelector('button[type=submit]');button.disabled=true;
-    try{const fields=new FormData(form);const result=await teacherNumbers({...Object.fromEntries(fields),apps:fields.getAll('apps')});form.reset();$('teacher-number-status').textContent=result.welcomeEmail?.status==='accepted'?'Teacher added. Welcome email sent with sign-in instructions.':'Teacher added, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Use Resend welcome email to retry.');}
-    catch(error){$('teacher-number-status').textContent=error.message;}finally{button.disabled=false;}
+    event.preventDefault();const form=event.target,button=form.querySelector('button[type=submit]');
+    if(button.disabled)return;
+    button.disabled=true;button.textContent='Adding user…';
+    $('assign-teacher-status').textContent='Adding user and sending welcome email…';
+    try{const fields=new FormData(form);const result=await teacherNumbers({...Object.fromEntries(fields),apps:fields.getAll('apps')});form.reset();$('assign-teacher-status').textContent=result.welcomeEmail?.status==='accepted'?'Teacher added. Welcome email sent with sign-in instructions.':'Teacher added, but the welcome email was not sent. '+(result.welcomeEmail?.error || 'Use Resend welcome email to retry.');}
+    catch(error){$('assign-teacher-status').textContent=error.message;}finally{button.disabled=false;button.textContent='Assign teacher number';}
 };
 
 })();

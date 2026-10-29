@@ -3,7 +3,7 @@ const source=fs.readFileSync(require.resolve('../homepage-teachers.js'),'utf8');
 async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResult=null,accountResult=null,pagesResult={pages:[]}) {
  const elements=new Map(),events={},calls=[],warnings=[],payloads=[],redirects=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,replaceChildren(){this.items=[];},append(...items){this.items.push(...items);},reset(){},textContent:''});return elements.get(id);};
- vm.runInNewContext(source,{location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
+ vm.runInNewContext(source,{AbortSignal,FormData:class {constructor(form){return form.fields;}},location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
  await events.pageshow();return {elements,events,calls,warnings,payloads,redirects};
 }
 test('Homepage hides user management for visitors and all other accounts',async()=>{
@@ -116,3 +116,19 @@ test('Webpages shows empty and failure states without hiding the signed-in accou
  await v.elements.get('webpages-retry').onclick();
  assert.equal(v.elements.get('your-webpages-list').items.length,1);
  });
+
+test('Refresh users shows immediate progress, prevents duplicate clicks, and confirms completion',async()=>{
+ const v=await view({userId:1,email:'disrael@saracademy.org'}),button=v.elements.get('teacher-retry');
+ const pending=button.onclick();assert.equal(button.disabled,true);assert.equal(button.textContent,'Refreshing users…');
+ const count=v.calls.length;await button.onclick();assert.equal(v.calls.length,count);
+ await pending;assert.equal(button.disabled,false);assert.match(v.elements.get('teacher-number-status').textContent,/User list refreshed/);
+});
+test('Assign user reports progress and failure beside the form and preserves entered details',async()=>{
+ const v=await view({userId:1,email:'disrael@saracademy.org'},true);
+ const button={disabled:false},fields=new URLSearchParams({userId:'2',name:'Teacher',email:'teacher@example.org'});
+ let resets=0;
+ const event={preventDefault(){},target:{fields,querySelector:()=>button,reset(){resets++;}}};
+ const pending=v.elements.get('assign-teacher').onsubmit(event);
+ assert.equal(button.textContent,'Adding user…');assert.match(v.elements.get('assign-teacher-status').textContent,/Adding user/);
+ await pending;assert.equal(button.disabled,false);assert.equal(resets,0);assert.equal(v.elements.get('assign-teacher-status').textContent,'Denied');
+});

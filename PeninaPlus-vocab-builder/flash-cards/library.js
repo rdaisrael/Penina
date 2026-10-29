@@ -350,15 +350,116 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         };
     }
 
+    function signInForTeacherTools() {
+        return new Promise(resolve => {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'input-dialog';
+            dialog.setAttribute('aria-labelledby', 'teacher-signin-title');
+            dialog.innerHTML = `<form class="input-dialog-form">
+                <h2 id="teacher-signin-title">Sign in to Teacher tools</h2>
+                <button type="button" class="input-dialog-button" data-google>Sign in with Google</button>
+                <label>Email<input name="email" type="email" autocomplete="username" required></label>
+                <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+                <p role="status" aria-live="polite"></p>
+                <div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Sign in</button></div>
+            </form>`;
+            const form = dialog.querySelector('form');
+            const message = dialog.querySelector('[role="status"]');
+            const submit = dialog.querySelector('[type="submit"]');
+            let popup = null, timer = null, finished = false;
+            function finish(signedIn) {
+                if (finished) return;
+                finished = true;
+                clearTimeout(timer);
+                if (popup && !popup.closed) popup.close();
+                dialog.close();
+                dialog.remove();
+                resolve(signedIn);
+            }
+            async function checkSignIn() {
+                if (finished) return;
+                try {
+                    const response = await fetch('/api/game-scores?game=quiz-account&action=teacher', {cache:'no-store'});
+                    if (response.ok) {
+                        const user = await response.json();
+                        if (user.userId && !user.passwordChangeRequired) { finish(true); return; }
+                    }
+                } catch (_) { /* Keep the sign-in window available after a temporary connection failure. */ }
+                if (finished) return;
+                if (popup && !popup.closed) timer = setTimeout(checkSignIn, 1500);
+                else { popup = null; message.textContent = 'Sign-in was not completed. Please try again.'; }
+            }
+            async function openSignInWindow(changePassword = false) {
+                if (popup && !popup.closed) { popup.focus(); return; }
+                popup = window.open(changePassword ? '/' : 'about:blank', 'penina-teacher-signin', 'popup,width=520,height=720');
+                if (!popup) { message.textContent = 'Please allow the sign-in window, then try again.'; return; }
+                message.textContent = 'Complete sign-in in the small window. Teacher tools will open here automatically.';
+                if (!changePassword) {
+                    try {
+                        const response = await fetch('/api/game-scores?game=quiz-account&action=login', {
+                            method:'POST', headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({role:'teacher',portal:true,returnHome:true})
+                        });
+                        const result = await response.json();
+                        if (finished) return;
+                        if (!response.ok || typeof result.url !== 'string') throw new Error(result.error || 'Google sign-in could not be started.');
+                        if (!popup || popup.closed) return;
+                        popup.location.replace(result.url);
+                    } catch (error) {
+                        if (popup && !popup.closed) popup.close();
+                        if (!finished) message.textContent = error.message;
+                        return;
+                    }
+                }
+                clearTimeout(timer);
+                timer = setTimeout(checkSignIn, 1500);
+            }
+            dialog.querySelector('[data-google]').onclick = () => openSignInWindow();
+            dialog.querySelector('[data-cancel]').onclick = () => finish(false);
+            dialog.addEventListener('cancel', event => { event.preventDefault(); finish(false); });
+            form.onsubmit = async event => {
+                event.preventDefault();
+                if (submit.disabled) return;
+                submit.disabled = true;
+                message.textContent = 'Signing in…';
+                try {
+                    const response = await fetch('/api/game-scores?game=quiz-account&action=password-login', {
+                        method:'POST', headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify({email:form.elements.email.value, password:form.elements.password.value})
+                    });
+                    const result = await response.json();
+                    if (finished) return;
+                    if (!response.ok) throw new Error(result.error || 'Sign-in failed. Please try again.');
+                    form.elements.password.value = '';
+                    if (result.passwordChangeRequired) {
+                        message.textContent = 'Please choose your new password before continuing.';
+                        const change = dialog.querySelector('[data-google]');
+                        change.textContent = 'Choose new password';
+                        change.onclick = () => openSignInWindow(true);
+                    } else finish(true);
+                } catch (error) { if (!finished) message.textContent = error.message; }
+                finally { submit.disabled = false; }
+            };
+            document.body.appendChild(dialog);
+            dialog.showModal();
+            form.elements.email.focus();
+        });
+    }
+
     async function enterManagementMode() {
         if (manageTrigger.disabled) return;
         manageTrigger.disabled = true;
         try {
-            const response = await fetch('/api/flashcard-sets', {
+            const authenticate = () => fetch('/api/flashcard-sets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ grade, action: 'authenticate' })
             });
+            let response = await authenticate();
+            if (response.status === 401) {
+                if (!await signInForTeacherTools()) return;
+                response = await authenticate();
+            }
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Sign in with the teacher account that owns this webpage.');
             disabledGames = data.disabledGames || [];

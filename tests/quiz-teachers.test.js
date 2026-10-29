@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),crypto=require('node:crypto');
 function harness(emailFails=false,pageDeletionFails=false){
  let beforePut=async()=>{};const etag=value=>crypto.createHash('sha256').update(value).digest('hex');const blobs=new Map(),emails=[],emailOptions=[],deletedOwners=[];const account={session:req=>({role:'teacher',userId:2,email:'second@example.org'}),isAccountOwner:req=>req.headers?.cookie==='david',verifyTeacher:()=>false,seal:value=>Buffer.from(JSON.stringify(value)).toString('base64'),unseal:raw=>JSON.parse(Buffer.from(raw,'base64').toString())};
- const ctx={module:{exports:{}},Buffer,Response,fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:n=>n==='crypto'?crypto:n==='./vocabulary-pages'?{deleteOwnedPages:async id=>{deletedOwners.push(id);if(pageDeletionFails)throw Error('Storage failed');return 2;}}:n==='./teacher-apps'?require('../lib/teacher-apps'):n==='./teacher-welcome-email'?{sendWelcome:async (teacher,options)=>{if(emailFails)throw Error('Email unavailable');emails.push(teacher);emailOptions.push(options);return {status:'accepted',to:teacher.email};}}:n==='./quiz-account'?account:{get:async(url,options)=>{assert.equal(options.useCache,false);const value=blobs.get(url);return value===undefined?null:{statusCode:200,stream:new Response(value).body,blob:{etag:etag(value)}};},list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,value,options)=>{await beforePut(value,options);if(options.ifMatch && options.ifMatch!==etag(blobs.get(p)||''))throw Object.assign(Error('Conflict'),{name:'BlobPreconditionFailedError'});if(blobs.has(p)&&!options.allowOverwrite)throw Error('exists');blobs.set(p,value);return {etag:etag(value)};}}};
+ const ctx={module:{exports:{}},Buffer,Response,fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:n=>n==='crypto'?crypto:n==='./vocabulary-pages'?{deleteOwnedPages:async id=>{deletedOwners.push(id);if(pageDeletionFails)throw Error('Storage failed');return 2;}}:n==='./quiz-email-login'?{identity:async teacher=>({sub:'email:'+teacher.userId,email:teacher.email,userId:teacher.userId,role:'teacher',mustChangePassword:teacher.mustChangePassword,credentialVersion:teacher.credentialVersion})}:n==='./teacher-apps'?require('../lib/teacher-apps'):n==='./teacher-welcome-email'?{sendWelcome:async (teacher,options)=>{if(emailFails)throw Error('Email unavailable');emails.push(teacher);emailOptions.push(options);return {status:'accepted',to:teacher.email};}}:n==='./quiz-account'?account:{get:async(url,options)=>{assert.equal(options.useCache,false);const value=blobs.get(url);return value===undefined?null:{statusCode:200,stream:new Response(value).body,blob:{etag:etag(value)}};},list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,value,options)=>{await beforePut(value,options);if(options.ifMatch && options.ifMatch!==etag(blobs.get(p)||''))throw Object.assign(Error('Conflict'),{name:'BlobPreconditionFailedError'});if(blobs.has(p)&&!options.allowOverwrite)throw Error('exists');blobs.set(p,value);return {etag:etag(value)};}}};
  vm.runInNewContext(fs.readFileSync(require.resolve('../lib/quiz-teachers'),'utf8'),ctx);
  return {api:ctx.module.exports,blobs,emails,emailOptions,deletedOwners,setBeforePut:fn=>{beforePut=fn;},setPageDeletionFails:value=>{pageDeletionFails=value;},req:(body={},cookie='david')=>({method:'POST',headers:{cookie,origin:'https://www.penina-hebrew.org'},body})};
 }
@@ -123,4 +123,38 @@ test('Welcome resend uses saved teacher details and requests a fresh delivery',a
  const cross=h.req({operation:'welcome',userId:2});cross.headers.origin='https://other.example';await assert.rejects(h.api.manage(cross),e=>e.status===403);
  await assert.rejects(h.api.manage(h.req({operation:'welcome',userId:999})),e=>e.status===404);
  assert.equal(h.emails.length,2);
+});
+
+test('Temporary password must be replaced, cannot be reused, and is removed after setup',async()=>{
+ const h=harness();const result=await h.api.manage(h.req(teacher));
+ const temporary=h.emails[0].temporaryPassword;assert(temporary.length>=24);assert(!JSON.stringify(result).includes(temporary));
+ const login=await h.api.passwordLogin(teacher.email,temporary);assert.equal(login.mustChangePassword,true);
+ await assert.rejects(h.api.changeInitialPassword(login,'short'),e=>e.status===400);
+ await assert.rejects(h.api.changeInitialPassword(login,temporary),e=>e.status===400);
+ await assert.rejects(h.api.changeInitialPassword({...login,credentialVersion:'stale'},'A new long password!'),e=>e.status===401);
+ await h.api.manage(h.req({operation:'welcome',userId:2}));assert.equal(h.emails[1].temporaryPassword,temporary);
+ await h.api.changeInitialPassword(login,'A new long password!');
+ await assert.rejects(h.api.passwordLogin(teacher.email,temporary),e=>e.status===401);
+ assert.equal((await h.api.passwordLogin(teacher.email,'A new long password!')).mustChangePassword,false);
+ await assert.rejects(h.api.changeInitialPassword(login,'Another long password!'),e=>e.status===401);
+ await h.api.manage(h.req({operation:'welcome',userId:2}));assert.equal(h.emails[2].temporaryPassword,undefined);
+ assert.equal(h.emails[2].mustChangePassword,false);
+});
+test('Password sign-in throttles guessing and rejects deleted users',async()=>{
+ const h=harness();await h.api.manage(h.req(teacher));
+ for(let i=0;i<10;i++)await assert.rejects(h.api.passwordLogin(teacher.email,'wrong'),e=>e.status===401);
+ await assert.rejects(h.api.passwordLogin(teacher.email,h.emails[0].temporaryPassword),e=>e.status===429);
+ const other=harness();await other.api.manage(other.req(teacher));const password=other.emails[0].temporaryPassword;
+ await other.api.manage(other.req({operation:'delete',userId:2,email:teacher.email}));
+ await assert.rejects(other.api.passwordLogin(teacher.email,password),e=>e.status===401);
+});
+test('Concurrent password setup consumes the temporary credential only once',async()=>{
+ const h=harness();await h.api.manage(h.req(teacher));const login=await h.api.passwordLogin(teacher.email,h.emails[0].temporaryPassword);
+ const results=await Promise.allSettled([h.api.changeInitialPassword(login,'First long password!'),h.api.changeInitialPassword(login,'Second long password!')]);
+ assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+});
+
+test('An older full session cannot bypass newly required password setup',async()=>{
+ const h=harness();await h.api.manage(h.req(teacher));
+ await assert.rejects(h.api.rejectDeletedSession({headers:{cookie:'__Host-penina-quiz-session=old'}}),e=>e.status===403 && /temporary password/.test(e.message));
 });

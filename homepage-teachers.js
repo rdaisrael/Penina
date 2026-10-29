@@ -41,6 +41,35 @@ async function emailRequest(action,body) {
     if(!response.ok)throw Error(result.error || 'Email sign-in could not be completed. Please try again.');
     return result;
 }
+function showPasswordChange() {
+    hideManagement();
+    $('teacher-signin').hidden=true;
+    $('password-change-panel').hidden=false;
+}
+$('password-signin-form').onsubmit=async event=>{
+    event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;
+    $('teacher-signin-status').textContent='Signing in…';
+    try {
+        const result=await emailRequest('password-login',{email:$('password-email').value,password:$('signin-password').value});
+        $('signin-password').value='';
+        if(result.passwordChangeRequired)showPasswordChange();else location.replace('/');
+    } catch(error){$('teacher-signin-status').textContent=error.message;}
+    finally{button.disabled=false;}
+};
+$('password-change-form').onsubmit=async event=>{
+    event.preventDefault();const button=event.target.querySelector('button');
+    if($('new-password').value!==$('confirm-password').value){$('password-change-status').textContent='The passwords do not match.';return;}
+    button.disabled=true;$('password-change-status').textContent='Saving your password…';
+    try {
+        await emailRequest('password-change',{password:$('new-password').value});
+        $('new-password').value='';$('confirm-password').value='';location.replace('/');
+    } catch(error){$('password-change-status').textContent=error.message;}
+    finally{button.disabled=false;}
+};
+$('password-change-cancel').onclick=async()=>{
+    try{await emailRequest('logout',{});location.replace('/');}
+    catch(error){$('password-change-status').textContent=error.message;}
+};
 $('email-signin-form').onsubmit=async event=>{
     event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;
     $('teacher-signin-status').textContent='Sending your sign-in link…';
@@ -56,7 +85,7 @@ if(typeof location!=='undefined' && location.hash.startsWith('#email-signin=')) 
     $('email-signin-confirm-button').onclick=async()=>{
         const button=$('email-signin-confirm-button');button.disabled=true;
         $('teacher-signin-status').textContent='Signing in…';
-        try {await emailRequest('email-verify',{token});location.replace('/');}
+        try {const result=await emailRequest('email-verify',{token});if(result.passwordChangeRequired)showPasswordChange();else location.replace('/');}
         catch(error){$('teacher-signin-status').textContent=error.message;button.disabled=false;}
     };
 }
@@ -66,6 +95,7 @@ function showApps(user) {
     $('app-access-status').textContent=user?(apps.length?'':'No webapps have been assigned to you yet. Contact David Israel for access.'):'';
 }
 function hideManagement() {
+    $('password-change-panel').hidden=true;
     accountCheck++;
     window.PeninaVideos?.hide();
     showAccount(null);
@@ -83,6 +113,7 @@ async function checkOwner() {
         if (!response.ok) return;
         const user = await response.json();
         if (check !== accountCheck) return;
+        if(user.passwordChangeRequired){showPasswordChange();return;}
         showAccount(user);
         showApps(user);
         if (user.userId !== 1 || user.email?.toLowerCase() !== 'disrael@saracademy.org') return;

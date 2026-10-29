@@ -30,9 +30,9 @@ function harness() {
         if(n==='crypto')return require('crypto');
         if(n==='google-auth-library')return {OAuth2Client};
         if(n==='@vercel/blob')return {del:async p=>blobs.delete(p),list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,options)=>{if(options?.allowOverwrite===false && blobs.has(p))throw Error('Already exists');blobs.set(p,s);}};
-        if(n==='./quiz-email-login')return {request:async()=>({message:'Check your email.'}),verify:async()=>({sub:'email:2',email:'teacher@outlook.com',name:'Teacher',userId:2,role:'teacher',authMethod:'email'})};
+        if(n==='./quiz-email-login')return {request:async()=>({message:'Check your email.'}),verify:async()=>({sub:'email:2',email:'teacher@outlook.com',name:'Teacher',userId:2,role:'teacher',authMethod:'email',mustChangePassword:state.mustChangePassword,credentialVersion:'version-1'})};
         if(n==='./teacher-apps')return require('../lib/teacher-apps');
-        if(n==='./quiz-teachers')return {registered:async email=>email==='disrael@saracademy.org'?{userId:1,email}:email==='second@school.org'?{userId:2,email}:null};
+        if(n==='./quiz-teachers')return {passwordLogin:async()=>({sub:'email:2',email:'second@school.org',role:'teacher',userId:2,mustChangePassword:state.mustChangePassword,credentialVersion:'version-1'}),changeInitialPassword:async(login,password)=>{state.changedPassword=password;},registered:async email=>email==='disrael@saracademy.org'?{userId:1,email}:email==='second@school.org'?{userId:2,email,mustChangePassword:state.mustChangePassword,credentialVersion:'version-1'}:null};
         if(n==='./vocabulary-pages')return {getPage:async()=>({}),authenticatePage:(_,p)=>p==='teacher-secret'?null:{status:401,error:'Incorrect password'}};
         if(n.endsWith('questions.json'))return require(n);
         return require(n);
@@ -412,3 +412,29 @@ for (const returnHome of [undefined, false, true]) {
   assert.equal(result.code,303);assert.equal(result.headers.Location,'/');
  });
 }
+
+for(const action of ['password-login','email-verify','google']) {
+ test(action+' requires password setup before any full session is issued',async()=>{
+  const h=harness();h.state.mustChangePassword=true;h.state.email='second@school.org';
+  let result;
+  if(action==='google'){
+   const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true}}));
+   result=await h.run(h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));
+   assert.equal(result.headers.Location,'/');
+  }else result=await h.run(h.request({method:'POST',query:{},body:{action,email:'second@school.org',password:'temporary-password',token:'test'}}));
+  const cookie=result.headers['Set-Cookie'].find(c=>c.startsWith('__Host-penina-quiz-session=')).split(';')[0];
+  const pending=h.api.unseal(cookie.split('=')[1]);assert.equal(pending.kind,'password-change');
+  assert.throws(()=>h.api.session({headers:{cookie}}),e=>e.status===401);
+  const status=await h.run(h.request({query:{action:'teacher'},headers:{cookie}}));assert.equal(status.data.passwordChangeRequired,true);
+  const denied=await h.run(h.request({method:'POST',query:{},body:{action:'password-change',password:'New long password!'},headers:{cookie,origin:'https://wrong.example'}}));assert.equal(denied.code,403);
+  const changed=await h.run(h.request({method:'POST',query:{},body:{action:'password-change',password:'New long password!'},headers:{cookie,origin:'https://www.penina-hebrew.org'}}));
+  assert.equal(changed.code,200);assert.equal(h.state.changedPassword,'New long password!');
+  const sessionCookie=changed.headers['Set-Cookie'][0].split(';')[0];assert.equal(h.api.session({headers:{cookie:sessionCookie}}).userId,2);
+ });
+}
+test('Password setup rejects expired, missing and ordinary session cookies',async()=>{
+ const h=harness();
+ for(const cookie of ['',h.cookie({role:'teacher',userId:2}),h.cookie({kind:'password-change',role:'teacher',userId:2,credentialVersion:'version-1',exp:Date.now()-1})]){
+  const result=await h.run(h.request({method:'POST',query:{},body:{action:'password-change',password:'New long password!'},headers:{cookie,origin:'https://www.penina-hebrew.org'}}));assert.equal(result.code,401);
+ }
+});

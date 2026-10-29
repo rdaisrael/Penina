@@ -1,10 +1,10 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const source=fs.readFileSync(require.resolve('../homepage-teachers.js'),'utf8');
-async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResult=null) {
- const elements=new Map(),events={},calls=[],warnings=[],payloads=[];
+async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResult=null,accountResult=null) {
+ const elements=new Map(),events={},calls=[],warnings=[],payloads=[],redirects=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,replaceChildren(){this.items=[];},append(...items){this.items.push(...items);},reset(){},textContent:''});return elements.get(id);};
- vm.runInNewContext(source,{document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user,json:async()=>user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
- await events.pageshow();return {elements,events,calls,warnings,payloads};
+ vm.runInNewContext(source,{location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
+ await events.pageshow();return {elements,events,calls,warnings,payloads,redirects};
 }
 test('Homepage hides user management for visitors and all other accounts',async()=>{
  for(const user of [null,{userId:2,email:'teacher@example.org'},{userId:1,email:'other@example.org'}]) {
@@ -79,3 +79,22 @@ for(const result of [{status:'accepted'}, {status:'failed',error:'Email unavaila
   await button.onclick();assert.equal(v.payloads.length,2);
  });
 }
+
+test('Pending first login shows only the password-change form after a page reload',async()=>{
+ const v=await view({passwordChangeRequired:true});
+ assert.equal(v.elements.get('password-change-panel').hidden,false);
+ assert.equal(v.elements.get('teacher-signin').hidden,true);
+ assert.equal(v.elements.get('teacher-numbers').hidden,true);assert.equal(v.calls.length,1);
+});
+test('Temporary password login requires matching new passwords before continuing home',async()=>{
+ const v=await view(null,false,false,true,null,{passwordChangeRequired:true});
+ v.elements.set('password-email',{value:'teacher@example.org'});v.elements.set('signin-password',{value:'temporary-password'});
+ const button={disabled:false},event={preventDefault(){},target:{querySelector:()=>button}};
+ await v.elements.get('password-signin-form').onsubmit(event);
+ assert.equal(v.payloads[0].password,'temporary-password');assert(v.calls.at(-1).endsWith('action=password-login'));
+ assert.equal(v.elements.get('signin-password').value,'');assert.equal(v.elements.get('password-change-panel').hidden,false);assert.equal(v.redirects.length,0);
+ v.elements.set('new-password',{value:'My new long password!'});v.elements.set('confirm-password',{value:'different'});
+ await v.elements.get('password-change-form').onsubmit(event);assert.match(v.elements.get('password-change-status').textContent,/do not match/);assert.equal(v.payloads.length,1);
+ v.elements.get('confirm-password').value='My new long password!';await v.elements.get('password-change-form').onsubmit(event);
+ assert(v.calls.at(-1).endsWith('action=password-change'));assert.deepEqual(v.redirects,['/']);assert.equal(button.disabled,false);
+});

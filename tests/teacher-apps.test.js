@@ -58,12 +58,12 @@ function mailHarness(ok=true,configured=true){
  const calls=[],context={module:{exports:{}},AbortSignal,process:{env:configured?{RESEND_API_KEY:'test',QUIZ_EMAIL_FROM:'penina@example.org'}:{}},require:name=>name==='crypto'?require('node:crypto'):require('../lib/teacher-apps'),fetch:async(url,options)=>{calls.push({url,...options,body:JSON.parse(options.body)});return {ok};}};
  vm.runInNewContext(fs.readFileSync(path.join(root,'lib/teacher-welcome-email.js'),'utf8'),context);return {...context.module.exports,calls};
 }
-test('Welcome email uses saved school email and lists only granted apps, with no password',async()=>{
- const h=mailHarness(),teacher={userId:2,name:'Teacher',email:'school@example.org',apps:['reader']};
+test('Welcome email explains the temporary password and required first-login change',async()=>{
+ const h=mailHarness(),teacher={userId:2,name:'Teacher',email:'school@example.org',apps:['reader'],mustChangePassword:true,temporaryPassword:'random-temporary-password'};
  await h.sendWelcome(teacher);await h.sendWelcome(teacher);
  assert.deepEqual(Array.from(h.calls[0].body.to),['school@example.org']);
  assert.match(h.calls[0].body.text,/Penina Hebrew Reader/);assert(!h.calls[0].body.text.includes('Vocabulary Builder'));
- assert.match(h.calls[0].body.text,/Sign in with another email address/);assert.match(h.calls[0].body.text,/No separate Penina password/);assert.match(h.calls[0].body.text,/land directly on the Penina home page/);assert.equal(h.calls[0].headers['Idempotency-Key'],h.calls[1].headers['Idempotency-Key']);
+ assert.match(h.calls[0].body.text,/Sign in with an email link/);assert.match(h.calls[0].body.text,/Temporary password: random-temporary-password/);assert.match(h.calls[0].body.text,/land directly on the Penina home page/);assert.equal(h.calls[0].headers['Idempotency-Key'],h.calls[1].headers['Idempotency-Key']);
  await assert.rejects(mailHarness(false).sendWelcome(teacher));await assert.rejects(mailHarness(true,false).sendWelcome(teacher));
 });
 
@@ -78,8 +78,13 @@ test('An existing signed-in session uses current grants after access is changed'
 
 
 test('Welcome email has actual line breaks and explicit resend produces a new delivery',async()=>{
- const h=mailHarness(),teacher={userId:2,name:'Teacher',email:'school@example.org',apps:['reader']};
+ const h=mailHarness(),teacher={userId:2,name:'Teacher',email:'school@example.org',apps:['reader'],mustChangePassword:true,temporaryPassword:'random-temporary-password'};
  await h.sendWelcome(teacher);await h.sendWelcome(teacher,{resend:true});await h.sendWelcome(teacher,{resend:true});
  assert(h.calls[0].body.text.split('\n').length>8);assert(!h.calls[0].body.text.includes('\\n'));
  assert.equal(new Set(h.calls.map(call=>call.headers['Idempotency-Key'])).size,3);
+});
+
+test('Welcome resend after password setup does not promise a new temporary password',async()=>{
+ const h=mailHarness();await h.sendWelcome({userId:2,name:'Teacher',email:'school@example.org',apps:[],mustChangePassword:false},{resend:true});
+ assert.match(h.calls[0].body.text,/existing password has not changed/);assert(!h.calls[0].body.text.includes('Temporary password:'));
 });

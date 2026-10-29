@@ -1,6 +1,6 @@
 'use strict';
 (() => {
-    const idleLimit = 10 * 60 * 1000;
+    const idleLimit = 60 * 60 * 1000;
     const activityCookie = 'penina_activity';
     const productionDomain = location.hostname === 'penina-hebrew.org' || location.hostname.endsWith('.penina-hebrew.org');
     const hostPage = location.hostname === 'www.penina-hebrew.org';

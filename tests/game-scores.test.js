@@ -27,7 +27,7 @@ test('Query actions cannot mask restricted assessment or live-game body actions'
 test('A deleted teacher can still sign out or switch Google accounts',async()=>{
  const calls=[],ctx={module:{exports:{}},require:name=>{
   if(name==='../lib/quiz-teachers')return {rejectDeletedSession:async()=>{throw Object.assign(Error('Deleted'),{status:403});}};
-  if(name==='../lib/quiz-account')return {handle:(req,res)=>{calls.push(req.query.action);return res.status(200).json({ok:true});}};
+  if(name==='../lib/quiz-account')return {touchSession:()=>false,handle:(req,res)=>{calls.push(req.query.action);return res.status(200).json({ok:true});}};
   return ()=>{};
  }};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../api/game-scores.js'),'utf8'),ctx);

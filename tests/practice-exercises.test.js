@@ -208,12 +208,14 @@ test('failed later batch leaves all answers unchanged and restores controls for 
     assert(ui.dialog.querySelectorAll('textarea').every(input => input.value));
 });
 
-test('HTML integrates the renamed purple button, keeps offline cards hidden, and loads valid scripts', () => {
-    assert.match(html, /id="create-practice-exercises-btn"[^>]*>Gamify and Generate Alternate Answers<\/button>/);
+test('HTML integrates the practice stage button, keeps offline cards hidden, and loads valid scripts', () => {
+    assert.match(html, /id="create-practice-exercises-btn"[^>]*>3\. Create Practice Activities<\/button>/);
     assert.match(html, /id="download-offline-study-cards-btn"[^>]* hidden/);
-    assert.match(html, /<link rel="stylesheet" href="practice-exercises.css">/);
-    assert(html.indexOf('src="practice-exercises.js"') < html.indexOf('PeninaPracticeExercises.mount'));
-    assert.match(fs.readFileSync(require.resolve('../PeninaPlus-vocab-builder/practice-exercises.css'), 'utf8'), /#create-practice-exercises-btn\s*\{[^}]*background: #7a3df0/);
+    assert.match(html, /<link rel="stylesheet" href="practice-exercises\.css(?:\?[^"]*)?">/);
+    const script=/<script\b[^>]*src="practice-exercises\.js(?:\?[^"]*)?"/.exec(html);
+    assert(script, 'practice script is loaded');
+    assert(script.index < html.indexOf('PeninaPracticeExercises.mount'));
+    assert.match(fs.readFileSync(require.resolve('../PeninaPlus-vocab-builder/practice-exercises.css'), 'utf8'), /#create-practice-exercises-btn\[aria-current="step"\]\s*\{[^}]*background: #0056b3/);
     for (const script of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
         if (!/\bsrc=/.test(script[1])) new vm.Script(script[2]);
     }
@@ -227,12 +229,12 @@ test('HTML integrates the renamed purple button, keeps offline cards hidden, and
 test('real HTML submit integration survives JSON draft export and import with both languages', () => {
     const fields = new Map();
     const element = id => {
-        if (!fields.has(id)) fields.set(id, { value: '', style: {}, classList: { add() {} } });
+        if (!fields.has(id)) fields.set(id, { value: '', style: { setProperty() {} }, classList: { add() {} }, setAttribute() {}, removeAttribute() {}, appendChild() {}, cloneNode() { return {removeAttribute() {}}; }, getBoundingClientRect: () => ({width:220}) });
         return fields.get(id);
     };
     let mounted;
     const context = vm.createContext({ PeninaPracticeExercises: { mount: options => { mounted = options; } },
-        replaceRenderedRow() {}, offerBackup() {}, createPracticeExercisesButton: {}, syncGeneratedRowFromDom() {}, document: { getElementById: element, documentElement: { style: { setProperty() {} } }, body: {} },
+        replaceRenderedRow() {}, offerBackup() {}, createPracticeExercisesButton: {}, syncGeneratedRowFromDom() {}, ResizeObserver: class { observe() {} }, document: { querySelector: element, createElement: element, getElementById: element, documentElement: { style: { setProperty() {} } }, body: {} },
         getControlValue: () => '', getSelectedSourceTargets: () => [], importedVocabularyRows: [], pageContainer: element('page'), docTitle: element('title'), vocabTbody: element('tbody'),
         setControlValue() {}, sourceTypeSelect: { dispatchEvent() {} }, Event: class {}, renderChips() {}, updateFontSizeVariables() {}, updateMargin() {}, updateViewModeLock() {},
         applyTitleText() {}, setVocabularyWorkbookStatus() {}, updateWorkbookExportAvailability() {}, renderVocabularyRow: () => '<tr></tr>', refreshOriginalHebrewDatasets() {}, updateTextDisplay() {}, updateVocabInputWarning() {}
@@ -279,7 +281,7 @@ test('Hebrew language button generates immediately and preserves saved answers o
     const saved = modal(() => assert.fail('Saved answers should not be replaced'), rows);
     await saved.dialog.querySelectorAll('[data-language]')[1].fire('click');
     assert.deepEqual(saved.dialog.querySelectorAll('textarea').map(input => input.value), answers);
-    assert(html.includes('Publish Flashcards, Sheets, and Practice Exercises'));
+    assert.match(html, /id="publish-study-cards-btn"[^>]*>Publish to Class Page<\/button>/);
     assert(!html.includes('Publish Flashcards and Sheets'));
 });
 

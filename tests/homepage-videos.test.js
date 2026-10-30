@@ -5,8 +5,8 @@ function page(fetchOverride) {
     const elements=new Map(),calls=[];
     const make=()=>({hidden:true,disabled:false,value:'',files:[],items:[],textContent:'',append(...items){this.items.push(...items);},replaceChildren(...items){this.items=items;},setAttribute(k,v){this[k]=v;},reset(){},select(){this.selected=true;},focus(){}});
     const element=id=>{if(!elements.has(id))elements.set(id,make());return elements.get(id);};
-    const document={getElementById:element,createElement:make},window={confirm:()=>true};
-    const videos=[{id:'a'.repeat(32),title:'Lesson <one>',size:300e6,path:'/videos/'+'a'.repeat(32)}];
+    const document={getElementById:element,createElement:make,createElementNS:make},window={confirm:()=>true};
+    const videos=[{id:'a'.repeat(32),title:'Lesson <one>',size:300e6,url:'https://video.penina-hebrew.org/watch/lesson-token'}];
     const fetch=async(url,options)=>{calls.push({url,options});if(fetchOverride)return fetchOverride(url,options);return Response.json({videos,totalBytes:300e6,maxFileBytes:1024**3});};
     const copied=[];
     vm.runInNewContext(source,{document,window,fetch,URL,location:{origin:'https://www.penina-hebrew.org'},navigator:{clipboard:{writeText:async value=>copied.push(value)}},AbortController,console});
@@ -17,12 +17,12 @@ test('Only the owner sees the video manager, and hide clears private listings',a
         const p=page();await p.window.PeninaVideos.show(user);assert.equal(p.element('video-manager').hidden,true);assert.equal(p.calls.length,0);
     }
     const p=page();await p.window.PeninaVideos.show(owner);assert.equal(p.element('video-manager').hidden,false);assert.equal(p.element('video-list').items.length,1);
-    const item=p.element('video-list').items[0];assert.equal(item.items[0].textContent,'Lesson <one>');await item.items[4].onclick();assert.equal(p.copied[0],'https://www.penina-hebrew.org/videos/'+'a'.repeat(32));
+    const item=p.element('video-list').items[0];assert.equal(item.items[0].textContent,'Lesson <one>');const urlRow=item.items[2];assert.equal(urlRow.items[0].value,'https://video.penina-hebrew.org/watch/lesson-token');await urlRow.items[1].onclick();assert.equal(p.copied[0],'https://video.penina-hebrew.org/watch/lesson-token');assert.equal(item.items[3].href,p.copied[0]);
     p.window.PeninaVideos.hide();assert.equal(p.element('video-manager').hidden,true);assert.equal(p.element('video-list').items.length,0);
 });
-test('Storage not connected shows honest status and disables uploads; denied owner hides panel',async()=>{
+test('Directory failure shows honest status and leaves the picker usable; denied owner hides panel',async()=>{
     const unavailable=page(async()=>new Response('Not found',{status:404}));await unavailable.window.PeninaVideos.show(owner);
-    assert.match(unavailable.element('video-status').textContent,/awaiting connection/);assert.equal(unavailable.element('video-upload-fields').disabled,true);
+    assert.match(unavailable.element('video-status').textContent,/awaiting connection/);assert.equal(unavailable.element('video-upload-fields').disabled,false);
     const denied=page(async()=>Response.json({error:'Denied'},{status:403}));await denied.window.PeninaVideos.show(owner);assert.equal(denied.element('video-manager').hidden,true);
 });
 test('A late directory response cannot repopulate the manager after logout',async()=>{

@@ -3,7 +3,7 @@ const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/fl
 function setup(){
  let renders=0,markup='';const count={textContent:''},requests=[],listeners={};
  const stage={set innerHTML(value){markup=value;renders++;},get innerHTML(){return markup;},querySelector:selector=>selector==='[data-answered-count]'?count:null,addEventListener:(event,handler)=>listeners[event]=handler};
- const ctx={URLSearchParams,location:{search:'?code=123456'},document:{getElementById:id=>id==='stage'?stage:{},addEventListener(){},hidden:true},window:{matchMedia:()=>({matches:true}),addEventListener(){}},setInterval(){},setTimeout(){},clearTimeout(){},AbortController,fetch:async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({})};}};
+ const ctx={URLSearchParams,location:{search:'?code=123456'},document:{createElement:()=>({}),head:{append(){}},getElementById:id=>id==='stage'?stage:{},addEventListener(){},hidden:true},window:{matchMedia:()=>({matches:true}),addEventListener(){}},setInterval(){},setTimeout(){},clearTimeout(){},AbortController,fetch:async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({})};}};
  vm.runInNewContext(source.slice(0,source.indexOf(" auth=stored(storageKey())"))+" globalThis.client={present,act,getSnapshot:()=>snapshot};})();",ctx);
  return {client:ctx.client,count,requests,listeners,get renders(){return renders;},get markup(){return markup;}};
 }

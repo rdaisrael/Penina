@@ -240,3 +240,24 @@ test('Question cards and result grid use answer correctness independently of adj
  const context={};vm.runInNewContext(source.slice(source.indexOf('function resultState('),source.indexOf('function renderResultsGrid(')),context);
  assert.equal(context.resultState(auto),'correct');assert.equal(context.resultState({...auto,score:2,overridden:true,correctnessMax:5}),'partial');
 });
+
+
+test('Correction arrow skips completed questions, focuses the next pending score, and stays within the student',()=>{
+ const handlers={},actions=[];
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/teacher/correction.js'),'utf8'),{
+  window:{},document:{addEventListener(type,fn){handlers[type]=fn;}}
+ });
+ const card=grade=>({dataset:{grade},querySelector:()=>({focus:options=>actions.push(['focus',options.preventScroll])}),scrollIntoView:options=>actions.push(['scroll',options.block])});
+ const previous=card('pending'),current=card('correct'),automatic=card('correct'),next=card('pending'),later=card('pending');
+ const form={querySelectorAll:()=>[previous,current,automatic,next,later]};
+ const button={closest:selector=>selector==='.review-question'?current:form};
+ const event={target:{closest:()=>button}};
+ handlers.click(event);
+ assert.deepEqual(actions,[['focus',true],['scroll','start']]);
+ actions.length=0;next.dataset.grade='correct';
+ later.querySelector=()=>({focus:()=>actions.push('later')});
+ handlers.click(event);assert.equal(actions[0],'later');
+ actions.length=0;later.dataset.grade='correct';
+ handlers.click(event);assert.equal(actions.length,0);
+ handlers.click({target:{closest:()=>null}});assert.equal(actions.length,0);
+});

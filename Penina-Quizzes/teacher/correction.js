@@ -27,7 +27,7 @@ window.QuizCorrection = (() => {
         const reference = auto ? auto.correctAnswer : manual.modelAnswer;
         const handCorrected = kind !== 'pending' && (!auto || auto.overridden);
         return `<section class="review-question ${q.extraCredit?'extra-credit':''}" data-grade="${kind}">
-            <div class="question-heading"><span class="question-number">Question ${i+1}</span>${q.extraCredit?'<span class="extra-credit-badge">Extra credit</span>':''}<span class="grade-result"><span class="grade-badge">${label}</span><span class="hand-corrected-dot" role="img" aria-label="Hand corrected" title="Hand corrected" ${handCorrected?'':'hidden'}></span></span><span class="question-points">${grade.score ?? '—'} / ${max} points</span></div>
+            <div class="question-heading"><span class="question-number">Question ${i+1}</span>${q.extraCredit?'<span class="extra-credit-badge">Extra credit</span>':''}<span class="grade-result"><span class="grade-badge">${label}</span><span class="hand-corrected-dot" role="img" aria-label="Hand corrected" title="Hand corrected" ${handCorrected?'':'hidden'}></span><button type="button" class="next-correction" aria-label="Go to next question requiring teacher correction" title="Next question requiring teacher correction"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 2v20M2 12l10 10 10-10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span><span class="question-points">${grade.score ?? '—'} / ${max} points</span></div>
             <h2 class="review-prompt" dir="auto">${escape(q.prompt)}</h2>
             <div class="answer-comparison"><div class="student-response"><h3>Student’s answer</h3>${answers.map((a,j)=>`<div class="response-part">${q.fields ? `<span class="field-label" dir="auto">${escape(q.fields[j])}</span>` : answers.length > 1 ? `<span class="field-label">Part ${j+1}</span>` : ''}<p dir="auto">${escape(a || '(No answer)')}</p></div>`).join('')}</div>
             <div class="reference-response"><h3>${auto ? 'Correct answer' : 'Model answer'}</h3><p dir="auto">${escape(reference || 'No model answer provided.')}</p></div></div>
@@ -46,6 +46,16 @@ window.QuizCorrection = (() => {
             }
         });
     }, true);
+    document.addEventListener('click', event => {
+        const button = event.target.closest('.next-correction');
+        if (!button) return;
+        const current = button.closest('.review-question');
+        const questions = [...button.closest('form.correction').querySelectorAll('.review-question')];
+        const next = questions.slice(questions.indexOf(current) + 1).find(card => card.dataset.grade === 'pending');
+        if (!next) return;
+        next.querySelector('.question-marking input').focus({preventScroll:true});
+        next.scrollIntoView({block:'start', behavior:'instant'});
+    });
     // Keep native numeric validation, but require deliberate text entry for scores.
     const isScoreInput = target => target.matches('.question-marking input[type="number"]');
     document.addEventListener('keydown', event => {

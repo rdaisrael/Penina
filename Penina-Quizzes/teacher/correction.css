@@ -48,3 +48,12 @@ summary [id^="score-"]{display:block;white-space:pre-line}
 .question-marking input[type="number"]{-moz-appearance:textfield;appearance:textfield}
 .question-marking input[type="number"]::-webkit-inner-spin-button,
 .question-marking input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+/* Three dot widths of space between the marker and its next-question arrow. */
+.grade-result .next-correction{display:inline-flex;align-items:center;justify-content:center;flex:none;width:24px;height:44px;margin:0 0 0 22px;padding:0;border:0;border-radius:4px;background:transparent;color:#2563eb;cursor:pointer}
+.next-correction svg{display:block;overflow:visible}
+.next-correction:hover{background:#eef5ff}
+.next-correction:focus-visible{outline:2px solid #2563eb;outline-offset:4px}
+.hand-corrected-dot[hidden]+.next-correction,
+.review-question:not(:has(~ .review-question[data-grade="pending"])) .next-correction{display:none}
+.review-question{scroll-margin-top:20px}

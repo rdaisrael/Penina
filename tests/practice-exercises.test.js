@@ -92,10 +92,13 @@ test('Submit accepts English and Hebrew answers and requires four distinct answe
 });
 
 // A small DOM test double runs the real modal event handlers without a browser or server.
-function modal(fetchImpl, rows = source(), extraGlobals = {}) {
+function modal(fetchImpl, rows = source(), extraGlobals = {}, inline = false) {
     class Element {
         constructor(tag) { this.tag = tag; this.children = []; this.events = {}; this.dataset = {}; this.attributes = {}; this.value = ''; this.textContent = ''; }
-        append(...children) { this.children.push(...children); }
+        append(...children) { children.forEach(child => { if (typeof child !== "string") child.parent = this; }); this.children.push(...children); }
+        prepend(child) { child.parent = this; this.children.unshift(child); }
+        remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
+        removeAttribute(key) { delete this.attributes[key]; }
         appendChild(child) { this.append(child); return child; }
         replaceChildren(...children) { this.children = children; }
         setAttribute(key, value) { this.attributes[key] = value; }
@@ -106,9 +109,12 @@ function modal(fetchImpl, rows = source(), extraGlobals = {}) {
         close() { this.open = false; }
         querySelector(selector) { return this.querySelectorAll(selector)[0]; }
         querySelectorAll(selector) {
+            if (selector === '#practice-form > p') return this.querySelector('#practice-form').children.filter(child => child.tag === 'p');
+            const languageMatch = selector.match(/^\[data-language="([^"]+)"\]$/);
+            if (languageMatch) return this.querySelectorAll('[data-language]').filter(el => el.dataset.language === languageMatch[1]);
             const matches = el => selector.split(',').some(part => {
                 part = part.trim();
-                return part[0] === '#' ? el.id === part.slice(1) : part === '[data-language]' ? !!el.dataset.language : el.tag === part;
+                return part[0] === '.' ? (el.className || '').split(' ').includes(part.slice(1)) : part[0] === '#' ? el.id === part.slice(1) : part === '[data-language]' ? !!el.dataset.language : el.tag === part;
             });
             return this.children.flatMap(child => typeof child === 'string' ? [] : [...(matches(child) ? [child] : []), ...child.querySelectorAll(selector)]);
         }
@@ -118,13 +124,14 @@ function modal(fetchImpl, rows = source(), extraGlobals = {}) {
             for (const token of value.matchAll(/<\/?([\w-]+)([^>]*)>/g)) {
                 if (token[0][1] === '/') { stack.pop(); continue; }
                 const el = new Element(token[1]);
+                el.className = token[2].match(/class="([^"]+)"/)?.[1];
                 el.id = token[2].match(/id="([^"]+)"/)?.[1];
                 el.dataset.language = token[2].match(/data-language="([^"]+)"/)?.[1];
                 stack.at(-1).append(el); stack.push(el);
             }
         }
     }
-    const document = { body: new Element('body'), createElement: tag => new Element(tag), createTextNode: text => text };
+    const document = { events: {}, addEventListener(name, fn) { this.events[name] = fn; }, body: new Element('body'), createElement: tag => new Element(tag), createTextNode: text => text };
     const button = new Element('button');
     let api = practice;
     if (Object.keys(extraGlobals).length) {
@@ -134,8 +141,9 @@ function modal(fetchImpl, rows = source(), extraGlobals = {}) {
     }
     const saved = [];
     let backupCount = 0;
-    const { dialog } = api.mount({ button, document, fetchImpl, getRows: () => rows, onSubmit: (...args) => saved.push(args), onSubmitted: () => { assert.equal(dialog.open, false); backupCount++; } });
-    button.fire('click');
+    const { dialog } = api.mount({ button, container: inline ? document.body : null, document, fetchImpl, getRows: () => rows, onSubmit: (...args) => saved.push(args), onSubmitted: () => { assert.equal(dialog.open, false); backupCount++; } });
+    if (inline) document.events['vocabulary-stage-changed']({ detail: { stage: 'practice' } });
+    else button.fire('click');
     return { button, dialog, saved, get backupCount() { return backupCount; }, find: selector => dialog.querySelector(selector) };
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -312,4 +320,27 @@ test('definition edits drive regeneration and validation without changing the le
         assert.throws(() => session.submit());
     }
     assert.equal(rows[0].item.english, 'horse');
+});
+
+
+test('inline language buttons generate missing distractors in either language and preserve filled cells', async () => {
+    for (const [index, language] of ['english', 'hebrew'].entries()) {
+        const requests = [];
+        const answers = language === 'english' ? alternatives : ['חמור', 'גמל', 'עז', 'כבשה'];
+        const ui = modal(async (url, options) => {
+            requests.push(JSON.parse(options.body));
+            return { ok: true, json: async () => ({ rows: [{ id: 0, cells: answers.map((answer, slot) => ({ slot, answer })) }] }) };
+        }, source(), {}, true);
+        const choices = ui.dialog.querySelectorAll('[data-language]');
+        assert.equal(choices[index].textContent, `Generate ${language === 'english' ? 'English' : 'Hebrew'} Distractors`);
+        await choices[index].fire('click');
+        assert.equal(requests.length, 1);
+        assert.equal(requests[0].language, language);
+        assert.deepEqual(requests[0].rows[0].slots, [0, 1, 2, 3]);
+        assert.deepEqual(ui.dialog.querySelectorAll('textarea').map(input => input.value), answers);
+        await choices[index].fire('click');
+        assert.equal(requests.length, 1, 'filled distractors are preserved');
+        assert.equal(ui.find('#practice-title'), undefined);
+        assert.equal(ui.find('#practice-help'), undefined);
+    }
 });

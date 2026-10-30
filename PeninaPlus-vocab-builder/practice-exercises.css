@@ -7,6 +7,7 @@
 #practice-exercises-dialog [hidden] { display: none !important; }
 #practice-exercises-dialog .practice-choices, #practice-exercises-dialog .practice-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
 #practice-exercises-dialog button { background: #6731bd; color: white; width: auto; padding: 12px 18px; margin: 0; }
+#practice-exercises-dialog .practice-choices button { background: #0056b3; }
 #practice-exercises-dialog button[aria-pressed="true"] { outline: 3px solid #332c24; outline-offset: 3px; }
 #practice-exercises-dialog button:disabled { opacity: .55; cursor: not-allowed; }
 #practice-exercises-dialog :focus-visible { outline: 3px solid #245cb5; outline-offset: 3px; }

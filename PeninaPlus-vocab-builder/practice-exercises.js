@@ -148,10 +148,13 @@
             <button type="button" id="practice-cancel">Cancel</button>`;
         (container || doc.body).appendChild(dialog);
         if (inline) {
-            dialog.querySelector('#practice-title').textContent = 'Alternate Answers';
-            dialog.querySelector('#practice-help').textContent = 'Choose the answer language. Saved answers appear here without being regenerated. Save your changes before switching languages.';
-            dialog.querySelector('[data-language="english"]').textContent = 'English Answers';
-            dialog.querySelector('[data-language="hebrew"]').textContent = 'Hebrew Answers';
+            dialog.querySelector('#practice-title').remove();
+            dialog.querySelector('#practice-help').remove();
+            dialog.removeAttribute('aria-labelledby');
+            dialog.removeAttribute('aria-describedby');
+            dialog.setAttribute('aria-label', 'Alternate answers');
+            dialog.querySelector('[data-language="english"]').textContent = 'Generate English Distractors';
+            dialog.querySelector('[data-language="hebrew"]').textContent = 'Generate Hebrew Distractors';
             dialog.querySelector('#practice-form > p').textContent = 'Edit the correct definition and four incorrect answers. Generate Missing Answers fills empty cells. Check answers to replace, then choose Regenerate Selected Answers. Save applies your changes to the vocabulary list and games.';
             dialog.querySelector('#practice-regenerate').textContent = 'Regenerate Selected Answers';
             dialog.querySelector('#practice-submit').textContent = 'Save Answers';
@@ -288,7 +291,7 @@
             if (busy) return;
             if (session.language === choice.dataset.language || session.choose(choice.dataset.language)) {
                 error(''); status(''); renderRows(); refresh();
-                if (!inline) return generate(true);
+                return generate(true);
             }
         }));
         find('#practice-cancel').addEventListener('click', cancel);

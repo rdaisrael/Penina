@@ -160,6 +160,9 @@
             dialog.querySelector('#practice-submit').textContent = 'Save Answers';
             dialog.querySelector('#practice-cancel').textContent = 'Discard Unsaved Changes';
             dialog.querySelector('#practice-cancel').hidden = true;
+            const discardButton = dialog.querySelector('#practice-cancel');
+            discardButton.remove();
+            dialog.querySelector('#practice-form').appendChild(discardButton);
         }
         const find = selector => dialog.querySelector(selector);
         const form = find('form'), tbody = find('tbody');
@@ -178,7 +181,9 @@
             form.hidden = !session.language;
             if (inline) find('#practice-cancel').hidden = form.hidden;
             form.setAttribute('aria-busy', String(busy));
-            form.querySelectorAll('input, textarea, button').forEach(control => { control.disabled = busy; });
+            form.querySelectorAll('input, textarea, button').forEach(control => {
+                if (control.id !== 'practice-cancel') control.disabled = busy;
+            });
         }
         function renderRows() {
             tbody.replaceChildren();
@@ -273,7 +278,18 @@
             doc.addEventListener('vocabulary-stage-changed', event => {
                 if (event.detail.stage === 'practice' && !session) start();
             });
-            const reset = () => { run++; controller?.abort(); busy = false; session = null; };
+            const reset = () => {
+                run++; controller?.abort(); busy = false; session = null;
+                form.hidden = true;
+                find('#practice-cancel').hidden = true;
+                tbody.replaceChildren();
+                error(''); status('');
+                find('#practice-lock').textContent = '';
+                choices.forEach(choice => {
+                    choice.disabled = false;
+                    choice.setAttribute('aria-pressed', 'false');
+                });
+            };
             doc.addEventListener('vocabulary-draft-restored', reset);
             doc.addEventListener('vocabulary-list-reset', reset);
         } else {
@@ -285,6 +301,7 @@
         }
         choices.forEach(choice => choice.addEventListener('click', () => {
             if (busy) return;
+            if (!session) start();
             if (session.language === choice.dataset.language || session.choose(choice.dataset.language)) {
                 error(''); status(''); renderRows(); refresh();
                 return generate(true);

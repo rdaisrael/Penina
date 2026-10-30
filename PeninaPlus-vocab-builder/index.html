@@ -2469,17 +2469,27 @@ function updateTalmudModeVisibility() {
         const practiceRegenerateButton = document.getElementById('practice-regenerate');
         const practiceSaveButton = document.getElementById('practice-submit');
         const practiceStage = document.querySelector('.practice-stage');
-        const practiceShareWidthObserver = new ResizeObserver(() => {
-            const regenerateWidth = practiceRegenerateButton.getBoundingClientRect().width;
-            const saveWidth = practiceSaveButton.getBoundingClientRect().width;
-            if (!regenerateWidth || !saveWidth) return;
-            const actions = practiceRegenerateButton.parentElement;
-            const gap = parseFloat(getComputedStyle(actions).columnGap) || 0;
-            practiceStage.style.setProperty('--practice-share-width', `${regenerateWidth + saveWidth + gap}px`);
+        // Measure the action buttons independently of the chart's hidden state.
+        const practiceWidthMeasure = document.createElement('div');
+        practiceWidthMeasure.className = 'practice-actions';
+        practiceWidthMeasure.setAttribute('aria-hidden', 'true');
+        practiceWidthMeasure.inert = true;
+        practiceWidthMeasure.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;width:max-content;max-width:none;flex-wrap:nowrap;margin:0;';
+        [practiceRegenerateButton, practiceSaveButton].forEach(button => {
+            const copy = button.cloneNode(true);
+            copy.removeAttribute('id');
+            copy.type = 'button';
+            copy.tabIndex = -1;
+            practiceWidthMeasure.appendChild(copy);
         });
-        practiceShareWidthObserver.observe(practiceRegenerateButton);
-        practiceShareWidthObserver.observe(practiceSaveButton);
-        practiceShareWidthObserver.observe(practiceRegenerateButton.parentElement);
+        document.getElementById('practice-exercises-dialog').appendChild(practiceWidthMeasure);
+        const updatePracticeShareWidth = () => {
+            const width = practiceWidthMeasure.getBoundingClientRect().width;
+            if (width) practiceStage.style.setProperty('--practice-share-width', `${width}px`);
+        };
+        const practiceShareWidthObserver = new ResizeObserver(updatePracticeShareWidth);
+        practiceShareWidthObserver.observe(practiceWidthMeasure);
+        updatePracticeShareWidth();
 
         const semanticContextValidationCache = new Map();
 

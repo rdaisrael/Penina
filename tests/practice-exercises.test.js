@@ -144,7 +144,7 @@ function modal(fetchImpl, rows = source(), extraGlobals = {}, inline = false) {
     const { dialog } = api.mount({ button, container: inline ? document.body : null, document, fetchImpl, getRows: () => rows, onSubmit: (...args) => saved.push(args), onSubmitted: () => { assert.equal(dialog.open, false); backupCount++; } });
     if (inline) document.events['vocabulary-stage-changed']({ detail: { stage: 'practice' } });
     else button.fire('click');
-    return { button, dialog, saved, get backupCount() { return backupCount; }, find: selector => dialog.querySelector(selector) };
+    return { button, dialog, saved, document, get backupCount() { return backupCount; }, find: selector => dialog.querySelector(selector) };
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -343,4 +343,35 @@ test('inline language buttons generate missing distractors in either language an
         assert.equal(ui.find('#practice-title'), undefined);
         assert.equal(ui.find('#practice-help'), undefined);
     }
+});
+
+
+test('restoring a draft hides discard with the chart and reopens saved distractors without generation', async () => {
+    const rows = source();
+    rows[0].alternativeAnswers = { english: { term: 'סוס', definition: 'horse', answers: alternatives } };
+    let requests = 0;
+    const ui = modal(async () => { requests++; throw new Error('Saved distractors must not regenerate'); }, rows, {}, true);
+    const form = ui.find('form');
+    const discard = ui.find('#practice-cancel');
+    assert.equal(discard.parent, form, 'discard shares the chart visibility container');
+    assert.equal(form.hidden, true);
+    assert.equal(discard.hidden, true);
+    const english = ui.dialog.querySelectorAll('[data-language]')[0];
+    await english.fire('click');
+    assert.equal(form.hidden, false);
+    assert.equal(discard.hidden, false);
+    for (const event of ['vocabulary-draft-restored', 'vocabulary-list-reset']) {
+        ui.document.events[event]();
+        assert.equal(form.hidden, true);
+        assert.equal(discard.hidden, true);
+        assert.equal(ui.dialog.querySelectorAll('textarea').length, 0);
+        await english.fire('click');
+        assert.equal(form.hidden, false);
+        assert.equal(discard.hidden, false);
+        assert.deepEqual(ui.dialog.querySelectorAll('textarea').map(input => input.value), alternatives);
+    }
+    assert.equal(requests, 0);
+    discard.fire('click');
+    assert.equal(form.hidden, true);
+    assert.equal(discard.hidden, true);
 });

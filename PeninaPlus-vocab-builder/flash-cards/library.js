@@ -106,6 +106,36 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';
     lockTools.onclick = () => teacherDialog.close();
     management.append(lockTools);
+    const signOutTools = document.createElement('button');
+    signOutTools.type = 'button';
+    signOutTools.className = 'combine-action';
+    signOutTools.textContent = 'Sign Out and Lock Teacher Tools';
+    const signOutStatus = document.createElement('p');
+    signOutStatus.setAttribute('role', 'status');
+    signOutStatus.hidden = true;
+    signOutTools.onclick = async () => {
+        if (signOutTools.disabled) return;
+        signOutTools.disabled = true;
+        signOutStatus.hidden = false;
+        signOutStatus.textContent = 'Signing out…';
+        try {
+            const response = await fetch('/api/game-scores?game=quiz-account&action=logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: '{}'
+            });
+            if (!response.ok) throw new Error('Could not sign out. Please try again.');
+            signOutStatus.textContent = '';
+            signOutStatus.hidden = true;
+            teacherDialog.close();
+        } catch (_) {
+            signOutStatus.textContent = 'Could not sign out. Please try again.';
+        } finally {
+            signOutTools.disabled = false;
+        }
+    };
+    management.append(signOutTools, signOutStatus);
     const classGamify = document.createElement('a');
     classGamify.className = 'set-action gamify-action';
     classGamify.textContent = 'Gamify! — All class terms';

@@ -989,15 +989,16 @@
     <script>
         const PENINA_BUILD_ID = 'offline-study-cards-2026-09-07';
         function stylizeTitleText(text) {
+            // Split plain text first so generated tags never become title content.
             return String(text || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/([\u0590-\u05FF\uFB1D-\uFB4F][\u0590-\u05FF\uFB1D-\uFB4F\s'"׳״-]*)/g, '<span class="title-hebrew">$1</span>')
-                .replace(/([^<]+)/g, function(part) {
-                    return part.includes('title-hebrew') ? part : '<span class="title-english">' + part + '</span>';
-                })
-                .replace(/<span class="title-english"><\/span>/g, '');
+                .split(/([\u0590-\u05FF\uFB1D-\uFB4F][\u0590-\u05FF\uFB1D-\uFB4F\s'"׳״-]*)/g)
+                .map(function(part, index) {
+                    if (!part) return '';
+                    const escaped = part.replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const className = index % 2 ? 'title-hebrew' : 'title-english';
+                    return '<span class="' + className + '">' + escaped + '</span>';
+                }).join('');
         }
 
         function applyTitleText(rawTitle) {

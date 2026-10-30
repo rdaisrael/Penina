@@ -18,9 +18,11 @@ test('New users get exactly the selected apps; owner and legacy accounts keep ac
  }
 });
 function response(){return {headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.code=n;return this;},send(body){this.body=body;return this;},json(body){this.body=body;return this;},end(){return this;}};}
-function gateway(allowed,errorStatus=403) {
+function gateway(allowed,errorStatus=403,assetVersions=null) {
  const calls=[],context={module:{exports:{}},process:{cwd:()=>root},require:name=>{
   if(name==='./teacher-apps')return {requireApps:async(req,apps)=>{calls.push(apps);if(!apps.some(id=>allowed.includes(id)))throw Object.assign(Error('Denied'),{status:errorStatus});}};
+  if(name==='./asset-manifest.json' && assetVersions)return assetVersions;
+  if(name==='./asset-urls'||name==='./asset-manifest.json')return require('../lib/'+name.slice(2));
   if(name==='fs'||name==='path')return require(name);
   if(name.startsWith('../api/'))return (req,res)=>res.status(200).json({handled:name});
   throw Error(name);
@@ -47,7 +49,7 @@ test('API gateway checks grants before calling generation or vocabulary endpoint
 });
 test('Deployment routes protect app HTML and API aliases before static file handling',()=>{
  const config=require('../vercel.json'),routes=config.routes.slice(0,config.routes.findIndex(r=>r.handle==='filesystem'));
- const first=url=>routes.find(route=>route.src && new RegExp(route.src).test(url));
+ const first=url=>routes.find(route=>!route.continue && route.src && new RegExp(route.src).test(url));
  for(const url of ['/PeninaPlus-Reader/','/PeninaPlus-Reader/index.html','/PeninaPlus-Reader/bold.html','/PeninaPlus-vocab-builder/','/PeninaPlus-Binyan-Builder/index','/Penina-Quizzes/builder/','/Penina-Quizzes/custom/teacher.html'])assert.match(first(url).dest,/game=app-page/);
  for(const url of ['/api/generate','/api/generate.js','/api/translate/','/api/vocabulary-workbook'])assert.match(first(url).dest,/game=app-api/);
  assert.equal(first('/PeninaPlus-Reader/archive/aoldindex.html').status,404);
@@ -98,4 +100,16 @@ test('Google sessions bypass Penina password setup but still require assigned ap
 test('Welcome email offers Google Workspace and Penina password choices with separate passwords',async()=>{
  const h=mailHarness();await h.sendWelcome({userId:2,name:'Teacher',email:'teacher@saracademy.org',apps:['reader'],mustChangePassword:true,temporaryPassword:'temporary-example'});
  const text=h.calls[0].body.text;assert.match(text,/school Google Workspace account/);assert.match(text,/do not need to use or change a Penina password/);assert.match(text,/first time you use this method/);assert.match(text,/does not change your Google password/);assert.match(text,/Temporary password: temporary-example/);
+});
+
+
+test('Authenticated pages version both their own assets and gateway-injected scripts',async()=>{
+ const versions={'/session-idle.js':'idle-hash','/return-to-penina.js':'home-hash','/PeninaPlus-Reader/reader-core.js':'reader-hash'};
+ const result=response();await gateway(['reader'],403,versions).handle({method:'GET',query:{game:'app-page',page:'reader'}},result);
+ assert.equal(result.code,200);
+ assert.equal(result.headers['Cache-Control'],'private, no-store');
+ assert.match(result.body,/src="\/session-idle.js\?v=idle-hash"/);
+ assert.match(result.body,/src="\/return-to-penina.js\?v=home-hash"/);
+ assert.match(result.body,/src="reader-core.js\?v=reader-hash"/);
+ assert.match(result.body,/href="\/"/);
 });

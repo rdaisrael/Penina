@@ -93,7 +93,7 @@
       "status": 404
     },
     {
-      "src": "^/(?:lib|tests)/.*$",
+      "src": "^/(?:lib|tests|scripts)/.*$",
       "status": 404
     },
     {
@@ -121,12 +121,20 @@
       "status": 404
     },
     {
+      "src": "^/(?!api(?:/|$))(?:.*\\.(?:html|m?js|css)|[^.]*)$",
+      "headers": {
+        "Cache-Control": "public, no-cache"
+      },
+      "continue": true
+    },
+    {
       "handle": "filesystem"
     }
   ],
   "functions": {
     "api/game-scores.js": {
-      "includeFiles": "{Penina{,Plus}-Reader/{index,bold}.html,PeninaPlus-{vocab-builder,Binyan-Builder}/index.html,Penina-Quizzes/{builder/index.html,custom/teacher.html,gemara-*/{teacher.html,questions.json,talmud-page.png}},PeninaPlus-vocab-builder/*.xlsx}"
+      "includeFiles": "{lib/asset-manifest.json,Penina{,Plus}-Reader/{index,bold}.html,PeninaPlus-{vocab-builder,Binyan-Builder}/index.html,Penina-Quizzes/{builder/index.html,custom/teacher.html,gemara-*/{teacher.html,questions.json,talmud-page.png}},PeninaPlus-vocab-builder/*.xlsx}"
     }
-  }
+  },
+  "buildCommand": "npm run build"
 }

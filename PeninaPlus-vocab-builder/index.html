@@ -626,6 +626,8 @@
         [data-stage="practice"] #practice-stage-title { color: #0056b3; }
         [data-stage] h2[tabindex="-1"]:focus { outline: none; }
         @media screen {
+            body[data-workflow-stage="practice"] .control-panel { display: none; }
+            #practice-exercises-dialog:has(#practice-form[hidden]) #practice-cancel { display: none !important; }
             body[data-workflow-stage="add"] [data-stage]:not([data-stage="add"]),
             body[data-workflow-stage="review"] [data-stage]:not([data-stage="review"]),
             body[data-workflow-stage="practice"] [data-stage]:not([data-stage="practice"]),
@@ -981,7 +983,7 @@
         <div class="workflow-actions"><button type="button" data-go-stage="share">Continue to Share</button></div>
     </section>
 
-    <script src="practice-exercises.js"></script>
+    <script src="practice-exercises.js?v=20261029-discard-visibility-2"></script>
     <script src="offline-study-cards.js"></script>
     <script src="vocabulary-pages.js"></script>
     <script>

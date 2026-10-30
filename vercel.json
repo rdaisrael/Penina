@@ -133,7 +133,7 @@
   ],
   "functions": {
     "api/game-scores.js": {
-      "includeFiles": "{lib/asset-manifest.json,Penina{,Plus}-Reader/{index,bold}.html,PeninaPlus-{vocab-builder,Binyan-Builder}/index.html,Penina-Quizzes/{builder/index.html,custom/teacher.html,gemara-*/{teacher.html,questions.json,talmud-page.png}},PeninaPlus-vocab-builder/*.xlsx}"
+      "includeFiles": "{lib/asset-manifest.json,Penina{,Plus}-Reader/{index,bold}.html,PeninaPlus-vocab-builder/{index.html,*.xlsx},PeninaPlus-Binyan-Builder/index.html,Penina-Quizzes/{{builder/index,custom/teacher}.html,gemara-*/{teacher.html,questions.json,talmud-page.png}}}"
     }
   },
   "buildCommand": "npm run build"

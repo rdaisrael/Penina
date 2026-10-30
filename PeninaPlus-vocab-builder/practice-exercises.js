@@ -159,6 +159,7 @@
             dialog.querySelector('#practice-regenerate').textContent = 'Regenerate Selected Answers';
             dialog.querySelector('#practice-submit').textContent = 'Save Answers';
             dialog.querySelector('#practice-cancel').textContent = 'Discard Unsaved Changes';
+            dialog.querySelector('#practice-cancel').hidden = true;
         }
         const find = selector => dialog.querySelector(selector);
         const form = find('form'), tbody = find('tbody');
@@ -175,6 +176,7 @@
                 ? `${languages[session.language]} is locked for this session. Save to keep your answers or Cancel to discard changes.`
                 : 'Language choice is unlocked.';
             form.hidden = !session.language;
+            if (inline) find('#practice-cancel').hidden = form.hidden;
             form.setAttribute('aria-busy', String(busy));
             form.querySelectorAll('input, textarea, button').forEach(control => { control.disabled = busy; });
         }

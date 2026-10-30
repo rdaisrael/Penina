@@ -218,7 +218,7 @@
         .password-visibility-toggle:focus-visible { outline: 2px solid #6936c9; outline-offset: 2px; }
         .password-visibility-toggle[aria-pressed="false"] .eye-slash { display: none; }
         .add-webpage { margin-top: 16px; text-align: left; border-top: 1px solid #dcd3c6; padding-top: 12px; }
-        .add-webpage summary { cursor: pointer; color: #6936c9; font-weight: bold; }
+        .add-webpage summary { cursor: pointer; color: #0056b3; font-weight: bold; }
         .add-webpage form { margin-top: 14px; }
         .add-webpage p { font-size: 15px; line-height: 1.4; }
         #vocabulary-pages-status { margin-top: 12px; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
@@ -618,6 +618,7 @@
         .workflow-guidance { color: #5a5248; font-size: 14px; line-height: 1.5; }
         .workflow-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
         .workflow-actions button { width: auto; padding: 10px 18px; }
+        .practice-stage .workflow-actions button[data-go-stage="share"] { width: var(--practice-share-width, auto); max-width: 100%; box-sizing: border-box; }
         [data-stage] h2 { margin-top: 0; color: #5a5248; }
         [data-stage="add"] #add-stage-title,
         [data-stage="add"] h2.add-context-title { color: #0056b3; }
@@ -910,7 +911,7 @@
                         <a id="selected-page-link" target="_blank" rel="noopener"></a>
                         <details style="margin-top:10px"><summary>Open a published class webpage</summary><nav id="published-page-links" aria-label="Published class webpages" style="display:grid;gap:10px;padding:12px 0"></nav></details>
                     </div>
-                    <button type="button" id="publish-study-cards-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;" disabled>Publish to Class Page</button>
+                    <button type="button" id="publish-study-cards-btn" style="background-color: #0056b3; width: auto; padding: 10px 34px;" disabled>Publish to Class Page</button>
                 </div>
                 <div id="publish-study-cards-status" role="status" style="display: none; margin-top: 12px; padding: 9px 11px; border-radius: 6px; background: #edf6ed; color: #285b2a; line-height: 1.4;"></div>
                 <details class="add-webpage" id="add-webpage">
@@ -921,7 +922,7 @@
                             <label for="new-page-name">Page name:</label>
                             <input id="new-page-name" type="text" maxlength="120" required placeholder="e.g. Ninth Grade Vocabulary">
                         </div>
-                        <button type="submit" id="create-webpage-btn" style="background-color: #7a3df0; width: auto; padding: 10px 34px;">Create webpage</button>
+                        <button type="submit" id="create-webpage-btn" style="background-color: #0056b3; width: auto; padding: 10px 34px;">Create webpage</button>
                     </form>
                 </details>
                 <!-- Temporarily hidden; remove hidden to restore the older-page linking tool. -->
@@ -2465,6 +2466,21 @@ function updateTalmudModeVisibility() {
                     `${language === 'hebrew' ? 'Hebrew' : 'English'} alternate answers saved to this vocabulary list. Use Download Draft to keep them after leaving this page.`;
             }
         });
+        const practiceRegenerateButton = document.getElementById('practice-regenerate');
+        const practiceSaveButton = document.getElementById('practice-submit');
+        const practiceStage = document.querySelector('.practice-stage');
+        const practiceShareWidthObserver = new ResizeObserver(() => {
+            const regenerateWidth = practiceRegenerateButton.getBoundingClientRect().width;
+            const saveWidth = practiceSaveButton.getBoundingClientRect().width;
+            if (!regenerateWidth || !saveWidth) return;
+            const actions = practiceRegenerateButton.parentElement;
+            const gap = parseFloat(getComputedStyle(actions).columnGap) || 0;
+            practiceStage.style.setProperty('--practice-share-width', `${regenerateWidth + saveWidth + gap}px`);
+        });
+        practiceShareWidthObserver.observe(practiceRegenerateButton);
+        practiceShareWidthObserver.observe(practiceSaveButton);
+        practiceShareWidthObserver.observe(practiceRegenerateButton.parentElement);
+
         const semanticContextValidationCache = new Map();
 
         function getSelectedContextQuoteIndexes() {

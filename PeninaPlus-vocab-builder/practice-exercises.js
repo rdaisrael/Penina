@@ -155,16 +155,10 @@
             dialog.setAttribute('aria-label', 'Alternate answers');
             dialog.querySelector('[data-language="english"]').textContent = 'Generate English Distractors';
             dialog.querySelector('[data-language="hebrew"]').textContent = 'Generate Hebrew Distractors';
-            dialog.querySelector('#practice-form > p').textContent = 'Edit the correct definition and four incorrect answers. Generate Missing Answers fills empty cells. Check answers to replace, then choose Regenerate Selected Answers. Save applies your changes to the vocabulary list and games.';
+            dialog.querySelector('#practice-form > p').textContent = 'Edit the correct definition and four incorrect answers. Use Generate English Distractors or Generate Hebrew Distractors to fill empty cells. Check answers to replace, then choose Regenerate Selected Answers. Save applies your changes to the vocabulary list and games.';
             dialog.querySelector('#practice-regenerate').textContent = 'Regenerate Selected Answers';
             dialog.querySelector('#practice-submit').textContent = 'Save Answers';
             dialog.querySelector('#practice-cancel').textContent = 'Discard Unsaved Changes';
-            const generateMissing = doc.createElement('button');
-            generateMissing.type = 'button';
-            generateMissing.id = 'practice-generate-missing';
-            generateMissing.textContent = 'Generate Missing Answers';
-            dialog.querySelector('.practice-actions').prepend(generateMissing);
-            generateMissing.addEventListener('click', () => generate(true));
         }
         const find = selector => dialog.querySelector(selector);
         const form = find('form'), tbody = find('tbody');

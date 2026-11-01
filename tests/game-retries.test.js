@@ -73,10 +73,10 @@ test('Twenty matching words advance through four batches exactly once, with cont
  assert.deepEqual(rounds,[1,2,3,4]);assert.deepEqual(completed,words.map(row=>row.id));assert.equal(ctx.offset,20);assert.equal(ctx.cardRound,4);assert.equal(ctx.summaries,1);assert(ctx.finishedMs>0);
 });
 
-test('Matching shuffles the original eligible pool instead of repeating the newest wordlists',()=>{
+test('Matching uses the weighted schedule for practice rounds',()=>{
  const words=[{id:0,studyDate:'2026-10-07'},{id:1,studyDate:'2026-10-06'}];
- const ctx={value:'cards',groups:{english:words},language:{value:'english'},shuffle:rows=>rows.slice(),scheduleClassTerms(){throw new Error('Weighted repetition must not run for matching')}};
+ const ctx={value:'cards',groups:{english:words},language:{value:'english'},shuffle:rows=>rows.slice(),scheduleClassTerms(rows){return [...rows, {...rows[0],id:2}];}};
  vm.createContext(ctx);
  const line=source.split('\n').find(line=>line.includes('cardRound = 1; mode = value;'));
- vm.runInContext(line,ctx);assert.equal(ctx.rows.length,2);assert.equal(ctx.totalTerms,2);
+ vm.runInContext(line,ctx);assert.equal(ctx.rows.length,3);assert.equal(ctx.totalTerms,3);
 });

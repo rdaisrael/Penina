@@ -56,7 +56,7 @@
             const answers = saved.answers.map(clean), keys = answers.map(key);
             if (new Set(keys).size !== 4 || answers.some((answer, i) => !keys[i] || answer.length > 500
                 || keys[i] === key(term) || keys[i] === key(definition))) return [];
-            return [{ id, term, definition, answers, ...(card.studySet ? { studySet: card.studySet, studyDate: card.studyDate } : {}) }];
+            return [{ id, term, definition, answers, ...(card.studySet ? { studySet: card.studySet, studyDate: card.studyDate, studyWeight: card.studyWeight } : {}) }];
         });
     }
 
@@ -70,23 +70,25 @@
             }
             return result;
         };
-        if (!rows.some(row => row.studyDate)) return shuffle(rows);
-        const latest = rows.reduce((date, row) => row.studyDate > date ? row.studyDate : date, '');
-        const recent = new Map();
-        const old = rows.filter(row => row.studyDate !== latest);
-        for (const row of rows.filter(row => row.studyDate === latest)) {
-            if (!recent.has(row.studySet)) recent.set(row.studySet, []);
-            recent.get(row.studySet).push(row);
+        if (!rows.some(row => row.studySet)) return shuffle(rows);
+        const groups = new Map();
+        for (const row of rows) {
+            const key = row.studySet || 'ungrouped';
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(row);
         }
-        if (!old.length) return shuffle(rows);
-        const pools = [...recent.values()].map(shuffle), older = shuffle(old);
-        const rounds = Math.max(older.length, ...pools.map(pool => Math.ceil(pool.length / 3)));
+        if (groups.size === 1) return shuffle(rows);
+        const pools = [...groups.values()].map(values => ({
+            rows: shuffle(values), weight: [1, 2, 3].includes(values[0].studyWeight) ? values[0].studyWeight : 1
+        }));
+        const rounds = Math.max(...pools.map(pool => Math.ceil(pool.rows.length / pool.weight)));
         const result = [];
         for (let round = 0; round < rounds; round++) {
+            const cycle = [];
             for (const pool of pools) {
-                for (let i = 0; i < 3; i++) result.push(pool[(round * 3 + i) % pool.length]);
+                for (let i = 0; i < pool.weight; i++) cycle.push(pool.rows[(round * pool.weight + i) % pool.rows.length]);
             }
-            result.push(older[round % older.length]);
+            result.push(...shuffle(cycle));
         }
         return result.map((row, id) => ({ ...row, id, scheduled: true }));
     }
@@ -95,7 +97,7 @@
         const groups = Object.fromEntries(['english', 'hebrew'].map(language => [language, practiceRows(cards, language)]).filter(([, rows]) => rows.length));
         const allDisabled = ['quiz', 'lines', 'cards', 'asteroids', 'flappy', 'chomp', 'snowblaster'].every(id => (options.disabledGames || []).includes(id));
         if (allDisabled) Object.keys(groups).forEach(key => delete groups[key]);
-        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — Gamify</title><style>body{font:16px Arial,sans-serif;background:#faf7ff;color:#241632;max-width:960px;margin:32px auto;padding:20px}button{border:1px solid #cab5e0;border-radius:12px;background:white;padding:12px;font:inherit}a{color:#7024b5}.games-dialog{box-sizing:border-box}</style></head><body><a target="_blank" rel="noopener" href="${escapeHtml(options.homeUrl)}">← Class home</a><h1>${escapeHtml(title)} — Gamify!</h1><p>Practice across your class sets, with extra practice for the newest material.</p>${Object.keys(groups).length ? '<button id="gamify" type="button">Choose a game</button>' : '<p>No games are currently available for this class.</p>'}<script id="peninaClassConfig" type="application/json">${JSON.stringify({leaderboardUrl:options.leaderboardUrl,matchingUrl:options.matchingUrl}).replace(/</g, '\\u003c')}</script>${gamesMarkup(groups, options.disabledGames)}</body></html>`;
+        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — Gamify</title><style>body{font:16px Arial,sans-serif;background:#faf7ff;color:#241632;max-width:960px;margin:32px auto;padding:20px}button{border:1px solid #cab5e0;border-radius:12px;background:white;padding:12px;font:inherit}a{color:#7024b5}.games-dialog{box-sizing:border-box}</style></head><body><a target="_blank" rel="noopener" href="${escapeHtml(options.homeUrl)}">← Class home</a><h1>${escapeHtml(title)} — Gamify!</h1><p>Practice across your class sets, using your teacher’s wordlist emphasis.</p>${Object.keys(groups).length ? '<button id="gamify" type="button">Choose a game</button>' : '<p>No games are currently available for this class.</p>'}<script id="peninaClassConfig" type="application/json">${JSON.stringify({leaderboardUrl:options.leaderboardUrl,matchingUrl:options.matchingUrl}).replace(/</g, '\\u003c')}</script>${gamesMarkup(groups, options.disabledGames)}</body></html>`;
     }
 
     // Pure game state: no DOM, timers, or network. Also embedded in offline files.
@@ -884,7 +886,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             matchingRunId=typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
             mastered=new Set();startedAt=performance.now();finishedMs=0;totalTerms=groups[language.value].length;
             matchingActive = value === 'cards'; matchingMistakes = 0; byId('gameAgain').hidden = matchingActive;
-            cardRound = 1; mode = value; rows = mode === 'cards' ? shuffle(groups[language.value]) : scheduleClassTerms(groups[language.value]);totalTerms=rows.length; offset = score = attempts = 0;
+            cardRound = 1; mode = value; rows = scheduleClassTerms(groups[language.value]);totalTerms=rows.length; offset = score = attempts = 0;
             byId('gameMenu').hidden = true; byId('gamePlay').hidden = false;
             title.textContent = labels[mode];
             if (mode === 'snowblaster') {
@@ -909,7 +911,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             }
             byId('gameHelp').textContent = mode === 'quiz' ? 'You have two chances. Miss twice and the term returns later.' : mode === 'lines'
                 ? 'Match every term; extra definitions will remain unused. Drag from the dot inside a term oval to the dot inside its definition oval. You can also click or use Tab and Enter to select each pair.'
-                : 'Each round shows up to six terms. Match every word once across the rounds; correct pairs pop away. Three incorrect matches across the entire game end the game. Extra definitions will remain unused. Race the clock!';
+                : 'Each round shows up to six terms. Match the words in each round; emphasized lists return more often; correct pairs pop away. Three incorrect matches across the entire game end the game. Extra definitions will remain unused. Race the clock!';
             if(mode==='cards')timer=setInterval(updateProgress,100);
             render();
         }

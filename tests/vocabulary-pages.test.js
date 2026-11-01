@@ -241,6 +241,30 @@ test('Wordlist inclusion persists without deleting sets and preserves exercise c
  assert.match((await request('api/flashcard-sets.js','GET',{}, {...base,games:'1'})).body,/data-game="quiz"/);
 });
 
+test('Combined practice settings save together and reject invalid lists without partial updates', async () => {
+ const {request,create}=server();await create({name:'Practice Class',password:'1-code'});
+ const base={grade:'practice-class',password:'1-code'};
+ const html=require('../PeninaPlus-vocab-builder/offline-study-cards').makeApp('Review',[{term:'סוס',english:'horse'}]);
+ await request('api/flashcard-sets.js','POST',{...base,title:'Review',html});
+ const listing=await request('api/flashcard-sets.js','GET',{},base);
+ const pathname=listing.body.sets[0].pathname;
+ assert.deepEqual(listing.body.excludedWordlists,[]);
+ assert.equal(listing.body.wordlistEmphasis[pathname],3);
+ const settings={...base,action:'game-settings',disabledGames:['quiz'],excludedWordlists:[pathname],wordlistEmphasis:{[pathname]:2}};
+ assert.equal((await request('api/flashcard-sets.js','POST',settings)).code,200);
+ let saved=(await request('api/flashcard-sets.js','GET',{},base)).body;
+ assert.deepEqual(saved.disabledGames,['quiz']);assert.deepEqual(saved.excludedWordlists,[pathname]);
+ assert.equal(saved.sets.length,1);assert.equal(saved.wordlistEmphasis[pathname],2);
+ assert.equal((await request('api/flashcard-sets.js','POST',{...settings,wordlistEmphasis:{[pathname]:4}})).code,400);
+ assert.equal((await request('api/flashcard-sets.js','POST',{...settings,wordlistEmphasis:{'other/list.html':3}})).code,400);
+ assert.equal((await request('api/flashcard-sets.js','POST',{...settings,disabledGames:[],excludedWordlists:['other/list.html']})).code,400);
+ saved=(await request('api/flashcard-sets.js','GET',{},base)).body;
+ assert.deepEqual(saved.disabledGames,['quiz']);assert.deepEqual(saved.excludedWordlists,[pathname]);
+ assert.equal((await request('api/flashcard-sets.js','POST',{...settings,disabledGames:[],excludedWordlists:[]})).code,200);
+ saved=(await request('api/flashcard-sets.js','GET',{},base)).body;
+ assert.deepEqual(saved.disabledGames,[]);assert.deepEqual(saved.excludedWordlists,[]);assert.equal(saved.wordlistEmphasis[pathname],2);
+});
+
 test('Signed-in teachers only receive pages belonging to their number',async()=>{
  const {create,request,env}=server();env.CARD_PUBLISH_KEY_SIXTH='1-6';
  await create({name:'David page',password:'1-mine'});await create({name:'Other teacher',password:'2-theirs'});

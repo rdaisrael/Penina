@@ -7,7 +7,6 @@ const previewQuiz=previewKey?JSON.parse(sessionStorage.getItem(previewKey)||'nul
 const quizId=new URLSearchParams(location.search).get('quiz') || '';
 const API = '/api/game-scores?game=assessment-custom&quiz='+encodeURIComponent(quizId);
 const ACCOUNT_API='/api/game-scores?game=quiz-account&quiz='+encodeURIComponent(quizId);
-document.querySelector('footer a').href='teacher.html?quiz='+encodeURIComponent(quizId);
 const classId=new URLSearchParams(location.search).get('class') || '';
 let DRAFT, isClassTeacher = false;
 let forwardOnlyFrom=null,lockedThrough=-1,forwardOnly=false,onCheckpoint=false,moving=false;

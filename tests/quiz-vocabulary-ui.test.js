@@ -62,3 +62,20 @@ test('Additional correct answers are editable separately from distractors',()=>{
  assert.deepEqual(Array.from(h.ctx.quiz.vocabulary.rows[0].additionalAnswers),['valid one','valid two']);
  assert.deepEqual(Array.from(h.ctx.quiz.vocabulary.rows[0].definitionDistractors),['old definition0']);
 });
+
+test('Generate missing targets only empty rows and preserves reviewed distractors',async()=>{
+ const h=harness(async(action,body)=>{assert.equal(action,'vocabulary-distractors');assert.deepEqual(Array.from(body.indices),[1]);const rows=structuredClone(body.rows);rows[1].definitionDistractors=['new'];return {rows};});
+ h.ctx.quiz.vocabulary.rows[1].definitionDistractors=[];
+ await h.$('vocabularyMissing').onclick();
+ assert.equal(h.state.confirmed.length,0);assert.deepEqual(Array.from(h.ctx.quiz.vocabulary.rows[0].definitionDistractors),['old definition0']);assert.deepEqual(Array.from(h.ctx.quiz.vocabulary.rows[1].definitionDistractors),['new']);
+});
+test('Saved-list conflicts block replacement until resolved; import preserves choices and questions',async()=>{
+ const h=harness(async action=>{assert.equal(action,'import-vocabulary-library');return {rows:[{word:'שלום',definition:'peace',definitionDistractors:['chair'],wordDistractors:[]}],conflicts:[{index:0,word:'שלום',definitions:['peace','hello']}],warnings:[]};});
+ h.$('vocabularyLibrary').querySelectorAll=()=>[{value:'my-list'}];
+ const select={value:'',dataset:{vocabConflict:'0'}};
+ h.$('vocabularyConflicts').querySelectorAll=()=>[select];
+ await h.$('vocabularyLibraryImport').onclick();
+ await h.$('vocabularyLibraryApply').onclick();assert.match(h.state.error,/every conflicting/);assert.equal(h.ctx.quiz.vocabulary.rows.length,15);
+ select.value='1';await h.$('vocabularyLibraryApply').onclick();
+ assert.equal(h.ctx.quiz.vocabulary.rows[0].definition,'hello');assert.deepEqual(Array.from(h.ctx.quiz.vocabulary.rows[0].definitionDistractors),['chair']);assert.equal(h.ctx.quiz.questions.length,1);
+});

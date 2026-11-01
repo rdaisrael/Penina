@@ -66,3 +66,12 @@ The potential-points editor also offers **Per question** and **Per correct answe
 
 
 Student Google sign-in requests permission to turn in the student’s own Classroom work. After Penina saves a student’s answers, it turns in the linked assignment using that student’s authorization. Teacher practice does not turn in work. Already turned-in or returned work is left as-is on retries. If permission or Classroom is unavailable, the quiz remains saved and the receipt directs the student to mark it done in Classroom. Teacher grade transfer continues to save only a draft grade; the teacher releases it with Return in Classroom.
+
+
+### Reusing saved vocabulary
+
+The vocabulary panel offers a downloadable two-column CSV template (Word, Definition). Replace the examples with one pair per line. Imports support commas, tabs, and two-column Markdown tables. Quote CSV definitions containing commas. Excel workbooks must be exported as CSV or their two relevant columns copied and pasted.
+
+Use **Show / refresh my wordlists** to choose published lists from vocabulary webpages owned by the signed-in teacher. Review one or more selected lists, resolve conflicting definitions, then load them into the vocabulary table. Identical terms are combined. Missing translations are reported. Saved Gamify distractors are reused only when they still match the term and definition; no AI generation runs during import. Loading replaces the current table after confirmation and leaves existing questions and source lists unchanged. Save the draft to retain the imported table.
+
+**Generate missing distractors** fills rows with no distractors without replacing reviewed choices. Regenerate row/all remains available for explicit replacement. Combined imports support up to 50 unique words and 10 distractors per word.

@@ -6,7 +6,7 @@ function vocabularyMessage(message){$('vocabularyStatus').textContent=message;}
 function vocabularyButtons(){
     const panel=$('vocabularyPanel');if(!panel)return;
     for(const el of panel.querySelectorAll('input,textarea,select,button'))el.disabled=busy || !!quiz.published;
-    for(const id of ['vocabularyImport','vocabularyRegenerate','vocabularyGenerate'])$(id).disabled ||= !connected;
+    for(const id of ['vocabularyImport','vocabularyRegenerate','vocabularyGenerate','vocabularyMissing','vocabularyLibraryRefresh','vocabularyLibraryImport','vocabularyLibraryApply'])$(id).disabled ||= !connected;
     for(const el of panel.querySelectorAll('[data-vocab-regenerate]'))el.disabled ||= !connected;
 }
 function renderVocabulary(){
@@ -64,9 +64,10 @@ $('vocabularyAdd').onclick=()=>{
     quiz.vocabulary.rows.push({word:'',definition:'',definitionDistractors:[],wordDistractors:[]});vocabularyChanged();renderVocabulary();
     $('vocabularyRows').lastElementChild.querySelector('input').focus();
 };
-async function regenerateVocabulary(index){
+async function regenerateVocabulary(index,missingOnly=false){
     await vocabularyRun(async()=>{
-        const rows=structuredClone(vocabularySource().rows),indices=index===undefined?rows.map((_,i)=>i):[index];
+        const rows=structuredClone(vocabularySource().rows),indices=index===undefined?rows.map((_,i)=>i).filter(i=>!missingOnly || !rows[i].definitionDistractors.length):[index];
+        if(!indices.length){vocabularyMessage('Every row already has distractors. Your choices are unchanged.');return;}
         if(indices.some(i=>rows[i].definitionDistractors.length) && !confirm(index===undefined?'Replace all distractors, including your edits?':'Replace the distractors in this row, including your edits?'))return;
         let generated=rows;
         for(let start=0;start<indices.length;start+=10){
@@ -78,6 +79,7 @@ async function regenerateVocabulary(index){
         vocabularyMessage('Distractors are ready. Edit any suggestion or regenerate a row, then choose your quiz.');
     });
 }
+$('vocabularyMissing').onclick=()=>regenerateVocabulary(undefined,true);
 $('vocabularyRegenerate').onclick=()=>regenerateVocabulary();
 for(const id of ['vocabularyCount','vocabularyBank','vocabularyDirection','vocabularyTypes'])$(id).addEventListener('change',()=>{
     if(busy || quiz.published)return;
@@ -108,3 +110,35 @@ $('vocabularyGenerate').onclick=()=>vocabularyRun(async()=>{
     $('title').focus();
 });
 renderVocabulary();
+
+let pendingVocabularyImport=null;
+function clearVocabularyImport(){pendingVocabularyImport=null;$('vocabularyConflicts').hidden=true;$('vocabularyLibraryApply').hidden=true;}
+$('vocabularyLibraryRefresh').onclick=()=>vocabularyRun(async()=>{
+    const {sets}=await api('vocabulary-library');
+    clearVocabularyImport();
+    $('vocabularyLibrary').innerHTML=sets.length?'<fieldset><legend>My saved wordlists</legend>'+sets.map(set=>`<label><input type="checkbox" data-vocab-list value="${esc(set.pathname)}">${esc(set.title)} — ${esc(set.pageName)}</label>`).join('')+'</fieldset>':'<p>No saved wordlists were found on your vocabulary webpages. Upload or paste a list below.</p>';
+    vocabularyMessage(sets.length+' saved wordlists available.');
+});
+$('vocabularyLibrary').addEventListener('change',clearVocabularyImport);
+$('vocabularyLibraryImport').onclick=()=>vocabularyRun(async()=>{
+    const pathnames=[...$('vocabularyLibrary').querySelectorAll('input:checked')].map(el=>el.value);
+    if(!pathnames.length)throw Error('Select at least one saved wordlist.');
+    clearVocabularyImport();
+    const result=await api('import-vocabulary-library',{pathnames});
+    pendingVocabularyImport=result;
+    $('vocabularyConflicts').innerHTML='<h3>Review selected vocabulary</h3><p>'+result.rows.length+' unique words. '+(result.conflicts.length?'Choose a definition for each conflicting word before loading.':'No conflicting definitions found.')+'</p>'+result.conflicts.map(c=>`<label>${esc(c.word)} — choose the correct definition<select data-vocab-conflict="${c.index}"><option value="">Choose a definition…</option>${c.definitions.map((d,i)=>`<option value="${i}">${esc(d)}</option>`).join('')}</select></label>`).join('')+result.warnings.map(w=>'<p>'+esc(w)+'</p>').join('');
+    $('vocabularyConflicts').hidden=false;$('vocabularyLibraryApply').hidden=false;
+    vocabularyMessage('Review the selected lists, then choose Load reviewed wordlists. Existing distractors will be preserved.');
+});
+$('vocabularyLibraryApply').onclick=()=>vocabularyRun(async()=>{
+    if(!pendingVocabularyImport)throw Error('Select and review your wordlists first.');
+    const rows=structuredClone(pendingVocabularyImport.rows);
+    for(const select of $('vocabularyConflicts').querySelectorAll('select')){
+        if(select.value==='')throw Error('Choose a definition for every conflicting word.');
+        const conflict=pendingVocabularyImport.conflicts.find(c=>c.index===Number(select.dataset.vocabConflict));
+        rows[conflict.index].definition=conflict.definitions[Number(select.value)];
+    }
+    if(vocabularySource().rows.length && !confirm('Replace the current vocabulary table and its distractors with the reviewed wordlists? Existing quiz questions will stay as they are.'))return;
+    quiz.vocabulary={...vocabularySource(),rows};clearVocabularyImport();changed();renderVocabulary();
+    vocabularyMessage(rows.length+' words loaded with saved distractors. Review the table and use Generate missing distractors for empty cells. Save draft to keep your changes.');
+});

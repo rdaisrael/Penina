@@ -4,6 +4,26 @@
 const $ = id => document.getElementById(id);
 let accountCheck = 0;
 let assignmentStatusTimer;
+let teacherRows = [];
+function setManagementOpen(open) {
+    $('teacher-management-content').hidden = !open;
+    $('teacher-management-toggle').setAttribute('aria-expanded',String(open));
+}
+$('teacher-management-toggle').onclick=()=>setManagementOpen($('teacher-management-content').hidden);
+function filterTeachers() {
+    const query=String($('teacher-search').value || '').trim().toLocaleLowerCase();
+    let matches=0;
+    for(const {teacher,item} of teacherRows) {
+        const lastName=String(teacher.name || '').trim().split(/\s+/).pop().toLocaleLowerCase();
+        item.hidden=!!query && !String(teacher.userId).includes(query) && !lastName.includes(query);
+        if(!item.hidden)matches++;
+    }
+    $('teacher-search-status').textContent=query?(matches?`${matches} matching user${matches===1?'':'s'}.`:'No matching users.'):'';
+}
+$('teacher-search').oninput=()=>{
+    if($('teacher-search').value.trim())setManagementOpen(true);
+    filterTeachers();
+};
 function setAssignmentStatus(message, dismiss=false) {
     clearTimeout(assignmentStatusTimer);
     $('assign-teacher-status').textContent=message;
@@ -124,6 +144,10 @@ function hideManagement() {
     showAccount(null);
     showApps(null);
     $('teacher-numbers').hidden = true;
+    setManagementOpen(false);
+    teacherRows=[];
+    $('teacher-search').value='';
+    $('teacher-search-status').textContent='';
     $('teacher-list').replaceChildren();
     $('assign-teacher').reset();
     $('teacher-number-status').textContent = '';
@@ -192,6 +216,7 @@ async function teacherNumbers(body,check=accountCheck) {
     const data=await teacherRequest(body);
     if(check!==accountCheck)return data;
     $('teacher-list').replaceChildren();
+    teacherRows=[];
     for(const teacher of data.teachers){
         const item=document.createElement('li');
         item.textContent=teacher.userId+' — '+teacher.name+' ('+teacher.email+')';
@@ -248,7 +273,9 @@ async function teacherNumbers(body,check=accountCheck) {
         }
         item.append(webpages);
         $('teacher-list').append(item);
+        teacherRows.push({teacher,item});
     }
+    filterTeachers();
     return data;
 }
 $('assign-teacher').onsubmit=async event=>{

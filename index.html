@@ -338,10 +338,15 @@
             border-radius: 15px;
             font: 1rem/1.5 Arial, sans-serif;
         }
-        #teacher-numbers summary { cursor: pointer; min-height: 44px; padding: 4px 0; }
-        #teacher-numbers summary h2 { display: inline; margin: 0; font-size: 1.5em; }
-        #teacher-numbers summary:focus-visible { outline: 3px solid var(--gold-border); outline-offset: 6px; border-radius: 4px; }
-        #teacher-numbers details[open] > summary { margin-bottom: 20px; }
+        .teacher-management-header { display: flex; align-items: center; gap: 16px; }
+        .teacher-management-header h2 { flex: 0 0 auto; margin: 0; font-size: 1.5em; }
+        #teacher-numbers #teacher-management-toggle { padding: 4px 0; border: 0; background: transparent; font: inherit; font-weight: bold; text-align: left; }
+        #teacher-management-toggle::before { content: '▸'; display: inline-block; margin-right: 8px; }
+        #teacher-management-toggle[aria-expanded="true"]::before { content: '▾'; }
+        #teacher-management-toggle:focus-visible { outline: 3px solid var(--gold-border); outline-offset: 4px; border-radius: 4px; }
+        #teacher-numbers #teacher-search { flex: 1; width: 0; }
+        #teacher-management-content { margin-top: 20px; }
+        @media (max-width: 480px) { .teacher-management-header { gap: 8px; } .teacher-management-header h2 { font-size: 1.1em; } #teacher-numbers #teacher-search { padding: 10px 8px; } }
         #teacher-numbers label { display: grid; gap: 6px; margin: 16px 0; }
         #teacher-numbers input { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--silver-border); border-radius: 6px; font: inherit; }
         #teacher-app-access input { width: auto; min-width: auto; margin: 0; }
@@ -519,7 +524,7 @@
         <p id="video-empty" hidden>No videos uploaded yet.</p>
         <ul id="video-list"></ul>
     </section>
-    <section id="teacher-numbers" class="panel" hidden><details><summary><h2>Manage users</h2></summary><button id="teacher-retry" type="button">Refresh users</button><p id="teacher-number-status" role="status" aria-live="polite"></p><p>Each user below has their own app checkboxes. Scroll to the user you want to edit, check or uncheck apps, then click Save access in that user’s box.</p><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> Penina Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> Penina Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> Penina Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email instructions for both sign-in options. Users can sign in with Google using their registered email address, with no Penina password change. If they use the temporary Penina password instead, they must choose a new password the first time.</p><button type="submit">Assign teacher number</button></form><p id="assign-teacher-status" role="status" aria-live="polite"></p><ul id="teacher-list"></ul></details></section>
+    <section id="teacher-numbers" class="panel" hidden><div class="teacher-management-header"><h2><button id="teacher-management-toggle" type="button" aria-expanded="false" aria-controls="teacher-management-content">Manage users</button></h2><input id="teacher-search" type="search" placeholder="User # or last name" aria-label="Search users by user number or last name" aria-controls="teacher-list" autocomplete="off"></div><div id="teacher-management-content" hidden><p id="teacher-search-status" role="status" aria-live="polite"></p><button id="teacher-retry" type="button">Refresh users</button><p id="teacher-number-status" role="status" aria-live="polite"></p><p>Each user below has their own app checkboxes. Scroll to the user you want to edit, check or uncheck apps, then click Save access in that user’s box.</p><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> Penina Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> Penina Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> Penina Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email instructions for both sign-in options. Users can sign in with Google using their registered email address, with no Penina password change. If they use the temporary Penina password instead, they must choose a new password the first time.</p><button type="submit">Assign teacher number</button></form><p id="assign-teacher-status" role="status" aria-live="polite"></p><ul id="teacher-list"></ul></div></section>
 
     <footer>
         <div style="display: flex; flex-direction: column; align-items: center;">

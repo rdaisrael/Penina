@@ -3,7 +3,7 @@ const source=fs.readFileSync(require.resolve('../homepage-teachers.js'),'utf8');
 async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResult=null,accountResult=null,pagesResult={pages:[]}) {
  const timers=new Map();let timerId=0;
  const elements=new Map(),events={},calls=[],warnings=[],payloads=[],redirects=[];
- const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,replaceChildren(){this.items=[];},append(...items){this.items.push(...items);},reset(){},textContent:''});return elements.get(id);};
+ const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,setAttribute(name,value){this[name]=value;},replaceChildren(){this.items=[];},append(...items){this.items.push(...items);},reset(){},textContent:''});return elements.get(id);};
  vm.runInNewContext(source,{setTimeout:(callback,delay)=>{timers.set(++timerId,{callback,delay});return timerId;},clearTimeout:id=>timers.delete(id),AbortSignal,FormData:class {constructor(form){return form.fields;}},location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org',pages:[{name:'Class vocabulary',url:'/PeninaPlus-vocab-builder/flash-cards/?page=class'}]}]:[])]}};}});
  await events.pageshow();return {elements,events,calls,warnings,payloads,redirects,timers};
 }
@@ -155,3 +155,21 @@ test('Assignment errors disappear after eight seconds or when the form is edited
  await form.onsubmit({preventDefault(){},target:form});
  form.oninput();assert.equal(status.textContent,'');assert.equal(v.timers.size,0);
 });
+
+ test('User search opens management, matches number or last name, and preserves edits',async()=>{
+ const v=await view({userId:1,email:'disrael@saracademy.org'},false,true);
+ const search=v.elements.get('teacher-search'),content=v.elements.get('teacher-management-content');
+ const rows=v.elements.get('teacher-list').items,editor=rows[1].items.find(item=>item.className==='user-app-access');
+ editor.items[1].items[0].checked=false;
+ assert.equal(content.hidden,true);
+ search.value='  tEAcHer  ';search.oninput();
+ assert.equal(content.hidden,false);assert.equal(rows[0].hidden,true);assert.equal(rows[1].hidden,false);
+ search.value='1';search.oninput();assert.equal(rows[0].hidden,false);assert.equal(rows[1].hidden,true);
+ search.value='Second';search.oninput();assert(rows.every(row=>row.hidden));
+ assert.equal(v.elements.get('teacher-search-status').textContent,'No matching users.');
+ search.value='';search.oninput();assert(rows.every(row=>!row.hidden));
+ assert.equal(editor.items[1].items[0].checked,false);
+ v.elements.get('teacher-management-toggle').onclick();assert.equal(content.hidden,true);
+ v.elements.get('teacher-management-toggle').onclick();assert.equal(content.hidden,false);
+ v.events.pagehide();assert.equal(search.value,'');assert.equal(content.hidden,true);
+ });

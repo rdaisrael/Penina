@@ -1,11 +1,44 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),crypto=require('node:crypto');
+const {BlobPreconditionFailedError}=require('@vercel/blob');
 function harness(emailFails=false,pageDeletionFails=false){
- let beforePut=async()=>{};const etag=value=>crypto.createHash('sha256').update(value).digest('hex');const blobs=new Map(),emails=[],emailOptions=[],deletedOwners=[];const account={session:req=>({role:'teacher',userId:2,email:'second@example.org',authMethod:req.authMethod,sessionVersion:req.sessionVersion ?? emails[0]?.sessionVersion}),isAccountOwner:req=>req.headers?.cookie==='david',verifyTeacher:()=>false,seal:value=>Buffer.from(JSON.stringify(value)).toString('base64'),unseal:raw=>JSON.parse(Buffer.from(raw,'base64').toString())};
- const ctx={module:{exports:{}},Buffer,Response,fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:n=>n==='crypto'?crypto:n==='./live-game'?{deleteOwnedGames:async()=>{}}:n==='./teacher-content'?{deleteOwnedQuizzes:async()=>{if(pageDeletionFails)throw Error('Quiz cleanup failed');}}:n==='./vocabulary-pages'?{listPages:async()=>[],deleteOwnedPages:async id=>{deletedOwners.push(id);if(pageDeletionFails)throw Error('Storage failed');return 2;}}:n==='./quiz-email-login'?{identity:async teacher=>({sub:'email:'+teacher.userId,email:teacher.email,userId:teacher.userId,role:'teacher',mustChangePassword:teacher.mustChangePassword,credentialVersion:teacher.credentialVersion})}:n==='./teacher-apps'?require('../lib/teacher-apps'):n==='./teacher-welcome-email'?{sendWelcome:async (teacher,options)=>{if(emailFails)throw Error('Email unavailable');emails.push(teacher);emailOptions.push(options);return {status:'accepted',to:teacher.email};}}:n==='./quiz-account'?account:{get:async(url,options)=>{assert.equal(options.useCache,false);const value=blobs.get(url);return value===undefined?null:{statusCode:200,stream:new Response(value).body,blob:{etag:etag(value)}};},list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,value,options)=>{await beforePut(value,options);if(options.ifMatch && options.ifMatch!==etag(blobs.get(p)||''))throw Object.assign(Error('Conflict'),{name:'BlobPreconditionFailedError'});if(blobs.has(p)&&!options.allowOverwrite)throw Error('exists');blobs.set(p,value);return {etag:etag(value)};}}};
+ let beforePut=async()=>{},readOverride;const publicCache=new Map(),reads=[];const etag=value=>crypto.createHash('sha256').update(value).digest('hex');const blobs=new Map(),emails=[],emailOptions=[],deletedOwners=[];const account={session:req=>({role:'teacher',userId:2,email:'second@example.org',authMethod:req.authMethod,sessionVersion:req.sessionVersion ?? emails[0]?.sessionVersion}),isAccountOwner:req=>req.headers?.cookie==='david',verifyTeacher:()=>false,seal:value=>Buffer.from(JSON.stringify(value)).toString('base64'),unseal:raw=>JSON.parse(Buffer.from(raw,'base64').toString())};
+ const ctx={module:{exports:{}},Buffer,Response,fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:n=>n==='crypto'?crypto:n==='./live-game'?{deleteOwnedGames:async()=>{}}:n==='./teacher-content'?{deleteOwnedQuizzes:async()=>{if(pageDeletionFails)throw Error('Quiz cleanup failed');}}:n==='./vocabulary-pages'?{listPages:async()=>[],deleteOwnedPages:async id=>{deletedOwners.push(id);if(pageDeletionFails)throw Error('Storage failed');return 2;}}:n==='./quiz-email-login'?{identity:async teacher=>({sub:'email:'+teacher.userId,email:teacher.email,userId:teacher.userId,role:'teacher',mustChangePassword:teacher.mustChangePassword,credentialVersion:teacher.credentialVersion})}:n==='./teacher-apps'?require('../lib/teacher-apps'):n==='./teacher-welcome-email'?{sendWelcome:async (teacher,options)=>{if(emailFails)throw Error('Email unavailable');emails.push(teacher);emailOptions.push(options);return {status:'accepted',to:teacher.email};}}:n==='./quiz-account'?account:{BlobPreconditionFailedError,head:async url=>({etag:etag(blobs.get(url))}),get:async(url,options)=>{assert.equal(options.useCache,false);reads.push(url);const path=url.split('?')[0];if(!publicCache.has(url))publicCache.set(url,blobs.get(path));const value=readOverride?readOverride(path):publicCache.get(url);return value===undefined?null:{statusCode:200,stream:new Response(value).body,blob:{etag:etag(value)}};},list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,value,options)=>{await beforePut(value,options);if(options.ifMatch && options.ifMatch!==etag(blobs.get(p)||''))throw new BlobPreconditionFailedError();if(blobs.has(p)&&!options.allowOverwrite)throw Error('exists');blobs.set(p,value);return {etag:etag(value)};}}};
  vm.runInNewContext(fs.readFileSync(require.resolve('../lib/quiz-teachers'),'utf8'),ctx);
- return {api:ctx.module.exports,blobs,emails,emailOptions,deletedOwners,setBeforePut:fn=>{beforePut=fn;},setPageDeletionFails:value=>{pageDeletionFails=value;},req:(body={},cookie='david')=>({method:'POST',headers:{cookie,origin:'https://www.penina-hebrew.org'},body:body.operation==='delete'?{confirmPermanentDeletion:true,...body}:body})};
+ return {api:ctx.module.exports,reads,setReadOverride:fn=>{readOverride=fn;},blobs,emails,emailOptions,deletedOwners,setBeforePut:fn=>{beforePut=fn;},setPageDeletionFails:value=>{pageDeletionFails=value;},req:(body={},cookie='david')=>({method:'POST',headers:{cookie,origin:'https://www.penina-hebrew.org'},body:body.operation==='delete'?{confirmPermanentDeletion:true,...body}:body})};
 }
 const teacher={userId:2,name:'Second Teacher',email:'second@example.org',apps:['reader','vocabulary']};
+test('User 3 can repeatedly save Vocabulary Builder access despite cached public records and skipped numbers',async()=>{
+ const h=harness(),third={...teacher,userId:3,apps:[]};
+ await h.api.manage(h.req(third));
+ const originalRead=h.reads.at(-1);
+ const access={operation:'access',userId:3,email:third.email,apps:['vocabulary']};
+ const saved=await h.api.manage(h.req(access));
+ assert.deepEqual(saved.teachers.find(t=>t.userId===3).apps,['vocabulary']);
+ assert.notEqual(h.reads.at(-1),originalRead);
+ assert.deepEqual((await h.api.registered(third.email)).apps,['vocabulary']);
+ await h.api.manage(h.req({...access,apps:[]}));
+ assert.deepEqual((await h.api.registered(third.email)).apps,[]);
+ await h.api.manage(h.req(access));
+ assert.deepEqual((await h.api.registered(third.email)).apps,['vocabulary']);
+});
+test('Mismatched cached content is retried and never written with a newer record version',async()=>{
+ const h=harness();await h.api.manage(h.req(teacher));
+ const path='quiz-teacher-numbers/2.txt',old=h.blobs.get(path);
+ await h.api.manage(h.req({operation:'access',userId:2,email:teacher.email,apps:[]}));
+ const current=h.blobs.get(path);let reads=0;
+ h.setReadOverride(()=>++reads===1?old:current);
+ assert.deepEqual((await h.api.registered(teacher.email)).apps,[]);assert.equal(reads,2);
+ h.setReadOverride(()=>old);
+ await assert.rejects(h.api.manage(h.req({operation:'access',userId:2,email:teacher.email,apps:['vocabulary']})),e=>e.status===409);
+ assert.equal(h.blobs.get(path),current);
+});
+test('The actual SDK conflict error produces a refresh instruction instead of an unexplained server error',async()=>{
+ const h=harness();await h.api.manage(h.req(teacher));
+ const before=h.blobs.get('quiz-teacher-numbers/2.txt');
+ h.setBeforePut(async()=>{throw new BlobPreconditionFailedError();});
+ await assert.rejects(h.api.manage(h.req({operation:'access',userId:2,email:teacher.email,apps:['vocabulary']})),e=>e.status===409 && /Refresh the user list/.test(e.message));
+ assert.equal(h.blobs.get('quiz-teacher-numbers/2.txt'),before);
+});
 test('Only signed-in David can allocate a number without an assignment password; records persist without exposing verifiers',async()=>{
  const h=harness();
  await assert.rejects(h.api.manage(h.req(teacher,'other')),e=>e.status===403);

@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 function harness(user={role:'teacher',userId:2,email:'teacher@example.org'},registered=user,blocked=false){
  const owners=[];const context={module:{exports:{}},require:name=>{
   if(name==='../lib/vocabulary-pages')return {listPages:async id=>{owners.push(id);return [{id:'class',name:'My class',url:'/PeninaPlus-vocab-builder/flash-cards/?page=class'}];}};
-  if(name==='../lib/quiz-teachers')return {rejectDeletedSession:async()=>{if(blocked)throw Object.assign(Error('Account blocked'),{status:403});},registered:async()=>registered};
+  if(name==='../lib/quiz-teachers')return {manage:async()=>{throw Error('Storage failure');},rejectDeletedSession:async()=>{if(blocked)throw Object.assign(Error('Account blocked'),{status:403});},registered:async()=>registered};
   if(name==='../lib/quiz-account')return {session:()=>{if(!user)throw Object.assign(Error('Sign in'),{status:401});return user;}};
   if(name==='../lib/teacher-apps')return {requireApps:async()=>{throw Object.assign(Error('App not assigned'),{status:403});}};
   throw Error(name);
@@ -23,4 +23,9 @@ test('Own webpage list rejects visitors, students, removed registrations and blo
 });
 test('Read-only webpage listing does not bypass app permissions for edits or the builder list',async()=>{
  const h=harness();assert.equal((await h.run({},'GET')).code,403);assert.equal((await h.run({action:'my-pages'},'POST')).code,403);assert.equal(h.owners.length,0);
+});
+test('Unexpected teacher-management failures describe users rather than webpages',async()=>{
+ const result=await harness().run({action:'teachers'},'POST');
+ assert.equal(result.code,500);assert.match(result.data.error,/Teacher details/);
+ assert.doesNotMatch(result.data.error,/webpage|Storage failure/);
 });

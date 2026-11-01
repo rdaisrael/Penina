@@ -33,5 +33,8 @@ module.exports = async function(req,res) {
         if(req.headers?.origin!=='https://www.penina-hebrew.org') return res.status(403).json({error:'Open the vocabulary builder on Penina.'});
         const result=await createPage(req.body?.name,undefined,ownerNumber);
         return res.status(result.status).json(result.error?{error:result.error}:{page:result.page});
-    }catch(error){return res.status(error.status || 500).json({error:error.status?error.message:'The webpage could not be saved or loaded. Please try again.'});}
+    }catch(error){
+        const managingTeachers=(req.query?.action || req.body?.action)==='teachers';
+        return res.status(error.status || 500).json({error:error.status?error.message:managingTeachers?'Teacher details could not be saved or loaded. Refresh users and try again.':'The webpage could not be saved or loaded. Please try again.'});
+    }
 };

@@ -230,6 +230,23 @@ async function teacherNumbers(body,check=accountCheck) {
             };
             access.append(save,accessStatus);item.append(access);
         }
+        const webpages=document.createElement('section');webpages.className='user-published-pages';
+        webpages.setAttribute('aria-label','Published webpages for '+teacher.name);
+        const heading=document.createElement('h3');heading.textContent='Published webpages';webpages.append(heading);
+        if(teacher.pagesError || !teacher.pages?.length){
+            const status=document.createElement('p');
+            status.textContent=teacher.pagesError?'Webpages could not be loaded. Try Refresh users.':'No published webpages yet.';
+            webpages.append(status);
+        } else {
+            const links=document.createElement('ul');
+            for(const page of teacher.pages){
+                const row=document.createElement('li'),link=document.createElement('a');
+                link.textContent=page.name;link.href=page.url;link.target='_blank';link.rel='noopener';
+                row.append(link);links.append(row);
+            }
+            webpages.append(links);
+        }
+        item.append(webpages);
         $('teacher-list').append(item);
     }
     return data;

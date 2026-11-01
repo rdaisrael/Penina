@@ -4,7 +4,7 @@ async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResu
  const timers=new Map();let timerId=0;
  const elements=new Map(),events={},calls=[],warnings=[],payloads=[],redirects=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,replaceChildren(){this.items=[];},append(...items){this.items.push(...items);},reset(){},textContent:''});return elements.get(id);};
- vm.runInNewContext(source,{setTimeout:(callback,delay)=>{timers.set(++timerId,{callback,delay});return timerId;},clearTimeout:id=>timers.delete(id),AbortSignal,FormData:class {constructor(form){return form.fields;}},location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org'}]:[])]}};}});
+ vm.runInNewContext(source,{setTimeout:(callback,delay)=>{timers.set(++timerId,{callback,delay});return timerId;},clearTimeout:id=>timers.delete(id),AbortSignal,FormData:class {constructor(form){return form.fields;}},location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org',pages:[{name:'Class vocabulary',url:'/PeninaPlus-vocab-builder/flash-cards/?page=class'}]}]:[])]}};}});
  await events.pageshow();return {elements,events,calls,warnings,payloads,redirects,timers};
 }
 test('Homepage hides user management for visitors and all other accounts',async()=>{
@@ -26,7 +26,7 @@ test('Homepage preserves owner controls and reports protected directory failures
 test('Delete user is offered only for other teachers, requires confirmation, and refreshes the list',async()=>{
  const owner={userId:1,email:'disrael@saracademy.org'};
  const cancelled=await view(owner,false,true,false);
- assert.equal(cancelled.elements.get('teacher-list').items[0].items.length,0);
+ assert.equal(cancelled.elements.get('teacher-list').items[0].items.length,1);
  const cancelButton=cancelled.elements.get('teacher-list').items[1].items[0];
  assert.equal(cancelButton.textContent,'Delete user');await cancelButton.onclick();assert.equal(cancelled.calls.length,3);
  const accepted=await view(owner,false,true,true);
@@ -57,6 +57,17 @@ test('Existing user access can be added and removed without resetting other unsa
  assert.equal(editor.items[6].textContent,'Access saved.');
  checks.forEach(input=>{input.checked=false;});await save.onclick();assert.deepEqual(v.payloads[1].apps,[]);
  assert.match(editor.items[6].textContent,/No webapps/);
+});
+test('Each user box shows its published webpage links and an empty state when needed',async()=>{
+ const v=await view({userId:1,email:'disrael@saracademy.org'},false,true);
+ const rows=v.elements.get('teacher-list').items;
+ const empty=rows[0].items.find(item=>item.className==='user-published-pages');
+ assert.equal(empty.items[1].textContent,'No published webpages yet.');
+ const pages=rows[1].items.find(item=>item.className==='user-published-pages');
+ const link=pages.items[1].items[0].items[0];
+ assert.equal(link.textContent,'Class vocabulary');
+ assert.equal(link.href,'/PeninaPlus-vocab-builder/flash-cards/?page=class');
+ assert.equal(link.target,'_blank');assert.equal(link.rel,'noopener');
 });
 
 

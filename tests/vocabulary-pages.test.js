@@ -57,7 +57,7 @@ function server() {
     }
     // Seed legacy page records so existing content and migration coverage remains intact.
     const create = async body => {const result=await load('lib/vocabulary-pages.js').createPage(body.name,body.password);return {code:result.status,body:result};};
-    return { request, create, blobs, env, deleteOwnedPages:owner=>load('lib/vocabulary-pages.js').deleteOwnedPages(owner) };
+    return { request, create, blobs, env, listPagesByOwner:()=>load('lib/vocabulary-pages.js').listPagesByOwner(), deleteOwnedPages:owner=>load('lib/vocabulary-pages.js').deleteOwnedPages(owner) };
 }
 
 test('Creation codes alone cannot authorize creation; a teacher session can', async () => {
@@ -358,3 +358,13 @@ test('Hiding persists without deleting a list, preserves game choices, and can b
  assert.deepEqual((await request('api/flashcard-sets.js','GET',{},base)).body.hiddenWordlists,[]);
  assert.match((await request('api/flashcard-sets.js','GET',{}, {...base,games:'1'})).body,/data-game="quiz"/);
 });
+
+ test('Published webpage directory groups links by owner without leaking stored credentials',async()=>{
+ const h=server();
+ await h.create({name:'First class',password:'1-secret'});
+ await h.create({name:'Third class',password:'3-secret'});
+ const pages=await h.listPagesByOwner();
+ assert.equal(pages[1][0].name,'First class');assert.equal(pages[3][0].name,'Third class');
+ assert.equal(pages[2],undefined);
+ for(const list of Object.values(pages))for(const page of list)assert.deepEqual(Object.keys(page).sort(),['id','name','url']);
+ });

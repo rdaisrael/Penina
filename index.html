@@ -330,7 +330,7 @@
         #teacher-numbers {
             box-sizing: border-box;
             width: calc(100% - 40px);
-            max-width: 720px;
+            max-width: 1000px;
             margin: 40px auto 0;
             padding: 28px;
             background: white;
@@ -348,11 +348,21 @@
         #teacher-numbers .user-app-access { margin: 16px 0 24px; }
         #teacher-numbers .user-app-access label { display: flex; align-items: center; gap: 10px; }
         #teacher-numbers .user-app-access input { width: auto; min-width: auto; margin: 0; }
-        #teacher-list li { margin: 12px 0; }
-        #teacher-list button { margin-left: 12px; }
+        #teacher-list > li { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px 24px; margin: 20px 0; padding: 20px; border: 1px solid var(--silver-border); border-radius: 10px; }
+        #teacher-list > li > button, #teacher-list .user-app-access { grid-column: 1; min-width: 0; }
+        #teacher-list > li > button { justify-self: start; }
+        #teacher-list .user-published-pages { grid-column: 2; grid-row: 1 / span 4; border-left: 1px solid var(--silver-border); padding-left: 24px; min-width: 0; }
+        #teacher-list .user-published-pages h3 { margin: 0 0 12px; font-size: 1rem; }
+        #teacher-list .user-published-pages ul { padding-left: 20px; }
+        #teacher-list .user-published-pages li { margin: 12px 0; }
+        #teacher-list .user-published-pages a { color: var(--text-dark); text-underline-offset: 3px; }
+        @media (max-width: 640px) {
+            #teacher-list > li { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+            #teacher-list .user-published-pages { grid-column: 1; grid-row: auto; border-left: 0; border-top: 1px solid var(--silver-border); padding: 16px 0 0; }
+        }
         #teacher-numbers button { cursor: pointer; font: inherit; min-height: 44px; }
         #teacher-numbers button:not(.password-visibility) { padding: 10px 16px; background: #f9f6ef; color: var(--text-dark); border: 1px solid var(--gold-border); border-radius: 6px; }
-        #teacher-list { overflow-wrap: anywhere; }
+        #teacher-list { overflow-wrap: anywhere; list-style: none; padding: 0; }
         #your-webpages { box-sizing: border-box; width: min(100% - 40px, 1000px); margin: 32px auto; padding: 24px; background: #fff; border: 1px solid #d8c79d; border-radius: 12px; }
         #your-webpages h2 { margin-top: 0; }
         #your-webpages-list { padding-left: 24px; overflow-wrap: anywhere; }

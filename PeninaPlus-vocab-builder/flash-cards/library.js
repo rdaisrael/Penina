@@ -34,7 +34,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     const gameChoices = document.createElement('fieldset');
     gameChoices.className = 'teacher-choices';
     const gameCatalog = [['quiz','Quick Quiz'],['lines','Connect the Words'],['cards','Match the Cards'],['asteroids','Vocabulary Asteroids'],['flappy','Flappy Vocab'],['chomp','Chomp & Charge'],['snowblaster','Snowblaster!']];
-    gameChoices.innerHTML = '<legend>Included exercises and games</legend><p>Checked activities are included. Uncheck any activity to exclude it, then save.</p>' + gameCatalog.map(([id,name]) => `<label><input type="checkbox" value="${id}" class="game-remove-select"><span>${name}</span></label>`).join('');
+    gameChoices.innerHTML = '<legend>Included Exercises</legend><p>Checked activities are included. Uncheck any activity to exclude it, then save.</p>' + gameCatalog.map(([id,name]) => `<label><input type="checkbox" value="${id}" class="game-remove-select"><span>${name}</span></label>`).join('');
     management.appendChild(gameChoices);
     const saveGames = document.createElement('button');
     saveGames.type = 'button'; saveGames.className = 'combine-action primary'; saveGames.textContent = 'Save Included Wordlists and Exercises';
@@ -47,7 +47,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         removeButton.disabled = !sets.length;
         setChoices.innerHTML = '<legend>Included wordlists</legend>' + sets.filter(set => !hiddenWordlists.includes(set.pathname)).map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(set.title)}</span></label>`).join('');
         const newest = sets.slice().sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt) || a.pathname.localeCompare(b.pathname))[0]?.pathname;
-        practiceChoices.innerHTML = '<legend>Wordlists and Prioritization for practice exercises</legend><p>All wordlists are included by default. Choose Normal, 2×, or 3× practice frequency for each list, then save. Hidden wordlists remain hidden.</p>' + sets.map(set => {
+        practiceChoices.innerHTML = '<legend>Wordlists and Prioritization</legend><p>All wordlists are included by default. Choose Normal, 2×, or 3× practice frequency for each list, then save. Hidden wordlists remain hidden.</p>' + sets.map(set => {
             const weight = wordlistEmphasis[set.pathname] ?? (set.pathname === newest ? 3 : 1);
             return `<div class="practice-wordlist-row"><label><input type="checkbox" class="practice-list-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(set.title)}${hiddenWordlists.includes(set.pathname) ? ' (hidden)' : ''}</span></label><select class="practice-emphasis" data-path="${escapeHtml(set.pathname)}" aria-label="Emphasis for ${escapeHtml(set.title)}" ${excludedWordlists.includes(set.pathname) ? 'disabled' : ''}>${[[1,'Normal'],[2,'2×'],[3,'3×']].map(([value,label]) => `<option value="${value}" ${weight === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>`;
         }).join('');
@@ -115,16 +115,16 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     const wordlistSection = teacherSection('teacher-wordlists-heading', 'Hide or remove wordlists from webpage', [removalChoices, listActions]);
     management.append(
         teacherSection('teacher-live-heading', 'Start Live Game', [setChoices, scoreEmailControls, liveActions]),
-        teacherSection('teacher-games-heading', 'Student Exercises and Games', [gameChoices, practiceChoices, saveGames, gameStatus]),
+        teacherSection('teacher-games-heading', 'Student Exercises', [gameChoices, practiceChoices, saveGames, gameStatus]),
         wordlistSection
     );
-    const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';
+    const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Close Teacher Tools';
     lockTools.onclick = () => teacherDialog.close();
     management.append(lockTools);
     const signOutTools = document.createElement('button');
     signOutTools.type = 'button';
     signOutTools.className = 'combine-action';
-    signOutTools.textContent = 'Sign Out and Lock Teacher Tools';
+    signOutTools.textContent = 'Close Teacher Tools and Sign Out';
     const signOutStatus = document.createElement('p');
     signOutStatus.setAttribute('role', 'status');
     signOutStatus.hidden = true;

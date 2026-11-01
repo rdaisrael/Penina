@@ -113,10 +113,9 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         return section;
     }
     const wordlistSection = teacherSection('teacher-wordlists-heading', 'Hide or remove wordlists from webpage', [removalChoices, listActions]);
-    wordlistSection.prepend(practiceChoices, saveGames, gameStatus);
     management.append(
         teacherSection('teacher-live-heading', 'Start Live Game', [setChoices, scoreEmailControls, liveActions]),
-        teacherSection('teacher-games-heading', 'Student Exercises and Games', [gameChoices]),
+        teacherSection('teacher-games-heading', 'Student Exercises and Games', [gameChoices, practiceChoices, saveGames, gameStatus]),
         wordlistSection
     );
     const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Lock teacher tools';

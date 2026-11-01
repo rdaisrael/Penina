@@ -38,7 +38,8 @@ async function owner(request, authFetch) {
     if (!cookie.includes('__Host-penina-quiz-session=')) fail(401, 'Sign in to Penina to manage videos.');
     // Verify the existing signed session at the existing server. No shared signing key in the browser/Worker.
     const response = await authFetch(`${ORIGIN}/api/game-scores?game=quiz-account&action=teacher`, {
-        headers:{Cookie:cookie}, redirect:'error', cache:'no-store', signal:AbortSignal.timeout(10000)
+        // Workers rejects redirect:'error'; manual keeps the session cookie on this host.
+        headers:{Cookie:cookie}, redirect:'manual', cache:'no-store', signal:AbortSignal.timeout(10000)
     });
     if (!response.ok) fail(response.status === 401 ? 401 : 403, 'Sign in as David Israel to manage videos.');
     const user = await response.json();

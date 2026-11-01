@@ -72,7 +72,7 @@ test('Authentication is checked at fixed Penina endpoint and mutation requires e
     const h=await harness();
     assert.equal((await h.send('/videos/manage')).status,200);
     assert.equal(h.calls[0].url,ORIGIN+'/api/game-scores?game=quiz-account&action=teacher');
-    assert.equal(h.calls[0].options.headers.Cookie,COOKIE);assert.equal(h.calls[0].options.redirect,'error');
+    assert.equal(h.calls[0].options.headers.Cookie,COOKIE);assert.equal(h.calls[0].options.redirect,'manual');
     for(const origin of ['https://attacker.example','null',''])assert.equal((await h.send('/videos/manage','POST',{action:'start',title:'x',size:16},{Origin:origin})).status,403);
 });
 test('Upload, private directory, share page, and public video work without external requests',async()=>{
@@ -134,4 +134,22 @@ test('Wrong host, missing files, and storage/auth outages fail closed',async()=>
     const request=new Request(ORIGIN+'/videos/manage',{headers:{Cookie:COOKIE}});
     assert.equal((await h.handle(request,{VIDEOS:h.bucket},async()=>{throw Error('private-secret');})).status,503);
     assert.equal((await h.handle(request,{},h.auth)).status,503);
+});
+
+test('Authentication redirects are rejected before storage is touched',async()=>{
+    const h=await harness();
+    for (const status of [301,302,303,307,308]) {
+        let calls=0;
+        const auth=async(url,options)=>{
+            calls++;
+            assert.equal(options.redirect,'manual');
+            return new Response(null,{status,headers:{Location:'https://other.example/sign-in'}});
+        };
+        const request=new Request(ORIGIN+'/videos/manage',{method:'POST',headers:{Cookie:COOKIE,Origin:ORIGIN,'Content-Type':'application/json'},body:JSON.stringify({action:'start',title:'Lesson',size:16})});
+        const response=await h.handle(request,{VIDEOS:h.bucket},auth);
+        assert.equal(response.status,403);
+        assert.equal(calls,1);
+        assert.equal(h.bucket.uploads.size,0);
+        assert.equal(h.bucket.objects.size,0);
+    }
 });

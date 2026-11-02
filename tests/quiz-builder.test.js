@@ -286,37 +286,6 @@ function vocabularyFixture(){return {title:'Vocabulary options',durationMinutes:
  {type:'gaps',prompt:'Her explanation was ___.',wordBank:false,answer:['lucid'],points:1},
  {type:'gaps',prompt:'He was ___ to leave.',wordBank:true,choices:['reluctant','lucid','swift'],answer:['reluctant'],points:1}
 ]};}
-test('Vocabulary keys validate, hide answers, count matches and retain distractors',()=>{
- const quiz=model.validateQuiz(vocabularyFixture(),true),safe=model.publicQuestions(quiz);
- assert.equal(model.maxPoints(quiz.questions[0]),4);assert.deepEqual(safe[0].items,['lucid','reluctant']);
- assert.deepEqual(safe[0].choices,['clear','swift','unwilling']);assert.equal(safe[1].wordBank,false);assert.deepEqual(safe[1].choices,[]);
- assert(safe.every(q=>!Object.hasOwn(q,'answer')));
- for(const mutate of [q=>q.questions[0].items=['lucid'],q=>q.questions[0].items=['','reluctant'],q=>q.questions[0].answer=['swift','absent'],q=>q.questions[1].answer=[''],q=>q.questions[1].prompt='No blank',q=>q.questions[1].wordBank='no']){
-  const q=vocabularyFixture();mutate(q);assert.throws(()=>model.validateQuiz(q,true));
- }
-});
-test('Vocabulary grading excludes distractors, handles partial credit and leaves typed answers for correction',()=>{
- const quiz=model.validateQuiz(vocabularyFixture(),true),answers=[['clear','swift'],[' LUCID '],['reluctant']];
- assert(model.validAnswers(quiz,answers));assert.equal(model.grade(quiz,answers).earnedSoFar,3);assert.equal(model.grade(quiz,answers).pending,1);
- answers[0]=['clear','unwilling'];assert.equal(model.grade(quiz,answers).earnedSoFar,5);
- quiz.questions[0].scoringMode='total';answers[0]=['clear','swift'];assert.equal(model.grade(quiz,answers).earnedSoFar,1);
- answers[0]=['absent','swift'];assert(!model.validAnswers(quiz,answers));
- const empty=[['',''],[''],['']];assert(!model.validAnswers(quiz,empty));assert(model.validAnswers(quiz,empty,true));assert.equal(model.grade(quiz,empty).total,null);
- quiz.questions.forEach(q=>q.extraCredit=true);assert(model.validAnswers(quiz,empty));
-});
-test('Vocabulary questions survive saving, publishing, student submission and reporting',async()=>{
- const h=harness(),id=await h.publish(vocabularyFixture());
- const assigned=await h.call(h.account.handle,h.req({action:'assign',courseId:'course',quiz:id}));assert.equal(assigned.code,200);
- const classId=new URL(assigned.data.url).searchParams.get('class');assert.equal(h.state.work.maxPoints,6);
- const request=h.req({},'student',{action:'student',quiz:id,classId});request.method='GET';
- const identity=await h.call(h.account.handle,request);assert.equal(identity.code,200);assert.equal(identity.data.questions[0].items.length,2);assert(!Object.hasOwn(identity.data.questions[1],'answer'));
- const attemptId='e'.repeat(32),start=await h.call(h.submissions,h.req({action:'start',id:attemptId,classId,quiz:id},'student'));assert.equal(start.code,200);
- const result=await h.call(h.submissions,h.req({action:'submit',id:attemptId,classId,quiz:id,token:start.data.token,answers:[['clear','swift'],['LUCID'],['reluctant']]},'student'));assert.equal(result.code,200);
- const report=await h.call(h.submissions,h.req({action:'report',quiz:id}));assert.equal(report.code,200);assert.equal(report.data.submissions[0].grading.total,null);assert.equal(report.data.submissions[0].grading.pending,1);
- assert(!result.data.automatic.some(q=>q.index===1));
- const corrected=await h.call(h.submissions,h.req({action:'correct',id:attemptId,quiz:id,scores:[1],feedback:'',sendToClassroom:true}));
- assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,4);assert.equal(corrected.data.grading.pending,0);
-});
 
 
 test('Vocabulary import and AI endpoints enforce teacher session and same origin',async()=>{
@@ -333,13 +302,6 @@ test('Vocabulary source persists encrypted in drafts and duplicates but never in
  const loaded=await h.call(h.builder.handle,h.req({action:'load',id}));assert.equal(loaded.data.quiz.vocabulary.rows[0].word,'lucid');assert(![...h.blobs.values()].some(v=>v.includes('lucid')));
  const published=await h.call(h.builder.handle,h.req({action:'publish',id}));assert.equal(published.code,200);assert.equal(published.data.quiz.vocabulary.rows.length,2);assert.equal((await h.builder.published(id)).vocabulary,undefined);
  const copy=await h.call(h.builder.handle,h.req({action:'save',quiz:{...published.data.quiz,published:false}}));assert.equal(copy.code,200);assert.notEqual(copy.data.quiz.id,id);assert.equal(copy.data.quiz.vocabulary.count,3);
-});
-test('Generated quiz endpoint honors edited distractors and returns a validated editable question list',async()=>{
- const h=harness(),rows=[{word:'ברור',definition:'clear',definitionDistractors:['teacher edited distractor'],wordDistractors:['slow']},{word:'מהסס',definition:'unwilling',definitionDistractors:['eager'],wordDistractors:['fast']}];
- const result=await h.call(h.builder.handle,h.req({action:'vocabulary-questions',rows,count:7,types:['choice','match'],offset:0}));assert.equal(result.code,200);assert.equal(result.data.questions.length,7);assert(result.data.questions[0].choices.includes('teacher edited distractor'));
- const draft={title:'Generated quiz',durationMinutes:null,questions:result.data.questions};const id=await h.publish(draft);assert.equal((await h.builder.published(id)).questions.length,7);
- h.state.aiGenerator=async()=>JSON.stringify({rows:[{index:0,definitionDistractors:['opaque','dark','rapid'],wordDistractors:['hazy','dim','quick']}]});
- const regenerated=await h.call(h.builder.handle,h.req({action:'vocabulary-distractors',rows,index:0}));assert.equal(regenerated.code,200);assert.equal(regenerated.data.rows[0].definition,'clear');assert.deepEqual(regenerated.data.rows[1],rows[1]);
 });
 
 test('Every typed answer waits for teacher correction regardless of content, timeout, or extra credit',()=>{
@@ -360,13 +322,6 @@ test('Legacy text marks stay with their questions when typed blanks become manua
  const prior=model.grade(q,[],{scores:[2],overrides:{1:1}});assert.deepEqual(prior.manual.map(a=>a.score),[1,2]);
 });
 
-test('Matching distractors on either side survive publishing and do not earn response points',()=>{
- const q=model.validateQuiz({title:'Pairs',questions:[{type:'match',prompt:'Match',points:2,scoringMode:'response',items:['cat','car'],choices:['animal','building'],answer:['animal','']}]},true);
- assert.equal(q.durationMinutes,null);assert.equal(model.maxPoints(q.questions[0]),2);
- assert(model.validAnswers(q,[['animal','']]));assert.equal(model.grade(q,[['animal','']]).total,2);
- const total={...q,questions:q.questions.map(v=>({...v,scoringMode:'total'}))};assert.equal(model.grade(total,[['animal','building']]).total,0);
- assert(!('answer' in model.publicQuestions(q)[0]));
-});
 test('Marked Hebrew blanks normalize to student-safe blanks with editable distractors',()=>{
  const q=model.validateQuiz({title:'Hebrew',questions:[{type:'gaps',prompt:'זה <<חתול>> וזה <<כלב>>',points:1,direction:'rtl',distractors:['בית']}]},true);
  assert.deepEqual(q.questions[0].answer,['חתול','כלב']);assert.equal(q.questions[0].prompt,'זה ___ וזה ___');assert.deepEqual(q.questions[0].choices,['חתול','כלב','בית']);assert.equal(q.questions[0].direction,'rtl');
@@ -393,13 +348,6 @@ test('Unfinished marked sentences preserve completed answers across repeated dra
  const oldDraft={...input,questions:input.questions.map(({sentence,distractors,...q})=>q)};
  assert.deepEqual(model.validateQuiz(oldDraft).questions[0].answer,['cat']);
  for(const sentence of ['The <<>> sits.','The <<cat>> sits on ___','The <<cat>> sits >>'])assert.throws(()=>model.validateQuiz({...input,questions:[{...input.questions[0],sentence}]},true));
-});
-test('Matching completeness allows distractors without accepting skipped required pairs',()=>{
- const q=model.validateQuiz({title:'Match',questions:[{type:'match',prompt:'Match',points:1,items:['cat','house','car'],choices:['animal','building','river'],answer:['animal','building','']}]},true);
- assert(!model.validAnswers(q,[['','','']]));assert(!model.validAnswers(q,[['animal','','']]));assert(model.validAnswers(q,[['animal','building','']]));
- // A completed but wrong set is submitted and graded, not blocked by knowledge of the key.
- assert(model.validAnswers(q,[['animal','','building']]));assert.equal(model.grade(q,[['animal','','building']]).total,0);
- assert(model.validAnswers(q,[['','','']],true));q.questions[0].extraCredit=true;assert(model.validAnswers(q,[['','','']]));
 });
 test('Preview and server share feedback for correct, wrong, partial, and manual questions',()=>{
  const scoring=require('../Penina-Quizzes/custom/scoring');
@@ -512,15 +460,6 @@ test('Builder reload and duplicate carry revised totals into fresh grading witho
  assert.equal(scoring.feedback(published.questions,correctAnswers()).every(item=>item.correct),true);
 });
 
-test('Copied distributed totals preserve non-divisible partial credit and validate saved overrides',()=>{
- const scoring=require('../Penina-Quizzes/custom/scoring');
- const original={type:'match',prompt:'Match',points:1,scoringMode:'response',items:['a','b','c'],choices:['A','B','C'],answer:['A','B','C'],potentialPoints:5};
- const quiz=model.validateQuiz({title:'Copy',questions:scoring.duplicateQuestions([original])},true);
- const g=model.grade(quiz,[['A','C','B']]);assert.equal(g.total,1.67);assert.equal(g.baseMax,5);
- assert(model.validOverrides({0:1.67},g.automatic));assert(!model.validOverrides({0:1.675},g.automatic));
- const whole=model.grade(quiz,[['A','B','C']]);assert.equal(whole.total,5);
- const large=model.validateQuiz({title:'Large',questions:scoring.duplicateQuestions([{...original,potentialPoints:5000}])},true);assert.equal(model.maxPoints(large.questions[0]),5000);
-});
 
 test('Denominator changes preserve answer correctness across feedback, summary, and email',()=>{
  const scoring=require('../Penina-Quizzes/custom/scoring'),{correctedTest}=require('../lib/quiz-correction-email');

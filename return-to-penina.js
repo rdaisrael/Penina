@@ -8,7 +8,7 @@
         || !!document.querySelector('[data-penina-page-type="student"], #googleLogin, #studentIdentity, form#quiz');
     if (location.protocol === 'file:' || path === '/' || path === '/index.html'
         || document.getElementById('return-to-penina') || classGradeOrStudentRoute || studentPage
-        || path.includes('/flash-cards/')) return;
+        || path.includes('/flash-cards/') || document.querySelector('video')) return;
     const link = document.createElement('a');
     link.id = 'return-to-penina';
     link.href = '/';

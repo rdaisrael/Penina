@@ -169,9 +169,10 @@ async function playback(request,env,key) {
     if (request.method !== 'HEAD' && !object) fail(404,'Video not found.');
     return new Response(object?.body || null,{status:range?206:200,headers});
 }
-function htmlResponse(request,html,nonce) {
+function htmlResponse(request,html,nonce,{showHomeButton=true}={}) {
     const script = nonce ? `; script-src 'nonce-${nonce}' https://www.penina-hebrew.org` : '';
-    const page=html.replace('</head>','<script defer src="https://www.penina-hebrew.org/session-idle.js"></script><script defer src="https://www.penina-hebrew.org/return-to-penina.js"></script></head>');
+    const homeScript=showHomeButton ? '<script defer src="https://www.penina-hebrew.org/return-to-penina.js"></script>' : '';
+    const page=html.replace('</head>','<script defer src="https://www.penina-hebrew.org/session-idle.js"></script>'+homeScript+'</head>');
     return new Response(request.method === 'HEAD' ? null : page,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':`default-src 'none'; media-src 'self'; style-src 'unsafe-inline'${script}; img-src 'self' https://www.penina-hebrew.org; frame-ancestors 'self'; base-uri 'none'; form-action 'none'`,'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','X-Robots-Tag':'noindex, nofollow'}});
 }
 async function favicon(request) {
@@ -202,7 +203,7 @@ async function viewer(request,env,key) {
     const title=escape(metadata.customMetadata?.title || key.split('/').pop().replace(/\.[^.]+$/,'').replace(/[-_]+/g,' '));
     const token=keyToken(key),media=`/_media/${token}`,nonce=crypto.randomUUID().replaceAll('-','');
     const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><link rel="icon" type="image/png" href="/favicon.png?v=5"><title>${title} · Penina Video</title><style>body{margin:0;min-height:100vh;background:radial-gradient(circle at top left,rgba(67,83,255,.13),transparent 34rem),linear-gradient(180deg,#fbfaf8,#f7f6f3);color:#20242b;font:17px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif}main{width:min(1000px,calc(100% - 32px));margin:0 auto;padding:48px 0 70px}.eyebrow{margin:0 0 12px;color:#4353ff;font-size:13px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}h1{margin:0 0 24px;font-size:clamp(30px,5vw,52px);line-height:1.08;overflow-wrap:anywhere}.panel{padding:12px;border:1px solid #d9dee7;border-radius:20px;background:#fff;box-shadow:0 12px 34px rgba(21,28,43,.08)}video{display:block;width:100%;max-height:75vh;aspect-ratio:16/9;border-radius:12px;background:#111;object-fit:contain}.note{margin:14px 4px 4px;color:#687080;font-size:14px}@media(max-width:600px){main{padding-top:30px}}</style></head><body><main><p class="eyebrow">Penina Video</p><h1>${title}</h1><section class="panel" aria-label="${title} video"><video id="lesson-video" controls playsinline preload="metadata" src="${media}">Your browser cannot play this video format.</video><p class="note">The video starts automatically after this page loads. If it starts muted, turn on sound with the player controls.</p></section></main><script nonce="${nonce}">window.addEventListener('load',()=>{const video=document.getElementById('lesson-video');video.play().catch(()=>{video.muted=true;return video.play().catch(()=>{});});});</script></body></html>`;
-    return htmlResponse(request,html,nonce);
+    return htmlResponse(request,html,nonce,{showHomeButton:false});
 }
 export async function handle(request,env,authFetch=fetch) {
     try {

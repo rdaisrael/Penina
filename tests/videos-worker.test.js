@@ -85,9 +85,10 @@ test('Upload, private directory, share page, and public video work without exter
     const page=await h.send(viewerURL(id),'GET',undefined,{Cookie:''});assert.equal(page.status,200);
     const html=await page.text();assert(html.includes('&lt;script&gt;'));assert(!html.includes('<script>'));assert(html.includes('src="'+new URL(mediaURL(id)).pathname+'"'));
     const scripts=[...html.matchAll(/<script\b([^>]*)>/g)];
-    assert.equal(scripts.length,3);
-    assert(scripts.slice(0,2).every(script => /src="https:\/\/www\.penina-hebrew\.org\/(session-idle|return-to-penina)\.js"/.test(script[1])));
-    const nonce=/nonce="([^"]+)"/.exec(scripts[2][1])[1];
+    assert.equal(scripts.length,2);
+    assert.match(scripts[0][1],/session-idle\.js/);
+    assert(!html.includes('return-to-penina'));
+    const nonce=/nonce="([^"]+)"/.exec(scripts[1][1])[1];
     assert(page.headers.get('Content-Security-Policy').includes("'nonce-"+nonce+"'"));
     assert.match(page.headers.get('Content-Security-Policy'),/media-src 'self'/);
     const video=await h.send(mediaURL(id),'GET',undefined,{Cookie:''});assert.equal(video.status,200);assert.deepEqual(new Uint8Array(await video.arrayBuffer()),mp4());

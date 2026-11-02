@@ -543,3 +543,16 @@ test('Email-only accounts are directed to Google before creating Classroom-owned
  assert.equal(result.code,403);assert.match(result.data.error,/Sign in with Google from Penina Home/);
  assert.equal([...h.blobs.keys()].filter(key=>key.startsWith('quiz-builder/')).length,0);
 });
+
+test('five picture marker questions save, publish, submit and receive separate teacher scores',async()=>{
+ const picture=require('../Penina-Quizzes/picture');
+ const quiz={title:'Five markers',questions:[{type:'text',pictureQuestion:true,prompt:'Identify marker 1',answer:'First',points:1,direction:'ltr',image:{src:'data:image/png;base64,iVBORw0KGgo=',alt:'Diagram',marker:{x:0.1,y:0.2}}}]};
+ for(let i=1;i<5;i++){const q=picture.addMarker(quiz.questions,quiz.questions[0]);q.prompt='Identify marker '+(i+1);q.answer='Answer '+(i+1);}
+ const h=harness(),id=await h.publish(quiz);
+ const loaded=await h.call(h.builder.handle,h.req({action:'load',id}));assert.equal(loaded.code,200);assert.equal(loaded.data.quiz.questions[4].markerIndex,4);
+ const assigned=await h.call(h.account.handle,h.req({action:'assign',courseId:'course',quiz:id}));assert.equal(assigned.code,200);
+ const classId=new URL(assigned.data.url).searchParams.get('class'),attemptId='f'.repeat(32);
+ const started=await h.call(h.submissions,h.req({action:'start',id:attemptId,classId,quiz:id},'student'));assert.equal(started.code,200);
+ const submitted=await h.call(h.submissions,h.req({action:'submit',id:attemptId,classId,quiz:id,token:started.data.token,answers:[['one'],['two'],['three'],['four'],['five']]},'student'));assert.equal(submitted.code,200);
+ const corrected=await h.call(h.submissions,h.req({action:'correct',id:attemptId,quiz:id,scores:[1,0,1,0,1],feedback:''}));assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,3);assert.equal(corrected.data.grading.manual.length,5);
+});

@@ -80,7 +80,8 @@ function renderSummary() {
         const counts={correct:0,incorrect:0,partial:0,pending:0};
         for(const r of records){const item=[...r.grading.automatic,...r.grading.manual].find(v=>v.index===index);counts[resultState(item)]++;}
         const cell=n=>`${n} (${records.length?Math.round(n/records.length*1000)/10+'%':'—'})`;
-        return `<tr><th scope="row"><span>Q${index+1}${q.extraCredit?' · Extra credit':''}</span><div class="summary-prompt" dir="auto">${esc(q.prompt)}</div></th>${Object.values(counts).map(n=>`<td>${cell(n)}</td>`).join('')}</tr>`;
+        const matches=q.type==='match'?`<div class="summary-matches"><span>Correct matches:</span><ul>${q.items.map((word,i)=>`<li><bdi dir="auto">${esc(word)}</bdi> — <bdi dir="auto">${esc(q.answer[i])}</bdi></li>`).join('')}</ul></div>`:'';
+        return `<tr><th scope="row"><span>Q${index+1}${q.extraCredit?' · Extra credit':''}</span><div class="summary-prompt" dir="auto">${esc(q.prompt)}</div>${matches}</th>${Object.values(counts).map(n=>`<td>${cell(n)}</td>`).join('')}</tr>`;
     }).join('');
 }
 function resultState(item) {

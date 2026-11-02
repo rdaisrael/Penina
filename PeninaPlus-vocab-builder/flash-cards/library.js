@@ -153,7 +153,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     management.append(signOutTools, signOutStatus);
     const classGamify = document.createElement('a');
     classGamify.className = 'set-action gamify-action';
-    classGamify.textContent = 'Gamify! — All class terms';
+    classGamify.textContent = 'Gamify!';
     classGamify.href = `/api/flashcard-sets?grade=${encodeURIComponent(grade)}&games=1#gamify`;
     classGamify.target = '_blank';
     classGamify.rel = 'noopener';

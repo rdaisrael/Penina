@@ -128,8 +128,7 @@ module.exports = async function (req, res) {
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Content-Disposition', `${disposition}; filename="${encodeTitle(decodeTitle(blob.pathname))}.html"`);
                 res.setHeader('Cache-Control', 'no-store');
-                const pageHtml=html.replace('</body>','<script src="/return-to-penina.js"></script></body>');
-                return res.status(200).send(pageHtml);
+                return res.status(200).send(html);
             }
             const sets = [];
             // Bound storage reads when a class has many published sets.

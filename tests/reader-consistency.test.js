@@ -600,3 +600,46 @@ test('long-story repair has a required entry per occurrence with a compact share
     assert.equal(result.words.length,601);
     assert.equal(calls,2);
 });
+
+test('Regular Kal infinitive mastery shares the Builder list and produces footnotes for exceptions',()=>{
+    for(const form of ['פעל שלם|שם הפועל','פעל שלם (כ-ת-ב)|שם הפועל']) {
+        const vocabulary={...profile,mode:'upload',words:[],verbs:['כתב','למד','הלך','אכל','הרס','שמע','קום','בנה'],forms:[form]};
+        const pairs=[['לכתוב','כתב'],['ללמוד','למד'],['ללכת','הלך'],['לאכול','אכל'],['להרוס','הרס'],['לשמוע','שמע'],['לקום','קום'],['לבנות','בנה']];
+        const text=pairs[0][0]+'\n'+pairs.slice(1).map(([word])=>word).join(' ');
+        const data={text,words:pairs.map(([word,root])=>entry(word,true,root,root,form))};
+        const result=core.buildResult(text,core.validateAnalysis(data,vocabulary));
+        assert.deepEqual(result.words.map(w=>w.mastered),[true,true,false,false,false,false,false,false]);
+        assert.deepEqual(result.notes.map(n=>n.word),pairs.slice(2).map(([word])=>word));
+    }
+});
+test('infinitive checks enforce surface form, pointing, prefixes and the direct-root fallback',()=>{
+    const form='פעל שלם|שם הפועל';
+    const vocabulary={...profile,mode:'pos',words:[],verbs:['כתב'],forms:[form]};
+    for(const [word,prefix,expected] of [['לכתוב','',true],['לִכְתּוֹב','',true],['לִכְתֹּב','',true],['שלכתוב','ש',true],['שֶׁלִכְתּוֹב','ש',true],['לִכְתַּב','',false],['כתב','',false],['כותב','',false],['לכתוב','ל',false]]) {
+        const data={text:word+'\n'+word,words:[0,1].map(()=>({...entry(word,true,'write','כתב',form),prefix}))};
+        assert.deepEqual(core.validateAnalysis(data,vocabulary).words.map(w=>w.mastered),[expected,expected],word);
+    }
+    const data={text:'לכתוב\nלכתוב',words:[0,1].map(()=>entry('לכתוב',true,'write','כתב',form))};
+    const result=core.buildResult('לִכְתּוֹב\nלִכְתַּוב',core.validateAnalysis(data,vocabulary));
+    assert.deepEqual(result.words.map(w=>w.mastered),[true,false]);
+    assert.equal(result.notes.length,1);
+});
+test('separately learned categories and complete words retain their mastery',()=>{
+    const form='פעל ל-ה|שם הפועל';
+    const data={text:'לבנות\nלבנות',words:[0,1].map(()=>entry('לבנות',true,'build','בנה',form))};
+    const vocabulary={...profile,mode:'upload',words:[],verbs:['בנה'],forms:['פעל שלם|שם הפועל']};
+    assert.ok(core.validateAnalysis(data,vocabulary).words.every(w=>!w.mastered));
+    assert.ok(core.validateAnalysis(data,{...vocabulary,forms:[...vocabulary.forms,form]}).words.every(w=>w.mastered));
+    assert.ok(core.validateAnalysis(data,{...profile,words:['לבנות']}).words.every(w=>w.mastered));
+});
+test('Reader prompt and browser share the same vetted infinitive source',()=>{
+    const {readerPrompt}=require('../lib/reader-response');
+    const p={...profile,mode:'upload',words:[],verbs:['כתב','הלך'],forms:['פעל שלם|שם הפועל']};
+    assert.deepEqual(core.standardInfinitiveVocabulary(p),{'כתב':'לִכְתּוֹב'});
+    assert.match(readerPrompt('',p),/Never label an irregular infinitive as Regular/);
+    assert.ok(html.indexOf('../PeninaPlus-Binyan-Builder/core.js')<html.indexOf('src="reader-core.js"'));
+    const context=vm.createContext({});
+    vm.runInContext(fs.readFileSync(require.resolve('../PeninaPlus-Binyan-Builder/core'),'utf8'),context);
+    vm.runInContext(fs.readFileSync(require.resolve('../PeninaPlus-Reader/reader-core'),'utf8'),context);
+    assert.equal(context.ReaderCore.standardInfinitiveVocabulary(p)['כתב'],'לִכְתּוֹב');
+});

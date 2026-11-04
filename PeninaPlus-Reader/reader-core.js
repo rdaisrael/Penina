@@ -1,8 +1,9 @@
 (function(root, factory) {
-    const api = factory();
+    const api = factory(typeof module === 'object' && module.exports
+        ? require('../PeninaPlus-Binyan-Builder/core') : root.BinyanBuilder);
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.ReaderCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function() {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function(binyan) {
     const marks = /[\u0591-\u05BD\u05BF\u05C1-\u05C2\u05C4-\u05C5\u05C7]/g;
     const wordPattern = /[\u05D0-\u05EA][\u0591-\u05BD\u05BF\u05C1-\u05C2\u05C4-\u05C5\u05C7\u05D0-\u05EA]*/g;
     const normalizeWord = text => String(text).normalize('NFD').replace(marks, '').replace(/[^\u05D0-\u05EA]/g, '');
@@ -12,6 +13,28 @@
     const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     // את covers both the personal pronoun and the understood direct-object marker.
     const pronouns = new Set('אני אתה את הוא היא אנחנו אנו אתם אתן הם הן שלי שלך שלו שלה שלנו שלכם שלכן שלהם שלהן'.split(' '));
+    const regularInfinitivePair = 'פעל שלם|שם הפועל';
+    const canonicalForm = form => String(form).replace(/\s*\([^)]*\)/g, '').trim();
+    function standardInfinitiveAllowed(item, profile) {
+        if (profile.mode === 'complete' || canonicalForm(item.form) !== regularInfinitivePair) return true;
+        const expected = binyan.standardInfinitive(item.match, regularInfinitivePair);
+        if (!expected) return false;
+        // Remove only validated attached prefixes, retaining the infinitive's own ל.
+        let surface = item.word.normalize('NFD');
+        for (const letter of item.prefix || '') {
+            if (!surface.startsWith(letter)) return false;
+            surface = surface.slice(1).replace(/^[\u0591-\u05C7]+/, '');
+        }
+        // Unpointed input can be checked by spelling; pointed input must also
+        // follow the vetted vowels. Accept full/defective holam spelling.
+        const pointing = value => value.normalize('NFD')
+            .replace(/[\u0591-\u05AF\u05BD\u05BF\u05C4\u05C5]/g, '').replace(/וֹ/g, 'ֹ').normalize('NFD');
+        if (/[\u05B0-\u05BC\u05C7]/.test(surface)) return pointing(surface) === pointing(expected);
+        return normalizeWord(surface) === normalizeWord(expected);
+    }
+    function standardInfinitiveVocabulary(profile) {
+        return Object.fromEntries(profile.verbs.map(root => [root, binyan.standardInfinitive(root, regularInfinitivePair)]).filter(([,form]) => form));
+    }
     function normalizeVocabulary(profile) {
         if (!profile || !['complete','pos','upload'].includes(profile.mode)) throw new Error('Invalid vocabulary mode.');
         const result = {mode: profile.mode};
@@ -42,13 +65,14 @@
             if (item.isName !== undefined && typeof item.isName !== 'boolean') throw new Error('Invalid word name analysis. Please generate again.');
             const match = normalizePhrase(item.match);
             const known = (!match.includes(' ') && entries.includes(match)) || (item.match === '__pronoun__' && pronouns.has(normalizeWord(item.word)));
-            const verbAllowed = normalized.mode === 'complete' || !normalized.verbs.includes(match) || normalized.forms.includes(item.form);
+            const verbAllowed = (normalized.mode === 'complete' || !normalized.verbs.includes(match) || normalized.forms.includes(item.form))
+                && standardInfinitiveAllowed({...item, prefix}, normalized);
             // Recover literal vocabulary matches the model missed, ignoring nikkud.
             // A root's spelling alone is not evidence of a selected conjugation.
             // Recognized phrases still determine their components' mastery in buildResult.
             const directMatch = entries.includes(surface) && (normalized.mode === 'complete' ||
                 ((!normalized.verbs.includes(surface) && !normalized.verbs.includes(match) && !item.form) ||
-                    (match === surface && normalized.forms.includes(item.form))));
+                    (match === surface && normalized.forms.includes(item.form) && verbAllowed)));
             return {...item, prefix, isName: item.isName === true,
                 match: directMatch ? surface : item.match,
                 mastered: pronouns.has(surface) || directMatch || (item.mastered && known && verbAllowed)};
@@ -108,7 +132,9 @@
         }
         const tokenAnalysis = analysis.words.map((originalItem, i) => {
             const phrase = phraseByWord.get(i);
-            const item = phrase ? {...originalItem, mastered: phrase.mastered} : originalItem;
+            const checkedItem = standardInfinitiveAllowed({...originalItem, word:tokens[i][0]}, analysis.vocabulary)
+                ? originalItem : {...originalItem, mastered:false};
+            const item = phrase ? {...checkedItem, mastered: phrase.mastered} : checkedItem;
             if (phrase && i !== phrase.end - 1) return {...item, word: tokens[i][0], start: tokens[i].index, noteId: null};
             // Group by the same word form after removing contextually identified prefixes.
             const key = phrase
@@ -211,5 +237,5 @@
             isWorksheet(id) { return id.story === story && id.worksheet === worksheet; }
         };
     }
-    return {storyLengthPlan, validateStoryLength, readingSections, normalizeWord, normalizePhrase, skeleton, words, escapeHtml, normalizeVocabulary, validateAnalysis, buildResult, worksheetPlan, validateWorksheet, createRequestTracker};
+    return {standardInfinitiveVocabulary, storyLengthPlan, validateStoryLength, readingSections, normalizeWord, normalizePhrase, skeleton, words, escapeHtml, normalizeVocabulary, validateAnalysis, buildResult, worksheetPlan, validateWorksheet, createRequestTracker};
 });

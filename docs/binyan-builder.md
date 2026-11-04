@@ -36,3 +36,7 @@ Choice distractors are real forms of the same root with a different number (or p
 Validation: 150 automated tests passed; browser checks cover all four rendered sections, selection validation, RTL layout and print answer isolation. A live Dicta batch verified the target and alternative forms for a ten-question mixed exercise fixture using אכל and שתה. Browser and generation tests use fixed candidate sentences; live Dicta checks separately exercise morphology validation.
 
 The word-bank exercise and display have been removed. The remaining worksheets use the compact layout with a maximum exercise font size of 14pt on screen and in print. Repeated per-question binyan/root-type labels and translations are omitted; root cues remain where the task needs them. Printed worksheets and answer keys use a 0.75-inch left page margin.
+
+## Shared Reader infinitive rule
+
+The Reader imports the same vetted infinitive lookup in the browser and on the server. In root-based vocabulary modes, Regular Kal infinitive mastery requires a listed root and matching infinitive spelling (and matching vowels when pointed). Both workbook labels and checkbox labels with parenthetical model roots are recognized. Nonstandard forms become unmastered and receive ordinary footnotes, including when the provider incorrectly reports them as mastered. The check runs again after vocalization. Other separately learned categories, complete-word vocabulary and explicitly learned expressions retain their existing behavior.

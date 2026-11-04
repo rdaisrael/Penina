@@ -925,9 +925,7 @@
                     <input type="checkbox" id="toggle-line-numbers"> 
                     Print Story with Line Numbers
                 </label>
-                <button id="print-story-btn" type="button" style="background-color: #28a745; margin: 0;">Print Story</button>
-                <button id="print-worksheet-btn" type="button" style="background-color: #17a2b8; margin: 0; display: none;">Print Worksheet</button>
-                <button id="print-story-worksheet-btn" type="button" style="background-color: #6f42c1; margin: 0; display: none;">Print Story and Worksheet</button>
+                <button id="print-btn" type="button" style="background-color: #28a745; margin: 0;">Print</button>
               </div>
               <div class="download-actions">
                 <button id="download-pdf-btn" type="button" disabled style="background-color: #287b38;">Download PDF</button>
@@ -1430,16 +1428,9 @@
             }
         }
 
-        function showWorksheetPrintControls() {
-            document.getElementById('print-worksheet-btn').style.display = 'inline-block';
-            document.getElementById('print-story-worksheet-btn').style.display = 'inline-block';
-        }
-
         function hideWorksheetPrintControls() {
             currentWorksheet = null;
             document.body.classList.remove('integrated-worksheet');
-            document.getElementById('print-worksheet-btn').style.display = 'none';
-            document.getElementById('print-story-worksheet-btn').style.display = 'none';
             document.getElementById('questions-viewport').style.display = 'none';
             document.getElementById('questions-output').innerHTML = '';
         }
@@ -1463,10 +1454,12 @@
             // Keep the selected output for the entire print dialog, until afterprint.
         }
 
-        document.getElementById('download-pdf-btn').addEventListener('click', () => {
+        function printReading() {
             if (!currentResult) return;
             printWithMode(currentWorksheet ? (currentWorksheet.placement === 'sections' ? 'worksheet-only' : 'story-worksheet') : 'story-only');
-        });
+        }
+
+        document.getElementById('download-pdf-btn').addEventListener('click', printReading);
         function restoreReaderBackup(backup) {
             requests.beginStory();
             if (worksheetAbort) worksheetAbort.abort();
@@ -1493,7 +1486,6 @@
             currentWorksheet = backup.worksheet;
             if (currentWorksheet) {
                 document.getElementById('questions-viewport').style.display = 'block';
-                showWorksheetPrintControls();
             }
             syncUIColors();
             renderStoryToScreen();
@@ -1518,9 +1510,7 @@
             setTimeout(() => URL.revokeObjectURL(url),1000);
         });
 
-        document.getElementById('print-story-btn').addEventListener('click', () => printWithMode('story-only'));
-        document.getElementById('print-worksheet-btn').addEventListener('click', () => printWithMode('worksheet-only'));
-        document.getElementById('print-story-worksheet-btn').addEventListener('click', () => printWithMode('story-worksheet'));
+        document.getElementById('print-btn').addEventListener('click', printReading);
 
         document.getElementById('toggle-line-numbers').addEventListener('click', function(e) {
             const marginChoice = document.getElementById('margin-choice').value;
@@ -1863,8 +1853,6 @@
                 output.innerHTML = `<h2 style="text-align:center">${ReaderCore.escapeHtml(worksheet.title)}</h2>` + renderQuestions(worksheet.questions);
             }
             output.innerHTML += '<div class="penina-footer">Generated with Penina-Hebrew Suite<br><em>&copy; 2026 David Israel</em></div>';
-            document.getElementById('print-worksheet-btn').textContent = integrated ? 'Print Reading with Questions' : 'Print Worksheet Only';
-            document.getElementById('print-story-worksheet-btn').style.display = integrated ? 'none' : 'inline-block';
         }
 
         document.getElementById('generate-questions-btn').addEventListener('click', async () => {
@@ -1934,7 +1922,6 @@
                 if (!requests.isWorksheet(requestId) || storyPending) return;
                 const worksheet = ReaderCore.validateWorksheet(data.text, questionCount, placement === 'sections' ? plan.targets : undefined);
                 currentWorksheet = {worksheet, lang, placement, ...(placement === 'sections' ? {sections:plan.sections} : {})};
-                showWorksheetPrintControls();
                 renderStoryToScreen();
                 status.textContent = 'Worksheet ready.';
                 qViewport.scrollIntoView({ behavior: 'smooth' });

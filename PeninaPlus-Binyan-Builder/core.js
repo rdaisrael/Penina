@@ -33,11 +33,27 @@
         const [group,tense,...rest]=pair.split('|');
         return !rest.length && groups.includes(group) && tenses.includes(tense);
     }
-    // Classroom scope: exclude other weak-root groups; gutturals and הלך/אכל
-    // remain eligible, with each actual conjugation independently verified.
+    // Deliberately conservative: expand only after reviewing the actual infinitive.
+    // Eligibility is per tense; this list must not exclude roots from other tenses.
+    const regularInfinitives = Object.freeze({
+        'כתב':'לִכְתּוֹב', 'שמר':'לִשְׁמוֹר', 'למד':'לִלְמוֹד',
+        'סגר':'לִסְגּוֹר', 'גמר':'לִגְמוֹר', 'ספר':'לִסְפּוֹר',
+        'מכר':'לִמְכּוֹר', 'קבר':'לִקְבּוֹר', 'שבר':'לִשְׁבּוֹר',
+        'קשר':'לִקְשׁוֹר', 'תפר':'לִתְפּוֹר', 'גנב':'לִגְנוֹב',
+        'קפצ':'לִקְפּוֹץ', 'רקד':'לִרְקוֹד', 'בדק':'לִבְדּוֹק',
+        'זכר':'לִזְכּוֹר'
+    });
+    const standardInfinitive = (root,pair) => pair==='פעל שלם|שם הפועל'
+        ? regularInfinitives[normalize(root)] : undefined;
+    function standardAnswer(root,pair,answer) {
+        if(pair!=='פעל שלם|שם הפועל')return true;
+        const expected=standardInfinitive(root,pair);
+        return !!expected && typeof answer==='string' && answer.normalize('NFD')===expected.normalize('NFD');
+    }
     function eligibleRoot(root, pair) {
         root=normalize(root);
         if(root.length!==3 || !validPair(pair))return false;
+        if(pair==='פעל שלם|שם הפועל')return !!standardInfinitive(root,pair);
         if(pair.startsWith('פעל ל-ה|'))return root.endsWith('ה') && !['היה','חיה'].includes(root);
         return !root.endsWith('ה') && !/^[ני]/.test(root) && !/[וי]/.test(root[1]);
     }
@@ -81,12 +97,12 @@
             if(lesson.pair!==request.pairs[i]||!rootOK(lesson.root)||!eligibleRoot(lesson.root,lesson.pair)||!text(lesson.meaning,150)||!text(lesson.explanation))fail();
             const ps=persons(lesson.pair);
             if(!Array.isArray(lesson.forms)||lesson.forms.length!==ps.length)fail();
-            lesson.forms.forEach((row,j)=>{if(row.person!==ps[j]||!hebrew(row.answer))fail();});
+            lesson.forms.forEach((row,j)=>{if(row.person!==ps[j]||!hebrew(row.answer)||!standardAnswer(lesson.root,lesson.pair,row.answer))fail();});
         });
         if(result.questions.length!==request.count)fail();
         plan(request).forEach((expected,i)=>{
             const q=result.questions[i];
-            if(!q||(q.exercise||'conjugate')!==expected.exercise||q.number!==expected.number||q.pair!==expected.pair||q.person!==expected.person||!rootOK(q.root)||!eligibleRoot(q.root,q.pair)||!hebrew(q.answer)||!text(q.meaning,150))fail();
+            if(!q||(q.exercise||'conjugate')!==expected.exercise||q.number!==expected.number||q.pair!==expected.pair||q.person!==expected.person||!rootOK(q.root)||!eligibleRoot(q.root,q.pair)||!hebrew(q.answer)||!standardAnswer(q.root,q.pair,q.answer)||!text(q.meaning,150))fail();
             if(['sentence','writing'].includes(expected.exercise)){
                 if(!text(q.sentence,400)||q.sentence.split('___').length!==2||!/[א-ת]/.test(q.sentence)||/[<>]/.test(q.sentence))fail();
                 // The target answer must be blanked, never already supplied in the stem.
@@ -98,5 +114,5 @@
         });
         return result;
     }
-    return {exerciseTypes,subject,alternativeTarget,eligibleRoot,binyanLabel,rootTypeLabel,groupLabel,generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
+    return {standardInfinitive,exerciseTypes,subject,alternativeTarget,eligibleRoot,binyanLabel,rootTypeLabel,groupLabel,generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
 });

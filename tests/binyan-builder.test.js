@@ -74,3 +74,48 @@ test('generation always invokes verification and propagates failures',async()=>{
     await assert.rejects(generateWorksheet(input,async()=>JSON.stringify(fixture(core.validateRequest(input))),async()=>{called=true;throw new Error('unverified');}),/unverified/);
     assert.equal(called,true);
 });
+
+test('regular infinitives use a conservative tense-specific list',()=>{
+    const pair='פעל שלם|שם הפועל';
+    for(const root of ['כתב','כָּתַב','שמר','למד','קפץ','בדק'])assert.equal(core.eligibleRoot(root,pair),true,root);
+    for(const root of ['הלך','אכל','הרס','הפך','שמע','פתח','לקח','שכב','רכב','קום','שוב','בנה','שתה','ישב','נתן','xyz','אבג'])assert.equal(core.eligibleRoot(root,pair),false,root);
+    assert.equal(core.eligibleRoot('הלך','פעל שלם|עבר'),true);
+    assert.equal(core.eligibleRoot('שמע','פעל שלם|הווה'),true);
+    assert.equal(core.eligibleRoot('בנה','פעל ל-ה|שם הפועל'),true);
+});
+function infinitiveFixture(mode='learn') {
+    const pair='פעל שלם|שם הפועל';
+    const req=core.validateRequest({...input,mode,pairs:[pair],vocabulary:{verbs:['כתב','הלך','שמע'],binyanim:[pair]}});
+    const result=fixture(req);
+    result.lessons.forEach(l=>l.forms.forEach(f=>f.answer='לִכְתּוֹב'));
+    result.questions.forEach(q=>q.answer='לִכְתּוֹב');
+    return {req,result};
+}
+test('both model and practice reject irregular roots and nonstandard infinitive answers',()=>{
+    const {req,result}=infinitiveFixture();
+    core.validateResult(result,req);
+    for(const mutate of [r=>r.lessons[0].root='הלך',r=>r.questions[0].root='שמע',r=>r.lessons[0].forms[0].answer='לִכְתַּב',r=>r.questions[0].answer='לִכְתַּב']) {
+        const bad=structuredClone(result);mutate(bad);
+        assert.throws(()=>core.validateResult(bad,req),/checks/);
+    }
+    const decomposed=structuredClone(result);
+    decomposed.questions[0].answer=decomposed.questions[0].answer.normalize('NFD');
+    core.validateResult(decomposed,req);
+});
+test('infinitive generation filters roots, allows repetition, and still verifies forms',async()=>{
+    for(const mode of ['learn','practice']) {
+        const {req,result}=infinitiveFixture(mode);let verified=false;
+        const output=await generateWorksheet(req,async prompt=>{
+            const eligible=JSON.parse(prompt.match(/Eligible roots per pair: (.*)/)[1]);
+            assert.deepEqual(eligible,{'פעל שלם|שם הפועל':['כתב']});
+            assert.match(prompt,/לִכְתּוֹב/);assert.match(prompt,/reuse them/);
+            return JSON.stringify(result);
+        },async()=>{verified=true;});
+        assert.equal(verified,true);assert.equal(output.questions.length,6);
+        assert.ok(output.questions.every(q=>q.root==='כתב'));
+    }
+});
+test('no standard infinitive roots fails before contacting generation or verification',async()=>{
+    const {req}=infinitiveFixture();req.vocabulary.verbs=['הלך','שמע','בנה'];
+    await assert.rejects(generateWorksheet(req,()=>assert.fail('generation called'),()=>assert.fail('verification called')),/No vetted standard Kal infinitive roots/);
+});

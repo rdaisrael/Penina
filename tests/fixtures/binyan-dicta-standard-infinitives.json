@@ -1,0 +1,3333 @@
+{
+  "items": [
+    {
+      "root": "כתב",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִכְתּוֹב"
+    },
+    {
+      "root": "שמר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִשְׁמוֹר"
+    },
+    {
+      "root": "למד",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִלְמוֹד"
+    },
+    {
+      "root": "סגר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִסְגּוֹר"
+    },
+    {
+      "root": "גמר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִגְמוֹר"
+    },
+    {
+      "root": "ספר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִסְפּוֹר"
+    },
+    {
+      "root": "מכר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִמְכּוֹר"
+    },
+    {
+      "root": "קבר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִקְבּוֹר"
+    },
+    {
+      "root": "שבר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִשְׁבּוֹר"
+    },
+    {
+      "root": "קשר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִקְשׁוֹר"
+    },
+    {
+      "root": "תפר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִתְפּוֹר"
+    },
+    {
+      "root": "גנב",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִגְנוֹב"
+    },
+    {
+      "root": "קפצ",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִקְפּוֹץ"
+    },
+    {
+      "root": "רקד",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִרְקוֹד"
+    },
+    {
+      "root": "בדק",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִבְדּוֹק"
+    },
+    {
+      "root": "זכר",
+      "pair": "פעל שלם|שם הפועל",
+      "person": "form",
+      "answer": "לִזְכּוֹר"
+    }
+  ],
+  "payload": {
+    "data": [
+      {
+        "nakdan": {
+          "word": "לִכְתּוֹב",
+          "options": [
+            {
+              "w": "לִכְתֹּב",
+              "levelChoice": 1,
+              "lex": "כתב",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִכְתֹּב",
+              "levelChoice": 3,
+              "lex": "כתב",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|כְתוֹב",
+              "levelChoice": 3,
+              "lex": "כתב",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "morphDifference": "מקראי",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|כְתֹב",
+              "levelChoice": 2,
+              "lex": "כתב",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "morphDifference": "64",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|כָּתוּב",
+              "levelChoice": 2,
+              "lex": "כָּתוּב",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|כָּתוּב",
+              "levelChoice": 2,
+              "lex": "כָּתוּב",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|כָּתוּב",
+              "levelChoice": 3,
+              "lex": "כָּתוּב",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|כָּתוּב",
+              "levelChoice": 3,
+              "lex": "כתב",
+              "morph": "2251801444876356",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|כָתוּב",
+              "levelChoice": 3,
+              "lex": "כָּתוּב",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|כָתוּב",
+              "levelChoice": 3,
+              "lex": "כָּתוּב",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|כָתוּב",
+              "levelChoice": 3,
+              "lex": "כָּתוּב",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|כָתוּב",
+              "levelChoice": 3,
+              "lex": "כתב",
+              "morph": "2251801444876352",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|כָתוֹב",
+              "levelChoice": 3,
+              "lex": "כתב",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|כִתּוּב",
+              "levelChoice": 3,
+              "lex": "כִּתּוּב",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|כִּתּוּב",
+              "levelChoice": 3,
+              "lex": "כִּתּוּב",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|כָתוֹב",
+              "levelChoice": 3,
+              "lex": "כתב",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִכְ|תוּב",
+              "levelChoice": 3,
+              "lex": "תּוּב",
+              "morph": "132160",
+              "Acc": "AccUnk",
+              "fRabbinic": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְכַ|תּוּב",
+              "levelChoice": 3,
+              "lex": "תּוּב",
+              "morph": "132164",
+              "Acc": "AccUnk",
+              "fRabbinic": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לִ|כְתוּב",
+              "levelChoice": 3,
+              "lex": "כָּתוּב",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|כְתוּב",
+              "levelChoice": 3,
+              "lex": "כָּתוּב",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|כְתוּב",
+              "levelChoice": 3,
+              "lex": "כָּתוּב",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|כִתּוּב",
+              "levelChoice": 3,
+              "lex": "כִּתּוּב",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִכְתּוֹב",
+        "pStr": "לִכְתּוֹב",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִשְׁמוֹר",
+          "options": [
+            {
+              "w": "לִשְׁמֹר",
+              "levelChoice": 1,
+              "lex": "שׁמר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|שְׁמֹר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִשְׁמֹר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|שְׁמֹר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִשְׁמוֹר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|שְׁמוֹר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|שָׁמוּר",
+              "levelChoice": 3,
+              "lex": "שָׁמוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|שָּׁמוּר",
+              "levelChoice": 3,
+              "lex": "שָׁמוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|שָׁמוּר",
+              "levelChoice": 3,
+              "lex": "שָׁמוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|שָּׁמוּר",
+              "levelChoice": 3,
+              "lex": "שָׁמוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|שָׁמוּר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251801444876352",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|שָּׁמוּר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251801444876356",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|שָׁמוֹר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|מּוּר",
+              "levelChoice": 3,
+              "lex": "מוּר",
+              "morph": "655616",
+              "Acc": "AccUnk",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|מֹּר",
+              "levelChoice": 3,
+              "lex": "מֹר",
+              "morph": "1093009664",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְ|שִׁמּוּר",
+              "levelChoice": 3,
+              "lex": "שִׁמּוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|שִּׁמּוּר",
+              "levelChoice": 3,
+              "lex": "שִׁמּוּר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|שָׁמוֹר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|מּוֹר",
+              "levelChoice": 3,
+              "lex": "מֹר",
+              "morph": "1093009664",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְ|שָׁמֹר",
+              "levelChoice": 3,
+              "lex": "שׁמר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|מֹּר",
+              "levelChoice": 3,
+              "lex": "מֹר",
+              "morph": "1093009664",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לִ|שְׁמוּר",
+              "levelChoice": 3,
+              "lex": "שָׁמוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|שְׁמוּר",
+              "levelChoice": 3,
+              "lex": "שָׁמוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|מֹּר",
+              "levelChoice": 3,
+              "lex": "מרר",
+              "morph": "2251862091563264",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|מֹּר",
+              "levelChoice": 3,
+              "lex": "מֹר",
+              "morph": "2166751488",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְ|שִׁמּוּר",
+              "levelChoice": 3,
+              "lex": "שִׁמּוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|מׇּר",
+              "levelChoice": 3,
+              "lex": "מֹר",
+              "morph": "2166751488",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִשְׁמוֹר",
+        "pStr": "לִשְׁמוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִלְמוֹד",
+          "options": [
+            {
+              "w": "לִלְמֹד",
+              "levelChoice": 1,
+              "lex": "למד",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|לְמֹד",
+              "levelChoice": 3,
+              "lex": "למד",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|לִמּוּד",
+              "levelChoice": 2,
+              "lex": "לִמּוּד",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|לִמּוּד",
+              "levelChoice": 3,
+              "lex": "לִמּוּד",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|לִמּוּד",
+              "levelChoice": 3,
+              "lex": "לִמּוּד",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|לָמוּד",
+              "levelChoice": 3,
+              "lex": "לָמוּד",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|לָּמוּד",
+              "levelChoice": 3,
+              "lex": "לָמוּד",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|לָמוּד",
+              "levelChoice": 3,
+              "lex": "לָמוּד",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|לָּמוּד",
+              "levelChoice": 3,
+              "lex": "לָמוּד",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|לִּמּוּד",
+              "levelChoice": 3,
+              "lex": "לִמּוּד",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|לָמֹד",
+              "levelChoice": 3,
+              "lex": "למד",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|לִּמּוּד",
+              "levelChoice": 3,
+              "lex": "לִמּוּד",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|לְמוּד",
+              "levelChoice": 3,
+              "lex": "לָמוּד",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|לְמוּד",
+              "levelChoice": 3,
+              "lex": "לָמוּד",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|לָמוֹד",
+              "levelChoice": 3,
+              "lex": "למד",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|לִמֻּד",
+              "levelChoice": 3,
+              "lex": "לִמֻּד",
+              "morph": "2166751296",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִלְמוֹד",
+        "pStr": "לִלְמוֹד",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִסְגּוֹר",
+          "options": [
+            {
+              "w": "לִסְגֹּר",
+              "levelChoice": 1,
+              "lex": "סגר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִסְגּוֹר",
+              "levelChoice": 3,
+              "lex": "סגר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "morphDifference": "מקראי",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|סְגֹר",
+              "levelChoice": 2,
+              "lex": "סגר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "morphDifference": "64",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְגוֹר",
+              "levelChoice": 2,
+              "lex": "סְגוֹר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְגוֹר",
+              "levelChoice": 2,
+              "lex": "סְגוֹר",
+              "morph": "1093009472",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְגוֹר",
+              "levelChoice": 2,
+              "lex": "סְגוֹר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְגוֹר",
+              "levelChoice": 2,
+              "lex": "סְגוֹר",
+              "morph": "2166751296",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סָגוּר",
+              "levelChoice": 3,
+              "lex": "סָגוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סָּגוּר",
+              "levelChoice": 3,
+              "lex": "סָגוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סָגוּר",
+              "levelChoice": 3,
+              "lex": "סָגוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סָּגוּר",
+              "levelChoice": 3,
+              "lex": "סָגוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סָגוּר",
+              "levelChoice": 3,
+              "lex": "סָגוּר",
+              "morph": "1093009472",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סָּגוּר",
+              "levelChoice": 3,
+              "lex": "סָגוּר",
+              "morph": "1093009476",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סָגוּר",
+              "levelChoice": 3,
+              "lex": "סגר",
+              "morph": "2251801444876352",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סָּגוּר",
+              "levelChoice": 3,
+              "lex": "סגר",
+              "morph": "2251801444876356",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סְּגוֹר",
+              "levelChoice": 3,
+              "lex": "סְגוֹר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סָגוֹר",
+              "levelChoice": 3,
+              "lex": "סגר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סְּגוֹר",
+              "levelChoice": 3,
+              "lex": "סְגוֹר",
+              "morph": "1093009476",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְגוּר",
+              "levelChoice": 3,
+              "lex": "סָגוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְגוּר",
+              "levelChoice": 3,
+              "lex": "סָגוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִסְגּוֹר",
+        "pStr": "לִסְגּוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִגְמוֹר",
+          "options": [
+            {
+              "w": "לִגְמֹר",
+              "levelChoice": 1,
+              "lex": "גמר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|גְמֹר",
+              "levelChoice": 3,
+              "lex": "גמר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גָמוּר",
+              "levelChoice": 3,
+              "lex": "גָּמוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|גָּמוּר",
+              "levelChoice": 3,
+              "lex": "גָּמוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גָמוּר",
+              "levelChoice": 3,
+              "lex": "גָּמוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|גָּמוּר",
+              "levelChoice": 3,
+              "lex": "גָּמוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גָמוֹר",
+              "levelChoice": 3,
+              "lex": "גמר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גִמּוּר",
+              "levelChoice": 3,
+              "lex": "גִּמּוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|גִּמּוּר",
+              "levelChoice": 3,
+              "lex": "גִּמּוּר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|גְמוּר",
+              "levelChoice": 3,
+              "lex": "גָּמוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|גְמוּר",
+              "levelChoice": 3,
+              "lex": "גָּמוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גִמּוּר",
+              "levelChoice": 3,
+              "lex": "גִּמּוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִגְמוֹר",
+        "pStr": "לִגְמוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִסְפּוֹר",
+          "options": [
+            {
+              "w": "לִסְפֹּר",
+              "levelChoice": 1,
+              "lex": "ספר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִסְפֹּר",
+              "levelChoice": 3,
+              "lex": "ספר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|סְפוֹר",
+              "levelChoice": 2,
+              "lex": "סְפוֹר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְפוֹר",
+              "levelChoice": 2,
+              "lex": "סְפוֹר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְפֹר",
+              "levelChoice": 2,
+              "lex": "ספר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סִּפּוּר",
+              "levelChoice": 2,
+              "lex": "סִפּוּר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סִפּוּר",
+              "levelChoice": 2,
+              "lex": "סִפּוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סִפּוּר",
+              "levelChoice": 3,
+              "lex": "סִפּוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סְּפוֹר",
+              "levelChoice": 3,
+              "lex": "סְפוֹר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סָפוּר",
+              "levelChoice": 3,
+              "lex": "סָפוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סָּפוּר",
+              "levelChoice": 3,
+              "lex": "סָפוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סָפוּר",
+              "levelChoice": 3,
+              "lex": "סָפוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|סָּפוּר",
+              "levelChoice": 3,
+              "lex": "סָפוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|סָפוֹר",
+              "levelChoice": 3,
+              "lex": "ספר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְפוּר",
+              "levelChoice": 3,
+              "lex": "סָפוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|סְפוּר",
+              "levelChoice": 3,
+              "lex": "סָפוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִסְפּוֹר",
+        "pStr": "לִסְפּוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִמְכּוֹר",
+          "options": [
+            {
+              "w": "לִמְכֹּר",
+              "levelChoice": 1,
+              "lex": "מכר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִמְכּוֹר",
+              "levelChoice": 3,
+              "lex": "מכר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "morphDifference": "מקראי",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|מְכֹר",
+              "levelChoice": 2,
+              "lex": "מכר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|מָכוּר",
+              "levelChoice": 3,
+              "lex": "מָכוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|מָּכוּר",
+              "levelChoice": 3,
+              "lex": "מָכוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|מָכוּר",
+              "levelChoice": 3,
+              "lex": "מָכוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|מָּכוּר",
+              "levelChoice": 3,
+              "lex": "מָכוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|מָכוֹר",
+              "levelChoice": 3,
+              "lex": "מכר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְמִ|כּוּר",
+              "levelChoice": 3,
+              "lex": "כּוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְמִ|כּוֹר",
+              "levelChoice": 3,
+              "lex": "כּוֹר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְמִ|כֹּר",
+              "levelChoice": 3,
+              "lex": "כּוֹר",
+              "morph": "1093009472",
+              "Acc": "AccUnk",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְמִ|כּוּר",
+              "levelChoice": 3,
+              "lex": "כּוּר",
+              "morph": "1093009472",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְ|מָכֹר",
+              "levelChoice": 3,
+              "lex": "מכר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְמִ|כֹּר",
+              "levelChoice": 3,
+              "lex": "כֹּר",
+              "morph": "1093009472",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לִ|מְכוּר",
+              "levelChoice": 3,
+              "lex": "מָכוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|מְכוּר",
+              "levelChoice": 3,
+              "lex": "מָכוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְמִ|כּוּר",
+              "levelChoice": 3,
+              "lex": "כּוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְמִ|כּוֹר",
+              "levelChoice": 3,
+              "lex": "כּוֹר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְמִ|כּוּר",
+              "levelChoice": 3,
+              "lex": "כּוּר",
+              "morph": "2166751296",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְמִ|כֹּר",
+              "levelChoice": 3,
+              "lex": "כֹּר",
+              "morph": "2166751296",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִמְכּוֹר",
+        "pStr": "לִמְכּוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִקְבּוֹר",
+          "options": [
+            {
+              "w": "לִקְבֹּר",
+              "levelChoice": 1,
+              "lex": "קבר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִקְבֹּר",
+              "levelChoice": 3,
+              "lex": "קבר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִקְבּוֹר",
+              "levelChoice": 3,
+              "lex": "קבר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "morphDifference": "מקראי",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|קְבֹר",
+              "levelChoice": 2,
+              "lex": "קבר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|קְבֹר",
+              "levelChoice": 2,
+              "lex": "קבר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קָּבוּר",
+              "levelChoice": 2,
+              "lex": "קָבוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קָּבוּר",
+              "levelChoice": 2,
+              "lex": "קָבוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קָּבוּר",
+              "levelChoice": 3,
+              "lex": "קבר",
+              "morph": "2251801444876356",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָבוֹר",
+              "levelChoice": 3,
+              "lex": "קָבוֹר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קָּבוֹר",
+              "levelChoice": 3,
+              "lex": "קָבוֹר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָבוּר",
+              "levelChoice": 3,
+              "lex": "קָבוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָבוּר",
+              "levelChoice": 3,
+              "lex": "קָבוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָבוֹר",
+              "levelChoice": 3,
+              "lex": "קבר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָבוּר",
+              "levelChoice": 3,
+              "lex": "קבר",
+              "morph": "2251801444876352",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָבוֹר",
+              "levelChoice": 3,
+              "lex": "קבר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|קְבוּר",
+              "levelChoice": 3,
+              "lex": "קָבוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|קְבוּר",
+              "levelChoice": 3,
+              "lex": "קָבוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִקְבּוֹר",
+        "pStr": "לִקְבּוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִשְׁבּוֹר",
+          "options": [
+            {
+              "w": "לִשְׁבֹּר",
+              "levelChoice": 1,
+              "lex": "שׁבר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִשְׁבֹּר",
+              "levelChoice": 3,
+              "lex": "שׁבר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|שְׁבוֹר",
+              "levelChoice": 3,
+              "lex": "שׁבר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "morphDifference": "מקראי",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|שְׁבֹר",
+              "levelChoice": 2,
+              "lex": "שׁבר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִשְׂבֹּר",
+              "levelChoice": 3,
+              "lex": "שׂבר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לְ|שָׁבוּר",
+              "levelChoice": 3,
+              "lex": "שָׁבוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|שָּׁבוּר",
+              "levelChoice": 3,
+              "lex": "שָׁבוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|שָׁבוּר",
+              "levelChoice": 3,
+              "lex": "שָׁבוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|שָּׁבוּר",
+              "levelChoice": 3,
+              "lex": "שָׁבוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|שָׁבוּר",
+              "levelChoice": 3,
+              "lex": "שָׁבוּר",
+              "morph": "1093009472",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|שָּׁבוּר",
+              "levelChoice": 3,
+              "lex": "שָׁבוּר",
+              "morph": "1093009476",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִשְׁבׇּר",
+              "levelChoice": 3,
+              "lex": "שׁבר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לְ|שָׂבוּר",
+              "levelChoice": 3,
+              "lex": "שָׂבוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|שָּׂבוּר",
+              "levelChoice": 3,
+              "lex": "שָׂבוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|שָׂבוֹר",
+              "levelChoice": 3,
+              "lex": "שׂבר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|בּוֹר",
+              "levelChoice": 3,
+              "lex": "בור",
+              "morph": "2251859944079616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בּוֹר",
+              "levelChoice": 3,
+              "lex": "בּוֹר־עָשָׁן",
+              "morph": "655616",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בּוֹר",
+              "levelChoice": 3,
+              "lex": "בּוֹר",
+              "morph": "1093009664",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בּוּר",
+              "levelChoice": 3,
+              "lex": "בּוּר",
+              "morph": "1093009664",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בּוּר",
+              "levelChoice": 3,
+              "lex": "בּוּר",
+              "morph": "1092681984",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְ|שָׁבוֹר",
+              "levelChoice": 3,
+              "lex": "שׁבר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|בֹּר",
+              "levelChoice": 3,
+              "lex": "בֹּר",
+              "morph": "1097203968",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְ|שִׁבּוּר",
+              "levelChoice": 3,
+              "lex": "שִׁבּוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|שִּׁבּוּר",
+              "levelChoice": 3,
+              "lex": "שִׁבּוּר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|בּוֹר",
+              "levelChoice": 3,
+              "lex": "בּוֹר",
+              "morph": "1093009664",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בֹּר",
+              "levelChoice": 3,
+              "lex": "בּוֹר",
+              "morph": "1093009664",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בֹּר",
+              "levelChoice": 3,
+              "lex": "בֹּר",
+              "morph": "1093009664",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לִ|שְׁבוּר",
+              "levelChoice": 3,
+              "lex": "שָׁבוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|שְׁבוּר",
+              "levelChoice": 3,
+              "lex": "שָׁבוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|שְׂבוּר",
+              "levelChoice": 3,
+              "lex": "שָׂבוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|בּוּר",
+              "levelChoice": 3,
+              "lex": "בור",
+              "morph": "2251862091563264",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בּוֹר",
+              "levelChoice": 3,
+              "lex": "בּוֹר",
+              "morph": "2166751488",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בּוּר",
+              "levelChoice": 3,
+              "lex": "בּוּר",
+              "morph": "2166751488",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לִ|שְׂבֹר",
+              "levelChoice": 3,
+              "lex": "שׂבר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|בֹּר",
+              "levelChoice": 3,
+              "lex": "ברר",
+              "morph": "2251862091563264",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בֹּר",
+              "levelChoice": 3,
+              "lex": "בֹּר",
+              "morph": "2170945792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְ|שִׁבּוּר",
+              "levelChoice": 3,
+              "lex": "שִׁבּוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְשֶׁ|בּוֹר",
+              "levelChoice": 3,
+              "lex": "בּוֹר",
+              "morph": "2166751488",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            },
+            {
+              "w": "לְשֶׁ|בֹּר",
+              "levelChoice": 3,
+              "lex": "בֹּר",
+              "morph": "2166751488",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 2
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִשְׁבּוֹר",
+        "pStr": "לִשְׁבּוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִקְשׁוֹר",
+          "options": [
+            {
+              "w": "לִקְשֹׁר",
+              "levelChoice": 1,
+              "lex": "קשׁר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|קְשֹׁר",
+              "levelChoice": 3,
+              "lex": "קשׁר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קִשּׁוּר",
+              "levelChoice": 2,
+              "lex": "קִשּׁוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קִשּׁוּר",
+              "levelChoice": 2,
+              "lex": "קִשּׁוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קִשּׁוּר",
+              "levelChoice": 3,
+              "lex": "קִשּׁוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קִשּׁוּר",
+              "levelChoice": 3,
+              "lex": "קִשּׁוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָשׁוּר",
+              "levelChoice": 3,
+              "lex": "קָשׁוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קָּשׁוּר",
+              "levelChoice": 3,
+              "lex": "קָשׁוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָשׁוּר",
+              "levelChoice": 3,
+              "lex": "קָשׁוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קָּשׁוּר",
+              "levelChoice": 3,
+              "lex": "קָשׁוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָשׁוֹר",
+              "levelChoice": 3,
+              "lex": "קשׁר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קִּשּׁוּר",
+              "levelChoice": 3,
+              "lex": "קִשּׁוּר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קִּשּׁוּר",
+              "levelChoice": 3,
+              "lex": "קִשּׁוּר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|קְשׁוּר",
+              "levelChoice": 3,
+              "lex": "קָשׁוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|קְשׁוּר",
+              "levelChoice": 3,
+              "lex": "קָשׁוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִקְשׁוֹר",
+        "pStr": "לִקְשׁוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִתְפּוֹר",
+          "options": [
+            {
+              "w": "לִתְפֹּר",
+              "levelChoice": 1,
+              "lex": "תפר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִתְפּוֹר",
+              "levelChoice": 3,
+              "lex": "תפר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "morphDifference": "מקראי",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|תְפֹר",
+              "levelChoice": 2,
+              "lex": "תפר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|תָפוּר",
+              "levelChoice": 3,
+              "lex": "תָּפוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|תָּפוּר",
+              "levelChoice": 3,
+              "lex": "תָּפוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|תָפוּר",
+              "levelChoice": 3,
+              "lex": "תָּפוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|תָּפוּר",
+              "levelChoice": 3,
+              "lex": "תָּפוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|תָפוֹר",
+              "levelChoice": 3,
+              "lex": "תפר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|תִפּוּר",
+              "levelChoice": 3,
+              "lex": "תִּפּוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|תִּפּוּר",
+              "levelChoice": 3,
+              "lex": "תִּפּוּר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|תְפוּר",
+              "levelChoice": 3,
+              "lex": "תָּפוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|תְפוּר",
+              "levelChoice": 3,
+              "lex": "תָּפוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|תִפּוּר",
+              "levelChoice": 3,
+              "lex": "תִּפּוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִתְפּוֹר",
+        "pStr": "לִתְפּוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִגְנוֹב",
+          "options": [
+            {
+              "w": "לִגְנֹב",
+              "levelChoice": 1,
+              "lex": "גנב",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|גְנֹב",
+              "levelChoice": 3,
+              "lex": "גנב",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גָנוּב",
+              "levelChoice": 3,
+              "lex": "גָּנוּב",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|גָּנוּב",
+              "levelChoice": 3,
+              "lex": "גָּנוּב",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גָנוּב",
+              "levelChoice": 3,
+              "lex": "גָּנוּב",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|גָּנוּב",
+              "levelChoice": 3,
+              "lex": "גָּנוּב",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גָנוּב",
+              "levelChoice": 3,
+              "lex": "גנב",
+              "morph": "2251801444876352",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|גָּנוּב",
+              "levelChoice": 3,
+              "lex": "גנב",
+              "morph": "2251801444876356",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גָנוֹב",
+              "levelChoice": 3,
+              "lex": "גנב",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גֻנֹּב",
+              "levelChoice": 3,
+              "lex": "גנב",
+              "morph": "13510859012505664",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|גָנֹב",
+              "levelChoice": 3,
+              "lex": "גנב",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|גְנוּב",
+              "levelChoice": 3,
+              "lex": "גָּנוּב",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|גְנוּב",
+              "levelChoice": 3,
+              "lex": "גָּנוּב",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִגְנוֹב",
+        "pStr": "לִגְנוֹב",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִקְפּוֹץ",
+          "options": [
+            {
+              "w": "לִקְפֹּץ",
+              "levelChoice": 1,
+              "lex": "קפץ",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|קְפֹץ",
+              "levelChoice": 2,
+              "lex": "קפץ",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָפוּץ",
+              "levelChoice": 3,
+              "lex": "קָפוּץ",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קָּפוּץ",
+              "levelChoice": 3,
+              "lex": "קָפוּץ",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָפוּץ",
+              "levelChoice": 3,
+              "lex": "קָפוּץ",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קָּפוּץ",
+              "levelChoice": 3,
+              "lex": "קָפוּץ",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|קְפוּץ",
+              "levelChoice": 3,
+              "lex": "קָפוּץ",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|קְפוּץ",
+              "levelChoice": 3,
+              "lex": "קָפוּץ",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קָפוֹץ",
+              "levelChoice": 3,
+              "lex": "קפץ",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קִפּוּץ",
+              "levelChoice": 3,
+              "lex": "קִפּוּץ",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|קִּפּוּץ",
+              "levelChoice": 3,
+              "lex": "קִפּוּץ",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|קִפּוּץ",
+              "levelChoice": 3,
+              "lex": "קִפּוּץ",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִקְפּוֹץ",
+        "pStr": "לִקְפּוֹץ",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִרְקוֹד",
+          "options": [
+            {
+              "w": "לִרְקֹד",
+              "levelChoice": 1,
+              "lex": "רקד",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|רְקֹד",
+              "levelChoice": 3,
+              "lex": "רקד",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|רְקוֹד",
+              "levelChoice": 3,
+              "lex": "רקד",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "morphDifference": "מקראי",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|רִקּוּד",
+              "levelChoice": 2,
+              "lex": "רִקּוּד",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|רִקּוּד",
+              "levelChoice": 3,
+              "lex": "רִקּוּד",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לָ|רִקּוּד",
+              "levelChoice": 2,
+              "lex": "רִקּוּד",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|רָקוּד",
+              "levelChoice": 3,
+              "lex": "רָקוּד",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לָ|רָקוּד",
+              "levelChoice": 3,
+              "lex": "רָקוּד",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|רָקוֹד",
+              "levelChoice": 3,
+              "lex": "רקד",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|רְקוּד",
+              "levelChoice": 3,
+              "lex": "רָקוּד",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִרְקוֹד",
+        "pStr": "לִרְקוֹד",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִבְדּוֹק",
+          "options": [
+            {
+              "w": "לִבְדֹּק",
+              "levelChoice": 1,
+              "lex": "בדק",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִבְדּוֹק",
+              "levelChoice": 3,
+              "lex": "בדק",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "morphDifference": "מקראי",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|בְדֹק",
+              "levelChoice": 2,
+              "lex": "בדק",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "morphDifference": "64",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|בָדוּק",
+              "levelChoice": 3,
+              "lex": "בָּדוּק",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|בָּדוּק",
+              "levelChoice": 3,
+              "lex": "בָּדוּק",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|בָדוּק",
+              "levelChoice": 3,
+              "lex": "בָּדוּק",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|בָּדוּק",
+              "levelChoice": 3,
+              "lex": "בָּדוּק",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|בָדוֹק",
+              "levelChoice": 3,
+              "lex": "בדק",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|בִדּוּק",
+              "levelChoice": 3,
+              "lex": "בִּדּוּק",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|בִּדּוּק",
+              "levelChoice": 3,
+              "lex": "בִּדּוּק",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|בְדוּק",
+              "levelChoice": 3,
+              "lex": "בָּדוּק",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|בְדוּק",
+              "levelChoice": 3,
+              "lex": "בָּדוּק",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|בִדּוּק",
+              "levelChoice": 3,
+              "lex": "בִּדּוּק",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִבְדּוֹק",
+        "pStr": "לִבְדּוֹק",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "\n",
+          "options": [],
+          "sep": true
+        },
+        "str": "\n",
+        "pStr": "\n",
+        "sep": true,
+        "break": 3
+      },
+      {
+        "nakdan": {
+          "word": "לִזְכּוֹר",
+          "options": [
+            {
+              "w": "לִזְכֹּר",
+              "levelChoice": 1,
+              "lex": "זכר",
+              "morph": "2251851354144768",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִזְכֹּר",
+              "levelChoice": 3,
+              "lex": "זכר",
+              "morph": "2251851354144768",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 0
+            },
+            {
+              "w": "לִ|זְכֹּר",
+              "levelChoice": 3,
+              "lex": "זכר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|זְכֹר",
+              "levelChoice": 2,
+              "lex": "זכר",
+              "morph": "2251862091563072",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זָכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "131136",
+              "Acc": "AccUnk",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|זָּכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "131140",
+              "Acc": "AccUnk",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זַכּוּר",
+              "levelChoice": 3,
+              "lex": "זַכּוּר",
+              "morph": "19529792",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זָכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "1092681792",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|זָּכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "1092681796",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זָכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "2251801444876352",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|זָּכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "2251801444876356",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|זְכוּר",
+              "levelChoice": 3,
+              "lex": "זְכוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|זְּכוּר",
+              "levelChoice": 3,
+              "lex": "זְכוּר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זָכוֹר",
+              "levelChoice": 3,
+              "lex": "זכר",
+              "morph": "2251859944079424",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זָכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "1092681792",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|זָּכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "1092681796",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זָכוֹר",
+              "levelChoice": 3,
+              "lex": "זכר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|זְכוּר",
+              "levelChoice": 3,
+              "lex": "זְכוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|זְכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "2166423616",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לִ|זְכוּר",
+              "levelChoice": 3,
+              "lex": "זָכוּר",
+              "morph": "2251802518618176",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זִכּוּר",
+              "levelChoice": 3,
+              "lex": "זִכּוּר",
+              "morph": "1093009472",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לַ|זִּכּוּר",
+              "levelChoice": 3,
+              "lex": "זִכּוּר",
+              "morph": "1093009476",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זָכֹר",
+              "levelChoice": 3,
+              "lex": "זכר",
+              "morph": "2251859944079424",
+              "Acc": "AccUnk",
+              "fTanakh": true,
+              "fMorphNGram": false,
+              "prefix_len": 1
+            },
+            {
+              "w": "לְ|זִכּוּר",
+              "levelChoice": 3,
+              "lex": "זִכּוּר",
+              "morph": "2166751296",
+              "Acc": "Acc0",
+              "fMorphNGram": false,
+              "prefix_len": 1
+            }
+          ],
+          "sep": false,
+          "fpasuk": false,
+          "fconfident": false
+        },
+        "str": "לִזְכּוֹר",
+        "pStr": "לִזְכּוֹר",
+        "sep": false
+      },
+      {
+        "nakdan": {
+          "word": ".",
+          "options": [],
+          "sep": true
+        },
+        "str": ".",
+        "pStr": ".",
+        "sep": true,
+        "break": 3
+      }
+    ],
+    "UD": "# new_sentence = yes, end_paragraph=yes\n# text = לִכְתּוֹב.\n1\tלִכְתֹּוֽב\tכתב\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=כתב|VerbForm=Inf|Voice=Act\tכָּתַב\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִשְׁמוֹר.\n1\tלִשְׁמֹוֽר\tשמר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=שׁמר|VerbForm=Inf|Voice=Act\tשָׁמַר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִלְמוֹד.\n1\tלִלְמֹוֽד\tלמד\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=למד|VerbForm=Inf|Voice=Act\tלָמַד\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִסְגּוֹר.\n1\tלִסְגֹּוֽר\tסגר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=סגר|VerbForm=Inf|Voice=Act\tסָגַר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִגְמוֹר.\n1\tלִגְמֹוֽר\tגמר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=גמר|VerbForm=Inf|Voice=Act\tגָּמַר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִסְפּוֹר.\n1\tלִסְפֹּוֽר\tספר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=ספר|VerbForm=Inf|Voice=Act\tסָפַר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִמְכּוֹר.\n1\tלִמְכֹּוֽר\tמכר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=מכר|VerbForm=Inf|Voice=Act\tמָכַר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִקְבּוֹר.\n1\tלִקְבֹּוֽר\tקבר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=קבר|VerbForm=Inf|Voice=Act\tקָבַר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִשְׁבּוֹר.\n1\tלִשְׁבֹּוֽר\tשבר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=שׁבר|VerbForm=Inf|Voice=Act\tשָׁבַר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִקְשׁוֹר.\n1\tלִקְשֹׁוֽר\tקשר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=קשׁר|VerbForm=Inf|Voice=Act\tקָשַׁר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִתְפּוֹר.\n1\tלִתְפֹּוֽר\tתפר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=תפר|VerbForm=Inf|Voice=Act\tתָּפַר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִגְנוֹב.\n1\tלִגְנֹוֽב\tגנב\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=גנב|VerbForm=Inf|Voice=Act\tגָּנַב\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִקְפּוֹץ.\n1\tלִקְפֹּוֽץ\tקפץ\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=קפץ|VerbForm=Inf|Voice=Act\tקָפַץ\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִרְקוֹד.\n1\tלִרְקֹוֽד\tרקד\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=רקד|VerbForm=Inf|Voice=Act\tרָקַד\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=yes\n# text = לִבְדּוֹק.\n1\tלִבְדֹּוֽק\tבדק\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=בדק|VerbForm=Inf|Voice=Act\tבָּדַק\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n\n# new_sentence = yes, end_paragraph=no\n# text = לִזְכּוֹר.\n1\tלִזְכֹּוֽר\tזכר\tVERB\tVERB\tHebBinyan=PAAL|HebRoot=זכר|VerbForm=Inf|Voice=Act\tזָכַר\t_\n2\t.\t\tPUNCT\tPUNCT\t\t.\t_\n",
+    "BGU": "word\tmenukad\tlex\tunvocalized_lex\tPOS\tPrefix\tGender\tNumber\tPerson\tStatus\tTense\tBinyan\tSuffix\tSuf_Gender\tSuf_Number\tSuf_Person\tfAramaic\tno_pipe_menukad\tno_prefix_menukad\nלכתוב\tלִכְתֹּב\tכתב\tכתב\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִכְתֹּב\tלִכְתֹּב\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלשמור\tלִשְׁמֹר\tשׁמר\tשׁמר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִשְׁמֹר\tלִשְׁמֹר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nללמוד\tלִלְמֹד\tלמד\tלמד\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִלְמֹד\tלִלְמֹד\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלסגור\tלִסְגֹּר\tסגר\tסגר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִסְגֹּר\tלִסְגֹּר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלגמור\tלִגְמֹר\tגמר\tגמר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִגְמֹר\tלִגְמֹר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלספור\tלִסְפֹּר\tספר\tספר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִסְפֹּר\tלִסְפֹּר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלמכור\tלִמְכֹּר\tמכר\tמכר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִמְכֹּר\tלִמְכֹּר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלקבור\tלִקְבֹּר\tקבר\tקבר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִקְבֹּר\tלִקְבֹּר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלשבור\tלִשְׁבֹּר\tשׁבר\tשׁבר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִשְׁבֹּר\tלִשְׁבֹּר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלקשור\tלִקְשֹׁר\tקשׁר\tקשׁר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִקְשֹׁר\tלִקְשֹׁר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלתפור\tלִתְפֹּר\tתפר\tתפר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִתְפֹּר\tלִתְפֹּר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלגנוב\tלִגְנֹב\tגנב\tגנב\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִגְנֹב\tלִגְנֹב\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלקפוץ\tלִקְפֹּץ\tקפץ\tקפץ\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִקְפֹּץ\tלִקְפֹּץ\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלרקוד\tלִרְקֹד\tרקד\tרקד\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִרְקֹד\tלִרְקֹד\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלבדוק\tלִבְדֹּק\tבדק\tבדק\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִבְדֹּק\tלִבְדֹּק\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nלזכור\tלִזְכֹּר\tזכר\tזכר\tVERB\t\t\t\t\t\tTOINFINITIVE\tBINYAN_PAAL\t\t\t\t\tFalse\tלִזְכֹּר\tלִזְכֹּר\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\n"
+  }
+}

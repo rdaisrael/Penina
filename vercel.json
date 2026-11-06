@@ -2,6 +2,17 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
     {
+      "src": "^/upload$",
+      "status": 308,
+      "headers": {
+        "Location": "/upload/"
+      }
+    },
+    {
+      "src": "^/upload/(.*)$",
+      "dest": "https://sugya-submissions.vercel.app/upload/$1"
+    },
+    {
       "src": "^/cloudflare/.*$",
       "status": 404
     },
@@ -138,5 +149,10 @@
     }
   },
   "buildCommand": "npm run build",
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "git": {
+    "deploymentEnabled": {
+      "codex/penina-upload-routing": false
+    }
+  }
 }

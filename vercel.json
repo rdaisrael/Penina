@@ -149,5 +149,10 @@
     }
   },
   "buildCommand": "npm run build",
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "git": {
+    "deploymentEnabled": {
+      "codex/penina-upload-routing": false
+    }
+  }
 }

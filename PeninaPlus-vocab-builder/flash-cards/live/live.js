@@ -8,6 +8,8 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  let clockOffset=0;const celebrated=new Set(),startedRounds=new Set(),finishedRounds=new Set();
  const revealSeen=new Set();let revealUntil=0;
  let realtimeClient=null,realtimeChannel=null,realtimeReady=false,refreshHint=null,inFlight=false;
+ let answerSubmission=null;
+ const sameQuestion=(data,answer)=>!!data&&!!answer&&data.index===answer.index&&(data.round||0)===answer.round;
  const letters=['A','B','C','D'];
  function stored(key,value){try{if(value===undefined)return sessionStorage.getItem(key);sessionStorage.setItem(key,value);}catch(_){}return null;}
  function showError(message){error.textContent=message||'';error.hidden=!message;}
@@ -52,7 +54,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   const clock=stage.querySelector('[data-clock]');if(!clock||!snapshot)return;
   const remaining=Math.max(0,Math.ceil((snapshot.deadline-Date.now()-clockOffset)/1000));
   clock.textContent=(snapshot.phase==='reveal'?'Next question in ':'Time left: ')+remaining+'s';
-  if(!remaining&&snapshot.phase==='question')stage.querySelectorAll('[data-choice]').forEach(button=>button.disabled=true);
+  if(!remaining&&snapshot.phase==='question')stage.querySelectorAll('[data-choice], [data-answer-retry]').forEach(button=>button.disabled=true);
  }
  function startConfetti(data,finish=false){
   if(finish){
@@ -146,7 +148,14 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   // Poll timestamps (including lastReveal's) must not replace a button mid-tap.
   // Keep the latest version for submissions even when nothing visible changed.
   snapshot=data;
-  const signature=JSON.stringify(data,(key,value)=>key==='serverNow'||key==='version'||(!host&&key==='answeredCount')?undefined:value)+busy+online;
+  // Keep the first selection visible while saving and across stale room polls.
+  // A receipt from an earlier question must never lock or change the next one.
+  if(answerSubmission&&(!sameQuestion(data,answerSubmission)||data.phase!=='question')){
+   busy=false;
+   answerSubmission=null;
+  }
+  if(answerSubmission&&data.me?.choice!=null){answerSubmission.choice=data.me.choice;answerSubmission.state='saved';}
+  const signature=JSON.stringify(data,(key,value)=>key==='serverNow'||key==='version'||(!host&&key==='answeredCount')?undefined:value)+busy+online+JSON.stringify(answerSubmission);
   if(signature===stamp){
    const count=stage.querySelector('[data-answered-count]');
    if(count)count.textContent=data.answeredCount;
@@ -161,13 +170,15 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
    return;
   }
   if(data.phase==='ended'){stage.innerHTML=meta+`<section class="panel waiting game-finale"><p class="eyebrow">Game complete</p><h1>Well played, everyone.</h1>${!host?`<p class="notice success player-identity">${avatarFigure(data.me.avatar)}${esc(data.me.name)} · ${data.me.score} points</p>`:''}${podium(data.scores)}${host&&data.scoreEmail?`<p role="status">${data.scoreEmail.status==='sent'?'Scores submitted for email delivery to your teacher address.':'The score email could not be sent. Please retry.'}</p>${data.scoreEmail.status==='failed'?'<button data-email-retry>Retry score email</button>':''}`:''}<div class="actions"><a class="button" href="${esc(data.classUrl||'../')}">Back to class</a>${host&&data.settings?`<button class="primary" data-action="restart" ${busy||!online?'disabled':''}>Play again →</button>`:''}${!host?'<p class="muted">Stay on this page to play again. Your teacher can return everyone to the lobby.</p>':''}</div></section>`;return;}
-  const revealed=data.phase==='reveal',q=data.question,choice=data.me?.choice;
+  const revealed=data.phase==='reveal',q=data.question,choice=data.me?.choice??answerSubmission?.choice??null;
+  const retryDisabled=data.paused||!online||(data.deadline&&Date.now()+clockOffset>=data.deadline);
+  const answerNotice=answerSubmission?.state==='sending'?'Sending answer '+letters[choice]+'…':answerSubmission?.state==='failed'?'Answer '+letters[choice]+' selected. Saving could not be confirmed. <button type="button" data-answer-retry '+(retryDisabled?'disabled':'')+'>Retry saving answer '+letters[choice]+'</button>':choice!==null?'Answer '+letters[choice]+' saved. Waiting for the answer reveal.':'Choose the matching definition. Your first answer is final.';
   const answerMarkup=q.options.map((text,i)=>{
    const className='answer'+(revealed&&i===q.correct?' correct':'')+(!host&&choice===i?' selected':'')+(revealed&&!host&&choice===i&&i!==q.correct?' wrong':'');
    const content=`<span class="letter">${letters[i]}</span><span class="text" dir="auto">${esc(text)}${revealed?`<span class="count">${i===q.correct?'✓ Correct · ':''}${data.distribution[i]} chose this</span>`:''}</span>`;
    return host?`<div class="${className}">${content}</div>`:`<button class="${className}" data-choice="${i}" ${data.paused||revealed||choice!==null||busy||!online?'disabled':''} aria-pressed="${choice===i}">${content}</button>`;
   }).join('');
-  stage.innerHTML=meta+`<div class="live-round${host&&revealed?' has-standings':''}"><section class="live-question"><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span><span data-answered-count>${data.answeredCount}</span> / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div>${data.deadline?'<p class="countdown" data-clock role="timer"></p>':''}${data.paused?'<p class="notice">Paused by teacher</p>':''}${revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}<h1 class="question" dir="auto">${esc(q.term)}</h1><div class="answers">${answerMarkup}</div>${!host?`<p class="notice ${revealed&&choice===q.correct?'success':''}" role="status">${revealed?(choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'):(choice!==null?'Answer '+letters[choice]+' saved. Waiting for the answer reveal.':'Choose the matching definition. Your first answer is final.')}</p>`:''}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>${!revealed?`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${avatarFigure(p.avatar)}<span>${p.answered?'✓ ':''}${esc(p.name)}</span></li>`).join('')}</ul>`:''}`:''}</section>${host&&revealed?`<aside class="live-standings" aria-label="Class standings"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after '+(data.revealSeconds??2)+' seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></aside>`:''}</div>`;
+  stage.innerHTML=meta+`<div class="live-round${host&&revealed?' has-standings':''}"><section class="live-question"><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span><span data-answered-count>${data.answeredCount}</span> / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div>${data.deadline?'<p class="countdown" data-clock role="timer"></p>':''}${data.paused?'<p class="notice">Paused by teacher</p>':''}${revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}<h1 class="question" dir="auto">${esc(q.term)}</h1><div class="answers">${answerMarkup}</div>${!host?`<p class="notice ${revealed&&choice===q.correct?'success':''}" role="status">${revealed?(choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'):answerNotice}</p>`:''}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>${!revealed?`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${avatarFigure(p.avatar)}<span>${p.answered?'✓ ':''}${esc(p.name)}</span></li>`).join('')}</ul>`:''}`:''}</section>${host&&revealed?`<aside class="live-standings" aria-label="Class standings"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after '+(data.revealSeconds??2)+' seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></aside>`:''}</div>`;
  }
  function disconnectRealtime(){
   clearTimeout(refreshHint);refreshHint=null;realtimeReady=false;
@@ -204,7 +215,35 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
    timer=setTimeout(poll,delay);
   }
  }
+ async function submitAnswer(choice,retry=false){
+  if(host||busy||!snapshot||snapshot.phase!=='question'||snapshot.paused||!online||snapshot.me?.choice!=null)return false;
+  if(snapshot.deadline&&Date.now()+clockOffset>=snapshot.deadline)return false;
+  if(!Number.isInteger(choice)||choice<0||choice>=snapshot.question.options.length)return false;
+  if(retry?(!sameQuestion(snapshot,answerSubmission)||answerSubmission.state!=='failed'):!!answerSubmission)return false;
+  const submission=retry?answerSubmission:{round:snapshot.round||0,index:snapshot.index,choice};
+  submission.state='sending';answerSubmission=submission;
+  ++pollId;clearTimeout(timer);busy=true;draw(snapshot);showError('');
+  try{
+   const receipt=await request('answer',{version:snapshot.version,index:submission.index,round:submission.round,choice:submission.choice});
+   if(answerSubmission!==submission)return receipt.saved===true;
+   if(receipt.saved!==true||receipt.round!==submission.round||receipt.index!==submission.index||!Number.isInteger(receipt.choice)||receipt.choice<0||receipt.choice>=letters.length)throw new Error('Saving could not be confirmed. Checking your answer.');
+   submission.choice=receipt.choice;submission.state='saved';busy=false;draw(snapshot);
+   // The POST confirms this answer; the next room poll only refreshes the game.
+   if(inFlight)timer=setTimeout(poll,300);else void poll();
+   return true;
+  }catch(e){
+   if(answerSubmission!==submission)return false;
+   busy=false;
+   if(submission.state!=='saved'){
+    if([400,401,403,404,409,410].includes(e.status))answerSubmission=null;
+    else submission.state='failed';
+    showError(e.message);
+   }
+   draw(snapshot);timer=setTimeout(poll,1800);return submission.state==='saved';
+  }
+ }
  async function act(action,extra={}){
+  if(action==='answer')return submitAnswer(extra.choice);
   if(busy||!snapshot)return;++pollId;clearTimeout(timer);busy=true;if(snapshot)draw(snapshot);showError('');
   try{await request(action,{version:snapshot.version,index:snapshot.index,round:snapshot.round||0,...extra});busy=false;if(inFlight)timer=setTimeout(poll,300);else await poll();return true;}
   catch(e){busy=false;showError(e.message);if(snapshot)draw(snapshot);timer=setTimeout(poll,1800);return false;}
@@ -221,6 +260,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  });
  stage.addEventListener('click',async event=>{
   const button=event.target.closest('button');if(!button||button.disabled)return;
+  if(button.hasAttribute('data-answer-retry')){await submitAnswer(answerSubmission?.choice,true);return;}
   if(button.hasAttribute('data-email-retry')){button.disabled=true;stopped=false;await poll();return;}
   if(button.hasAttribute('data-settings')){gameSettings();return;}
   if(button.dataset.copy){try{await navigator.clipboard.writeText(button.dataset.copy);button.textContent='Copied!';}catch(_){showError('Copy the student join page link shown above.');}return;}
@@ -228,7 +268,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
    const dialog=document.createElement('dialog');dialog.className='live-confirm';dialog.innerHTML='<h2>End this game?</h2><p>Students will see the final scores. An unrevealed question will not count.</p><div class="actions"><button data-cancel>Keep playing</button><button class="danger" data-confirm>End game</button></div>';document.body.append(dialog);dialog.showModal();dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();dialog.querySelector('[data-confirm]').onclick=()=>{dialog.close();act('end');};return;
   }
   if(button.dataset.action)await act(button.dataset.action);
-  if(button.dataset.choice!==undefined&&event.pointerType!=='touch'&&!touchAnswers.has(button))await act('answer',{choice:Number(button.dataset.choice)});
+  if(button.dataset.choice!==undefined&&!touchAnswers.has(button))await act('answer',{choice:Number(button.dataset.choice)});
  });
  setInterval(updateClock,100);
  window.addEventListener('pagehide',()=>{stopped=true;clearTimeout(timer);disconnectRealtime();});

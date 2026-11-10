@@ -34,6 +34,22 @@ test('Answers remain secret until reveal, first tap wins, concurrent answers are
  await h.request('next',{code:h.code,version:2},h.hostToken);
  const next=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(next.index,1);assert.equal(next.me.choice,null);assert.equal(next.me.score,100);assert.equal(next.question.correct,undefined);
 });
+test('Answer responses confirm the stored choice without a second room read, including duplicates and concurrent taps',async()=>{
+ for(const database of [false,true]){
+  const h=harness({database}),created=await h.create(),{code,hostToken}=created.body,student=(await h.join(code)).body.studentToken;
+  await h.request('start',{code,version:0},hostToken);
+  const before={...h.operations},saved=await h.request('answer',{code,index:0,choice:2},student);
+  assert.equal(saved.code,200);assert.deepEqual(saved.body,{saved:true,round:0,index:0,choice:2});
+  assert.equal(h.operations[database?'dbLists':'lists']-before[database?'dbLists':'lists'],1,'a new answer needs only the initial room read');
+  const duplicate=await h.request('answer',{code,index:0,choice:1},student);
+  assert.deepEqual(duplicate.body,saved.body,'confirm the actual first answer, never the later choice');
+  const second=(await h.join(code,'CD')).body.studentToken;
+  const raced=await Promise.all([h.request('answer',{code,index:0,choice:0},second),h.request('answer',{code,index:0,choice:3},second)]);
+  assert(raced.every(r=>r.code===200));assert.deepEqual(raced[0].body,raced[1].body);
+  const view=(await h.request(null,{code},second)).body;assert.equal(raced[0].body.choice,view.me.choice);
+  assert.equal(view.me.score,0);assert.equal(view.question.correct,undefined);
+ }
+});
 test('Two host controllers cannot advance the same state twice; refresh reconstructs state and end stops answers',async()=>{
  const h=await setup();const results=await Promise.all([h.request('start',{code:h.code,version:0},h.hostToken),h.request('start',{code:h.code,version:0},h.hostToken)]);assert.deepEqual(results.map(r=>r.code).sort(),[200,409]);
  const refresh=(await h.request(null,{code:h.code},h.hostToken)).body;assert.equal(refresh.version,1);assert.equal(refresh.phase,'question');
@@ -166,7 +182,7 @@ test('Concurrent classroom reads share storage work, while answers invalidate th
 test('Finished games keep listening for replay; hidden games stop polling and failures back off',async()=>{
  const source=client.slice(client.indexOf(' async function poll(){'),client.indexOf(' async function act('));
  let calls=0;const scheduled=[];
- const context={inFlight:false,connectRealtime(){},disconnectRealtime(){},nextPollDelay(){return Math.min(30000,2000*2**Math.min(context.failures,4));},clearTimeout(){},timer:null,stopped:false,auth:'token',document:{hidden:false},pollId:0,snapshot:null,failures:0,online:true,status:{},host:false,showError(){},draw(){},updateClock(){},present(data){context.snapshot=data;},request:async()=>{calls++;return {phase:'ended',version:2};},setTimeout(fn,ms){scheduled.push(ms);}};
+ const context={busy:false,inFlight:false,connectRealtime(){},disconnectRealtime(){},nextPollDelay(){return Math.min(30000,2000*2**Math.min(context.failures,4));},clearTimeout(){},timer:null,stopped:false,auth:'token',document:{hidden:false},pollId:0,snapshot:null,failures:0,online:true,status:{},host:false,showError(){},draw(){},updateClock(){},present(data){context.snapshot=data;},request:async()=>{calls++;return {phase:'ended',version:2};},setTimeout(fn,ms){scheduled.push(ms);}};
  vm.createContext(context);vm.runInContext(source,context);
  await context.poll();assert.equal(context.stopped,false);assert.equal(scheduled.length,1);scheduled.length=0;
  context.stopped=false;context.snapshot=null;context.document.hidden=true;await context.poll();assert.equal(calls,1);

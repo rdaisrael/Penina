@@ -24,7 +24,7 @@ A database insert broadcasts only an empty refresh hint on a room-specific, ungu
 
 Browser role tokens remain signed, scoped to one room, and stored only in session storage. Refresh retains identity in that tab. Teachers can pause/resume; paused questions reject answers and preserve time. Correct answers are shown for two seconds, including on screens that miss the original reveal notification. Standings show only three places; each student also sees their own score.
 
-Choosing an answer immediately highlights it and shows “Saving answer…”. The save response confirms the stored choice, so “Answer saved” does not wait for a separate game refresh. Duplicate taps keep the first answer, older refreshes cannot clear its confirmation, and a failed save displays an error and restores the choices. Correctness and points still appear only at reveal.
+Choosing an answer immediately highlights it, without a submission status message. The save response confirms the stored choice without waiting for a separate game refresh. Duplicate taps keep the first answer, older refreshes cannot clear its confirmation, and a failed save displays an error and restores the choices. Correctness and points still appear only at reveal.
 
 The tests simulate a 26-student game with zero additional Blob operations after vocabulary is loaded, along with scoring, timing, immutable writes, and access control. This is not a production load test.
 

@@ -9,6 +9,28 @@ test('Only the signed-in page owner creates rooms; selected sets and approved la
  const result=await h.create();assert.equal(result.body.total,5);assert.match(result.body.code,/^\d{6}$/);
  for(const [p,entry]of h.storage)if(p.startsWith('live-vocab/')){assert(!entry.body.includes('correct'));assert(!entry.body.includes('horse'));assert(!entry.body.includes('demo'));}
 });
+test('A selected list without approved choices is named instead of silently omitted from a mixed game',async()=>{
+ const h=harness(),title="EJ's Clothing",pathname='vocabulary-cards/sixth/clothing--'+Buffer.from(title).toString('base64url')+'.html';
+ const card={term:'חולצה',english:'shirt',hebrew:'בגד עליון'};
+ const save=()=>h.storage.set(pathname,{body:'<script id="peninaCardData" type="application/json">'+JSON.stringify([card])+'</script>'});
+ save();
+ for(const pathnames of [[pathname],[h.setPath,pathname]]){
+  const response=await h.create({pathnames});
+  assert.equal(response.code,400);assert(response.body.error.includes(title));assert.match(response.body.error,/English/);
+  assert(![...h.storage.keys()].some(path=>path.startsWith('live-vocab/')),'no partial lobby is created');
+ }
+ card.alternativeAnswers={hebrew:{term:card.term,definition:card.hebrew,answers:['נעליים','כובע','מכנסיים','גרביים']}};
+ save();
+ const english=await h.create({pathnames:[h.setPath,pathname]});
+ assert.equal(english.code,400);assert(english.body.error.includes(title));assert.match(english.body.error,/English/);
+ const created=await h.create({pathnames:[pathname],language:'hebrew'});assert.equal(created.code,201);
+ const {code,hostToken}=created.body,student=(await h.join(code)).body.studentToken;
+ const lobby=(await h.request(null,{code},hostToken)).body;
+ assert.deepEqual(lobby.settings.pathnames,[pathname]);assert.deepEqual(lobby.settings.wordlists,[{pathname,title,terms:1}]);
+ await h.request('start',{code,version:0},hostToken);
+ const question=(await h.request(null,{code},student)).body.question;
+ assert.equal(question.term,card.term);assert(question.options.includes(card.hebrew));
+});
 test('Lobby join is idempotent; students cannot reveal, skip, or read host state without authorization',async()=>{
  const h=await setup(),joinKey=crypto.randomUUID();
  await h.join(h.code,'CD',joinKey);await h.join(h.code,'CD',joinKey);

@@ -126,7 +126,7 @@ test('Correct-answer fireworks run only after reveal, only once, and honor reduc
 test('Countdown shows remaining seconds and disables student choices at zero',()=>{
  const clock={textContent:''},button={disabled:false};
  const context={snapshot:{deadline:10000,phase:'question'},clockOffset:0,Date:{now:()=>5100},stage:{querySelector:()=>clock,querySelectorAll:()=>[button]}};
- vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function updateClock(){'),client.indexOf(' function fireworks(data){')),context);
+ vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function clockText('),client.indexOf(' function fireworks(data){')),context);
  context.updateClock();assert.equal(clock.textContent,'Time left: 5s');assert.equal(button.disabled,false);
  context.Date.now=()=>10000;context.updateClock();assert.equal(clock.textContent,'Time left: 0s');assert.equal(button.disabled,true);
  context.snapshot.phase='reveal';context.snapshot.deadline=13000;context.updateClock();assert.equal(clock.textContent,'Next question in 3s');

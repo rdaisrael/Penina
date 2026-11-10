@@ -128,6 +128,7 @@
 /* Keep native tap/scroll behavior, with feedback across the whole answer card. */
 button.answer{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 button.answer:active:not(:disabled){background:var(--wash);border-color:var(--purple);box-shadow:inset 0 0 0 2px #d9c5ed}
+.answer-prompt[aria-hidden="true"]{visibility:hidden}
 
 /* The opening frame doubles as the still portrait; the same sheet dances in standings. */
 .avatar-12,.avatar-13,.avatar-14{background-image:var(--avatar-sheet);background-size:400% 200%;background-position:0 0;aspect-ratio:3/4}

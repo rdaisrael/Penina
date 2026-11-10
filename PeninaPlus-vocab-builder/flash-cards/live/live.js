@@ -127,21 +127,23 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
    <label>Time per question<select name="seconds">${options([0,5,7,10],settings.seconds,value=>value?value+' seconds':'Manual — teacher advances')}</select></label>
    <label>Time between questions<select name="revealSeconds">${options([2,5,7,10,15,20,30],settings.revealSeconds,value=>value+' seconds')}</select></label></div>
    <p class="muted">The pause between questions displays the answer and standings. With manual pacing, you decide when to continue.</p>
-   <fieldset><legend>Included wordlists</legend><p class="muted">Uncheck any wordlist to exclude it.</p>${settings.wordlists.map((set,index)=>`<label class="wordlist-choice"><input type="checkbox" name="wordlist" value="${index}" ${settings.pathnames.includes(set.pathname)?'checked':''}><span>${esc(set.title)} <small>(${set.terms} terms)</small></span></label>`).join('')}</fieldset>
-   <p class="muted">If fewer terms are available than requested, the game uses all available terms.</p><p data-settings-error role="alert"></p>
+   <fieldset><legend>Included wordlists</legend><p class="muted">Choose Normal, 2×, or 3× emphasis for each list. Uncheck a list to exclude it.</p>${settings.wordlists.map((set,index)=>`<div class="live-wordlist-row"><label class="wordlist-choice"><input type="checkbox" name="wordlist" value="${index}" ${settings.pathnames.includes(set.pathname)?'checked':''}><span>${esc(set.title)} <small>(${set.terms} terms)</small></span></label><select name="emphasis-${index}" aria-label="Emphasis for ${esc(set.title)}" ${settings.pathnames.includes(set.pathname)?'':'disabled'}>${options([1,2,3],settings.wordlistEmphasis?.[set.pathname]??1,value=>value===1?'Normal':value+'×')}</select></div>`).join('')}</fieldset>
+   <p class="muted">The game uses up to the selected number of questions. With multiple lists, terms may repeat to match your emphasis.</p><p data-settings-error role="alert"></p>
    <div class="actions"><button type="submit" class="primary">Save settings</button><button type="button" data-cancel>Cancel</button></div></form>`;
   document.body.append(dialog);dialog.showModal();
   dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();
   const form=dialog.querySelector('form');
+  const syncEmphasisControls=()=>form.querySelectorAll('input[name="wordlist"]').forEach(input=>{form.elements['emphasis-'+input.value].disabled=!input.checked;});
+  form.querySelectorAll('input[name="wordlist"]').forEach(input=>input.onchange=syncEmphasisControls);
   form.onsubmit=async event=>{
    event.preventDefault();if(busy)return;
    const pathnames=[...form.querySelectorAll('input[name="wordlist"]:checked')].map(input=>settings.wordlists[Number(input.value)].pathname);
    const message=dialog.querySelector('[data-settings-error]');
    if(!pathnames.length){message.textContent='Include at least one wordlist.';return;}
-   const values={version,count:Number(form.elements.count.value),seconds:Number(form.elements.seconds.value),revealSeconds:Number(form.elements.revealSeconds.value),pathnames};
+   const values={version,count:Number(form.elements.count.value),seconds:Number(form.elements.seconds.value),revealSeconds:Number(form.elements.revealSeconds.value),pathnames,wordlistEmphasis:Object.fromEntries(settings.wordlists.map((set,index)=>[set.pathname,Number(form.elements['emphasis-'+index].value)]))};
    const controls=[...form.querySelectorAll('button,input,select')];controls.forEach(control=>control.disabled=true);
    const saved=await act('configure',values);
-   if(saved)dialog.close();else{controls.forEach(control=>control.disabled=false);message.textContent=error.textContent;}
+   if(saved)dialog.close();else{controls.forEach(control=>control.disabled=false);syncEmphasisControls();message.textContent=error.textContent;}
   };
  }
  function draw(data){

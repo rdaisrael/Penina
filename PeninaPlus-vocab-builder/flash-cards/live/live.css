@@ -135,3 +135,5 @@ button.answer:active:not(:disabled){background:var(--wash);border-color:var(--pu
 .avatar-12{--avatar-sheet:url('avatars/motion-12.png');--avatar-duration:2.4s;--avatar-halo:#d9f2ed}
 .avatar-13{background-image:url('avatars/character-13-v2.png');background-size:contain;background-position:center;--avatar-sheet:url('avatars/motion-13-spin-v3.png');--avatar-duration:2.4s;--avatar-halo:#ffe2dc}
 .avatar-14{--avatar-sheet:url('avatars/motion-14-floor.png');--avatar-duration:2.4s;--avatar-halo:#d8f3f2}
+
+.live-settings .live-wordlist-row{display:flex;align-items:center;justify-content:space-between;gap:16px}.live-settings .wordlist-choice{flex:1;min-width:0}.live-settings .live-wordlist-row select{width:110px;flex-shrink:0}.live-settings .live-wordlist-row select:disabled{opacity:.5}

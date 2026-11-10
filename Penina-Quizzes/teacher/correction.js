@@ -22,12 +22,15 @@ window.QuizCorrection = (() => {
         if (score === 0) return ['incorrect', '✕ Incorrect'];
         return ['partial', '◐ Partial credit'];
     }
+    function correctionArrow(position = 'next') {
+        return `<button type="button" class="next-correction${position==='first'?' first-correction':''}" aria-label="Go to ${position} question requiring teacher correction" title="${position==='first'?'First':'Next'} question requiring teacher correction"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 2v20M2 12l10 10 10-10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    }
     function question(q, i, answers, auto, manual, step) {
         const grade = auto || manual, max = grade.max, [kind, label] = state(grade.score, grade.correctnessMax ?? max);
         const reference = auto ? auto.correctAnswer : manual.modelAnswer;
         const handCorrected = kind !== 'pending' && (!auto || auto.overridden);
         return `<section class="review-question ${q.extraCredit?'extra-credit':''}" data-grade="${kind}">
-            <div class="question-heading"><span class="question-number">Question ${i+1}</span>${q.extraCredit?'<span class="extra-credit-badge">Extra credit</span>':''}<span class="grade-result"><span class="grade-badge">${label}</span><span class="hand-corrected-dot" role="img" aria-label="Hand corrected" title="Hand corrected" ${handCorrected?'':'hidden'}></span><button type="button" class="next-correction" aria-label="Go to next question requiring teacher correction" title="Next question requiring teacher correction"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 2v20M2 12l10 10 10-10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span><span class="question-points">${grade.score ?? '—'} / ${max} points</span></div>
+            <div class="question-heading"><span class="question-number">Question ${i+1}</span>${q.extraCredit?'<span class="extra-credit-badge">Extra credit</span>':''}<span class="grade-result"><span class="grade-badge">${label}</span><span class="hand-corrected-dot" role="img" aria-label="Hand corrected" title="Hand corrected" ${handCorrected?'':'hidden'}></span>${correctionArrow()}</span><span class="question-points">${grade.score ?? '—'} / ${max} points</span></div>
             <h2 class="review-prompt" dir="auto">${escape(q.prompt)}</h2>${typeof QuizPicture!=='undefined'?QuizPicture.render(q):''}
             <div class="answer-comparison"><div class="student-response"><h3>Student’s answer</h3>${answers.map((a,j)=>`<div class="response-part">${q.fields ? `<span class="field-label" dir="auto">${escape(q.fields[j])}</span>` : answers.length > 1 ? `<span class="field-label">Part ${j+1}</span>` : ''}<p dir="auto">${escape(a || '(No answer)')}</p></div>`).join('')}</div>
             <div class="reference-response"><h3>${auto ? 'Correct answer' : 'Model answer'}</h3><p dir="auto">${escape(reference || 'No model answer provided.')}</p></div></div>
@@ -35,14 +38,26 @@ window.QuizCorrection = (() => {
             <label class="override-explanation">Explanation for the student <span class="muted">${auto?'(included in the email when you override this mark)':'(included in the corrected-test email)'}</span><textarea name="explanation${i}" maxlength="2000" dir="auto" placeholder="Explain the points awarded or why you revised this mark.">${escape(grade.explanation || '')}</textarea></label>
         </section>`;
     }
+    const pendingCorrectionJumps = new WeakMap();
+    function goToQuestion(question) {
+        question.querySelector('.question-marking input').focus({preventScroll:true});
+        question.scrollIntoView({block:'start', behavior:'instant'});
+    }
     // Wait for the previous student's panel to collapse before positioning the new one.
     // Capture is required because native details toggle events do not bubble.
     document.addEventListener('toggle', event => {
         const submission = event.target;
-        if (!submission.matches('#reports > details.card') || !submission.open) return;
+        if (!submission.matches('#reports > details.card')) return;
+        if (!submission.open) {
+            pendingCorrectionJumps.delete(submission);
+            return;
+        }
         requestAnimationFrame(() => {
             if (submission.isConnected && submission.open) {
-                submission.scrollIntoView({block:'start', behavior:'instant'});
+                const question = pendingCorrectionJumps.get(submission);
+                pendingCorrectionJumps.delete(submission);
+                if (question) goToQuestion(question);
+                else submission.scrollIntoView({block:'start', behavior:'instant'});
             }
         });
     }, true);
@@ -50,11 +65,21 @@ window.QuizCorrection = (() => {
         const button = event.target.closest('.next-correction');
         if (!button) return;
         const current = button.closest('.review-question');
-        const questions = [...button.closest('form.correction').querySelectorAll('.review-question')];
+        const submission = current ? null : button.closest('details.card');
+        const form = current ? button.closest('form.correction') : submission?.querySelector('form.correction');
+        if (!form) return;
+        const questions = [...form.querySelectorAll('.review-question')];
         const next = questions.slice(questions.indexOf(current) + 1).find(card => card.dataset.grade === 'pending');
         if (!next) return;
-        next.querySelector('.question-marking input').focus({preventScroll:true});
-        next.scrollIntoView({block:'start', behavior:'instant'});
+        if (submission) {
+            event.preventDefault();
+            if (!submission.open) {
+                pendingCorrectionJumps.set(submission, next);
+                submission.open = true;
+                return;
+            }
+        }
+        goToQuestion(next);
     });
     // Keep native numeric validation, but require deliberate text entry for scores.
     const isScoreInput = target => target.matches('.question-marking input[type="number"]');
@@ -121,5 +146,5 @@ window.QuizCorrection = (() => {
             .filter(input => Object.hasOwn(changed,input.name.slice(11)) || form.elements.namedItem('manual'+input.name.slice(11)))
             .map(input => [input.name.slice(11),input.value.trim()]));
     }
-    return {question, overrides, explanations, compareStudents};
+    return {question, correctionArrow, overrides, explanations, compareStudents};
 })();

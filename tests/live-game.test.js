@@ -51,10 +51,10 @@ test('Answers remain secret until reveal, first tap wins, concurrent answers are
  await h.request('answer',{code:h.code,index:0,choice:wrong},h.studentToken);
  const before=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(before.me.choice,correct);assert.equal(before.me.score,0);assert.equal(before.answeredCount,2);
  await h.request('reveal',{code:h.code,version:1},h.hostToken);
- const after=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(after.question.correct,correct);assert.equal(after.me.score,100);assert.equal(after.distribution.reduce((a,b)=>a+b,0),2);
+ const after=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(after.question.correct,correct);assert.equal(after.me.score,125);assert.equal(after.distribution.reduce((a,b)=>a+b,0),2);
  assert.equal((await h.request('answer',{code:h.code,index:0,choice:correct},h.studentToken)).code,409);
  await h.request('next',{code:h.code,version:2},h.hostToken);
- const next=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(next.index,1);assert.equal(next.me.choice,null);assert.equal(next.me.score,100);assert.equal(next.question.correct,undefined);
+ const next=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(next.index,1);assert.equal(next.me.choice,null);assert.equal(next.me.score,125);assert.equal(next.question.correct,undefined);
 });
 test('Answer responses confirm the stored choice without a second room read, including duplicates and concurrent taps',async()=>{
  for(const database of [false,true]){
@@ -91,7 +91,7 @@ test('All five questions complete a game and the final board preserves student t
   await h.request('reveal',{code:h.code,version:view.version},h.hostToken);
   await h.request('next',{code:h.code,version:view.version+1},h.hostToken);
  }
- const final=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(final.phase,'ended');assert.equal(final.me.score,500);assert.equal(final.scores[0].score,500);
+ const final=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(final.phase,'ended');assert.equal(final.me.score,675);assert.equal(final.scores[0].score,675);
 });
 
 test('Students use at most three letter initials, normalized to uppercase',async()=>{
@@ -113,7 +113,7 @@ test('Timed pacing enforces each deadline, reveals for five seconds, advances on
    await h.request('answer',{code,index,choice},student);
    h.advance(seconds*1000-1);assert.equal((await h.request(null,{code},student)).body.phase,'question');
    h.advance(1);assert.equal((await h.request('answer',{code,index,choice},student)).code,409);
-   view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'reveal');assert.equal(view.me.score,(index+1)*100);
+   view=(await h.request(null,{code},student)).body;assert.equal(view.phase,'reveal');assert.equal(view.me.score,(index+1)*125+(index===4?50:0));
    h.advance(4999);assert.equal((await h.request(null,{code},student)).body.phase,'reveal');h.advance(1);
    const views=await Promise.all([h.request(null,{code},student),h.request(null,{code},hostToken)]);
    assert.equal(views[0].body.version,3+index*2);assert.equal(views[1].body.version,3+index*2);
@@ -221,12 +221,13 @@ test('Supabase classroom game uses zero Blob operations after loading vocabulary
   assert.equal(view.realtime.key,'publishable-test');assert.match(view.realtime.topic,/^penina-[a-f0-9]{64}$/);
   assert.equal(view.question.correct,undefined);
   const correct=view.question.options.indexOf(h.cards.find(c=>c.term===view.question.term).english);
-  const responses=await Promise.all(students.map(student=>h.request('answer',{code,index,choice:correct},student)));assert(responses.every(r=>r.code===200));
+  assert.equal((await h.request('answer',{code,index,choice:correct},students[0])).code,200);h.advance(1);
+  const responses=await Promise.all(students.slice(1).map(student=>h.request('answer',{code,index,choice:correct},student)));assert(responses.every(r=>r.code===200));
   await h.request('answer',{code,index,choice:(correct+1)%4},students[0]);
-  h.advance(5000);const reveal=(await h.request(null,{code},students[0])).body;assert.equal(reveal.phase,'reveal');assert.equal(reveal.me.score,100*(index+1));assert.equal(reveal.scores.length,3);
+  h.advance(5000);const reveal=(await h.request(null,{code},students[0])).body;assert.equal(reveal.phase,'reveal');assert.equal(reveal.me.score,125*(index+1)+(index===4?50:0));assert.equal(reveal.scores.length,3);
   h.advance(5000);await h.request(null,{code},hostToken);
  }
- const end=(await h.request(null,{code},students[0])).body;assert.equal(end.phase,'ended');assert.equal(end.me.score,500);
+ const end=(await h.request(null,{code},students[0])).body;assert.equal(end.phase,'ended');assert.equal(end.me.score,675);
  assert.equal(h.operations.lists,before.lists);assert.equal(h.operations.writes,before.writes);assert(h.operations.dbWrites>130);
 });
 test('Realtime scheduling uses a quiet fallback and local deadlines rather than constant polling',()=>{
@@ -260,7 +261,7 @@ test('Final score email includes every student, stays private, and is not resent
  assert.equal(h.emails.length,1);
  assert.deepEqual(h.emails[0].body.to,['teacher@example.com']);
  for(const name of ['AA','BB','CC','DD'])assert(h.emails[0].body.text.includes(name+':'));
- assert(h.emails[0].body.text.includes('DD: 100 points'));
+ assert(h.emails[0].body.text.includes('DD: 125 points'));
  assert(h.emails[0].body.text.includes('Questions scored: 1'));
  assert(h.emails[0].headers['Idempotency-Key']);
  const host=await h.request(null,{code},hostToken),student=await h.request(null,{code},students[0].body.studentToken);
@@ -310,7 +311,7 @@ test('Replay retains every student and code, resets scores, rejects stale answer
    assert.equal((await h.request('answer',{code,index:0,round,choice},students[0].body.studentToken)).code,200);
    await h.request('reveal',{code,version},hostToken);version++;
    view=(await h.request(null,{code},students[0].body.studentToken)).body;
-   assert.equal(view.me.score,100);assert.equal(view.answeredCount,1);
+   assert.equal(view.me.score,125);assert.equal(view.answeredCount,1);
    await h.request('end',{code,version},hostToken);version++;
    const results=await Promise.all([h.request('restart',{code,version},hostToken),h.request('restart',{code,version},hostToken)]);
    assert.deepEqual(results.map(r=>r.code).sort(),[200,409]);version++;
@@ -443,7 +444,7 @@ test('Joining requires a school email; addresses stay private and match initials
   assert(!JSON.stringify(reveal).includes('@school.org'));
   await h.request('end',{code,version},hostToken);version++;
   const report=h.emails[round].body.text;
-  assert(report.includes('AB: 100 points — School email: first@school.org'));
+  assert(report.includes('AB: 125 points — School email: first@school.org'));
   assert(report.includes('AB: 0 points — School email: second@school.org'));
   assert(!report.includes('changed@school.org'));
   for(const auth of [hostToken,first,second])assert(!JSON.stringify((await h.request(null,{code},auth)).body).includes('@school.org'));
@@ -493,7 +494,7 @@ test('Late arrivals join the current question, retain their identity, and score 
   assert.equal((await h.join(code,'CD',joinKey)).body.studentToken,token);
   await h.request('reveal',{code,version:3},hostToken);
   const after=(await h.request(null,{code},token)).body;
-  assert.equal(after.me.score,100);assert.equal(after.playerCount,2);
+  assert.equal(after.me.score,125);assert.equal(after.playerCount,2);
   const duringReveal=await h.join(code,'EF');assert.equal(duringReveal.code,200);
   assert.equal((await h.request('answer',{code,index:1,choice},duringReveal.body.studentToken)).code,409);
   await h.request('end',{code,version:4},hostToken);
@@ -561,7 +562,7 @@ test('All fourteen avatars persist through joining, answers, standings, reconnec
   assert.equal(responses.players.find(p=>p.avatar===14).answered,true);
   await h.request('reveal',{code,version:1},hostToken);
   const scores=(await h.request(null,{code},tokens[13])).body.scores;
-  assert.deepEqual(scores[0],{name:'AB',score:100,avatar:14});
+  assert.deepEqual(scores[0],{name:'AB',score:125,avatar:14});
   assert(!JSON.stringify(scores).includes('@school.example'));
   const rejoin=await h.request('join',{code,name:'AB',joinKey:keys[13],schoolEmail:'student14@school.example',avatar:1});
   assert.equal(rejoin.body.studentToken,tokens[13]);

@@ -31,8 +31,9 @@ async function check(browser,viewport,timed){
   const now=Date.now();
   await page.addInitScript(now=>{window.setInterval=()=>0;Date.now=()=>now;},now);
   await page.goto('http://live.test/PeninaPlus-vocab-builder/flash-cards/live/?code=123456');
-  const question={phase:'question',round:1,index:1,version:2,className:'Demo',playerCount:20,answeredCount:0,total:5,paused:false,deadline:timed?now+10000:null,question:{term:'בית',options:['House','Water','Book','Light']},me:{name:'AB',avatar:1,score:0,choice:null}};
+  const question={phase:'question',round:1,index:1,version:2,className:'Demo',playerCount:20,answeredCount:0,total:5,paused:false,deadline:timed?now+10000:null,question:{term:'בית',options:['House','Water','Book','Light']},me:{name:'AB',avatar:1,score:500,streak:4,choice:null}};
   await page.evaluate(data=>window.liveTest.present(data),question);
+  assert.equal(await page.getByRole('progressbar').getAttribute('aria-valuenow'),'4');
   await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
   const measure=()=>page.evaluate(()=>({
    scroll:window.scrollY,height:document.documentElement.scrollHeight,
@@ -57,6 +58,22 @@ async function check(browser,viewport,timed){
   await page.evaluate(data=>window.liveTest.present({...data,index:2,version:4}),question);
   assert.equal(await page.locator('.answer:disabled').count(),0);
   assert.equal(await page.getByRole('status').filter({hasText:'Your first answer is final'}).count(),1);
+  const reveal={...question,index:2,version:5,phase:'reveal',deadline:null,question:{...question.question,correct:3},distribution:[0,0,0,20],me:{...question.me,score:675,streak:5,choice:3,bonuses:{first:25,streak:50}}};
+  await page.evaluate(data=>window.liveTest.present(data),reveal);
+  assert.equal(await page.getByRole('progressbar').getAttribute('aria-valuenow'),'5');
+  assert.equal(await page.locator('.streak-step.filled').count(),5);
+  assert.match(await page.locator('.bonus-notice').innerText(),/First correct answer! \+25 points/);
+  assert.match(await page.locator('.bonus-notice').innerText(),/5 in a row! \+50 points/);
+  assert.equal(await page.locator('.fireworks').count(),0,'reduced motion keeps the bonus text without animation');
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'bonus display must fit the viewport');
+  if(process.env.LIVE_SCREENSHOT_DIR&&!timed)await page.screenshot({path:path.join(process.env.LIVE_SCREENSHOT_DIR,`penina-live-bonus-${viewport.width}.png`),fullPage:true});
+  await page.evaluate(data=>window.liveTest.present({...data,index:3,version:6,me:{...data.me,score:675,streak:5}}),question);
+  assert.equal(await page.getByRole('progressbar').getAttribute('aria-valuenow'),'0');
+  assert.equal(await page.locator('.bonus-notice').count(),0);
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.evaluate(data=>{window.liveTest.present(data);window.liveTest.present(data);},{...reveal,round:2});
+  assert.equal(await page.locator('.first-response-fireworks').count(),1,'repeated snapshots must not replay the celebration');
+  assert.equal(await page.locator('.first-response-fireworks i').count(),120);
   assert.deepEqual(errors,[]);
   console.log('Passed '+label);
  }finally{finishSave();await page.close();}

@@ -26,7 +26,7 @@ test('an answer received before the deadline survives a database read that cross
  const saved=await h.request('answer',{code:h.code,index:0,choice:h.correct},h.student);
  assert.equal(saved.code,200);assert.equal(saved.body.choice,h.correct);
  const reveal=(await h.request(null,{code:h.code},h.student)).body;
- assert.equal(reveal.phase,'reveal');assert.equal(reveal.me.score,100);
+ assert.equal(reveal.phase,'reveal');assert.equal(reveal.me.score,125);
 });
 test('an answer received before closure still counts when another request reveals during its read',async()=>{
  for(const seconds of [0,5]){
@@ -37,7 +37,7 @@ test('an answer received before closure still counts when another request reveal
   if(seconds)await h.request(null,{code:h.code},h.hostToken);
   else await h.request('reveal',{code:h.code,version:1},h.hostToken);
   resume.resolve();assert.equal((await pending).code,200);
-  const view=(await h.request(null,{code:h.code},h.student)).body;assert.equal(view.phase,'reveal');assert.equal(view.me.score,100);
+  const view=(await h.request(null,{code:h.code},h.student)).body;assert.equal(view.phase,'reveal');assert.equal(view.me.score,125);
   assert.equal((await h.request('answer',{code:h.code,index:0,choice:h.correct,submittedAt:100000,receivedAt:100000},h.student)).code,409,'client-supplied timestamps cannot reopen answers');
  }
 });
@@ -60,7 +60,7 @@ test('rooms created before transition timestamps preserve pause and resume eligi
  h.advance(1000);await h.request('resume',{code:h.code,version:2},h.hostToken);legacyStates(h);unblock.resolve();
  assert.equal((await paused).code,409,'the shifted countdown origin is not the resume time');
  h.advance(2999);assert.equal((await h.request('answer',{code:h.code,index:0,choice:h.correct},h.student)).code,200);
- h.advance(1);assert.equal((await h.request(null,{code:h.code},h.student)).body.me.score,100);
+ h.advance(1);assert.equal((await h.request(null,{code:h.code},h.student)).body.me.score,125);
 });
 test('the exact timed cutoff stays closed and network delay is not accepted as a client timestamp',async()=>{
  for(const lateBy of [0,1,1000]){

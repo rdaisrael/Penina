@@ -7,17 +7,24 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  const storageKey=()=>`penina-live-${host?'host':'student'}-${code}`;
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let clockOffset=0;const celebrated=new Set(),startedRounds=new Set(),finishedRounds=new Set();
- const revealSeen=new Set();let revealUntil=0;
  let realtimeClient=null,realtimeChannel=null,realtimeReady=false,refreshHint=null,inFlight=false;
  const letters=['A','B','C','D'];
  function stored(key,value){try{if(value===undefined)return sessionStorage.getItem(key);sessionStorage.setItem(key,value);}catch(_){}return null;}
  function showError(message){error.textContent=message||'';error.hidden=!message;}
  async function request(action,data={}){
+  const sentAt=Date.now();
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
   try{
    const response=await fetch('/api/game-scores?game=live'+(!action?'&code='+encodeURIComponent(code):''),{method:action?'POST':'GET',headers:{...(action?{'Content-Type':'application/json'}:{}),...(auth?{Authorization:'Bearer '+auth}:{})},...(action?{body:JSON.stringify({action,code,...data})}:{}),cache:'no-store',signal:controller.signal});
-   const result=await response.json();if(!response.ok){const e=new Error(result.error||'Please try again.');e.status=response.status;throw e;}return result;
+   const result=await response.json();if(!response.ok){const e=new Error(result.error||'Please try again.');e.status=response.status;throw e;}syncClock(result,sentAt,Date.now());return result;
   }catch(e){if(e.name==='AbortError')throw new Error('Connection timed out. Please try again.');throw e;}finally{clearTimeout(timeout);}
+ }
+ function syncClock(data,sentAt,receivedAt){
+  if(!Number.isFinite(data.serverNow)||!Number.isFinite(data.serverReceivedAt))return;
+  const serverWork=Math.max(0,data.serverNow-data.serverReceivedAt);
+  const networkTime=Math.max(0,receivedAt-sentAt-serverWork);
+  // Estimate one-way travel time without counting database processing as clock drift.
+  clockOffset=data.serverNow+networkTime/2-receivedAt;
  }
  const avatarCount=14;
  function avatarFigure(value){
@@ -102,15 +109,8 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   document.body.append(mark);setTimeout(()=>mark.remove(),1400);
  }
  function present(data){
-  if(data.serverNow)clockOffset=data.serverNow-Date.now();
-  // A newly connected player should go straight to the current question.
-  if(!snapshot&&data.phase==='question'&&data.lastReveal)revealSeen.add(`${data.lastReveal.round||0}:${data.lastReveal.index}`);
-  const reveal=data.phase==='reveal'?data:data.lastReveal;
-  if(reveal&&!revealSeen.has(`${reveal.round||0}:${reveal.index}`)){
-   revealSeen.add(`${reveal.round||0}:${reveal.index}`);revealUntil=Date.now()+(reveal.revealSeconds??5)*1000;
-   draw(reveal);updateClock();return;
-  }
-  if((snapshot?.round||0)===(data.round||0) && Date.now()<revealUntil && snapshot?.phase==='reveal' && data.phase!=='reveal')return;
+  // Follow the shared phase immediately. Replaying an old reveal would use up
+  // answering time for a question whose server countdown has already started.
   draw(data);updateClock();
  }
  function gameSettings(){
@@ -144,15 +144,15 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  function draw(data){
   // Keep immediate tap feedback separate from the server's saved answer.
   // A confirmed answer must survive a refresh that started before the write.
-  if(answerSubmission&&(data.phase!=='question'||answerSubmission.round!==(data.round||0)||answerSubmission.index!==data.index))answerSubmission=null;
+  if(answerSubmission&&(!['question','reveal'].includes(data.phase)||answerSubmission.round!==(data.round||0)||answerSubmission.index!==data.index))answerSubmission=null;
   if(answerSubmission&&data.me?.choice!=null)Object.assign(answerSubmission,{choice:data.me.choice,saved:true});
-  if(answerSubmission?.saved&&data.me?.choice===null)data={...data,me:{...data.me,choice:answerSubmission.choice}};
+  if(data.phase==='question'&&answerSubmission?.saved&&data.me?.choice===null)data={...data,me:{...data.me,choice:answerSubmission.choice}};
   if(host)window.PeninaMusic?.update(data);
   startConfetti(data);startConfetti(data,true);fireworks(data);wrongAnswer(data);
   // Poll timestamps (including lastReveal's) must not replace a button mid-tap.
   // Keep the latest version for submissions even when nothing visible changed.
   snapshot=data;
-  const signature=JSON.stringify(data,(key,value)=>key==='serverNow'||key==='version'||(!host&&key==='answeredCount')?undefined:value)+busy+online+JSON.stringify(answerSubmission);
+  const signature=JSON.stringify(data,(key,value)=>key==='serverNow'||key==='serverReceivedAt'||key==='lastReveal'||key==='version'||(!host&&key==='answeredCount')?undefined:value)+busy+online+JSON.stringify(answerSubmission);
   if(signature===stamp){
    const count=stage.querySelector('[data-answered-count]');
    if(count)count.textContent=data.answeredCount;
@@ -167,13 +167,13 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
    return;
   }
   if(data.phase==='ended'){stage.innerHTML=meta+`<section class="panel waiting game-finale"><p class="eyebrow">Game complete</p><h1>Well played, everyone.</h1>${!host?`<p class="notice success player-identity">${avatarFigure(data.me.avatar)}${esc(data.me.name)} · ${data.me.score} points</p>`:''}${podium(data.scores)}${host&&data.scoreEmail?`<p role="status">${data.scoreEmail.status==='sent'?'Scores submitted for email delivery to your teacher address.':'The score email could not be sent. Please retry.'}</p>${data.scoreEmail.status==='failed'?'<button data-email-retry>Retry score email</button>':''}`:''}<div class="actions"><a class="button" href="${esc(data.classUrl||'../')}">Back to class</a>${host&&data.settings?`<button class="primary" data-action="restart" ${busy||!online?'disabled':''}>Play again →</button>`:''}${!host?'<p class="muted">Stay on this page to play again. Your teacher can return everyone to the lobby.</p>':''}</div></section>`;return;}
-  const revealed=data.phase==='reveal',q=data.question,choice=data.me?.choice??answerSubmission?.choice??null;
+  const revealed=data.phase==='reveal',q=data.question,choice=data.me?.choice??answerSubmission?.choice??null,awaitingAnswer=revealed&&answerSubmission&&data.me?.choice===null;
   const answerMarkup=q.options.map((text,i)=>{
    const className='answer'+(revealed&&i===q.correct?' correct':'')+(!host&&choice===i?' selected':'')+(revealed&&!host&&choice===i&&i!==q.correct?' wrong':'');
    const content=`<span class="letter">${letters[i]}</span><span class="text" dir="auto">${esc(text)}${revealed?`<span class="count">${i===q.correct?'✓ Correct · ':''}${data.distribution[i]} chose this</span>`:''}</span>`;
    return host?`<div class="${className}">${content}</div>`:`<button class="${className}" data-choice="${i}" ${data.paused||revealed||choice!==null||busy||!online?'disabled':''} aria-pressed="${choice===i}">${content}</button>`;
   }).join('');
-  stage.innerHTML=meta+`<div class="live-round${host&&revealed?' has-standings':''}"><section class="live-question"><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span><span data-answered-count>${data.answeredCount}</span> / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div>${data.deadline?'<p class="countdown" data-clock role="timer"></p>':''}${data.paused?'<p class="notice">Paused by teacher</p>':''}${revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}<h1 class="question" dir="auto">${esc(q.term)}</h1><div class="answers">${answerMarkup}</div>${!host&&(revealed||choice===null)?`<p class="notice ${revealed&&choice===q.correct?'success':''}" role="status">${revealed?(choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'):'Choose the matching definition. Your first answer is final.'}</p>`:''}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>${!revealed?`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${avatarFigure(p.avatar)}<span>${p.answered?'✓ ':''}${esc(p.name)}</span></li>`).join('')}</ul>`:''}`:''}</section>${host&&revealed?`<aside class="live-standings" aria-label="Class standings"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after '+(data.revealSeconds??2)+' seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></aside>`:''}</div>`;
+  stage.innerHTML=meta+`<div class="live-round${host&&revealed?' has-standings':''}"><section class="live-question"><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span><span data-answered-count>${data.answeredCount}</span> / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div>${data.deadline?'<p class="countdown" data-clock role="timer"></p>':''}${data.paused?'<p class="notice">Paused by teacher</p>':''}${revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}<h1 class="question" dir="auto">${esc(q.term)}</h1><div class="answers">${answerMarkup}</div>${!host&&!awaitingAnswer&&(revealed||choice===null)?`<p class="notice ${revealed&&choice===q.correct?'success':''}" role="status">${revealed?(choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'):'Choose the matching definition. Your first answer is final.'}</p>`:''}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>${!revealed?`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${avatarFigure(p.avatar)}<span>${p.answered?'✓ ':''}${esc(p.name)}</span></li>`).join('')}</ul>`:''}`:''}</section>${host&&revealed?`<aside class="live-standings" aria-label="Class standings"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after '+(data.revealSeconds??2)+' seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></aside>`:''}</div>`;
  }
  function disconnectRealtime(){
   clearTimeout(refreshHint);refreshHint=null;realtimeReady=false;
@@ -197,7 +197,6 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   let delay=realtimeReady?15000:snapshot?.phase==='lobby'||snapshot?.phase==='ended'||snapshot?.paused?3000:1000;
   // Clock ticks stay local. A single scheduled fetch advances each timed phase.
   if(snapshot?.deadline)delay=Math.min(delay,Math.max(250,snapshot.deadline-Date.now()-clockOffset+100));
-  if(snapshot?.phase==='reveal'&&revealUntil>Date.now())delay=Math.min(delay,revealUntil-Date.now()+20);
   return delay;
  }
  async function poll(){
@@ -210,20 +209,35 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
    timer=setTimeout(poll,delay);
   }
  }
+ async function submitAnswer(choice){
+  if(host||busy||!snapshot||snapshot.phase!=='question'||snapshot.paused||snapshot.me?.choice!==null||answerSubmission||!Number.isInteger(choice)||choice<0||choice>3)return;
+  if(snapshot.deadline&&Date.now()+clockOffset>=snapshot.deadline)return;
+  const data={version:snapshot.version,index:snapshot.index,round:snapshot.round||0,choice};
+  const submission={round:data.round,index:data.index,choice,saved:false};
+  answerSubmission=submission;draw(snapshot);showError('');
+  // This request belongs to one question. It must not block phase updates or
+  // answers to later questions, even if its response arrives much later.
+  try{
+   const result=await request('answer',data);
+   if(answerSubmission===submission&&result.saved&&result.round===submission.round&&result.index===submission.index&&Number.isInteger(result.choice)&&result.choice>=0&&result.choice<=3){Object.assign(submission,{choice:result.choice,saved:true});draw(snapshot);}
+   await poll();return true;
+  }catch(e){
+   if(answerSubmission===submission&&!submission.saved){answerSubmission=null;showError(e.message);draw(snapshot);}
+   if(!stopped)timer=setTimeout(poll,300);
+   return submission.saved;
+  }
+ }
  async function act(action,extra={}){
+  if(action==='answer')return submitAnswer(extra.choice);
   if(busy||!snapshot)return;
-  if(action==='answer'&&(host||snapshot.phase!=='question'||snapshot.paused||snapshot.me?.choice!==null||answerSubmission||!Number.isInteger(extra.choice)||extra.choice<0||extra.choice>3))return;
   const data={version:snapshot.version,index:snapshot.index,round:snapshot.round||0,...extra};
-  const submission=action==='answer'?{round:data.round,index:data.index,choice:data.choice,saved:false}:null;
-  if(submission)answerSubmission=submission;
   ++pollId;clearTimeout(timer);busy=true;draw(snapshot);showError('');
   try{
-   const result=await request(action,data);
-   if(submission&&answerSubmission===submission&&result.saved&&result.round===submission.round&&result.index===submission.index&&Number.isInteger(result.choice)&&result.choice>=0&&result.choice<=3)Object.assign(submission,{choice:result.choice,saved:true});
-   busy=false;if(submission)draw(snapshot);
+   await request(action,data);
+   busy=false;
    if(inFlight)timer=setTimeout(poll,300);else await poll();return true;
   }
-  catch(e){if(submission&&answerSubmission===submission&&!submission.saved)answerSubmission=null;busy=false;showError(e.message);draw(snapshot);timer=setTimeout(poll,1800);return false;}
+  catch(e){busy=false;showError(e.message);draw(snapshot);timer=setTimeout(poll,1800);return false;}
  }
  // Submit touch answers before a poll can replace the button mid-tap.
  const touchAnswers=new WeakSet();

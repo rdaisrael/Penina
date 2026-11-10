@@ -22,15 +22,19 @@ Questions, initials, answers, and state stay AES-GCM encrypted using `VOCABULARY
 
 A database insert broadcasts only an empty refresh hint on a room-specific, unguessable topic. No names, answers, access tokens, or answer keys enter notifications. The authenticated Penina API still controls what each user can see. Notifications cause a debounced fetch; timers run locally with one scheduled fetch at each question/reveal deadline. A 15-second fallback refresh recovers missed notifications. If the realtime connection fails, the client falls back to periodic refreshes against the database, never live Blob reads. Hidden screens disconnect and stop refreshing. Finished screens keep listening for a replay and return to the lobby automatically when the teacher selects Play again. Failed requests back off up to 30 seconds.
 
-Browser role tokens remain signed, scoped to one room, and stored only in session storage. Refresh retains identity in that tab. Teachers can pause/resume; paused questions reject answers and preserve time. Correct answers are shown for two seconds, including on screens that miss the original reveal notification. Standings show only three places; each student also sees their own score.
+Browser role tokens remain signed, scoped to one room, and stored only in session storage. Refresh retains identity in that tab. Teachers can pause/resume; paused questions reject answers and preserve time. The server controls the shared question and reveal deadlines. Late or missed updates go straight to the current phase; an old reveal is never replayed over an active question. Countdown synchronization accounts for server processing and estimates network travel time. Standings show only three places; each student also sees their own score.
 
 Choosing an answer immediately highlights it, without a submission status message. The save response confirms the stored choice without waiting for a separate game refresh. Duplicate taps keep the first answer, older refreshes cannot clear its confirmation, and a failed save displays an error and restores the choices. Correctness and points still appear only at reveal.
+
+Answer submission runs independently of phase updates. A slow response for one question cannot block the next question or change its selected answer. While a submission is still being confirmed during reveal, the correct-answer banner is visible but personal scoring waits for the server. Deadlines and pause eligibility use the server's request-arrival time, before database work; client-supplied timestamps cannot extend the answer window.
+
+Supabase answer requests read configuration, state history, and only that student's relevant records. Snapshots fetch answers for the current round, excluding previous rounds' answers. Concurrent refreshes share in-flight metadata and answer reads within one server instance, without retaining a stale database snapshot between requests. This requires no database migration.
 
 The tests simulate a 26-student game with zero additional Blob operations after vocabulary is loaded, along with scoring, timing, immutable writes, and access control. This is not a production load test.
 
 ## Validation
 
-`node --test tests/live-game.test.js tests/game-scores.test.js tests/student-games.test.js tests/class-games.test.js tests/study-cards.test.js tests/vocabulary-pages.test.js`
+`node --test tests/live-game.test.js tests/live-timing.test.js tests/live-touch.test.js tests/live-store.test.js tests/game-scores.test.js tests/student-games.test.js tests/class-games.test.js tests/study-cards.test.js tests/vocabulary-pages.test.js`
 
 QR rendering uses vendored qrcode-generator 1.4.4 by Kazuhiko Arase, MIT-licensed, from https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js.
 

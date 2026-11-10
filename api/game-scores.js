@@ -4,6 +4,7 @@ const matching = require('../lib/matching-scores');
 
 // Share one serverless function so both class boards fit within the hosting limit.
 module.exports = async function (req, res) {
+    const receivedAt = Date.now();
     const game = typeof req.query?.game==='string'?req.query.game:'';
     const accountAction=req.query?.action || req.body?.action;
     const changingIdentity=game==='quiz-account' && ['login','callback','logout','config','email-login','email-verify','password-login','password-change'].includes(accountAction);
@@ -24,7 +25,7 @@ module.exports = async function (req, res) {
     if (game === 'assessment-retake-8') return require('../lib/quiz-retake-8-submissions')(req, res);
     if (game === 'assessment-retake') return require('../lib/quiz-retake-submissions')(req, res);
     if (game === 'assessment') return require('../lib/quiz-submissions')(req, res);
-    if (game === 'live') return require('../lib/live-game')(req, res);
+    if (game === 'live') return require('../lib/live-game')(req, res, receivedAt);
     if (game === 'asteroids') return asteroids(req, res);
     if (game === 'snowblaster') return require('../lib/snowblaster-scores')(req, res);
     if (game === 'flappy') return flappy(req, res);

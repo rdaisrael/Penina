@@ -1,11 +1,11 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/flash-cards/live/live.js'),'utf8');
-function setup(respond){
- let renders=0,markup='';const count={textContent:''},requests=[],listeners={},error={};
- const stage={set innerHTML(value){markup=value;renders++;},get innerHTML(){return markup;},querySelector:selector=>selector==='[data-answered-count]'?count:null,addEventListener:(event,handler)=>listeners[event]=handler};
- const ctx={URLSearchParams,location:{search:'?code=123456'},document:{createElement:()=>({}),head:{append(){}},getElementById:id=>id==='stage'?stage:id==='error'?error:{},addEventListener(){},hidden:true},window:{matchMedia:()=>({matches:true}),addEventListener(){}},setInterval(){},setTimeout(){},clearTimeout(){},AbortController,fetch:async(url,options)=>{const body=options.body?JSON.parse(options.body):{action:null};requests.push(body);return respond?respond(body):reply(body.action==='answer'?{saved:true,round:body.round,index:body.index,choice:body.choice}:question());}};
- vm.runInNewContext(source.slice(0,source.indexOf(" auth=stored(storageKey())"))+" globalThis.client={present,act,poll,connect:()=>{auth='test-student';document.hidden=false;},getSnapshot:()=>snapshot};})();",ctx);
- return {client:ctx.client,count,requests,listeners,error,get renders(){return renders;},get markup(){return markup;}};
+function setup(respond,time){
+ let renders=0,markup='';const count={textContent:''},clock={textContent:''},requests=[],listeners={},error={};
+ const stage={set innerHTML(value){markup=value;renders++;},get innerHTML(){return markup;},querySelector:selector=>selector==='[data-answered-count]'?count:selector==='[data-clock]'&&markup.includes('data-clock')?clock:null,querySelectorAll:()=>[],addEventListener:(event,handler)=>listeners[event]=handler};
+ const ctx={Date:time?class extends Date{static now(){return time.now;}}:Date,URLSearchParams,location:{search:'?code=123456'},document:{createElement:()=>({}),head:{append(){}},getElementById:id=>id==='stage'?stage:id==='error'?error:{},addEventListener(){},hidden:true},window:{matchMedia:()=>({matches:true}),addEventListener(){}},setInterval(){},setTimeout(){},clearTimeout(){},AbortController,fetch:async(url,options)=>{const body=options.body?JSON.parse(options.body):{action:null};requests.push(body);return respond?respond(body):reply(body.action==='answer'?{saved:true,round:body.round,index:body.index,choice:body.choice}:question());}};
+ vm.runInNewContext(source.slice(0,source.indexOf(" auth=stored(storageKey())"))+" globalThis.client={present,act,poll,syncClock,updateClock,connect:()=>{auth='test-student';document.hidden=false;},getSnapshot:()=>snapshot};})();",ctx);
+ return {client:ctx.client,count,clock,requests,listeners,error,get renders(){return renders;},get markup(){return markup;}};
 }
 const reply=(body,status=200)=>({ok:status<400,status,json:async()=>body});
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
@@ -85,10 +85,10 @@ test('an answer is confirmed even while an older poll is still in flight',async(
  assertSelection(h,0);
 });
 
-test('background refreshes wait while an answer is saving',async()=>{
+test('background refreshes continue while an answer is saving',async()=>{
  const saving=deferred(),h=setup(body=>body.action?saving.promise:reply(question()));h.client.present(question());h.client.connect();
  const pending=h.client.act('answer',{choice:0});
- await h.client.poll();assert.equal(h.requests.length,1);
+ await h.client.poll();assert.equal(h.requests.length,2);assertSelection(h,0,false);
  saving.resolve(reply({saved:true,round:1,index:1,choice:0}));
  await pending;assertSelection(h,0);
 });
@@ -109,4 +109,58 @@ test('duplicate acknowledgement shows the first stored answer, and a late reply 
  late.client.present({...data,round:2});saving.resolve(reply({saved:true,round:1,index:1,choice:2}));await pending;
  assert.doesNotMatch(late.markup,/answer selected/);
  assert.match(late.markup,/data-choice="0"  aria-pressed="false"/);
+});
+
+test('late and missed reveals never consume the next question countdown',()=>{
+ for(const seconds of [5,7,10])for(const missReveal of [false,true]){
+  const time={now:1000},h=setup(undefined,time),data={...question(),index:0,version:1,seconds,deadline:1000+seconds*1000,lastReveal:undefined};
+  h.client.present(data);
+  const reveal={...data,phase:'reveal',version:2,revealSeconds:5,deadline:data.deadline+5000,question:{...data.question,correct:0},me:{...data.me,choice:0},distribution:[1,0,0,0]};
+  if(!missReveal){time.now=data.deadline+2000;h.client.present(reveal);assert.equal(h.client.getSnapshot().phase,'reveal');}
+  time.now=reveal.deadline;
+  h.client.present({...data,index:1,version:3,deadline:time.now+seconds*1000,lastReveal:reveal});
+  assert.equal(h.client.getSnapshot().phase,'question');assert.equal(h.client.getSnapshot().index,1);
+  assert.equal(h.clock.textContent,'Time left: '+seconds+'s');
+ }
+});
+
+test('clock synchronization accounts for server work and network time and blocks expired answers',async()=>{
+ const time={now:104000},h=setup(undefined,time);
+ // Client sent at 100000; network took 2 seconds each way, server work took zero.
+ h.client.syncClock({serverReceivedAt:102000,serverNow:102000},100000,104000);
+ h.client.present({...question(),deadline:105000});assert.equal(h.clock.textContent,'Time left: 1s');
+ time.now=105000;h.client.updateClock();assert.equal(h.clock.textContent,'Time left: 0s');
+ await h.client.act('answer',{choice:0});assert.equal(h.requests.length,0);
+ // A skewed server clock and three seconds of processing must not count as network lag.
+ time.now=108000;h.client.syncClock({serverReceivedAt:208000,serverNow:211000},104000,108000);
+ h.client.present({...question(),deadline:212000});assert.equal(h.clock.textContent,'Time left: 1s');
+});
+
+test('phase changes and the next answer proceed while the previous submission is pending',async()=>{
+ const first=deferred(),second=deferred(),data=question();let current=data;
+ const h=setup(body=>body.action==='answer'?(body.index===1?first.promise:second.promise):reply(current));
+ h.client.present(data);h.client.connect();const oldAnswer=h.client.act('answer',{choice:0});
+ current={...data,phase:'reveal',version:3,question:{...data.question,correct:0},distribution:[0,0,0,0]};
+ await h.client.poll();assert.equal(h.client.getSnapshot().phase,'reveal');
+ assert.doesNotMatch(h.markup,/No answer submitted|Correct! \+100/,'wait for authoritative scoring without claiming the pending answer was missed');
+ current={...data,index:2,version:4};await h.client.poll();
+ const nextAnswer=h.client.act('answer',{choice:1});assert.equal(h.requests.filter(r=>r.action==='answer').length,2);
+ first.resolve(reply({saved:true,round:1,index:1,choice:0}));await oldAnswer;
+ assert.equal(h.client.getSnapshot().index,2);assertSelection(h,1,false);
+ second.resolve(reply({saved:true,round:1,index:2,choice:1}));await nextAnswer;assertSelection(h,1);
+});
+
+test('a late failure from a previous question cannot clear the new selection or show an obsolete error',async()=>{
+ const first=deferred(),second=deferred(),data=question(),h=setup(body=>body.index===1?first.promise:second.promise);
+ h.client.present(data);const oldAnswer=h.client.act('answer',{choice:0});
+ h.client.present({...data,index:2,version:4});const nextAnswer=h.client.act('answer',{choice:1});
+ first.reject(new Error('Old request timed out'));await oldAnswer;
+ assertSelection(h,1,false);assert.equal(h.error.textContent,'');
+ second.resolve(reply({saved:true,round:1,index:2,choice:1}));await nextAnswer;assertSelection(h,1);
+});
+
+test('a confirmed answer survives a lost submission response without an error',async()=>{
+ const sending=deferred(),h=setup(()=>sending.promise),data=question();h.client.present(data);
+ const pending=h.client.act('answer',{choice:0});h.client.present({...data,me:{...data.me,choice:0}});
+ sending.reject(new Error('Response lost'));assert.equal(await pending,true);assertSelection(h,0);assert.equal(h.error.textContent,'');
 });

@@ -22,3 +22,11 @@ test('Individual data deletion uses an exact path instead of a wildcard',async()
  const h=harness([{status:204}]);await h.store.removePath('live-vocab/v1/123456/players/abc.enc');
  assert.equal(h.calls[0].options.method,'DELETE');assert.equal(new URL(h.calls[0].url).searchParams.get('path'),'eq.live-vocab/v1/123456/players/abc.enc');
 });
+
+test('Scoped room reads keep the room boundary and filter metadata and exact student records',async()=>{
+ const h=harness([{status:200,rows:[]}]),prefix='live-vocab/v1/123456/';
+ await h.store.list(prefix,{paths:['config.enc','state/*','players/student.enc','rounds/2/answers/03/student.enc']});
+ const query=new URL(h.calls[0].url).searchParams;
+ assert.equal(query.get('path'),'like.'+prefix+'*');
+ assert.equal(query.get('or'),'(path.eq.'+prefix+'config.enc,path.like.'+prefix+'state/*,path.eq.'+prefix+'players/student.enc,path.eq.'+prefix+'rounds/2/answers/03/student.enc)');
+});

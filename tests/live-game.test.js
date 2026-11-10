@@ -149,12 +149,12 @@ test('Live standings expose only three places while preserving each personal sco
  await h.request('start',{code:h.code,version:0},h.hostToken);await h.request('reveal',{code:h.code,version:1},h.hostToken);
  const view=(await h.request(null,{code:h.code},h.studentToken)).body;assert.equal(view.scores.length,3);assert.equal(view.me.score,0);
 });
-test('A screen that misses the server reveal still displays the answer for five seconds',()=>{
+test('A missed reveal never hides an already-running question',()=>{
  let now=1000;const drawn=[];
  const context={Date:{now:()=>now},revealSeen:new Set(),revealUntil:0,snapshot:{phase:'question',index:0},clockOffset:0,draw:data=>{context.snapshot=data;drawn.push(data.phase);},updateClock(){}};
  vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' function draw(data){')),context);
  const data={phase:'question',index:1,lastReveal:{phase:'reveal',index:0}};
- context.present(data);assert.deepEqual(drawn,['reveal']);now=5999;context.present(data);assert.deepEqual(drawn,['reveal']);now=6000;context.present(data);assert.deepEqual(drawn,['reveal','question']);
+ context.present(data);assert.deepEqual(drawn,['question']);assert.equal(context.snapshot.index,1);
 });
 
 test('Wrong answers show a brief X only to that student after reveal, once per question',()=>{
@@ -211,7 +211,7 @@ test('Realtime scheduling uses a quiet fallback and local deadlines rather than 
  const context={failures:0,realtimeReady:true,snapshot:{phase:'question',deadline:null},revealUntil:0,clockOffset:0,Date:{now:()=>1000}};
  vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function nextPollDelay(){'),client.indexOf(' async function poll(){')),context);
  assert.equal(context.nextPollDelay(),15000);context.snapshot.deadline=6000;assert.equal(context.nextPollDelay(),5100);
- context.snapshot={phase:'reveal',deadline:3000};context.revealUntil=2500;assert.equal(context.nextPollDelay(),1520);
+ context.snapshot={phase:'reveal',deadline:3000};assert.equal(context.nextPollDelay(),2100);
  context.failures=4;assert.equal(context.nextPollDelay(),30000);
 });
 

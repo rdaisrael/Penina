@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),crypto=require('node:crypto');
 const app=require('../../PeninaPlus-vocab-builder/offline-study-cards');
 module.exports=function liveHarness(options={}){
- const emails=[];const storage=new Map();const operations={lists:0,writes:0,dbLists:0,dbWrites:0};let now=options.now ?? Date.now();
+ const emails=[],reads=[];const storage=new Map();const operations={lists:0,writes:0,dbLists:0,dbWrites:0};let now=options.now ?? Date.now();
  const sample=[['סוס','horse',['donkey','camel','goat','sheep']],['בית','house',['garden','street','bridge','store']],['מים','water',['bread','milk','wine','salt']],['ספר','book',['table','chair','door','window']],['אור','light',['darkness','sound','wind','rain']],['דרך','path',['wall','roof','floor','field']],['זמן','time',['place','reason','number','name']],['קול','voice',['color','shape','taste','smell']],['גדול','large',['small','short','narrow','thin']],['חדש','new',['old','broken','empty','heavy']]];
  const cards=sample.map(([term,english,answers])=>({term,english,alternativeAnswers:{english:{term,definition:english,answers}}}));
  const setPath='vocabulary-cards/sixth/demo--'+Buffer.from('Class vocabulary').toString('base64url')+'.html';
@@ -14,8 +14,13 @@ module.exports=function liveHarness(options={}){
   removePrefix:async prefix=>{for(const path of storage.keys())if(path.startsWith(prefix))storage.delete(path);},
   configured:()=>!!options.database,
   realtime:topic=>options.database?{url:'https://test.supabase.co',key:'publishable-test',topic}:null,
-  list:async prefix=>{operations.dbLists++;return [...storage.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,payload:storage.get(p).body}));},
-  put:async(p,body)=>{operations.dbWrites++;if(storage.has(p)){const e=new Error('Already saved');e.status=409;throw e;}storage.set(p,{body,uploadedAt:new Date(now).toISOString()});},prune:async()=>{}
+  list:async(prefix,{paths}={})=>{
+   operations.dbLists++;await options.beforeRead?.({prefix,paths});
+   const patterns=paths?.map(p=>new RegExp('^'+p.replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*')+'$'));
+   const found=[...storage.keys()].filter(p=>p.startsWith(prefix)&&(!patterns||patterns.some(pattern=>pattern.test(p.slice(prefix.length)))));
+   reads.push({prefix,paths,returned:found});return found.map(p=>({pathname:p,payload:storage.get(p).body}));
+  },
+  put:async(p,body)=>{operations.dbWrites++;await options.beforeWrite?.(p);if(storage.has(p)){const e=new Error('Already saved');e.status=409;throw e;}storage.set(p,{body,uploadedAt:new Date(now).toISOString()});},prune:async()=>{}
  }:name==='node:crypto'?crypto:name==='@vercel/blob'?blobApi:name==='./quiz-account'?{session:()=>({email:options.teacherEmail ?? 'teacher@example.com'})}:name==='./vocabulary-pages'?{getPage:async id=>id==='sixth'?page:null,authorizePage:req=>req.headers.cookie==='owner-session'?null:{status:401,error:'Sign in as the page owner.'}}:app,fetch:async (url,init)=>{if(url==='https://api.resend.com/emails'){emails.push({headers:init.headers,body:JSON.parse(init.body)});return{ok:!options.emailFailure};}const p=url.replace('https://blob.test/',''),entry=storage.get(p);return{ok:!!entry,text:async()=>entry.body,json:async()=>JSON.parse(entry.body)};}};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../lib/live-game.js'),'utf8'),ctx);
  async function request(action,body={},auth=''){
@@ -25,5 +30,5 @@ module.exports=function liveHarness(options={}){
  }
  const create=(options={})=>request('create',{grade:'sixth',password:'demo',pathnames:[setPath],language:'english',count:5,...options});
  const join=(code,name='AB',joinKey=crypto.randomUUID(),schoolEmail=joinKey+'@school.example')=>request('join',{code,name,joinKey,schoolEmail});
- return {request,create,join,storage,operations,emails,setPath,page,cards,handler:ctx.module.exports,advance:ms=>{now+=ms;}};
+ return {request,create,join,storage,operations,emails,reads,setPath,page,cards,handler:ctx.module.exports,advance:ms=>{now+=ms;}};
 };

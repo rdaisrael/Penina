@@ -432,20 +432,24 @@ test('Joining requires a school email; addresses stay private and match initials
  assert.match(client, /request\('join',\{name,joinKey,schoolEmail,avatar\}\)/);
 });
 
-test('Live games emphasize the latest date and honor the chosen reveal duration',async()=>{
+test('Live games give ordinary lists equal frequency regardless of date and honor the chosen reveal duration',async()=>{
  const h=harness(),recent=h.cards.slice(0,3),older=h.cards.slice(3),oldPath='vocabulary-cards/sixth/old.html';
  const pack=cards=>'<script id="peninaCardData" type="application/json">'+JSON.stringify(cards)+'</script>';
  h.storage.set(h.setPath,{body:pack(recent),uploadedAt:'2026-10-10T16:00:00Z'});
  h.storage.set(oldPath,{body:pack(older),uploadedAt:'2026-10-09T16:00:00Z'});
- const created=await h.create({pathnames:[h.setPath,oldPath],count:5,seconds:5,revealSeconds:7});assert.equal(created.code,201,JSON.stringify(created.body));const {code,hostToken}=created.body;await h.join(code);
+ const created=await h.create({pathnames:[h.setPath,oldPath],count:10,seconds:5,revealSeconds:7});assert.equal(created.code,201,JSON.stringify(created.body));const {code,hostToken}=created.body;await h.join(code);
  await h.request('start',{code,version:0},hostToken);
- for(let index=0;index<5;index++){
+ const terms=[];
+ for(let index=0;index<10;index++){
   const view=(await h.request(null,{code},hostToken)).body;
-  assert.equal(recent.some(row=>row.term===view.question.term),index!==3);
+  terms.push(view.question.term);
   h.advance(5000);assert.equal((await h.request(null,{code},hostToken)).body.phase,'reveal');
   h.advance(6999);assert.equal((await h.request(null,{code},hostToken)).body.phase,'reveal');
   h.advance(1);await h.request(null,{code},hostToken);
  }
+ // Question order is shuffled; equal weighting concerns frequency, not fixed slots.
+ assert.equal(terms.filter(term=>recent.some(row=>row.term===term)).length,5);
+ assert.equal(terms.filter(term=>older.some(row=>row.term===term)).length,5);
  assert.equal((await h.request(null,{code},hostToken)).body.phase,'ended');
 });
 

@@ -118,21 +118,34 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   // answering time for a question whose server countdown has already started.
   draw(data);updateClock();
  }
- function gameSettings(){
-  if(!host||busy||snapshot?.phase!=='lobby'||!snapshot.settings)return;
-  const settings=snapshot.settings,version=snapshot.version;
+ async function gameSettings(){
+  if(!host||busy||!['lobby','ended'].includes(snapshot?.phase)||!snapshot.settings||document.querySelector('.live-settings'))return;
   const options=(values,selected,label)=>values.map(value=>`<option value="${value}" ${value===selected?'selected':''}>${label(value)}</option>`).join('');
   const dialog=document.createElement('dialog');dialog.className='live-settings';
   dialog.setAttribute('aria-labelledby','live-settings-title');
+  dialog.innerHTML='<h2 id="live-settings-title">Game settings</h2><p role="status">Loading class wordlists…</p><button type="button" data-cancel>Cancel</button>';
+  document.body.append(dialog);dialog.showModal();
+  dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();
+  let settings,version;
+  try{({settings,version}=await request('settings'));}
+  catch(e){
+   if(!dialog.isConnected)return;
+   dialog.innerHTML=`<h2 id="live-settings-title">Game settings</h2><p role="alert">${esc(e.message)}</p><div class="actions"><button type="button" data-retry>Retry</button><button type="button" data-cancel>Cancel</button></div>`;
+   dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();
+   dialog.querySelector('[data-retry]').onclick=()=>{dialog.remove();gameSettings();};return;
+  }
+  if(!dialog.isConnected)return;
+  const missing=settings.pathnames.some(pathname=>!settings.wordlists.some(set=>set.pathname===pathname));
   dialog.innerHTML=`<form><h2 id="live-settings-title">Game settings</h2><p>Students stay in the lobby while you make changes.</p>
-   <div class="settings-grid"><label>Number of questions<select name="count">${options([5,10,15,20],settings.count,value=>value)}</select></label>
+   <div class="settings-grid"><label>Answer language<select name="language" required>${settings.language?'':'<option value="" selected disabled>Choose a language</option>'}${options(['english','hebrew'],settings.language,value=>value==='english'?'English':'Hebrew')}</select></label>
+   <label>Number of questions<select name="count">${options([5,10,15,20],settings.count,value=>value)}</select></label>
    <label>Time per question<select name="seconds">${options([0,5,7,10],settings.seconds,value=>value?value+' seconds':'Manual — teacher advances')}</select></label>
    <label>Time between questions<select name="revealSeconds">${options([2,5,7,10,15,20,30],settings.revealSeconds,value=>value+' seconds')}</select></label></div>
    <p class="muted">The pause between questions displays the answer and standings. With manual pacing, you decide when to continue.</p>
-   <fieldset><legend>Included wordlists</legend><p class="muted">Choose Normal, 2×, or 3× emphasis for each list. Uncheck a list to exclude it.</p>${settings.wordlists.map((set,index)=>`<div class="live-wordlist-row"><label class="wordlist-choice"><input type="checkbox" name="wordlist" value="${index}" ${settings.pathnames.includes(set.pathname)?'checked':''}><span>${esc(set.title)} <small>(${set.terms} terms)</small></span></label><select name="emphasis-${index}" aria-label="Emphasis for ${esc(set.title)}" ${settings.pathnames.includes(set.pathname)?'':'disabled'}>${options([1,2,3],settings.wordlistEmphasis?.[set.pathname]??1,value=>value===1?'Normal':value+'×')}</select></div>`).join('')}</fieldset>
+   <fieldset><legend>Included wordlists</legend><p class="muted">Choose up to 20 lists from this class. Choose Normal, 2×, or 3× emphasis for each list.</p>${missing?'<p role="status">Some previously selected wordlists are no longer available. Choose the lists for this round below.</p>':''}${settings.wordlists.length?'':'<p>No wordlists are available. Add a wordlist on your class page, then reopen Game settings.</p>'}${settings.wordlists.map((set,index)=>`<div class="live-wordlist-row"><label class="wordlist-choice"><input type="checkbox" name="wordlist" value="${index}" ${settings.pathnames.includes(set.pathname)?'checked':''}><span>${esc(set.title)}</span></label><select name="emphasis-${index}" aria-label="Emphasis for ${esc(set.title)}" ${settings.pathnames.includes(set.pathname)?'':'disabled'}>${options([1,2,3],settings.wordlistEmphasis?.[set.pathname]??1,value=>value===1?'Normal':value+'×')}</select></div>`).join('')}</fieldset>
+   <label class="wordlist-choice"><input type="checkbox" name="sendScoresToTeacher" ${settings.sendScoresToTeacher?'checked':''}><span>Send scores to teacher</span></label>
    <p class="muted">The game uses up to the selected number of questions. With multiple lists, terms may repeat to match your emphasis.</p><p data-settings-error role="alert"></p>
    <div class="actions"><button type="submit" class="primary">Save settings</button><button type="button" data-cancel>Cancel</button></div></form>`;
-  document.body.append(dialog);dialog.showModal();
   dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();
   const form=dialog.querySelector('form');
   const syncEmphasisControls=()=>form.querySelectorAll('input[name="wordlist"]').forEach(input=>{form.elements['emphasis-'+input.value].disabled=!input.checked;});
@@ -142,7 +155,8 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
    const pathnames=[...form.querySelectorAll('input[name="wordlist"]:checked')].map(input=>settings.wordlists[Number(input.value)].pathname);
    const message=dialog.querySelector('[data-settings-error]');
    if(!pathnames.length){message.textContent='Include at least one wordlist.';return;}
-   const values={version,count:Number(form.elements.count.value),seconds:Number(form.elements.seconds.value),revealSeconds:Number(form.elements.revealSeconds.value),pathnames,wordlistEmphasis:Object.fromEntries(settings.wordlists.map((set,index)=>[set.pathname,Number(form.elements['emphasis-'+index].value)]))};
+   if(pathnames.length>20){message.textContent='Choose up to 20 wordlists.';return;}
+   const values={version,language:form.elements.language.value,sendScoresToTeacher:form.elements.sendScoresToTeacher.checked,count:Number(form.elements.count.value),seconds:Number(form.elements.seconds.value),revealSeconds:Number(form.elements.revealSeconds.value),pathnames,wordlistEmphasis:Object.fromEntries(settings.wordlists.map((set,index)=>[set.pathname,Number(form.elements['emphasis-'+index].value)]))};
    const controls=[...form.querySelectorAll('button,input,select')];controls.forEach(control=>control.disabled=true);
    const saved=await act('configure',values);
    if(saved)dialog.close();else{controls.forEach(control=>control.disabled=false);syncEmphasisControls();message.textContent=error.textContent;}
@@ -276,6 +290,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   const button=event.target.closest('button');if(!button||button.disabled)return;
   if(button.hasAttribute('data-email-retry')){button.disabled=true;stopped=false;await poll();return;}
   if(button.hasAttribute('data-settings')){gameSettings();return;}
+  if(button.dataset.action==='restart'){if(await act('restart'))await gameSettings();return;}
   if(button.dataset.copy){try{await navigator.clipboard.writeText(button.dataset.copy);button.textContent='Copied!';}catch(_){showError('Copy the student join page link shown above.');}return;}
   if(button.hasAttribute('data-end')){
    const dialog=document.createElement('dialog');dialog.className='live-confirm';dialog.innerHTML='<h2>End this game?</h2><p>Students will see the final scores. An unrevealed question will not count.</p><div class="actions"><button data-cancel>Keep playing</button><button class="danger" data-confirm>End game</button></div>';document.body.append(dialog);dialog.showModal();dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();dialog.querySelector('[data-confirm]').onclick=()=>{dialog.close();act('end');};return;

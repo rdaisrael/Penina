@@ -376,7 +376,7 @@ test('Each replay sends its own final report with fresh scores and a distinct id
 test('New-round question zero receives feedback and bypasses any previous reveal delay',()=>{
  let now=1000;const drawn=[];
  const context={Date:{now:()=>now},revealSeen:new Set(),revealUntil:0,snapshot:null,clockOffset:0,draw:data=>{context.snapshot=data;drawn.push([data.phase,data.round]);},updateClock(){}};
- vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' function gameSettings(){')),context);
+ vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' async function gameSettings(){')),context);
  context.present({phase:'reveal',round:0,index:0});
  context.present({phase:'lobby',round:1,index:-1});
  context.present({phase:'reveal',round:1,index:0});
@@ -520,7 +520,7 @@ test('Joining a timed or paused game preserves the current clock and answer rest
 
 test('Joining mid-question skips old feedback on initial and subsequent polls',()=>{
  const drawn=[],context={Date:{now:()=>1000},revealSeen:new Set(),revealUntil:0,snapshot:null,clockOffset:0,draw:data=>{context.snapshot=data;drawn.push(data.phase);},updateClock(){}};
- vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' function gameSettings(){')),context);
+ vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function present(data){'),client.indexOf(' async function gameSettings(){')),context);
  const lastReveal={phase:'reveal',round:0,index:0},current={phase:'question',round:0,index:1,lastReveal};
  context.present(current);context.present(current);
  context.present({phase:'reveal',round:0,index:1});

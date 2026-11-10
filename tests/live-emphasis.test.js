@@ -45,7 +45,7 @@ test('Live validates emphasis before creating or changing games and only the hos
  for(const wordlistEmphasis of invalid)assert.equal((await h.create({wordlistEmphasis})).code,400,JSON.stringify(wordlistEmphasis));
  assert.equal([...h.storage.keys()].filter(name=>name.startsWith('live-vocab/')).length,0);
  const {code,hostToken}=(await h.create()).body,student=(await h.join(code)).body.studentToken;
- for(const wordlistEmphasis of invalid)assert.equal((await h.request('configure',{code,version:0,wordlistEmphasis},hostToken)).code,400);
+ for(const wordlistEmphasis of invalid.filter(input=>!input||!Object.hasOwn(input,h.other)))assert.equal((await h.request('configure',{code,version:0,wordlistEmphasis},hostToken)).code,400);
  assert.equal((await h.request('configure',{code,version:0,wordlistEmphasis:{[h.setPath]:3}},student)).code,403);
  const view=(await h.request(null,{code},hostToken)).body;assert.equal(view.version,0);assert.deepEqual(view.settings.wordlistEmphasis,{[h.setPath]:1});
 });
@@ -57,10 +57,11 @@ test('2× emphasis uses the same relative frequency as individual exercises',asy
 test('Game settings preserves per-list emphasis through exclusion and a failed save',async()=>{
  const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/flash-cards/live/live.js'),'utf8');
  const inputs=[{value:'0',checked:true},{value:'1',checked:true}],message={textContent:''},calls=[];
- const form={elements:{count:{value:'10'},seconds:{value:'0'},revealSeconds:{value:'5'},'emphasis-0':{value:'3'},'emphasis-1':{value:'2'}},querySelectorAll(selector){if(selector==='input[name="wordlist"]')return inputs;if(selector==='input[name="wordlist"]:checked')return inputs.filter(input=>input.checked);return [...inputs,...Object.values(this.elements)];}};
- const dialog={setAttribute(){},showModal(){},close(){this.closed=true;},querySelector:selector=>selector==='form'?form:selector==='[data-settings-error]'?message:{}};
- const context={host:true,busy:false,snapshot:{phase:'lobby',version:4,settings:{count:10,seconds:0,revealSeconds:5,pathnames:['first','second'],wordlistEmphasis:{first:3,second:2},wordlists:[{pathname:'first',title:'First list',terms:10},{pathname:'second',title:'Second list',terms:8}]}},esc:value=>value,document:{createElement:()=>dialog,body:{append(){}}},error:{textContent:'Retry saving'},act:async(action,values)=>{calls.push({action,values});return calls.length>1;}};
- vm.createContext(context);vm.runInContext(source.slice(source.indexOf(' function gameSettings(){'),source.indexOf(' function draw(data){')),context);context.gameSettings();
+ const form={elements:{language:{value:'english'},sendScoresToTeacher:{checked:false},count:{value:'10'},seconds:{value:'0'},revealSeconds:{value:'5'},'emphasis-0':{value:'3'},'emphasis-1':{value:'2'}},querySelectorAll(selector){if(selector==='input[name="wordlist"]')return inputs;if(selector==='input[name="wordlist"]:checked')return inputs.filter(input=>input.checked);return [...inputs,...Object.values(this.elements)];}};
+ const dialog={isConnected:true,setAttribute(){},showModal(){},close(){this.closed=true;},querySelector:selector=>selector==='form'?form:selector==='[data-settings-error]'?message:{}};
+ const context={host:true,busy:false,snapshot:{phase:'lobby',version:4,settings:{language:'english',count:10,seconds:0,revealSeconds:5,pathnames:['first','second'],wordlistEmphasis:{first:3,second:2},wordlists:[{pathname:'first',title:'First list',terms:10},{pathname:'second',title:'Second list',terms:8}]}},esc:value=>value,document:{querySelector:()=>null,createElement:()=>dialog,body:{append(){}}},error:{textContent:'Retry saving'},act:async(action,values)=>{calls.push({action,values});return calls.length>1;}};
+ context.request=async()=>context.snapshot;
+ vm.createContext(context);vm.runInContext(source.slice(source.indexOf(' async function gameSettings(){'),source.indexOf(' function draw(data){')),context);await context.gameSettings();
  assert.match(dialog.innerHTML,/aria-label="Emphasis for First list"/);assert.match(dialog.innerHTML,/value="3" selected>3×/);
  inputs[1].checked=false;inputs[1].onchange();assert.equal(form.elements['emphasis-1'].disabled,true);
  await form.onsubmit({preventDefault(){}});assert.equal(message.textContent,'Retry saving');assert.equal(form.elements['emphasis-1'].disabled,true);

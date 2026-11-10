@@ -202,6 +202,66 @@ test('Question headings expose escaped prompts and show full text on hover, focu
  }
 });
 
+function summaryView(questions,answers,corrections=[]) {
+ const model=require('../lib/quiz-builder-model'),elements=new Map();
+ const records=answers.map((answer,i)=>({answers:answer,grading:model.grade({questions},answer,corrections[i])}));
+ const context={questions,records,renderResultsGrid(){},esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
+ vm.runInNewContext(source.slice(source.indexOf('function renderSummary()'),source.indexOf('function renderResultsGrid()')),context);
+ context.renderSummary();
+ return {context,elements,html:()=>elements.get('summaryRows').innerHTML};
+}
+test('Partial-credit matching summarizes each scored pair and preserves its original answer position',()=>{
+ const q={type:'match',prompt:'Match <words>',points:1,scoringMode:'response',items:['<cat>','Distractor','בית'],answer:['animal','','house']};
+ const view=summaryView([q],[[['animal','','wrong']],[['animal','','house']],[['wrong','','']]]);
+ const html=view.html(),parts=html.slice(html.indexOf('<tr class="summary-breakdown">'));
+ assert.match(html,/Match &lt;words>/);assert.match(parts,/&lt;cat>/);assert.match(parts,/בית/);
+ assert.match(parts,/Part 1/);assert.match(parts,/Part 3/);assert.doesNotMatch(parts,/Part 2|Distractor/);
+ assert.match(parts,/data-result="correct">2 \(66.7%\)/);assert.match(parts,/data-result="incorrect">1 \(33.3%\)/);
+ assert.match(parts,/data-result="correct">1 \(33.3%\)/);assert.match(parts,/data-result="incorrect">2 \(66.7%\)/);
+ assert.doesNotMatch(html,/summary-matches/);
+});
+test('Word-bank blank percentages use submitted answers, including blanks, and ignore point overrides',()=>{
+ const q={type:'gaps',prompt:'___ then ___',points:5,potentialPoints:8,scoringMode:'proportional',answer:['A','B']};
+ const view=summaryView([q],[[['A','']],[['A','B']]], [{overrides:{0:8}}]);
+ const parts=()=>view.html().slice(view.html().indexOf('<tr class="summary-breakdown">'));
+ assert.match(parts(),/Blank 1/);assert.match(parts(),/Blank 2/);
+ assert.match(parts(),/data-result="correct">2 \(100%\)/);assert.match(parts(),/data-result="incorrect">0 \(0%\)/);
+ assert.match(parts(),/data-result="correct">1 \(50%\)/);assert.match(parts(),/data-result="incorrect">1 \(50%\)/);
+ view.context.records[0].grading.automatic[0].score=0;view.context.renderSummary();
+ assert.match(parts(),/data-result="correct">1 \(50%\)/);
+ view.context.records=[];view.context.renderSummary();
+ assert.match(view.html(),/data-result="correct">0 \(—\)/);assert.match(view.html(),/data-result="incorrect">0 \(—\)/);
+ assert.doesNotMatch(view.html(),/NaN|Infinity|0%/);
+});
+test('Part breakdowns exclude hand-corrected, single-part, and all-or-nothing questions',()=>{
+ const candidates=[
+  {type:'text',answer:'Model answer'},
+  {type:'gaps',wordBank:false,answer:['A','B']},
+  {type:'gaps',answer:['A']},
+  {type:'match',items:['first','second'],answer:['A','B'],scoringMode:'total'},
+  {type:'order',answer:['A','B'],choices:['A','B']},
+  {type:'multi',answer:['A','B'],choices:['A','B','C']}
+ ];
+ for(const candidate of candidates){
+  const q={prompt:'___ and ___',points:1,scoringMode:'response',...candidate};
+  assert.doesNotMatch(summaryView([q],[]).html(),/summary-breakdown/);
+ }
+});
+test('Per-response ordering checks positions and multiple-answer choices check selection against the key',()=>{
+ const questions=[
+  {type:'order',prompt:'Order',points:1,scoringMode:'response',perResponseCredit:true,choices:['A','B','C'],answer:['A','B','C']},
+  {type:'multi',prompt:'Select',points:1,scoringMode:'response',perResponseCredit:true,choices:['A','B','C'],answer:['A','B']}
+ ];
+ const view=summaryView(questions,[[['A','C','B'],['A','C']],[['A','B','C'],['A','B']]]);
+ const order=view.html().split('aria-label="Question 1 breakdown by part"')[1].split('</table>')[0];
+ const multi=view.html().split('aria-label="Question 2 breakdown by part"')[1].split('</table>')[0];
+ assert.match(order,/Position 1/);assert.match(order,/Position 3/);
+ assert.equal((order.match(/data-result="correct">1 \(50%\)/g)||[]).length,2);
+ assert.match(multi,/Choice 3/);assert.match(multi,/C<\/bdi> — Leave unselected/);assert.match(multi,/A<\/bdi> — Select/);
+ assert.equal((multi.match(/data-result="correct">1 \(50%\)/g)||[]).length,2);
+ assert.match(multi,/data-result="correct">2 \(100%\)/);
+});
+
 test('Student receipt always shows typed responses as needs correction, even with cached automatic results',()=>{
  const student=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/custom/quiz.js'),'utf8');
  const elements=new Map(),context={previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['a'],['b'],['c'],['d'],['e']],automatic:[{index:0,correct:true},{index:1,correct:false},{index:2,correct:true},{index:3,correct:false},{index:4,partial:true}]},questions:[{type:'text',prompt:'Written'},{type:'gaps',wordBank:false,prompt:'Typed ___'},{type:'choice',prompt:'Correct'},{type:'choice',prompt:'Incorrect'},{type:'multi',prompt:'Partial'}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};

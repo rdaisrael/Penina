@@ -79,10 +79,32 @@ function renderSummary() {
     document.getElementById('summaryRows').innerHTML=questions.map((q,index)=>{
         const counts={correct:0,incorrect:0,partial:0,pending:0};
         for(const r of records){const item=[...r.grading.automatic,...r.grading.manual].find(v=>v.index===index);counts[resultState(item)]++;}
-        const cell=n=>`${n} (${records.length?Math.round(n/records.length*1000)/10+'%':'—'})`;
-        const matches=q.type==='match'?`<div class="summary-matches"><span>Correct matches:</span><ul>${q.items.map((word,i)=>`<li><bdi dir="auto">${esc(word)}</bdi> — <bdi dir="auto">${esc(q.answer[i])}</bdi></li>`).join('')}</ul></div>`:'';
-        return `<tr><th scope="row"><span>Q${index+1}${q.extraCredit?' · Extra credit':''}</span><div class="summary-prompt" dir="auto">${esc(q.prompt)}</div>${matches}</th>${Object.values(counts).map(n=>`<td>${cell(n)}</td>`).join('')}</tr>`;
+        const parts=renderPartSummary(q,index);
+        const matches=q.type==='match' && !parts?`<div class="summary-matches"><span>Correct matches:</span><ul>${q.items.map((word,i)=>`<li><bdi dir="auto">${esc(word)}</bdi> — <bdi dir="auto">${esc(q.answer[i])}</bdi></li>`).join('')}</ul></div>`:'';
+        return `<tr><th scope="row"><span>Q${index+1}${q.extraCredit?' · Extra credit':''}</span><div class="summary-prompt" dir="auto">${esc(q.prompt)}</div>${matches}</th>${Object.values(counts).map(n=>`<td>${summaryCount(n)}</td>`).join('')}</tr>${parts}`;
     }).join('');
+}
+function summaryCount(n) {
+    return `${n} (${records.length?Math.round(n/records.length*1000)/10+'%':'—'})`;
+}
+function renderPartSummary(q,index) {
+    // Written answers have only a question-level teacher mark, not per-part correctness.
+    if(!['match','gaps','order','multi'].includes(q.type) || q.type==='gaps' && q.wordBank===false)return '';
+    if(!['response','proportional'].includes(q.scoringMode))return '';
+    if((q.type==='order' || q.type==='multi') && !q.perResponseCredit)return '';
+    if(q.answer.filter(Boolean).length<2)return '';
+    const parts=(q.type==='multi'?q.choices:q.answer).flatMap((answer,part)=>{
+        if(answer==='')return [];
+        const selected=q.type==='multi' && q.answer.includes(answer);
+        const label=q.type==='match'?`Part ${part+1}`:q.type==='gaps'?`Blank ${part+1}`:q.type==='order'?`Position ${part+1}`:`Choice ${part+1}`;
+        const key=q.type==='match'?`<bdi dir="auto">${esc(q.items[part])}</bdi> — <bdi dir="auto">${esc(answer)}</bdi>`:`<bdi dir="auto">${esc(answer)}</bdi>${q.type==='multi'?` — ${selected?'Select':'Leave unselected'}`:''}`;
+        const correct=records.filter(record=>{
+            const responses=record.answers?.[index] || [];
+            return q.type==='multi'?responses.includes(answer)===selected:responses[part]===answer;
+        }).length;
+        return [`<tr><th scope="row"><span class="summary-part-label">${label}</span><span class="summary-part-answer">${key}</span></th><td data-result="correct">${summaryCount(correct)}</td><td data-result="incorrect">${summaryCount(records.length-correct)}</td></tr>`];
+    }).join('');
+    return `<tr class="summary-breakdown"><td colspan="5"><div class="summary-parts"><p class="summary-parts-heading">Q${index+1} · Breakdown by part</p><table class="summary-parts-table" aria-label="Question ${index+1} breakdown by part"><thead><tr><th scope="col">Part / correct answer</th><th scope="col">Correct</th><th scope="col">Wrong</th></tr></thead><tbody>${parts}</tbody></table></div></td></tr>`;
 }
 function resultState(item) {
     return !item || item.score==null?'pending':item.score>=(item.correctnessMax ?? item.max)?'correct':item.score===0?'incorrect':'partial';

@@ -107,5 +107,5 @@ h1{margin:0;font-size:clamp(34px,6vw,64px);line-height:1.02;letter-spacing:-.045
 
 /* Keep knowledge lists immediately below the vocabulary wordlists. */
 .knowledge-library{margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
-.knowledge-library>h2{margin:0 0 16px;font-size:24px;line-height:1.25}
+.library-section-heading,.knowledge-library>h2{margin:0 0 16px;font-size:24px;line-height:1.25}
 #sets:empty+.knowledge-library{margin-top:0;padding-top:0;border-top:0}

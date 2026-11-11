@@ -231,6 +231,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         const query = search.value.trim().toLowerCase();
         const visible = sets.filter(set => !hiddenWordlists.includes(set.pathname) && set.title.toLowerCase().includes(query));
         status.hidden = true;
+        document.getElementById('vocabulary-lists-heading').hidden = !visible.length;
         setsElement.innerHTML = visible.map(set => {
             const date = new Date(set.publishedAt);
             const readableDate = Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, {

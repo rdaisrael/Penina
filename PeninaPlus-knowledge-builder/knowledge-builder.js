@@ -8,7 +8,7 @@
     let workflow;
     let deck = {format: FORMAT, version: 1, title: '', cards: []};
     let editingId = null, picture = null, dirty = false, stage = 'edit';
-    let order = [], index = 0, showingAnswer = false, ratings = {};
+    let order = [], index = 0, showingAnswer = false, answerFirst = false, ratings = {};
     let db = null, saveTimer, uploadVersion = 0, uploading = false, pictureFitWidth = 0;
     const app = document.querySelector('.app');
     const make = (tag, className, value) => {
@@ -158,7 +158,7 @@
         if (stage === 'study') {
             order = deck.cards.map(card => card.id);
             index = 0;
-            showingAnswer = false;
+            showingAnswer = answerFirst;
             renderStudy();
         }
         if (stage === 'print') renderPrint();
@@ -194,21 +194,45 @@
         byId('progress-bar').style.width = `${progress}%`;
         document.querySelector('.progress').setAttribute('aria-valuenow', progress);
         byId('card-number').textContent = `Card #${deck.cards.indexOf(card) + 1}`;
-        byId('side-number').textContent = showingAnswer ? '2 / 2' : '1 / 2';
+        byId('side-number').textContent = showingAnswer !== answerFirst ? '2 / 2' : '1 / 2';
         byId('flashcard').setAttribute('aria-label', `${showingAnswer ? 'Answer' : 'Question'} side of flashcard. Press Space or Enter to flip.`);
         const content = cardContent(card, showingAnswer);
-        byId('card-content').className = content.className;
-        byId('card-content').replaceChildren(...content.childNodes);
+        if (studentMode) {
+            const main=make('div', `main student-card-main${!showingAnswer && card.picture ? ' has-picture' : ''}`);
+            const copy=make('div','student-question-copy');copy.append(content.querySelector('.card-text'));
+            const picture=content.querySelector('.picture-button');if(picture)main.append(picture);
+            main.append(copy);byId('card-content').replaceChildren(main);
+            byId('study-side-label').textContent=showingAnswer?'Answer':'Question';
+        } else {
+            byId('card-content').className = content.className;
+            byId('card-content').replaceChildren(...content.childNodes);
+        }
         byId('additional-panel').hidden = !showingAnswer || !hasInformation(card);
         byId('additional-text').textContent = card.additionalInformation;
+        if(studentMode)fitStudentStudy();
         for (const rating of ['known', 'almost', 'learning']) {
             byId(`${rating}-count`).textContent = deck.cards.filter(item => ratings[item.id] === rating).length;
         }
     }
+    function fitStudentStudy() {
+        if(!studentMode || stage!=='study')return;
+        const text=byId('card-content').querySelector('.card-text');
+        if(text)window.PeninaStudyLayout.fitText(text);
+        window.PeninaStudyLayout.fitText(byId('additional-text'));
+    }
+    if(studentMode) {
+        window.addEventListener('resize',fitStudentStudy);
+        if(document.fonts)document.fonts.ready.then(fitStudentStudy);
+        for(const [id,reverse] of [['question-first',false],['answer-first',true]])byId(id).addEventListener('click',()=>{
+            answerFirst=reverse;showingAnswer=reverse;
+            byId('question-first').classList.toggle('active',!reverse);byId('answer-first').classList.toggle('active',reverse);
+            renderStudy();
+        });
+    }
     function move(amount) {
         if (!order.length) return;
         index = (index + amount + order.length) % order.length;
-        showingAnswer = false;
+        showingAnswer = answerFirst;
         renderStudy();
     }
     function flip() {if (studyCard()) {showingAnswer = !showingAnswer; renderStudy();}}
@@ -434,9 +458,9 @@
     });
     byId('shuffle').addEventListener('click', () => {
         for (let i = order.length - 1; i > 0; i--) {const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]];}
-        index = 0; showingAnswer = false; renderStudy();
+        index = 0; showingAnswer = answerFirst; renderStudy();
     });
-    byId('reset-study').addEventListener('click', () => {ratings = {}; order = deck.cards.map(card => card.id); index = 0; showingAnswer = false; renderStudy();});
+    byId('reset-study').addEventListener('click', () => {ratings = {}; order = deck.cards.map(card => card.id); index = 0; showingAnswer = answerFirst; renderStudy();});
     byId('edit-current').addEventListener('click', () => {openEditor(studyCard()); setStage('edit');});
     document.querySelectorAll('[data-rating]').forEach(button => button.addEventListener('click', () => {
         if (studyCard()) {ratings[studyCard().id] = button.dataset.rating; move(1);}
@@ -490,14 +514,15 @@
             try {
                 const saved=JSON.parse(embedded.textContent);deck=normalizeDeck(saved.deck);
                 document.body.dataset.student='true';
-                document.querySelector('.brand h1').textContent=deck.title;
+                if(document.querySelector('.brand h1'))document.querySelector('.brand h1').textContent=deck.title;
+                if(byId('student-practice'))byId('student-practice').hidden=!workflow.hasPractice();
                 const nav=document.querySelector('.workflow-nav');nav.replaceChildren();
                 for(const [name,label] of [['study','Flashcards'],['quiz','Practice'],['sheet','Knowledge Sheet'],['print','Paper Flashcards']]) {
                     if(name==='quiz' && !workflow.hasPractice())continue;
                     const button=make('button','',label);button.type='button';button.dataset.stage=name;button.onclick=()=>setStage(name);nav.append(button);
                 }
                 if(typeof saved.homeUrl==='string' && /^\/(?!\/)/.test(saved.homeUrl)){
-                    const link=make('a','class-home','← Class home');link.href='https://www.penina-hebrew.org'+saved.homeUrl;app.prepend(link);
+                    const link=make('a','home-link','← Class home');link.target='_blank';link.rel='noopener';link.href='https://www.penina-hebrew.org'+saved.homeUrl;app.prepend(link);
                 }
                 const language=window.PeninaKnowledgeCards.practiceCards(deck,'english').length?'english':'hebrew';byId('quiz-language').value=language;
                 setStage(['print','sheet','quiz'].includes(location.hash.slice(1))?location.hash.slice(1):'study');

@@ -1029,20 +1029,29 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         });
     }
 
-    function makeApp(title, cards, options = {}) {
-        if (options.publicationOptions) cards = publicationCards(cards, options.publicationOptions);
-        const groups = options.hideGames ? {} : Object.fromEntries(['english', 'hebrew'].map(language => [language, practiceRows(cards, language)]).filter(([, rows]) => rows.length));
-        const safeTitle = escapeHtml(title);
-        const homeUrl = /^(https?:\/\/|\/(?!\/))/.test(options.homeUrl || '') ? options.homeUrl : '/PeninaPlus-vocab-builder/flash-cards/';
-        const cardData = JSON.stringify(cards).replace(/</g, '\\u003c');
-        return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${safeTitle}</title>
-<style>
-:root{--bg:#f7f6f3;--panel:#fff;--ink:#1d232a;--muted:#667085;--line:#d9dee7;--accent:#4353ff;--accent2:#eef0ff;--shadow:0 18px 50px rgba(21,28,43,.11);--radius:24px}
+    function fitText(element){
+        const box=element.parentElement;
+        if(!box||!box.clientHeight||!box.clientWidth)return;
+        element.style.fontSize='';
+        element.style.setProperty('--text-scale',1);
+        const maximum=parseFloat(getComputedStyle(element).fontSize);
+        const height=box.classList.contains('card-content')?parseFloat(getComputedStyle(box).maxHeight):box.clientHeight;
+        const fits=()=>element.scrollHeight<=height&&element.scrollWidth<=box.clientWidth;
+        const apply=size=>{element.style.fontSize=size+'px';element.style.setProperty('--text-scale',size/maximum)};
+        const sizeBox=()=>{if(box.classList.contains('card-content'))box.style.height=Math.min(height,element.scrollHeight)+'px'};
+        if(fits()){sizeBox();return;}
+        let low=0,high=maximum;
+        for(let step=0;step<18;step++){
+            const size=(low+high)/2;apply(size);
+            if(fits())low=size;else high=size;
+        }
+        apply(low);
+        sizeBox();
+    }
+
+    // Shared by vocabulary cards and the published knowledge-card viewer.
+    function studyStyles() {
+        return `:root{--bg:#f7f6f3;--panel:#fff;--ink:#1d232a;--muted:#667085;--line:#d9dee7;--accent:#4353ff;--accent2:#eef0ff;--shadow:0 18px 50px rgba(21,28,43,.11);--radius:24px}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--ink);background:radial-gradient(circle at top left,rgba(67,83,255,.12),transparent 34rem),linear-gradient(180deg,#fbfaf8,var(--bg));font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif}.app{max-width:1180px;margin:auto;padding:18px 20px 40px}
 header{margin-bottom:14px}h1{margin:0;font-size:clamp(24px,3vw,32px);letter-spacing:-.03em;line-height:1.15}.subtitle{margin:10px 0 0;color:var(--muted);line-height:1.45}.badge{display:inline-flex;gap:4px;margin-top:8px;font-size:14px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 13px;font-weight:800;white-space:nowrap}
 .layout{display:grid;grid-template-columns:350px minmax(0,1fr);gap:20px;align-items:start}.sidebar{min-width:0}.panel,.stage{background:rgba(255,255,255,.9);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:var(--radius)}.panel{padding:18px;position:sticky;top:16px;align-self:start}.stage{min-height:590px;padding:clamp(16px,2.5vw,28px);display:flex;flex-direction:column}.section-title{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-weight:800;margin:0 0 10px}
@@ -1056,7 +1065,23 @@ body.print-preview-open .app{display:none}body.print-preview-open .print-preview
 @media(max-width:880px){header{grid-template-columns:1fr}.layout{grid-template-columns:1fr}.panel{position:static}.controls,.ratings{grid-template-columns:1fr}}
 @media(max-width:850px){.print-preview{overflow:auto}.print-toolbar{width:100%;flex-wrap:wrap}.print-toolbar-copy{flex-basis:100%}.paper-sheet,.sheet-caption{margin-left:0}}
 @page{size:letter portrait;margin:0}
-@media print{body.print-preview-open{background:#fff}body.print-preview-open .app,body.print-preview-open .print-toolbar,body.print-preview-open .sheet-caption{display:none!important}body.print-preview-open .print-preview{display:block!important;padding:0;background:#fff}body.print-preview-open .paper-sheet{margin:0;box-shadow:none;break-after:page;page-break-after:always}body.print-preview-open .paper-sheet:last-child{break-after:auto;page-break-after:auto}}
+@media print{body.print-preview-open{background:#fff}body.print-preview-open .app,body.print-preview-open .print-toolbar,body.print-preview-open .sheet-caption{display:none!important}body.print-preview-open .print-preview{display:block!important;padding:0;background:#fff}body.print-preview-open .paper-sheet{margin:0;box-shadow:none;break-after:page;page-break-after:always}body.print-preview-open .paper-sheet:last-child{break-after:auto;page-break-after:auto}}`;
+    }
+
+    function makeApp(title, cards, options = {}) {
+        if (options.publicationOptions) cards = publicationCards(cards, options.publicationOptions);
+        const groups = options.hideGames ? {} : Object.fromEntries(['english', 'hebrew'].map(language => [language, practiceRows(cards, language)]).filter(([, rows]) => rows.length));
+        const safeTitle = escapeHtml(title);
+        const homeUrl = /^(https?:\/\/|\/(?!\/))/.test(options.homeUrl || '') ? options.homeUrl : '/PeninaPlus-vocab-builder/flash-cards/';
+        const cardData = JSON.stringify(cards).replace(/</g, '\\u003c');
+        return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${safeTitle}</title>
+<style>
+${studyStyles()}
 </style>
 </head>
 <body><div class="app">
@@ -1085,25 +1110,7 @@ const byId=id=>document.getElementById(id);const esc=value=>String(value||'').re
 const escapeHtml=esc;
 function rich(value,runs){const text=String(value||''),valid=Array.isArray(runs)&&runs.map(run=>String(run&&run.text||'')).join('')===text;if(!valid)return esc(text);return runs.map(run=>(run&&run.bold?'<strong>':'')+esc(run&&run.text||'')+(run&&run.bold?'</strong>':'')).join('')}
 // Fit text inside fixed boxes; content never determines the card or context height.
-function fitText(element){
-    const box=element.parentElement;
-    if(!box||!box.clientHeight||!box.clientWidth)return;
-    element.style.fontSize='';
-    element.style.setProperty('--text-scale',1);
-    const maximum=parseFloat(getComputedStyle(element).fontSize);
-    const height=box.classList.contains('card-content')?parseFloat(getComputedStyle(box).maxHeight):box.clientHeight;
-    const fits=()=>element.scrollHeight<=height&&element.scrollWidth<=box.clientWidth;
-    const apply=size=>{element.style.fontSize=size+'px';element.style.setProperty('--text-scale',size/maximum)};
-    const sizeBox=()=>{if(box.classList.contains('card-content'))box.style.height=Math.min(height,element.scrollHeight)+'px'};
-    if(fits()){sizeBox();return;}
-    let low=0,high=maximum;
-    for(let step=0;step<18;step++){
-        const size=(low+high)/2;apply(size);
-        if(fits())low=size;else high=size;
-    }
-    apply(low);
-    sizeBox();
-}
+${fitText.toString()}
 function fitStudyText(){if(cards[index]?.kind==='knowledge')return;fitText(byId('mainText'));fitText(byId('contextText'))}
 if(window.addEventListener)window.addEventListener('resize',fitStudyText);
 if(typeof ResizeObserver!=='undefined'){
@@ -1170,7 +1177,7 @@ byId('termFirst').onclick=()=>{termFirst=true;resetSide();byId('termFirst').clas
         setTimeout(() => URL.revokeObjectURL(url), 0);
     }
 
-    const api = { pictureMarkup, fromKnowledgeDeck, appendStudyPicture, scheduleClassTerms, makeClassGames, download, makeApp, toCards, publicationCards, practiceRows, createAsteroids, mountChomp, mountFlappy, mountSnowblaster };
+    const api = { studyStyles, fitText, pictureMarkup, fromKnowledgeDeck, appendStudyPicture, scheduleClassTerms, makeClassGames, download, makeApp, toCards, publicationCards, practiceRows, createAsteroids, mountChomp, mountFlappy, mountSnowblaster };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     if (typeof window !== 'undefined') window.PeninaOfflineStudyCards = api;
 })();

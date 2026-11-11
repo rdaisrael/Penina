@@ -97,6 +97,76 @@ const server=http.createServer(async(req,res)=>{
   await card.getByRole('link',{name:'Download Flashcards',exact:true}).click();
   const cardDownload=await cardDownloadPromise,exported=fs.readFileSync(await cardDownload.path(),'utf8');
   assert.deepEqual(JSON.parse(exported.match(/id="peninaKnowledgeData" type="application\/json">([\s\S]*?)<\/script>/)[1]).deck.cards[0].picture,picture);
+  const studyUrl=await card.getByRole('link',{name:'View Flashcards',exact:true}).getAttribute('href');
+  const knowledgePage=await context.newPage(),wordPage=await context.newPage();
+  await knowledgePage.goto(origin+studyUrl);await knowledgePage.locator('#study-stage').waitFor({state:'visible'});
+  await wordPage.goto(origin+vocabUrl);await wordPage.locator('#card').waitFor();
+  assert.equal(await knowledgePage.locator('.brand,.bg-pattern,.copyright,.about,.app-header').count(),0);
+  assert.equal(await knowledgePage.locator('.workflow-nav').isVisible(),false);
+  assert.equal(await knowledgePage.locator('#study-title').textContent(),decks[0].title);
+  async function appearance(target,selector){return target.locator(selector).evaluate(el=>{
+   const style=getComputedStyle(el),box=el.getBoundingClientRect();
+   return Object.fromEntries(['backgroundColor','backgroundImage','fontFamily','fontSize','fontWeight','borderRadius','borderColor','padding','gap','display','boxShadow'].map(key=>[key,style[key]]).concat([['width',box.width],['height',box.height]]));
+  });}
+  for(const width of [1200,880,390]){
+   await knowledgePage.setViewportSize({width,height:950});await wordPage.setViewportSize({width,height:950});
+   for(const [knowledgeSelector,vocabularySelector] of [
+    ['body','body'],['.app','.app'],['#study-stage .stage','.stage'],['#flashcard','#card'],
+    ['#study-stage .topbar','.topbar'],['#study-stage .progress','.progress'],
+    ['#study-stage .controls','.controls'],['#study-stage .ratings','.ratings'],
+    ['#shuffle','#shuffle'],['#flip','#flip'],['#study-stage .know','.know'],['#study-stage .almost','.almost'],['#study-stage .learning','.learning']
+   ]){
+    const actual=await appearance(knowledgePage,knowledgeSelector),expected=await appearance(wordPage,vocabularySelector);
+    // A saved-practice button may make the sidebar longer; card and control sizes must match.
+    if(['body','.app'].includes(knowledgeSelector)){delete actual.height;delete expected.height;}
+    assert.deepEqual(actual,expected,knowledgeSelector+' appearance at '+width);
+   }
+   assert.equal(await knowledgePage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'knowledge viewer overflow');
+   await knowledgePage.screenshot({path:'/tmp/penina-knowledge-viewer-'+width+'.png',fullPage:true});
+   await wordPage.screenshot({path:'/tmp/penina-wordlist-viewer-'+width+'.png',fullPage:true});
+  }
+  await knowledgePage.getByRole('button',{name:'Enlarge picture',exact:true}).click();await knowledgePage.locator('#picture-dialog').waitFor({state:'visible'});
+  assert.equal(await knowledgePage.locator('#enlarged-picture img').getAttribute('src'),picture.src);assert.equal(await knowledgePage.locator('#enlarged-picture .target-marker').count(),1);
+  await knowledgePage.locator('#zoom-range').fill('150');await knowledgePage.locator('#zoom-range').dispatchEvent('input');
+  await knowledgePage.locator('#close-picture').click();
+  assert.equal(await knowledgePage.locator('#side-number').textContent(),'1 / 2','enlargement does not flip the card');
+  await knowledgePage.locator('#flip').click();assert.equal(await knowledgePage.locator('#study-side-label').textContent(),'Answer');
+  assert.equal(await knowledgePage.locator('#card-content').textContent(),'Leaf');assert.equal(await knowledgePage.locator('#additional-panel').isVisible(),true);
+  assert.equal(await knowledgePage.locator('#additional-text').textContent(),decks[0].cards[0].additionalInformation);
+  await knowledgePage.locator('#answer-first').click();await knowledgePage.locator('#reset-study').click();assert.equal(await knowledgePage.locator('#card-content').textContent(),'Leaf');
+  await knowledgePage.locator('#question-first').click();assert.equal(await knowledgePage.locator('#card-content img').count(),1);
+  await knowledgePage.locator('#student-practice').click();await knowledgePage.locator('#quiz-options button').first().waitFor();
+  assert.equal(await knowledgePage.locator('#quiz-prompt img').getAttribute('src'),picture.src);
+  const choices=await knowledgePage.locator('#quiz-options button').allTextContents();assert(choices.includes('Leaf'));assert(choices.filter(choice=>decks[0].cards[0].distractors.english.includes(choice)).length>=3);
+  await knowledgePage.getByRole('button',{name:'Back to Flashcards',exact:true}).click();
+  await knowledgePage.getByRole('button',{name:'Print Paper Flashcards',exact:true}).click();await knowledgePage.locator('#print-stage').waitFor({state:'visible'});
+  for(const count of ['4','2','1']){
+   await knowledgePage.locator('#cards-per-page').selectOption(count);
+   assert.equal(await knowledgePage.locator('#print-pages .paper-sheet').count(),2);
+   assert.equal(await knowledgePage.locator('#print-pages img').getAttribute('src'),picture.src);
+   assert.match(await knowledgePage.locator('#print-pages').textContent(),/Leaves use sunlight/);
+  }
+  await knowledgePage.locator('#print-now').click();assert.equal(await knowledgePage.evaluate(()=>window.printCount),1);
+  await knowledgePage.emulateMedia({media:'print'});
+  assert.equal(await knowledgePage.locator('.home-link').isVisible(),false);
+  assert.equal(await knowledgePage.locator('#study-stage').isVisible(),false);
+  assert.equal(await knowledgePage.locator('#print-pages').isVisible(),true);
+  await knowledgePage.emulateMedia({media:'screen'});
+  // The downloaded artifact uses the same layout without any external assets.
+  await knowledgePage.setContent(exported,{waitUntil:'load'});
+  await knowledgePage.locator('#study-stage').waitFor({state:'visible'});
+  assert.equal(await knowledgePage.locator('#flashcard').evaluate(el=>el.getBoundingClientRect().height),323);
+  assert.equal(await knowledgePage.locator('.brand,.copyright,.bg-pattern').count(),0);
+  // Long answers and additional information must fit the same fixed boxes.
+  const originalAnswer=decks[0].cards[0].answer,originalInformation=decks[0].cards[0].additionalInformation;
+  decks[0].cards[0].answer='Long answer with more detail. '.repeat(20);
+  decks[0].cards[0].additionalInformation='Additional explanation that stays below the card. '.repeat(30);
+  await knowledgePage.goto(origin+studyUrl);await knowledgePage.locator('#study-stage').waitFor({state:'visible'});
+  await knowledgePage.locator('#flip').click();
+  for(const selector of ['.student-question-copy .card-text','#additional-text'])assert(await knowledgePage.locator(selector).evaluate(el=>el.scrollHeight<=el.parentElement.clientHeight+1&&el.scrollWidth<=el.parentElement.clientWidth+1),'text fits '+selector);
+  assert.equal(await knowledgePage.locator('#flashcard').evaluate(el=>el.getBoundingClientRect().height),323);
+  decks[0].cards[0].answer=originalAnswer;decks[0].cards[0].additionalInformation=originalInformation;
+  await knowledgePage.close();await wordPage.close();
   const sheetView=await card.getByRole('link',{name:'View Sheets',exact:true}).getAttribute('href');
   const sheetDownload=await card.getByRole('link',{name:'Download Sheets (PDF)',exact:true}).getAttribute('href');
   const sheetPrint=await card.getByRole('link',{name:'Print Sheets',exact:true}).getAttribute('href');
@@ -108,6 +178,6 @@ const server=http.createServer(async(req,res)=>{
   await pdf.saveAs('/tmp/penina-knowledge-sheets.pdf');
   await sheet.goto(origin+sheetPrint);await sheet.waitForFunction(()=>window.printCount===1);assert.equal(await sheet.locator('.sheet img').evaluate(image=>image.complete&&image.naturalWidth>0),true);
   assert.deepEqual(errors,[]);
-  console.log('Passed matching desktop/mobile list layouts, persistent mixed selection, both load orders, mixed/knowledge-only combinations, picture/marker/answer retention, flashcard download, PDF download and sheet printing.');
+  console.log('Passed matching desktop/mobile list layouts, persistent mixed selection, both load orders, mixed/knowledge-only combinations, picture/marker/answer retention, flashcard download, PDF download, sheet printing, exact wordlist viewer styling at three widths, picture zoom, flip order, saved practice and all knowledge print layouts.');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>server.close());

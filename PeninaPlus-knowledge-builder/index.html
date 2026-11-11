@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="knowledge-builder.css">
   <style id="print-page-style">@page{size:letter landscape;margin:0}</style>
   <script src="cards.js" defer></script>
+  <script src="../PeninaPlus-vocab-builder/practice-exercises.js" defer></script>
+  <script src="knowledge-workflow.js" defer></script>
   <script src="knowledge-builder.js" defer></script>
 </head>
 <body>
@@ -20,8 +22,9 @@
     </header>
     <nav class="workflow-nav" aria-label="Knowledge Builder steps">
       <button type="button" data-stage="edit" aria-current="step">1. Add &amp; Edit Cards</button>
-      <button type="button" data-stage="study" disabled>2. Electronic Flashcards</button>
-      <button type="button" data-stage="print" disabled>3. Paper Flashcards</button>
+      <button type="button" data-stage="study" disabled>2. Review Flashcards</button>
+      <button type="button" data-stage="practice" disabled>3. Create Practice Activities</button>
+      <button type="button" data-stage="share" disabled>4. Share</button>
     </nav>
     <p id="save-status" class="save-status" role="status">Your set is saved in this browser. Download a draft to keep a copy.</p>
 
@@ -56,7 +59,7 @@
 
     <section id="study-stage" aria-label="Electronic flashcards" hidden>
       <div class="study-layout">
-        <aside class="panel study-sidebar"><h2 id="study-title" dir="auto"></h2><p id="study-count" class="muted"></p><div class="two-actions"><button id="shuffle" type="button">Shuffle</button><button id="reset-study" type="button">Reset</button></div><div class="stats"><div><b id="known-count">0</b><span>Know</span></div><div><b id="almost-count">0</b><span>Almost</span></div><div><b id="learning-count">0</b><span>Learning</span></div></div><p class="help">Space flips the card. Arrow keys move between cards.</p><button id="edit-current" type="button">Edit This Card</button></aside>
+        <aside class="panel study-sidebar"><h2 id="study-title" dir="auto"></h2><p id="study-count" class="muted"></p><div class="two-actions"><button id="shuffle" type="button">Shuffle</button><button id="reset-study" type="button">Reset</button></div><div class="stats"><div><b id="known-count">0</b><span>Know</span></div><div><b id="almost-count">0</b><span>Almost</span></div><div><b id="learning-count">0</b><span>Learning</span></div></div><p class="help">Space flips the card. Arrow keys move between cards.</p><button id="edit-current" type="button">Edit This Card</button><button type="button" data-stage="print">Print Paper Flashcards</button></aside>
         <div class="panel study-stage">
           <div class="topbar"><span id="position"></span><div class="progress" role="progressbar" aria-label="Card position" aria-valuemin="0" aria-valuemax="100"><div id="progress-bar"></div></div></div>
           <article id="flashcard" class="flashcard" tabindex="0" aria-label="Flashcard. Press Space or Enter to flip.">
@@ -71,9 +74,46 @@
     </section>
 
     <section id="print-stage" aria-label="Paper flashcards" hidden>
-      <div class="panel print-settings"><div><h2>Paper Flashcards</h2><p id="print-instructions" class="help">Print double-sided, flip on the short edge, use 100% scale, and turn off headers and footers. Cut along the dotted lines.</p></div><label for="cards-per-page">Cards per page<select id="cards-per-page"><option value="4">4 per page · Landscape</option><option value="2">2 per page · Portrait</option><option value="1">1 per page · Landscape</option></select></label><button id="print-now" class="primary" type="button">Print Flashcards</button><p id="print-warning" class="form-message" role="status"></p></div>
+      <div class="panel print-settings"><button class="back-review" type="button" data-stage="study">Back to Flashcards</button><div><h2>Paper Flashcards</h2><p id="print-instructions" class="help">Print double-sided, flip on the short edge, use 100% scale, and turn off headers and footers. Cut along the dotted lines.</p></div><label for="cards-per-page">Cards per page<select id="cards-per-page"><option value="4">4 per page · Landscape</option><option value="2">2 per page · Portrait</option><option value="1">1 per page · Landscape</option></select></label><button id="print-now" class="primary" type="button">Print Flashcards</button><p id="print-warning" class="form-message" role="status"></p></div>
       <div class="print-scroll"><div id="print-pages"></div></div>
     </section>
+    <section id="practice-stage" aria-labelledby="practice-heading" hidden>
+      <div class="panel workflow-panel">
+        <h2 id="practice-heading">Create Distractors for Practice Activities</h2>
+        <p>Prepare four incorrect answers for each question. Generate distractors in English or Hebrew, then review, edit, or regenerate them. You can also enter your own.</p>
+        <div id="practice-editor">
+          <div class="workflow-actions"><button id="generate-english" class="primary" type="button">Generate English Distractors</button><button id="generate-hebrew" class="primary" type="button">Generate Hebrew Distractors</button></div>
+          <label class="language-select" for="practice-language">Edit distractors in<select id="practice-language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label>
+          <p class="help">The correct answer stays in the language you entered. Editing it here updates the flashcard. Leave all four distractors empty to include a question only in flashcards and the knowledge sheet.</p>
+          <div id="practice-rows"></div>
+          <div class="workflow-actions"><button id="regenerate-selected" type="button">Regenerate Selected Answers</button><button id="save-answers" class="primary" type="button">Save Answers</button><button id="practice-cancel" type="button" hidden>Discard Unsaved Changes</button></div>
+        </div>
+        <p id="practice-status" class="form-message" role="status" aria-live="polite"></p>
+        <div class="workflow-actions"><button id="preview-practice" type="button" disabled>Preview Practice</button><button id="continue-share" class="primary" type="button">Continue to Share</button></div>
+      </div>
+    </section>
+
+    <section id="share-stage" aria-labelledby="share-heading" hidden>
+      <div class="panel workflow-panel">
+        <h2 id="share-heading">Share Your Knowledge Set</h2>
+        <p>Print or download your set, or publish flashcards, a knowledge sheet, and practice activities to a class page for students.</p>
+        <div class="workflow-actions"><button type="button" data-stage="study">Back to Review</button></div>
+        <div class="share-downloads"><button type="button" class="sheet-action" data-stage="sheet">Print Knowledge Sheet</button><button id="download-spreadsheet" class="spreadsheet-action" type="button">Download Spreadsheet</button><button id="share-download-draft" class="draft-action" type="button">Download Draft</button><button type="button" data-stage="print">Print Paper Flashcards</button></div>
+        <p id="share-status" class="form-message" role="status"></p>
+        <div class="publish-panel">
+          <div class="publish-grid"><div><p>Publish your set for students.</p><label for="publish-card-grade">Class Page</label><select id="publish-card-grade"><option value="">Choose a class page</option></select></div><div><a id="selected-page-link" target="_blank" rel="noopener" hidden></a><details><summary>Open a published class webpage</summary><nav id="published-page-links" aria-label="Published class webpages"></nav></details></div></div>
+          <button id="publish-knowledge" class="primary publish-button" type="button" disabled>Publish to Class Page</button>
+          <p id="publish-status" class="form-message" role="status" aria-live="polite"></p>
+          <details id="add-webpage"><summary>Add webpage</summary><p>Anyone with the class page link can study. Your signed-in teacher account owns the page and manages its sets.</p><form id="add-webpage-form"><label for="new-page-name">Page name</label><input id="new-page-name" type="text" maxlength="120" required placeholder="e.g. Seventh Grade Knowledge"><button id="create-webpage" class="primary" type="submit">Create webpage</button></form></details>
+          <p id="pages-status" class="form-message" role="status"></p><button id="retry-pages" type="button" hidden>Retry Loading Class Pages</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="sheet-stage" aria-label="Knowledge sheet" hidden><div class="panel sheet-toolbar"><button type="button" data-stage="study">Back to Flashcards</button><button id="print-sheet-now" class="primary" type="button">Print Knowledge Sheet</button></div><div id="knowledge-sheet" class="knowledge-sheet"></div></section>
+
+    <section id="quiz-stage" aria-label="Knowledge practice" hidden><div class="panel workflow-panel"><div class="quiz-toolbar"><h2>Knowledge Practice</h2><label for="quiz-language">Distractor language<select id="quiz-language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><button type="button" data-stage="study">Back to Flashcards</button></div><p id="quiz-status" class="form-message" role="status" aria-live="polite"></p><div id="quiz-prompt"></div><div id="quiz-options" class="quiz-options"></div><section id="quiz-information" class="additional-panel" hidden><h3>Additional Information</h3><p id="quiz-information-text" dir="auto"></p></section><button id="quiz-next" class="primary" type="button" hidden>Next Question</button></div></section>
+
   </main>
 
   <dialog id="picture-dialog" class="picture-dialog" aria-labelledby="picture-dialog-title">

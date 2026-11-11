@@ -82,6 +82,7 @@ async function listAll(prefix) {
 }
 
 module.exports = async function (req, res) {
+    if ((req.query?.kind || req.body?.kind) === 'knowledge') return require('../lib/knowledge-sets').handle(req, res);
     const grade = String((req.query && req.query.grade) || (req.body && req.body.grade) || '').toLowerCase();
     try {
         const page = await getPage(grade);

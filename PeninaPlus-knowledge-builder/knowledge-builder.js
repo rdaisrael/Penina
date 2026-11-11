@@ -1,8 +1,11 @@
-/* Local flashcard authoring and study. No publishing or network calls. */
+/* Flashcard authoring, review, and printable layouts. */
 (() => {
     'use strict';
     const {FORMAT, normalizeDeck, hasInformation, printSheets} = window.PeninaKnowledgeCards;
     const byId = id => document.getElementById(id);
+    const embedded = byId('peninaKnowledgeData');
+    const studentMode = Boolean(embedded);
+    let workflow;
     let deck = {format: FORMAT, version: 1, title: '', cards: []};
     let editingId = null, picture = null, dirty = false, stage = 'edit';
     let order = [], index = 0, showingAnswer = false, ratings = {};
@@ -29,7 +32,7 @@
     }
     function persist() {
         clearTimeout(saveTimer);
-        if (!db) return;
+        if (studentMode || !db) return;
         try {
             const transaction = db.transaction('drafts', 'readwrite');
             transaction.objectStore('drafts').put({deck, editor: editorSnapshot()}, 'current');
@@ -124,7 +127,9 @@
         const question = byId('question').value.trim(), answer = byId('answer').value.trim();
         if (!question || !answer) {message('Enter both a question and an answer.', true); return false;}
         if (!editingId && deck.cards.length >= 500) {message('A set can contain up to 500 cards.', true); return false;}
+        const previous = deck.cards.find(value => value.id === editingId);
         const card = {id: editingId || crypto.randomUUID(), question, answer,
+            distractors: previous?.question === question && previous?.answer === answer ? (previous.distractors || {}) : {},
             additionalInformation: byId('additional-information').value.trim(),
             picture: picture ? {...picture, alt: byId('picture-alt').value.trim()} : null};
         const existingIndex = deck.cards.findIndex(value => value.id === editingId);
@@ -140,10 +145,12 @@
         return true;
     }
     function setStage(nextStage) {
+        if (studentMode && !['study','print','sheet','quiz'].includes(nextStage)) return;
+        if (workflow && !workflow.leave(stage)) return;
         if (stage === 'edit' && !commitEditor()) return;
         if (nextStage !== 'edit' && !deck.cards.length) return;
         stage = nextStage;
-        for (const name of ['edit', 'study', 'print']) byId(`${name}-stage`).hidden = name !== stage;
+        for (const name of ['edit', 'study', 'print', 'practice', 'share', 'sheet', 'quiz']) byId(`${name}-stage`).hidden = name !== stage;
         document.querySelectorAll('[data-stage]').forEach(button => {
             if (button.dataset.stage === stage) button.setAttribute('aria-current', 'step');
             else button.removeAttribute('aria-current');
@@ -155,6 +162,8 @@
             renderStudy();
         }
         if (stage === 'print') renderPrint();
+        if (stage === 'sheet') renderSheet();
+        workflow?.enter(stage);
     }
     function studyCard() {return deck.cards.find(card => card.id === order[index]);}
     function cardContent(card, back, paper = false) {
@@ -278,6 +287,7 @@
         byId('print-now').disabled = overflow;
     }
     function renderPrint() {
+        document.body.dataset.printLayout = 'cards';
         const count = Number(byId('cards-per-page').value);
         const pages = printSheets(deck.cards, count);
         const orientation = count === 2 ? 'portrait' : 'landscape';
@@ -386,14 +396,16 @@
         uploadVersion++; uploading = false; byId('save-card').disabled = false;
         picture = null; dirty = true; renderEditorPicture(); persist();
     });
-    byId('download-draft').addEventListener('click', () => {
-        if (!commitEditor()) return;
+    function downloadDraft() {
+        if (!commitEditor() || !workflow.leave(stage)) return;
         const blob = new Blob([JSON.stringify(deck, null, 2)], {type: 'application/json'});
         const url = URL.createObjectURL(blob), link = make('a');
         link.href = url;
         link.download = `${(deck.title || 'Penina-Knowledge-Cards').replace(/[^\p{L}\p{N} -]/gu, '').slice(0, 80) || 'Penina-Knowledge-Cards'}.json`;
         link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    });
+    }
+    byId('download-draft').addEventListener('click', downloadDraft);
+    byId('share-download-draft').addEventListener('click', downloadDraft);
     byId('upload-draft').addEventListener('click', () => byId('draft-file').click());
     byId('draft-file').addEventListener('change', async event => {
         const file = event.target.files[0]; if (!file) return;
@@ -406,7 +418,7 @@
                 if (image.naturalWidth * image.naturalHeight > 40000000) throw new Error('A picture in this draft is too large.');
             }
             if ((deck.cards.length || dirty) && !await confirmAction('Open this draft in place of the current set? Download the current draft first if you want to keep both.')) return;
-            deck = next; ratings = {};
+            deck = next; ratings = {}; workflow.reset();
             byId('set-title').value = deck.title;
             openEditor(deck.cards[0] || null); persist();
             message(`Opened ${deck.cards.length} cards.`);
@@ -446,12 +458,52 @@
         fitPrint();
         if (!byId('print-now').disabled) window.print();
     });
+    byId('print-sheet-now').addEventListener('click', () => {renderSheet(); window.print();});
     window.addEventListener('beforeprint', () => {
+        if (stage === 'sheet') {renderSheet(); return;}
         if (stage === 'edit') commitEditor();
         if (stage !== 'print') renderPrint();
         fitPrint();
     });
+    function renderSheet() {
+        document.body.dataset.printLayout = 'sheet';
+        byId('print-page-style').textContent = '@page{size:letter portrait;margin:.4in}';
+        const root = byId('knowledge-sheet'), title = make('h1', '', deck.title || 'Knowledge Sheet'); title.dir = 'auto';
+        const table = make('table'), head = make('thead'), header = make('tr'), body = make('tbody');
+        const includeInformation = deck.cards.some(hasInformation);
+        for (const label of ['Question','Answer',...(includeInformation ? ['Additional Information'] : [])]) {const th=make('th','',label);th.scope='col';header.append(th);}
+        head.append(header);
+        for (const card of deck.cards) {
+            const row=make('tr'), question=make('td'), answer=make('td','',card.answer);answer.dir='auto';
+            question.append(cardContent(card,false,true));row.append(question,answer);
+            if(includeInformation){const info=make('td','',card.additionalInformation);info.dir='auto';row.append(info);}
+            body.append(row);
+        }
+        table.append(head,body);root.replaceChildren(title,table);
+    }
+    workflow = window.PeninaKnowledgeWorkflow.mount({
+        getDeck: () => deck, studentMode, setStage, renderQuestion: card => cardContent(card,false),
+        changed: () => {if(editingId)openEditor(deck.cards.find(card=>card.id===editingId));persist();}
+    });
     async function initialize() {
+        if (studentMode) {
+            try {
+                const saved=JSON.parse(embedded.textContent);deck=normalizeDeck(saved.deck);
+                document.body.dataset.student='true';
+                document.querySelector('.brand h1').textContent=deck.title;
+                const nav=document.querySelector('.workflow-nav');nav.replaceChildren();
+                for(const [name,label] of [['study','Flashcards'],['quiz','Practice'],['sheet','Knowledge Sheet'],['print','Paper Flashcards']]) {
+                    if(name==='quiz' && !workflow.hasPractice())continue;
+                    const button=make('button','',label);button.type='button';button.dataset.stage=name;button.onclick=()=>setStage(name);nav.append(button);
+                }
+                if(typeof saved.homeUrl==='string' && /^\/(?!\/)/.test(saved.homeUrl)){
+                    const link=make('a','class-home','← Class home');link.href='https://www.penina-hebrew.org'+saved.homeUrl;app.prepend(link);
+                }
+                const language=window.PeninaKnowledgeCards.practiceCards(deck,'english').length?'english':'hebrew';byId('quiz-language').value=language;
+                setStage(['print','sheet','quiz'].includes(location.hash.slice(1))?location.hash.slice(1):'study');
+            } catch (_) {byId('save-status').textContent='This knowledge set could not be opened.';byId('edit-stage').hidden=true;}
+            return;
+        }
         app.inert = true;
         try {
             db = await new Promise((resolve, reject) => {

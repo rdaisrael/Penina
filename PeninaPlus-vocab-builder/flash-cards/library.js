@@ -279,6 +279,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
             if (data.hiddenWordlists) hiddenWordlists = data.hiddenWordlists;
             classGamify.hidden = !sets.some(set => set.hasGames && !hiddenWordlists.includes(set.pathname));
             render();
+            window.dispatchEvent(new Event('penina-vocabulary-library-loaded'));
         } catch (error) {
             status.textContent = error && error.message ? error.message : 'Unable to load vocabulary sets.';
         }
@@ -590,5 +591,6 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     viewCombinedButton.addEventListener('click', viewCombinedSet);
     downloadCombinedButton.addEventListener('click', downloadCombinedSet);
     manageTrigger.addEventListener('click', enterManagementMode);
+    const knowledgeLibrary=document.createElement('script');knowledgeLibrary.src='/PeninaPlus-knowledge-builder/knowledge-library.js';document.head.append(knowledgeLibrary);
     load();
 })();

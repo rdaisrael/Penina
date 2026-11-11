@@ -7,6 +7,14 @@
     const FORMAT = 'penina-knowledge-cards';
     const text = value => typeof value === 'string' ? value.trim() : '';
     const hasInformation = card => Boolean(text(card.additionalInformation));
+    const choiceKey = value => text(value).normalize('NFKC').toLowerCase().replace(/[\u0591-\u05c7]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
+    function validChoices(answer, choices) {
+        return Array.isArray(choices) && choices.length === 4 && choices.every(value => typeof value === 'string' && value.length <= 500 && choiceKey(value) && choiceKey(value) !== choiceKey(answer))
+            && new Set(choices.map(choiceKey)).size === 4;
+    }
+    function practiceCards(deck, language) {
+        return deck.cards.filter(card => validChoices(card.answer, card.distractors?.[language]));
+    }
     function normalizeDeck(input) {
         if (!input || input.format !== FORMAT || input.version !== 1 || !Array.isArray(input.cards)) {
             throw new Error('Choose a Penina Knowledge Builder draft.');
@@ -29,7 +37,15 @@
                 }
                 picture = {src: card.picture.src, alt: text(card.picture.alt), target: target ? {x: target.x, y: target.y} : null};
             }
-            return {id, question: text(card.question), answer: text(card.answer), additionalInformation: text(card.additionalInformation), picture};
+            const distractors = {};
+            for (const language of ['english', 'hebrew']) {
+                const values = card.distractors?.[language];
+                if (values !== undefined) {
+                    if (!Array.isArray(values) || values.length !== 4 || values.some(value => typeof value !== 'string' || value.length > 500)) throw new Error(`Card ${i + 1} has invalid distractors.`);
+                    distractors[language] = values.map(text);
+                }
+            }
+            return {id, question: text(card.question), answer: text(card.answer), additionalInformation: text(card.additionalInformation), picture, distractors};
         });
         return {format: FORMAT, version: 1, title: text(input.title) || 'Untitled knowledge set', cards};
     }
@@ -44,5 +60,5 @@
         }
         return pages;
     }
-    return {FORMAT, normalizeDeck, hasInformation, printSheets};
+    return {FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards};
 });

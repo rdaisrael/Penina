@@ -47,6 +47,17 @@
       "dest": "/api/game-scores?game=app-page&page=reader-original"
     },
     {
+      "src": "^/PeninaPlus-knowledge-builder$",
+      "status": 308,
+      "headers": {
+        "Location": "/PeninaPlus-knowledge-builder/"
+      }
+    },
+    {
+      "src": "^/PeninaPlus-knowledge-builder/(?:index(?:\\.html)?)?$",
+      "dest": "/api/game-scores?game=app-page&page=knowledge"
+    },
+    {
       "src": "^/PeninaPlus-vocab-builder$",
       "status": 308,
       "headers": {
@@ -145,7 +156,11 @@
   "functions": {
     "api/game-scores.js": {
       "maxDuration": 300,
-      "includeFiles": "{lib/asset-manifest.json,Penina{,Plus}-Reader/{index,bold}.html,PeninaPlus-vocab-builder/{index.html,*.xlsx},PeninaPlus-Binyan-Builder/index.html,Penina-Quizzes/{{builder/index,custom/teacher}.html,gemara-*/{teacher.html,questions.json,talmud-page.png}}}"
+      "includeFiles": "{lib/asset-manifest.json,Penina{,Plus}-Reader/{index,bold}.html,PeninaPlus-vocab-builder/{index.html,*.xlsx},PeninaPlus-Binyan-Builder/index.html,Penina-Quizzes/{{builder/index,custom/teacher}.html,gemara-*/{teacher.html,questions.json,talmud-page.png}},PeninaPlus-knowledge-builder/index.html}"
+    },
+    "api/flashcard-sets.js": {
+      "maxDuration": 300,
+      "includeFiles": "{PeninaPlus-knowledge-builder/{index.html,knowledge-builder.css,knowledge-builder.js,knowledge-workflow.js,cards.js},PeninaPlus-vocab-builder/{practice-exercises.js,peninaplus-logo.png,Penina-favicon.png}}"
     }
   },
   "buildCommand": "npm run build",

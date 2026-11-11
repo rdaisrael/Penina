@@ -80,3 +80,33 @@ test('Static pages and scripts revalidate while protected pages retain their gat
     assert.equal(config.buildCommand, 'npm run build');
     assert.ok(config.functions['api/game-scores.js'].includeFiles.includes('lib/asset-manifest.json'));
 });
+
+test('Function file-inclusion settings stay within Vercel limits and retain required assets', () => {
+    // Vercel's configuration schema limits includeFiles/excludeFiles to 256 characters.
+    // https://openapi.vercel.sh/vercel.json — properties.functions.patternProperties
+    const config = require('../vercel.json');
+    const minimatch = require('minimatch');
+    for (const [name, settings] of Object.entries(config.functions)) {
+        for (const field of ['includeFiles', 'excludeFiles']) {
+            if (settings[field] === undefined) continue;
+            assert.equal(typeof settings[field], 'string', `${name}.${field}`);
+            assert.ok(settings[field].length <= 256, `${name}.${field} exceeds Vercel's 256-character limit`);
+        }
+    }
+    const gatewayFiles = ['lib/asset-manifest.json', ...Object.values(require('../lib/webapp-gateway').pages).map(page => page[1])];
+    gatewayFiles.push(...fs.readdirSync(path.join(root, 'PeninaPlus-vocab-builder')).filter(file => file.endsWith('.xlsx')).map(file => 'PeninaPlus-vocab-builder/' + file));
+    for (const dir of fs.readdirSync(path.join(root, 'Penina-Quizzes')).filter(dir => dir.startsWith('gemara-'))) {
+        for (const file of ['teacher.html', 'questions.json', 'talmud-page.png']) {
+            const relative = `Penina-Quizzes/${dir}/${file}`;
+            if (fs.existsSync(path.join(root, relative))) gatewayFiles.push(relative);
+        }
+    }
+    const studentFiles = ['index.html', 'knowledge-builder.css', 'knowledge-builder.js', 'knowledge-workflow.js', 'cards.js'].map(file => 'PeninaPlus-knowledge-builder/' + file)
+        .concat(['practice-exercises.js', 'peninaplus-logo.png', 'Penina-favicon.png'].map(file => 'PeninaPlus-vocab-builder/' + file));
+    for (const [name, files] of [['api/game-scores.js', gatewayFiles], ['api/flashcard-sets.js', studentFiles]]) {
+        for (const file of files) {
+            assert.ok(fs.existsSync(path.join(root, file)), file);
+            assert.ok(minimatch(file, config.functions[name].includeFiles), `${name} must include ${file}`);
+        }
+    }
+});

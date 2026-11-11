@@ -3,7 +3,7 @@
 const QuizPicture = (() => {
     const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function render(q, editable=false) {
-        if (!q.image || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(q.image.src)) return '';
+        if (!q.image || !/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+=*$/.test(q.image.src)) return '';
         const numbered=Array.isArray(q.image.markers), markers=numbered?q.image.markers:[q.image.marker];
         const active=q.markerIndex ?? 0;
         const label=numbered?`Move marker ${active+1}: click the picture or use arrow keys`:'Place marker: click the picture or use arrow keys';

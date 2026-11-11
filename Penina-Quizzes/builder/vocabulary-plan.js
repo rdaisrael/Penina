@@ -4,6 +4,8 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
     const key=value=>String(value ?? '').normalize('NFC').trim().toLowerCase().replace(/\s+/gu,' ');
+    const category=row=>row.kind==='knowledge'?(row.picture||row.word.length>500?2:1):0;
+    const identity=row=>row.kind==='knowledge'?'knowledge:'+(row.sourceId||JSON.stringify([row.word,row.definition,row.picture])):'vocabulary:'+key(row.word);
     const language=word=>/[א-ת]/u.test(word)?0:1;
     const minimum=type=>type==='match'?4:type==='order'?2:1;
     const maximum=type=>type==='match'?6:type==='order'?4:1;
@@ -30,6 +32,12 @@
             const word=key(row.word),numbers=[];
             questions.forEach((q,i)=>{
                 const correct=answers(q).map(key);
+                if(row.kind==='knowledge'){
+                    const saved=(q.vocabularyTerms||[]).some(term=>term.kind==='knowledge' && (row.sourceId?term.sourceId===row.sourceId:key(term.word)===word&&key(term.definition)===key(row.definition)));
+                    const direct=!row.picture && (q.type==='match'?(q.items||[]).some((item,j)=>key(item)===word&&key(q.answer?.[j])===key(row.definition)):key(q.prompt)===word&&correct.includes(key(row.definition)));
+                    if(saved||direct)numbers.push(i+1);return;
+                }
+                if((q.vocabularyTerms||[]).some(term=>term.kind==='knowledge') && !(q.vocabularyTerms||[]).some(term=>term.kind!=='knowledge'))return;
                 // Answer choices alone are never evidence that a word was tested.
                 const paired=q.type==='match' && (q.items || []).some((item,j)=>q.answer?.[j]?.trim() && (key(item)===word || key(q.answer[j])===word));
                 const direct=q.type==='match'?paired:q.type==='order'?correct.includes(word):mentions(q.prompt,row.word) || correct.includes(word);
@@ -74,8 +82,8 @@
         const slots=sequence.sort((a,b)=>minimum(b.type)-minimum(a.type) || (b.type==='multi')-(a.type==='multi') || a.position-b.position);
         const min=slots.reduce((n,s)=>n+minimum(s.type),0),max=Math.min(available.length,slots.reduce((n,s)=>n+maximum(s.type),0));
         if(min>max)return null;
-        const pools=[[],[],[],[]];
-        for(const index of available)pools[language(rows[index].word)*2+(rows[index].additionalAnswers?.length?1:0)].push(index);
+        const pools=Array.from({length:12},()=>[]);
+        for(const index of available)pools[category(rows[index])*4+language(rows[index].word)*2+(rows[index].additionalAnswers?.length?1:0)].push(index);
         const minSuffix=Array(slots.length+1).fill(0),maxSuffix=[...minSuffix],multiSuffix=[...minSuffix];
         for(let i=slots.length-1;i>=0;i--){minSuffix[i]=minSuffix[i+1]+minimum(slots[i].type);maxSuffix[i]=maxSuffix[i+1]+maximum(slots[i].type);multiSuffix[i]=multiSuffix[i+1]+(slots[i].type==='multi'?1:0);}
         const failed=new Set();
@@ -83,10 +91,10 @@
             if(at===slots.length)return budget===0?[]:null;
             const sizes=remaining.map(p=>p.length),state=at+':'+sizes.join(',')+':'+budget;
             if(failed.has(state))return null;
-            if(budget<minSuffix[at] || budget>maxSuffix[at] || budget>sizes.reduce((n,v)=>n+v,0) || sizes[1]+sizes[3]<multiSuffix[at])return null;
+            if(budget<minSuffix[at] || budget>maxSuffix[at] || budget>sizes.reduce((n,v)=>n+v,0) || sizes.filter((_,i)=>i%2).reduce((n,v)=>n+v,0)<multiSuffix[at])return null;
             const {type,position}=slots[at];
             for(let size=Math.min(maximum(type),budget-minSuffix[at+1]);size>=minimum(type);size--){
-                for(let lang=0;lang<2;lang++){
+                for(let lang=0;lang<(type==='order'?2:type==='match'?4:6);lang++){
                     const candidates=type==='multi'?remaining[lang*2+1]:[...remaining[lang*2],...remaining[lang*2+1]];
                     if(candidates.length<size)continue;
                     const indices=candidates.slice(0,size),selected=new Set(indices);
@@ -104,12 +112,18 @@
         return null;
     }
     function analyze(config,questions=[]){
-        const rows=config.rows,types=config.types;
+        const rows=config.rows;let types=config.types;
         // A translation pair imported in both directions is still one fact.
-        const aliases=rows.map(row=>rows.flatMap((other,i)=>key(row.word)===key(other.word) || key(row.word)===key(other.definition) && key(row.definition)===key(other.word)?[i]:[]));
+        const aliases=rows.map(row=>rows.flatMap((other,i)=>identity(row)===identity(other) || row.kind!=='knowledge'&&other.kind!=='knowledge'&&key(row.word)===key(other.definition) && key(row.definition)===key(other.word)?[i]:[]));
         const directUsage=usage(rows,questions),used=aliases.map(indices=>[...new Set(indices.flatMap(i=>directUsage[i]))].sort((a,b)=>a-b));
         const untested=rows.map((_,i)=>i).filter(i=>!used[i].length);
         const available=untested.filter(i=>!aliases[i].some(j=>j<i && !used[j].length));
+        const skippedTypes=[];
+        if(rows.some(row=>row.kind==='knowledge'))types=types.filter(type=>{
+            const possible=type==='multi'?available.some(i=>rows[i].additionalAnswers?.length):type==='order'?available.filter(i=>category(rows[i])===0).length>=2:type==='match'?[0,1,2,3].some(pool=>available.filter(i=>category(rows[i])*2+language(rows[i].word)===pool).length>=4):true;
+            if(!possible)skippedTypes.push(type);return possible;
+        });
+        if(rows.some(row=>row.kind==='knowledge') && available.length && types.length>available.length){skippedTypes.push(...types.slice(available.length));types=types.slice(0,available.length);}
         const capacity=Math.max(0,100-questions.length);
         let recommended=null,recommendedUses=0;
         if(types.length && rows.every(r=>r.word.trim() && r.definition.trim())){
@@ -127,12 +141,12 @@
         (entries || []).forEach((entry,i)=>entry.indices.forEach(index=>aliases[index].forEach(j=>proposed[j].push(questions.length+i+1))));
         const coveredWords=used.filter((numbers,i)=>numbers.length || proposed[i].length).length;
         let error='';
-        if(!types.length)error='Select at least one question type.';
+        if(!types.length)error=config.types.length?'These formats cannot represent the selected knowledge questions. Choose written answer, multiple choice, or fill-in-the-blanks to keep pictures. Ordering is for vocabulary; matching needs 4–6 questions without pictures.':'Select at least one question type.';
         else if(rows.some(r=>!r.word.trim() || !r.definition.trim()))error='Complete every word and definition before generating questions.';
         else if(!available.length)error='Every word in this list is already tested in the draft. Replace generated questions or add new words.';
         else if(!capacity)error='This draft already has 100 questions. Remove questions before generating more.';
         else if(!entries)error=suggestedCount?'This question count cannot use each word once. Use the suggested '+suggestedCount+' questions or change the selected types.':'These formats cannot use the remaining words without repeats. Matching needs 4–6 untested terms in one language; ordering needs at least 2. Add a single-word format, deselect a group format, or add additional correct answers for Multiple answers.';
-        return {entries:entries || [],error,suggestedCount,wordCount:rows.length,availableWords:untested.length,existingWords:rows.length-untested.length,coveredWords,untestedWords:rows.length-coveredWords,repeatedUses:0,totalUses:proposed.reduce((n,v)=>n+v.length,0),questionCount:entries?.length || 0,words:rows.map((row,i)=>({word:row.word,existingQuestions:used[i],newQuestions:proposed[i]}))};
+        return {entries:entries || [],error,skippedTypes,suggestedCount,wordCount:rows.length,availableWords:untested.length,existingWords:rows.length-untested.length,coveredWords,untestedWords:rows.length-coveredWords,repeatedUses:0,totalUses:proposed.reduce((n,v)=>n+v.length,0),questionCount:entries?.length || 0,words:rows.map((row,i)=>({word:row.word,existingQuestions:used[i],newQuestions:proposed[i]}))};
     }
     return {analyze,usage};
 });

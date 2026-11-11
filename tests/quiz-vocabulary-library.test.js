@@ -6,7 +6,7 @@ const code=fs.readFileSync(require.resolve('../lib/quiz-vocabulary-library'),'ut
 function harness(){
  const state={reads:[],prefixes:[],pages:[{id:'mine',name:'My class'}],blobs:[],html:''};
  const module={exports:{}};
- vm.runInNewContext(code,{module,Buffer,require:n=>n==='@vercel/blob'?{list:async({prefix})=>{state.prefixes.push(prefix);return {blobs:state.blobs};}}:n==='./vocabulary-pages'?{listPages:async id=>{assert.equal(id,7);return state.pages;}}:n==='./quiz-vocabulary'?{validateRows}:{practiceRows},fetch:async url=>{state.reads.push(url);return {ok:true,text:async()=>state.html};}});
+ vm.runInNewContext(code,{module,Buffer,require:n=>n==='./study-sets'?require('../lib/study-sets'):n==='@vercel/blob'?{list:async({prefix})=>{state.prefixes.push(prefix);return {blobs:state.blobs};}}:n==='./vocabulary-pages'?{listPages:async id=>{assert.equal(id,7);return state.pages;}}:n==='./quiz-vocabulary'?{validateRows}:{practiceRows},fetch:async url=>{state.reads.push(url);return {ok:true,text:async()=>state.html};}});
  return {state,...module.exports};
 }
 const card=(term='שלום',definition='peace')=>({term,english:definition,alternativeAnswers:{english:{term,definition,answers:['chair','window','door','book']}}});

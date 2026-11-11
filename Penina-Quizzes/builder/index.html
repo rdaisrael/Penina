@@ -8,16 +8,17 @@
 <div class="settings"><label>Timing<select id="timing"><option value="timed">Time limit</option><option value="none">No time limit</option></select></label><label id="durationField">Time limit (minutes)<input id="duration" type="number" min="1" max="1000" value="60"></label><p>Written answers are marked by you. Choose whether points apply to the whole question or to each correct response.</p></div>
 <section class="checkpoint-settings"><h2>Review checkpoint</h2><label>Switch to forward-only questions<select id="checkpoint"><option value="">No checkpoint — students may go back</option></select></label><p class="hint">Place a review page before a question. Students can check earlier answers before confirming. After confirmation, each Next click locks the answer they leave, and they cannot go back.</p><label id="checkpointMessageField" hidden>Message on the review page<textarea id="checkpointMessage" maxlength="2000" dir="auto"></textarea></label></section>
 <details id="vocabularyPanel" class="vocabulary-panel">
-<summary>Generate a quiz from vocabulary</summary>
-<p>Upload 10–15 words and definitions, review the suggested distractors, then choose your quiz. Lists of 2–50 words are supported.</p>
-<section><h2>1. Add your vocabulary</h2>
-<div class="saved-vocabulary"><h3>Use my saved wordlists</h3>
-<p>Select one or more lists published from Vocab Builder. Their saved Gamify distractors will be copied into your table for review. Your original lists stay unchanged.</p>
-<button id="vocabularyLibraryRefresh" class="quiet" type="button">Show / refresh my wordlists</button>
+<summary>Generate a quiz from wordlists and knowledge lists</summary>
+<p>Select wordlists, knowledge lists, or both. Review their questions, pictures and saved distractors, then generate your quiz. Up to 50 source items are supported.</p>
+<section><h2>1. Add your lists</h2>
+<div class="saved-vocabulary"><h3>Use my saved lists</h3>
+<p>Select lists published from Vocab Builder or Knowledge Builder. Questions, pictures, marked locations and saved distractors are copied for review.</p>
+<button id="vocabularyLibraryRefresh" class="quiet" type="button">Show / refresh my lists</button>
 <div id="vocabularyLibrary"></div>
-<button id="vocabularyLibraryImport" class="secondary" type="button">Review selected wordlists</button>
+<label>Knowledge distractors to use<select id="knowledgeLanguage"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label>
+<button id="vocabularyLibraryImport" class="secondary" type="button">Review selected lists</button>
 <div id="vocabularyConflicts" hidden></div>
-<button id="vocabularyLibraryApply" class="secondary" type="button" hidden>Load reviewed wordlists</button>
+<button id="vocabularyLibraryApply" class="secondary" type="button" hidden>Load reviewed lists</button>
 </div>
 <h3>Or upload or paste a two-column list</h3>
 <p><a href="quiz-vocabulary-template.csv" download>Download quiz vocabulary template (CSV)</a></p>
@@ -27,9 +28,9 @@
 <label>Paste words and definitions<textarea id="vocabularyPaste" maxlength="100000" placeholder="word&#9;definition&#10;שלום&#9;peace&#10;אור&#9;light"></textarea></label>
 <button id="vocabularyImport" class="secondary" type="button">Load vocabulary table</button>
 </section>
-<section id="vocabularyReview" hidden><h2>2. Review words and distractors</h2>
-<p>For Hebrew terms, enter English translations and distractors. For English terms, enter Hebrew translations and distractors. All answer choices use that opposite language. Edit any cell; put one distractor on each line. Generated questions use only the distractors in that term’s row. Matching includes paired terms and definitions, plus distractors.</p>
-<div class="vocabulary-table-scroll" role="region" aria-label="Editable vocabulary and distractors" tabindex="0"><table class="vocabulary-table"><thead><tr><th scope="col">Word</th><th scope="col">Correct translation / definition</th><th scope="col">Distractors</th><th scope="col">Actions</th></tr></thead><tbody id="vocabularyRows"></tbody></table></div>
+<section id="vocabularyReview" hidden><h2>2. Review questions and distractors</h2>
+<p>For Hebrew terms, enter English translations and distractors. For English terms, enter Hebrew translations and distractors. Knowledge questions keep their original wording and correct answer; choose either saved distractor language for each question. Edit any cell; put one distractor on each line. Generated questions use only the distractors in that term’s row. Matching includes paired terms and definitions, plus distractors.</p>
+<div class="vocabulary-table-scroll" role="region" aria-label="Editable vocabulary and distractors" tabindex="0"><table class="vocabulary-table"><thead><tr><th scope="col">Word / knowledge question</th><th scope="col">Correct answer</th><th scope="col">Distractors</th><th scope="col">Actions</th></tr></thead><tbody id="vocabularyRows"></tbody></table></div>
 <div class="vocabulary-actions"><button id="vocabularyAdd" class="quiet" type="button">＋ Add word</button><button id="vocabularyMissing" class="secondary" type="button">Generate missing distractors</button><button id="vocabularyRegenerate" class="secondary" type="button">Generate distractors</button></div>
 <p class="hint">Generate missing distractors fills only empty distractor cells and preserves your existing choices. Regenerating replaces the distractors in the selected rows, including your edits. Words and correct definitions stay unchanged. Table edits affect future generation; existing questions stay unchanged. Save draft to keep this table with your quiz.</p>
 </section>
@@ -40,10 +41,11 @@
 <label>Number of questions<input id="vocabularyCount" type="number" min="1" max="100" step="1" value="15" readonly aria-describedby="vocabularyCoverage"></label>
 <button id="vocabularyUseSuggestion" class="quiet" type="button" hidden>Use suggested count</button>
 <p id="vocabularyCoverage" role="status" aria-live="polite"></p>
-<details><summary>Word coverage in this draft</summary><div id="vocabularyWordCoverage"></div></details>
+<details><summary>List coverage in this draft</summary><div id="vocabularyWordCoverage"></div></details>
 <fieldset id="vocabularyTypes"><legend>Question types to include</legend>
-<label><input type="checkbox" value="text">Written answer</label><label><input type="checkbox" value="choice" checked>Multiple choice</label><label><input type="checkbox" value="multi">Multiple answers</label><label><input type="checkbox" value="match" checked>Matching</label><label><input type="checkbox" value="gaps" checked>Fill in the blanks</label><label><input type="checkbox" value="order">Ordering (alphabetical)</label>
+<label><input type="checkbox" value="text">Written answer</label><label><input type="checkbox" value="choice" checked>Multiple choice</label><label><input type="checkbox" value="multi">Multiple answers</label><label><input type="checkbox" value="match" checked>Matching</label><label><input type="checkbox" value="gaps" checked>Fill in the blanks</label><label><input type="checkbox" value="order">Ordering (vocabulary, alphabetical)</label>
 </fieldset>
+<p class="hint">Pictured knowledge questions use written answer, multiple choice, multiple answers, or fill-in-the-blanks. Matching uses questions without pictures; alphabetical ordering uses vocabulary only. Formats with no eligible items are skipped and reported.</p>
 <input id="vocabularyBank" type="checkbox" checked hidden>
 <label>Reading direction<select id="vocabularyDirection"><option value="ltr">Left to right</option><option value="rtl">Right to left (Hebrew)</option></select></label>
 <p class="hint">Multiple answers asks about one term with several correct answers. Enter those under Additional correct answers, one per line; distractors are incorrect choices. Questions are spread evenly across the selected types. A matching group contains 4–6 terms and counts as one question. The suggested count covers as many untested words as these formats allow, without repeating a word. Change formats if some words remain untested. Ordering questions ask for alphabetical order.</p>

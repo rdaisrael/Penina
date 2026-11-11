@@ -69,6 +69,7 @@ function publishingApi(storedHtml) {
     const blob={pathname,url:'https://storage.example/cards.html',uploadedAt:'2026-09-07T00:00:00Z'};
     const operations=[];
     const context={module:{exports:{}},Buffer,console,process:{env:{CARD_PUBLISH_KEY_SIXTH:'1-test-only-key'}},fetch:async url=>{assert.equal(url,blob.url);return{ok:true,text:async()=>storedHtml}},require:name=>{
+        if(name==='../lib/study-sets')return require('../lib/study-sets');
         if(name==='../lib/teacher-apps')return {requireApps:async()=>({userId:1})};
         if(name==='crypto')return require('node:crypto');
         if(name==='./quiz-account')return {session:req=>{if(req.headers.cookie!=='owner-session')throw Error('Sign in');return {role:'teacher',userId:1};}};

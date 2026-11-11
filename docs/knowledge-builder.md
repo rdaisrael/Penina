@@ -2,7 +2,7 @@
 
 Local entry point: `/PeninaPlus-knowledge-builder/`.
 
-The app follows the Suite branding with four stages: Add & Edit Cards, Review Flashcards, Create Practice Activities, and Share. Paper flashcards remain available from Review and Share. The student practice view provides a multiple-choice activity; Penina Live and Quiz Builder integrations remain separate follow-up work.
+The app follows the Suite branding with four stages: Add & Edit Cards, Review Flashcards, Create Practice Activities, and Share. Paper flashcards remain available from Review and Share. The student practice view provides a multiple-choice activity. Published knowledge lists can also be selected alongside vocabulary wordlists in class Gamify, Penina Live, and Quiz Builder.
 
 ## Behavior
 
@@ -41,3 +41,15 @@ Run `node --test tests/knowledge-cards.test.js tests/knowledge-sharing.test.js t
 `node scripts/preview-knowledge.cjs` serves a local-only demo at `http://127.0.0.1:4321/PeninaPlus-knowledge-builder/`. Its account access, AI responses, and published storage are mocked in memory. It never contacts production services. Use it to review Practice, Share, and student class-page behavior without publishing real content.
 
 The combined regression run passes 67 tests. Local mock browser checks also cover English/Hebrew generation, preserving manual edits during selective regeneration, duplicate-answer rejection, saved draft restoration, spreadsheet content and embedded pictures, class-page creation/publishing, student practice and sheets, and vocabulary-before-knowledge ordering with a 24 px gap. Practice and Share have no horizontal overflow at a narrow mobile width. Actual AI quality and live storage were not exercised.
+
+## Mixed study lists
+
+Class Teacher tools includes both vocabulary and knowledge lists in the Live selector and Student Exercises inclusion/emphasis controls. Normal, 2× and 3× weights apply to either type. Gamify combines eligible cards in the chosen answer language. Live validates every selected list and names any list without valid saved choices instead of silently omitting it. Replay settings can switch between or mix list types.
+
+All seven Gamify games and both Live screens retain knowledge pictures and their image-relative target. Questions use the original question and correct answer, with only the teacher's saved distractors. The source publication stays unchanged. A knowledge list needs four valid saved distractors in the chosen language to participate in games.
+
+Quiz Builder's saved-list chooser includes both types. Select the knowledge distractor language before import; both saved language banks remain in the draft, and the review table can switch between them per question. Editing a knowledge question or answer clears its previously reviewed distractors. Source pictures, targets and original wording survive question generation, draft save/load, duplication and student preview. Import does not call AI.
+
+Pictured questions use individual written-answer, multiple-choice, multiple-answer or fill-in-the-blank formats. Matching supports groups of 4–6 unpictured questions in one language; alphabetical ordering applies to vocabulary. Unavailable formats are reported in the coverage preview. Multiple answers still requires teacher-entered additional correct answers. The combined source supports up to 50 items; quiz answers/choices are limited to 500 characters and knowledge prompts to 5,000. Quiz image data is limited to 2.5 million characters in each source table and question set; oversized requests show an error without dropping pictures or changing the draft.
+
+Local regression: `node --test tests/*.test.js`. `tests/mixed-study-lists.browser.cjs` runs a temporary localhost server with in-memory storage and synthetic teacher/student sessions. It checks all seven games at desktop/mobile widths, mixed selection, quiz import/language selection/generation/save/reload/preview, and Live teacher/student pictures. It makes no production requests.

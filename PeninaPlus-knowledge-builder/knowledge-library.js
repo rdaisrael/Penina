@@ -43,7 +43,7 @@
         };
     }
     async function load() {
-        try{const response=await fetch(`/api/flashcard-sets?kind=knowledge&grade=${encodeURIComponent(grade)}`,{cache:'no-store'});const data=await response.json();if(!response.ok)throw Error(data.error);sets=Array.isArray(data.sets)?data.sets:[];render();}
+        try{const response=await fetch(`/api/flashcard-sets?kind=knowledge&grade=${encodeURIComponent(grade)}`,{cache:'no-store'});const data=await response.json();if(!response.ok)throw Error(data.error);sets=Array.isArray(data.sets)?data.sets:[];render();window.dispatchEvent(new CustomEvent('penina-knowledge-library-loaded',{detail:sets}));}
         catch(_){section.hidden=false;note.hidden=false;note.textContent='Knowledge sets could not be loaded. Refresh the page to try again.';}
     }
     document.getElementById('search').addEventListener('input',render);

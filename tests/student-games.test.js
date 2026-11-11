@@ -53,6 +53,7 @@ test('Student library detects teacher-created games from published data, hides l
     const context = { module: { exports: {} }, Buffer, console,
         fetch: async () => ({ok:true,text:async()=>html}),
         require: name => {
+            if(name==='../lib/study-sets')return require('../lib/study-sets');
             if (name === '@vercel/blob') return {list:async()=>({blobs:[blob],hasMore:false})};
             if (name.includes('lib/vocabulary-pages')) return {getPage:async()=>({id:'sixth'}),publicPage:p=>p};
             if (name.includes('offline-study-cards')) return app;

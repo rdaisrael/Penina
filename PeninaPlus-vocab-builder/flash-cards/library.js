@@ -37,22 +37,25 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     gameChoices.innerHTML = '<legend>Included Exercises</legend><p>Checked activities are included. Uncheck any activity to exclude it, then save.</p>' + gameCatalog.map(([id,name]) => `<label><input type="checkbox" value="${id}" class="game-remove-select"><span>${name}</span></label>`).join('');
     management.appendChild(gameChoices);
     const saveGames = document.createElement('button');
-    saveGames.type = 'button'; saveGames.className = 'combine-action primary'; saveGames.textContent = 'Save Included Wordlists and Exercises';
+    saveGames.type = 'button'; saveGames.className = 'combine-action primary'; saveGames.textContent = 'Save Included Lists and Exercises';
     management.appendChild(saveGames);
     const gameStatus = document.createElement('p'); gameStatus.setAttribute('role','status'); management.appendChild(gameStatus);
+    let knowledgeSets=[];
+    const studySets=()=>[...sets,...knowledgeSets];
+    const listTitle=set=>set.title+(set.kind==='knowledge'?' · Knowledge':'');
     let disabledGames = [], excludedWordlists = [], hiddenWordlists = [], wordlistEmphasis = {};
     function renderTeacherChoices() {
         removalChoices.innerHTML = '<legend>Choose lists to hide or delete</legend>' + sets.map(set => `<label><input type="checkbox" class="delete-select" value="${escapeHtml(set.pathname)}"><span>${escapeHtml(set.title)}${hiddenWordlists.includes(set.pathname) ? ' (hidden)' : ''}</span>${hiddenWordlists.includes(set.pathname) ? `<button type="button" class="combine-action show-list" data-path="${escapeHtml(set.pathname)}">Show again</button>` : ''}</label>`).join('');
         hideButton.disabled = !sets.length;
         removeButton.disabled = !sets.length;
-        setChoices.innerHTML = '<legend>Included wordlists</legend>' + sets.filter(set => !hiddenWordlists.includes(set.pathname)).map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(set.title)}</span></label>`).join('');
-        const newest = sets.slice().sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt) || a.pathname.localeCompare(b.pathname))[0]?.pathname;
-        practiceChoices.innerHTML = '<legend>Wordlists and Prioritization</legend><p>All wordlists are included by default. Choose Normal, 2×, or 3× practice frequency for each list, then save. Hidden wordlists remain hidden.</p>' + sets.map(set => {
+        setChoices.innerHTML = '<legend>Included wordlists and knowledge lists</legend>' + studySets().filter(set => !hiddenWordlists.includes(set.pathname)).map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(listTitle(set))}</span></label>`).join('');
+        const newest = studySets().slice().sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt) || a.pathname.localeCompare(b.pathname))[0]?.pathname;
+        practiceChoices.innerHTML = '<legend>Wordlists, Knowledge Lists and Prioritization</legend><p>Wordlists and knowledge lists are included by default. Choose Normal, 2×, or 3× practice frequency for each list, then save. Hidden wordlists remain hidden.</p>' + studySets().map(set => {
             const weight = wordlistEmphasis[set.pathname] ?? (set.pathname === newest ? 3 : 1);
-            return `<div class="practice-wordlist-row"><label><input type="checkbox" class="practice-list-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(set.title)}${hiddenWordlists.includes(set.pathname) ? ' (hidden)' : ''}</span></label><select class="practice-emphasis" data-path="${escapeHtml(set.pathname)}" aria-label="Emphasis for ${escapeHtml(set.title)}" ${excludedWordlists.includes(set.pathname) ? 'disabled' : ''}>${[[1,'Normal'],[2,'2×'],[3,'3×']].map(([value,label]) => `<option value="${value}" ${weight === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>`;
+            return `<div class="practice-wordlist-row"><label><input type="checkbox" class="practice-list-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(listTitle(set))}${hiddenWordlists.includes(set.pathname) ? ' (hidden)' : ''}</span></label><select class="practice-emphasis" data-path="${escapeHtml(set.pathname)}" aria-label="Emphasis for ${escapeHtml(listTitle(set))}" ${excludedWordlists.includes(set.pathname) ? 'disabled' : ''}>${[[1,'Normal'],[2,'2×'],[3,'3×']].map(([value,label]) => `<option value="${value}" ${weight === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>`;
         }).join('');
         gameChoices.querySelectorAll('input').forEach(input => { input.checked = !disabledGames.includes(input.value); });
-        classGamify.hidden = !sets.some(set => set.hasGames && !hiddenWordlists.includes(set.pathname)) || disabledGames.length === gameCatalog.length;
+        classGamify.hidden = !studySets().some(set => set.hasGames && !hiddenWordlists.includes(set.pathname)) || disabledGames.length === gameCatalog.length;
     }
     practiceChoices.addEventListener('change', event => {
         if (event.target.matches('.practice-list-select')) event.target.closest('.practice-wordlist-row').querySelector('select').disabled = !event.target.checked;
@@ -69,7 +72,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
             disabledGames = data.disabledGames;
             wordlistEmphasis = data.wordlistEmphasis || {};
             excludedWordlists = data.excludedWordlists;
-            classGamify.hidden = !sets.some(set => set.hasGames && !hiddenWordlists.includes(set.pathname)) || disabledGames.length === gameCatalog.length; gameStatus.textContent = 'Included wordlists and exercises saved. Students will see the updated choices when they open Gamify.';
+            classGamify.hidden = !studySets().some(set => set.hasGames && !hiddenWordlists.includes(set.pathname)) || disabledGames.length === gameCatalog.length; gameStatus.textContent = 'Included wordlists and exercises saved. Students will see the updated choices when they open Gamify.';
         } catch(error) { gameStatus.textContent = error.message || 'Wordlist and exercise choices could not be saved.'; }
         finally { saveGames.disabled = false; }
     });
@@ -274,11 +277,12 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
                 document.querySelector('h1').textContent = data.page.name;
             }
             sets = Array.isArray(data.sets) ? data.sets : [];
+            knowledgeSets=Array.isArray(data.knowledgeSets)?data.knowledgeSets:[];
             disabledGames = data.disabledGames || [];
             wordlistEmphasis = data.wordlistEmphasis || {};
             excludedWordlists = data.excludedWordlists || [];
             if (data.hiddenWordlists) hiddenWordlists = data.hiddenWordlists;
-            classGamify.hidden = !sets.some(set => set.hasGames && !hiddenWordlists.includes(set.pathname));
+            classGamify.hidden = !studySets().some(set => set.hasGames && !hiddenWordlists.includes(set.pathname));
             render();
             window.dispatchEvent(new Event('penina-vocabulary-library-loaded'));
         } catch (error) {
@@ -373,12 +377,12 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         const selected = new Set(selectedPathnames());
         // Library availability can be stale or reflect a failed read. Keep every
         // checked list; opening the lobby validates its current saved choices.
-        const chosen = sets.filter(set => selected.has(set.pathname));
-        if (!chosen.length) { await showMessage('Choose wordlists', 'Check at least one wordlist to include.'); return; }
+        const chosen = studySets().filter(set => selected.has(set.pathname));
+        if (!chosen.length) { await showMessage('Choose lists', 'Check at least one wordlist or knowledge list to include.'); return; }
         const pathnames = chosen.map(set => set.pathname);
         const dialog = document.createElement('dialog');
         dialog.className = 'input-dialog live-setup';
-        dialog.innerHTML = `<form class="input-dialog-form"><h2>Start Live Game</h2><p>Students join with a game code.</p><div class="live-wordlist-summary"><h3>Included wordlists</h3><ul>${chosen.map((set, index) => `<li class="live-wordlist-row"><span class="live-wordlist-title">${escapeHtml(set.title)}</span><select name="emphasis-${index}" aria-label="Emphasis for ${escapeHtml(set.title)}">${[[1,'Normal'],[2,'2×'],[3,'3×']].map(([value,label]) => `<option value="${value}" ${(wordlistEmphasis[set.pathname] ?? 1) === value ? 'selected' : ''}>${label}</option>`).join('')}</select></li>`).join('')}</ul><p>Choose how often each list appears. Emphasized lists may repeat terms. These choices start from your saved exercise settings and apply only to this Live game. To change the included lists, cancel and return to Start Live Game.</p></div><label>Answer language<select name="language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><label>Questions<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label>Question pacing<select name="seconds"><option value="0">Manual — teacher advances</option><option value="5">5 seconds</option><option value="7">7 seconds</option><option value="10" selected>10 seconds</option></select></label><label>Show correct answer for<select name="revealSeconds"><option value="5" selected>5 seconds</option><option value="7">7 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option></select></label><p>Students see right/wrong feedback when the answer is revealed.</p><p>100 points per correct answer.</p><p class="live-setup-error" role="alert"></p><div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Open lobby →</button></div></form>`;
+        dialog.innerHTML = `<form class="input-dialog-form"><h2>Start Live Game</h2><p>Students join with a game code.</p><div class="live-wordlist-summary"><h3>Included wordlists and knowledge lists</h3><ul>${chosen.map((set, index) => `<li class="live-wordlist-row"><span class="live-wordlist-title">${escapeHtml(set.title)}</span><select name="emphasis-${index}" aria-label="Emphasis for ${escapeHtml(set.title)}">${[[1,'Normal'],[2,'2×'],[3,'3×']].map(([value,label]) => `<option value="${value}" ${(wordlistEmphasis[set.pathname] ?? 1) === value ? 'selected' : ''}>${label}</option>`).join('')}</select></li>`).join('')}</ul><p>Choose how often each list appears. Emphasized lists may repeat terms. These choices start from your saved exercise settings and apply only to this Live game. To change the included lists, cancel and return to Start Live Game.</p></div><label>Answer language<select name="language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><label>Questions<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label>Question pacing<select name="seconds"><option value="0">Manual — teacher advances</option><option value="5">5 seconds</option><option value="7">7 seconds</option><option value="10" selected>10 seconds</option></select></label><label>Show correct answer for<select name="revealSeconds"><option value="5" selected>5 seconds</option><option value="7">7 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option></select></label><p>Students see right/wrong feedback when the answer is revealed.</p><p>100 points per correct answer.</p><p class="live-setup-error" role="alert"></p><div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Open lobby →</button></div></form>`;
         document.body.appendChild(dialog);dialog.showModal();
         let creating = false;
         dialog.addEventListener('cancel', event => { if (creating) event.preventDefault(); });
@@ -388,7 +392,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
             event.preventDefault();if (creating) return;
             const form = event.currentTarget;
             const note = form.querySelector('.live-setup-error');
-            if (!pathnames.length) { note.textContent = 'Choose at least one vocabulary set.'; return; }
+            if (!pathnames.length) { note.textContent = 'Choose at least one study list.'; return; }
             creating = true;note.textContent = 'Opening the lobby…';form.querySelectorAll('button').forEach(button => { button.disabled = true; });
             try {
                 const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, pathnames, wordlistEmphasis: Object.fromEntries(chosen.map((set,index) => [set.pathname, Number(form.elements['emphasis-'+index].value)])), language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), revealSeconds: Number(form.elements.revealSeconds.value), sendScoresToTeacher: sendScores, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
@@ -592,6 +596,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     viewCombinedButton.addEventListener('click', viewCombinedSet);
     downloadCombinedButton.addEventListener('click', downloadCombinedSet);
     manageTrigger.addEventListener('click', enterManagementMode);
+    window.addEventListener('penina-knowledge-library-loaded',event=>{knowledgeSets=(event.detail||[]).map(set=>({...set,kind:'knowledge',hasGames:set.hasPractice}));renderTeacherChoices();});
     const knowledgeLibrary=document.createElement('script');knowledgeLibrary.src='/PeninaPlus-knowledge-builder/knowledge-library.js';document.head.append(knowledgeLibrary);
     load();
 })();

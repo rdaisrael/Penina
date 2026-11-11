@@ -1,4 +1,6 @@
 const { del, list, put } = require('@vercel/blob');
+const {listKnowledge,readKnowledge}=require('../lib/study-sets');
+const allGameSets=async grade=>[...await listAll(`vocabulary-cards/${grade}/`),...await listKnowledge(list,grade)];
 const { getPage, publicPage, authorizePage } = require('../lib/vocabulary-pages');
 const { makeApp, makeClassGames, practiceRows } = require('../PeninaPlus-vocab-builder/offline-study-cards');
 
@@ -89,17 +91,16 @@ module.exports = async function (req, res) {
         if (!page) return send(res, 400, { error: 'Choose an existing vocabulary webpage.' });
         if (req.method === 'GET') {
             const { disabledGames, excludedWordlists, hiddenWordlists, wordlistEmphasis: savedEmphasis } = await readGameSettings(grade);
-            const blobs = await listAll(`vocabulary-cards/${grade}/`);
+            const blobs = await allGameSets(grade);
             const newest = blobs.slice().sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt) || a.pathname.localeCompare(b.pathname))[0]?.pathname;
             const wordlistEmphasis = Object.fromEntries(blobs.map(blob => [blob.pathname, savedEmphasis[blob.pathname] ?? (blob.pathname === newest ? 3 : 1)]));
             if (req.query.games === '1') {
                 const dateFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
                 const groups = await Promise.all(blobs.filter(blob => !excludedWordlists.includes(blob.pathname) && !hiddenWordlists.includes(blob.pathname)).map(async blob => {
-                    const response = await fetch(blob.url);
-                    if (!response.ok) throw new Error('A class set could not be loaded.');
+                    const cards=blob.pathname.startsWith('knowledge-cards/')?(await readKnowledge(blob,fetch)).cards:await (async()=>{const response=await fetch(blob.url);if(!response.ok)throw Error('A class set could not be loaded.');return savedCards(await response.text());})();
                     const parts = Object.fromEntries(dateFormat.formatToParts(new Date(blob.uploadedAt)).map(part => [part.type, part.value]));
                     const studyDate = `${parts.year}-${parts.month}-${parts.day}`;
-                    return savedCards(await response.text()).map(card => ({ ...card, studySet: blob.pathname, studyWeight: wordlistEmphasis[blob.pathname], studyDate }));
+                    return cards.map(card => ({ ...card, studySet: blob.pathname, studyWeight: wordlistEmphasis[blob.pathname], studyDate }));
                 }));
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Cache-Control', 'no-store');
@@ -107,7 +108,7 @@ module.exports = async function (req, res) {
             }
             const requestedView = String((req.query && req.query.view) || '');
             if (requestedView) {
-                const blob = blobs.find(item => item.pathname === requestedView);
+                const blob = blobs.find(item => item.pathname === requestedView && item.pathname.startsWith('vocabulary-cards/'));
                 if (!blob) return send(res, 404, { error: 'That flashcard set could not be found.' });
                 const blobResponse = await fetch(blob.url);
                 if (!blobResponse.ok) throw new Error(`Blob returned ${blobResponse.status}`);
@@ -131,16 +132,21 @@ module.exports = async function (req, res) {
                 res.setHeader('Cache-Control', 'no-store');
                 return res.status(200).send(html);
             }
-            const sets = [];
+            const sets = [], knowledgeSets=[];
+            const vocabularyBlobs=blobs.filter(blob=>blob.pathname.startsWith('vocabulary-cards/'));
+            for(const blob of blobs.filter(blob=>blob.pathname.startsWith('knowledge-cards/'))){
+                const data=await readKnowledge(blob,fetch);
+                knowledgeSets.push({pathname:blob.pathname,title:data.title,kind:'knowledge',publishedAt:blob.uploadedAt,hasGames:['english','hebrew'].some(language=>practiceRows(data.cards,language).length>0)});
+            }
             // Bound storage reads when a class has many published sets.
-            for (let offset = 0; offset < blobs.length; offset += 8) {
-                sets.push(...await Promise.all(blobs.slice(offset, offset + 8).map(async blob => ({
+            for (let offset = 0; offset < vocabularyBlobs.length; offset += 8) {
+                sets.push(...await Promise.all(vocabularyBlobs.slice(offset, offset + 8).map(async blob => ({
                     ...formatSet(blob, grade), hasGames: await gameAvailability(blob)
                 }))));
             }
             sets.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
             res.setHeader('Cache-Control', 'no-store');
-            return send(res, 200, { grade, page: publicPage(page), sets, disabledGames, excludedWordlists, hiddenWordlists, wordlistEmphasis });
+            return send(res, 200, { grade, page: publicPage(page), sets, knowledgeSets, disabledGames, excludedWordlists, hiddenWordlists, wordlistEmphasis });
         }
 
         if (!['POST', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method Not Allowed' });
@@ -182,7 +188,7 @@ module.exports = async function (req, res) {
 
         if (req.body && req.body.action === 'wordlist-settings') {
             const excludedWordlists = req.body.excludedWordlists;
-            const existing = await listAll(`vocabulary-cards/${grade}/`);
+            const existing = await allGameSets(grade);
             if (!Array.isArray(excludedWordlists) || excludedWordlists.some(p => !existing.some(b => b.pathname === p))) return send(res, 400, { error: 'Choose valid wordlists.' });
             await put(`vocabulary-game-settings/${grade}.json`, JSON.stringify({ ...(await readGameSettings(grade)), excludedWordlists: [...new Set(excludedWordlists)] }), {
                 access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 0
@@ -198,13 +204,13 @@ module.exports = async function (req, res) {
             const settings = await readGameSettings(grade);
             if (Object.prototype.hasOwnProperty.call(req.body, 'excludedWordlists')) {
                 const excluded = req.body.excludedWordlists;
-                const existing = await listAll(`vocabulary-cards/${grade}/`);
+                const existing = await allGameSets(grade);
                 if (!Array.isArray(excluded) || excluded.some(p => !existing.some(b => b.pathname === p))) return send(res, 400, { error: 'Choose valid wordlists.' });
                 settings.excludedWordlists = [...new Set(excluded)];
             }
             if (Object.prototype.hasOwnProperty.call(req.body, 'wordlistEmphasis')) {
                 const weights = req.body.wordlistEmphasis;
-                const existing = await listAll(`vocabulary-cards/${grade}/`);
+                const existing = await allGameSets(grade);
                 if (!weights || typeof weights !== 'object' || Array.isArray(weights) || Object.entries(weights).some(([p, weight]) => !existing.some(b => b.pathname === p) || ![1, 2, 3].includes(weight))) return send(res, 400, { error: 'Choose Normal, 2×, or 3× for valid wordlists.' });
                 settings.wordlistEmphasis = weights;
             }

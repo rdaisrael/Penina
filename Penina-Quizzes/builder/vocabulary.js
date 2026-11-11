@@ -19,7 +19,7 @@ function renderVocabulary(){
     $('vocabularyDirection').value=source.direction;
     $('vocabularyAutomatic').checked=source.autoCount;
     for(const el of $('vocabularyTypes').querySelectorAll('input'))el.checked=source.types.includes(el.value);
-    $('vocabularyRows').innerHTML=source.rows.map((r,i)=>`<tr data-vocab-row="${i}"><td><input data-vocab-field="word" aria-label="Word ${i+1}" value="${esc(r.word)}" maxlength="500" dir="auto"></td><td><textarea data-vocab-field="definition" aria-label="Definition ${i+1}" maxlength="500" dir="auto">${esc(r.definition)}</textarea><label>Additional correct answers (for multiple answers)<textarea data-vocab-field="additionalAnswers" aria-label="Additional correct answers ${i+1}" maxlength="5010" dir="auto" placeholder="One additional correct answer per line">${esc((r.additionalAnswers??[]).join('\n'))}</textarea></label></td><td><small data-distractor-language>${distractorLanguage(r.word)} distractors</small><textarea data-vocab-field="definitionDistractors" aria-label="Distractors ${i+1}" maxlength="5010" dir="auto">${esc(r.definitionDistractors.join('\n'))}</textarea></td><td><button type="button" class="quiet" data-vocab-regenerate="${i}">Regenerate row ${i+1}</button><button type="button" class="quiet" data-vocab-remove="${i}">Remove row ${i+1}</button></td></tr>`).join('');
+    $('vocabularyRows').innerHTML=source.rows.map((r,i)=>`<tr data-vocab-row="${i}"><td><small>${r.kind==='knowledge'?'Knowledge question':'Vocabulary'}</small>${r.kind==='knowledge'?`<textarea data-vocab-field="word" aria-label="Question ${i+1}" maxlength="5000" dir="auto">${esc(r.word)}</textarea>${r.picture?QuizPicture.render({image:{src:r.picture.src,alt:r.picture.alt,marker:r.picture.target}}):''}`:`<input data-vocab-field="word" aria-label="Word ${i+1}" value="${esc(r.word)}" maxlength="500" dir="auto">`}</td><td><textarea data-vocab-field="definition" aria-label="Definition ${i+1}" maxlength="500" dir="auto">${esc(r.definition)}</textarea><label>Additional correct answers (for multiple answers)<textarea data-vocab-field="additionalAnswers" aria-label="Additional correct answers ${i+1}" maxlength="5010" dir="auto" placeholder="One additional correct answer per line">${esc((r.additionalAnswers??[]).join('\n'))}</textarea></label></td><td>${r.kind==='knowledge'?`<label>Saved distractor language<select data-knowledge-language aria-label="Distractor language ${i+1}"><option value="english" ${r.knowledgeLanguage!=='hebrew'?'selected':''}>English</option><option value="hebrew" ${r.knowledgeLanguage==='hebrew'?'selected':''}>Hebrew</option></select></label>`:`<small data-distractor-language>${distractorLanguage(r.word)} distractors</small>`}<textarea data-vocab-field="definitionDistractors" aria-label="Distractors ${i+1}" maxlength="5010" dir="auto">${esc(r.definitionDistractors.join('\n'))}</textarea></td><td><button type="button" class="quiet" data-vocab-regenerate="${i}">Regenerate row ${i+1}</button><button type="button" class="quiet" data-vocab-remove="${i}">Remove row ${i+1}</button></td></tr>`).join('');
     $('vocabularyRegenerate').textContent=source.rows.some(r=>r.definitionDistractors.length)?'Regenerate all distractors':'Generate distractors';
     refreshVocabularyCoverage();
     vocabularyButtons();
@@ -48,9 +48,21 @@ $('vocabularyImport').onclick=()=>vocabularyRun(async()=>{
 $('vocabularyRows').addEventListener('input',event=>{
     if(busy || quiz.published)return;
     const row=event.target.closest('[data-vocab-row]'),field=event.target.dataset.vocabField;
-    if(!row || !field)return;
+    if(!row)return;
+    const item=quiz.vocabulary.rows[Number(row.dataset.vocabRow)];
+    if(event.target.hasAttribute?.('data-knowledge-language')){
+        item.knowledgeDistractors ||= {};item.knowledgeDistractors[item.knowledgeLanguage||'english']=[...item.definitionDistractors];
+        item.knowledgeLanguage=event.target.value;item.definitionDistractors=[...(item.knowledgeDistractors[item.knowledgeLanguage]||[])];
+        vocabularyChanged();renderVocabulary();return;
+    }
+    if(!field)return;
     const r=quiz.vocabulary.rows[Number(row.dataset.vocabRow)];
     r[field]=(field.endsWith('Distractors')||field==='additionalAnswers')?event.target.value.split('\n').map(v=>v.trim()).filter(Boolean):event.target.value;
+    if(r.kind==='knowledge' && ['word','definition'].includes(field)){
+        r.knowledgeDistractors={};r.definitionDistractors=[];
+        const choices=row.querySelector?.('[data-vocab-field="definitionDistractors"]');if(choices)choices.value='';
+    }
+    if(r.kind==='knowledge' && field==='definitionDistractors'){r.knowledgeDistractors ||= {};r.knowledgeDistractors[r.knowledgeLanguage||'english']=[...r.definitionDistractors];}
     if(field==='word'){const label=row.querySelector?.('[data-distractor-language]');if(label)label.textContent=distractorLanguage(r.word)+' distractors';}
     vocabularyChanged();
 });
@@ -121,6 +133,7 @@ function refreshVocabularyCoverage(){
         c.suggestedCount?'Suggested: '+c.suggestedCount+' questions.':'',
         c.error || c.questionCount+' new questions · '+c.totalUses+' newly tested words · '+c.existingWords+' words already tested · '+c.coveredWords+' of '+c.wordCount+' words covered · No new repeats.',
         !c.error && c.untestedWords?c.untestedWords+' words remain untested. Add a single-word format or adjust the question count to cover more.':'',
+        c.skippedTypes?.length?'Unavailable formats skipped: '+c.skippedTypes.map(type=>({match:'Matching',order:'Ordering',multi:'Multiple answers'})[type]||type).join(', ')+'.':'',
         context.replaced?context.replaced+' generated questions will be replaced.':''
     ].filter(Boolean).join(' ');
     $('vocabularyWordCoverage').innerHTML=c?'<ul>'+c.words.map(w=>'<li><bdi>'+esc(w.word)+'</bdi>: '+(w.existingQuestions.length?'already in question'+(w.existingQuestions.length===1?' ':'s ')+w.existingQuestions.join(', ')+(w.existingQuestions.length>1?' — repeated in the existing draft':''):w.newQuestions.length?'planned for question '+w.newQuestions.join(', '):'not tested')+'</li>').join('')+'</ul>':'';
@@ -149,7 +162,7 @@ $('vocabularyGenerate').onclick=()=>vocabularyRun(async()=>{
         quiz.forwardOnlyFrom=checkpointIndex>0?checkpointIndex:null;
         quiz.questions=next;
     }else quiz.questions.push(...generated);
-    if(!quiz.title || quiz.title==='Untitled quiz')quiz.title='Vocabulary quiz';
+    if(!quiz.title || quiz.title==='Untitled quiz')quiz.title=vocabularySource().rows.some(r=>r.kind==='knowledge')?'Study quiz':'Vocabulary quiz';
     changed();render();
     vocabularyMessage(generated.length+' questions '+(context.replaced?'replaced the previous generated set':'added to your draft')+'. Each newly tested word is used once. Review the questions and answer keys, then save.');
     status('Generated '+generated.length+' editable questions. Review and save your draft before publishing.');
@@ -163,29 +176,30 @@ function clearVocabularyImport(){pendingVocabularyImport=null;$('vocabularyConfl
 $('vocabularyLibraryRefresh').onclick=()=>vocabularyRun(async()=>{
     const {sets}=await api('vocabulary-library');
     clearVocabularyImport();
-    $('vocabularyLibrary').innerHTML=sets.length?'<fieldset><legend>My saved wordlists</legend>'+sets.map(set=>`<label><input type="checkbox" data-vocab-list value="${esc(set.pathname)}">${esc(set.title)} — ${esc(set.pageName)}</label>`).join('')+'</fieldset>':'<p>No saved wordlists were found on your vocabulary webpages. Upload or paste a list below.</p>';
-    vocabularyMessage(sets.length+' saved wordlists available.');
+    $('vocabularyLibrary').innerHTML=sets.length?'<fieldset><legend>My saved lists and knowledge lists</legend>'+sets.map(set=>`<label><input type="checkbox" data-vocab-list value="${esc(set.pathname)}">${esc(set.title)} — ${set.kind==='knowledge'?'Knowledge':'Vocabulary'} · ${esc(set.pageName)}</label>`).join('')+'</fieldset>':'<p>No saved lists were found on your vocabulary webpages. Upload or paste a list below.</p>';
+    vocabularyMessage(sets.length+' saved lists available.');
 });
 $('vocabularyLibrary').addEventListener('change',clearVocabularyImport);
+$('knowledgeLanguage').addEventListener('change',clearVocabularyImport);
 $('vocabularyLibraryImport').onclick=()=>vocabularyRun(async()=>{
     const pathnames=[...$('vocabularyLibrary').querySelectorAll('input:checked')].map(el=>el.value);
     if(!pathnames.length)throw Error('Select at least one saved wordlist.');
     clearVocabularyImport();
-    const result=await api('import-vocabulary-library',{pathnames});
+    const result=await api('import-vocabulary-library',{pathnames,language:$('knowledgeLanguage').value||'english'});
     pendingVocabularyImport=result;
-    $('vocabularyConflicts').innerHTML='<h3>Review selected vocabulary</h3><p>'+result.rows.length+' unique words. '+(result.conflicts.length?'Choose a definition for each conflicting word before loading.':'No conflicting definitions found.')+'</p>'+result.conflicts.map(c=>`<label>${esc(c.word)} — choose the correct definition<select data-vocab-conflict="${c.index}"><option value="">Choose a definition…</option>${c.definitions.map((d,i)=>`<option value="${i}">${esc(d)}</option>`).join('')}</select></label>`).join('')+result.warnings.map(w=>'<p>'+esc(w)+'</p>').join('');
+    $('vocabularyConflicts').innerHTML='<h3>Review selected lists</h3><p>'+result.rows.length+' source items. '+(result.conflicts.length?'Choose a definition for each conflicting word before loading.':'No conflicting definitions found.')+'</p>'+result.conflicts.map(c=>`<label>${esc(c.word)} — choose the correct definition<select data-vocab-conflict="${c.index}"><option value="">Choose a definition…</option>${c.definitions.map((d,i)=>`<option value="${i}">${esc(d)}</option>`).join('')}</select></label>`).join('')+result.warnings.map(w=>'<p>'+esc(w)+'</p>').join('');
     $('vocabularyConflicts').hidden=false;$('vocabularyLibraryApply').hidden=false;
-    vocabularyMessage('Review the selected lists, then choose Load reviewed wordlists. Existing distractors will be preserved.');
+    vocabularyMessage('Review the selected lists, then choose Load reviewed lists. Existing distractors will be preserved.');
 });
 $('vocabularyLibraryApply').onclick=()=>vocabularyRun(async()=>{
-    if(!pendingVocabularyImport)throw Error('Select and review your wordlists first.');
+    if(!pendingVocabularyImport)throw Error('Select and review your lists first.');
     const rows=structuredClone(pendingVocabularyImport.rows);
     for(const select of $('vocabularyConflicts').querySelectorAll('select')){
         if(select.value==='')throw Error('Choose a definition for every conflicting word.');
         const conflict=pendingVocabularyImport.conflicts.find(c=>c.index===Number(select.dataset.vocabConflict));
         rows[conflict.index].definition=conflict.definitions[Number(select.value)];
     }
-    if(vocabularySource().rows.length && !confirm('Replace the current vocabulary table and its distractors with the reviewed wordlists? Existing quiz questions will stay as they are.'))return;
+    if(vocabularySource().rows.length && !confirm('Replace the current vocabulary table and its distractors with the reviewed lists? Existing quiz questions will stay as they are.'))return;
     quiz.vocabulary={...vocabularySource(),rows};clearVocabularyImport();changed();renderVocabulary();
-    vocabularyMessage(rows.length+' words loaded with saved distractors. Review the table and use Generate missing distractors for empty cells. Save draft to keep your changes.');
+    vocabularyMessage(rows.length+' items loaded with saved pictures and distractors. Review the table and use Generate missing distractors for empty cells. Save draft to keep your changes.');
 });

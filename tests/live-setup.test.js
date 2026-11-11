@@ -5,6 +5,7 @@ function setup(selected,respond){
  const emphasisInputs=selected.map(()=>({value:'1'}));
  const note={textContent:''},form={elements:{language:{value:'english'},count:{value:'10'},seconds:{value:'10'},revealSeconds:{value:'5'},...Object.fromEntries(emphasisInputs.map((input,index)=>['emphasis-'+index,input]))},querySelector:()=>note,querySelectorAll:()=>buttons};
  const ctx={wordlistEmphasis:{two:2},sendScoresToTeacher:{checked:false},sets:[{pathname:'one',title:'First',hasGames:true},{pathname:'two',title:'Second',hasGames:true},{pathname:'three',title:"EJ's Clothing",hasGames:false}],selectedPathnames:()=>selected,showMessage:async(...args)=>messages.push(args),escapeHtml:s=>s,grade:'sixth',managementPassword:'demo',document:{createElement:()=>({showModal(){},addEventListener(){},querySelector:s=>s==='form'?form:{},innerHTML:''}),body:{appendChild:d=>dialogs.push(d)}},fetch:async(url,options)=>{const body=JSON.parse(options.body);requests.push(body);return respond?respond(body):{ok:true,json:async()=>({code:'123456',hostToken:'sample'})};},sessionStorage:{setItem(){}},window:{location:{assign:url=>navigations.push(url)}}};
+ ctx.studySets=()=>[...ctx.sets,...(ctx.knowledgeSets||[])];
  vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('    async function openLiveSetup()'),source.indexOf('    async function enterManagementMode()')),ctx);
  return {ctx,requests,messages,dialogs,form,note,buttons,navigations,emphasisInputs};
 }

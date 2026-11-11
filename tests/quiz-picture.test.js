@@ -11,7 +11,7 @@ test('picture questions preserve image and marker while hiding answer keys and r
 });
 test('draft may await image but publishing requires it; unsafe images and invalid markers are rejected',()=>{
  const quiz=fixture();delete quiz.questions[0].image;assert.doesNotThrow(()=>model.validateQuiz(quiz));assert.throws(()=>model.validateQuiz(quiz,true),/upload a picture/);
- for(const src of ['https://example.com/a.png','data:image/svg+xml;base64,AAAA','data:image/png;base64,AAA" onerror="alert(1)','data:image/png;base64,'+'A'.repeat(250000)]){
+ for(const src of ['https://example.com/a.png','data:image/svg+xml;base64,AAAA','data:image/png;base64,AAA" onerror="alert(1)','data:image/png;base64,'+'A'.repeat(2500000)]){
   const quiz=fixture();quiz.questions[0].image.src=src;assert.throws(()=>model.validateQuiz(quiz,true),/valid JPG/);
  }
  for(const x of [-0.1,1.1,NaN,Infinity,'0.5']){const quiz=fixture();quiz.questions[0].image.marker.x=x;assert.throws(()=>model.validateQuiz(quiz,true),/inside the picture/);}

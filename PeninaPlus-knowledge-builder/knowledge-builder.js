@@ -1,0 +1,455 @@
+/* Local flashcard authoring and study. No publishing or network calls. */
+(() => {
+    'use strict';
+    const {FORMAT, normalizeDeck, hasInformation, printSheets} = window.PeninaKnowledgeCards;
+    const byId = id => document.getElementById(id);
+    let deck = {format: FORMAT, version: 1, title: '', cards: []};
+    let editingId = null, picture = null, dirty = false, stage = 'edit';
+    let order = [], index = 0, showingAnswer = false, ratings = {};
+    let db = null, saveTimer, uploadVersion = 0, uploading = false, pictureFitWidth = 0;
+    const app = document.querySelector('.app');
+    const make = (tag, className, value) => {
+        const element = document.createElement(tag);
+        if (className) element.className = className;
+        if (value !== undefined) element.textContent = value;
+        return element;
+    };
+    function message(value, error = false) {
+        byId('editor-message').textContent = value;
+        byId('editor-message').classList.toggle('error', error);
+    }
+    function storageMessage(value, error = false) {
+        byId('save-status').textContent = value;
+        byId('save-status').classList.toggle('error', error);
+    }
+    function editorSnapshot() {
+        return {editingId, question: byId('question').value, answer: byId('answer').value,
+            additionalInformation: byId('additional-information').value,
+            picture: picture ? {...picture, alt: byId('picture-alt').value} : null, dirty};
+    }
+    function persist() {
+        clearTimeout(saveTimer);
+        if (!db) return;
+        try {
+            const transaction = db.transaction('drafts', 'readwrite');
+            transaction.objectStore('drafts').put({deck, editor: editorSnapshot()}, 'current');
+            transaction.oncomplete = () => storageMessage('Saved in this browser. Download a draft to keep a copy.');
+            transaction.onerror = () => storageMessage('Browser storage is full or unavailable. Download your draft to keep your work.', true);
+        } catch (_) {
+            storageMessage('Could not save in this browser. Download your draft to keep your work.', true);
+        }
+    }
+    function scheduleSave() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(persist, 350);
+    }
+    async function confirmAction(text) {
+        const dialog = byId('confirm-dialog');
+        byId('confirm-message').textContent = text;
+        dialog.returnValue = 'cancel';
+        return new Promise(resolve => {
+            dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm'), {once: true});
+            dialog.showModal();
+        });
+    }
+    function addMarker(parent, target) {
+        if (!target) return;
+        const marker = make('span', 'target-marker');
+        marker.style.left = `${target.x * 100}%`;
+        marker.style.top = `${target.y * 100}%`;
+        marker.setAttribute('aria-hidden', 'true');
+        parent.append(marker);
+    }
+    function pictureImage(value) {
+        const image = make('img');
+        image.src = value.src;
+        image.alt = value.alt || (value.target ? 'Card picture with a target marker' : 'Card picture');
+        return image;
+    }
+    function renderEditorPicture() {
+        const surface = byId('target-surface');
+        surface.replaceChildren();
+        byId('picture-editor').hidden = !picture;
+        byId('remove-picture').hidden = !picture;
+        byId('remove-target').hidden = !picture?.target;
+        byId('add-target').textContent = picture?.target ? 'Center Target' : 'Add Target';
+        if (picture) {
+            surface.append(pictureImage(picture));
+            addMarker(surface, picture.target);
+        }
+    }
+    function openEditor(card = null) {
+        uploadVersion++;
+        uploading = false;
+        byId('save-card').disabled = false;
+        editingId = card?.id || null;
+        picture = card?.picture ? structuredClone(card.picture) : null;
+        byId('question').value = card?.question || '';
+        byId('answer').value = card?.answer || '';
+        byId('additional-information').value = card?.additionalInformation || '';
+        byId('picture-alt').value = picture?.alt || '';
+        byId('picture-file').value = '';
+        byId('editor-title').textContent = card ? `Edit Card ${deck.cards.indexOf(card) + 1}` : 'Add a Card';
+        byId('save-card').textContent = card ? 'Save Card' : 'Add Card';
+        byId('delete-card').hidden = !card;
+        dirty = false;
+        message('');
+        renderEditorPicture();
+        renderList();
+    }
+    function renderList() {
+        byId('card-count').textContent = deck.cards.length;
+        byId('empty-list').hidden = deck.cards.length > 0;
+        byId('card-list').replaceChildren(...deck.cards.map((card, number) => {
+            const li = make('li'), button = make('button');
+            button.type = 'button';
+            if (card.id === editingId) button.setAttribute('aria-current', 'true');
+            const label = make('span', 'list-question', card.question.length > 110 ? `${card.question.slice(0, 110)}…` : card.question);
+            label.dir = 'auto';
+            button.append(make('span', 'list-number', String(number + 1)), label);
+            button.addEventListener('click', () => {
+                if (commitEditor()) {openEditor(deck.cards.find(value => value.id === card.id)); persist();}
+            });
+            li.append(button);
+            return li;
+        }));
+        document.querySelectorAll('[data-stage]').forEach(button => {
+            button.disabled = button.dataset.stage !== 'edit' && !deck.cards.length;
+        });
+    }
+    function commitEditor() {
+        if (uploading) {message('Please wait for the picture to finish loading.', true); return false;}
+        if (!dirty) return true;
+        if (!byId('card-form').reportValidity()) return false;
+        const question = byId('question').value.trim(), answer = byId('answer').value.trim();
+        if (!question || !answer) {message('Enter both a question and an answer.', true); return false;}
+        if (!editingId && deck.cards.length >= 500) {message('A set can contain up to 500 cards.', true); return false;}
+        const card = {id: editingId || crypto.randomUUID(), question, answer,
+            additionalInformation: byId('additional-information').value.trim(),
+            picture: picture ? {...picture, alt: byId('picture-alt').value.trim()} : null};
+        const existingIndex = deck.cards.findIndex(value => value.id === editingId);
+        if (existingIndex >= 0) deck.cards[existingIndex] = card;
+        else deck.cards.push(card);
+        editingId = card.id;
+        dirty = false;
+        byId('save-card').textContent = 'Save Card';
+        byId('editor-title').textContent = `Edit Card ${deck.cards.indexOf(card) + 1}`;
+        byId('delete-card').hidden = false;
+        renderList();
+        persist();
+        return true;
+    }
+    function setStage(nextStage) {
+        if (stage === 'edit' && !commitEditor()) return;
+        if (nextStage !== 'edit' && !deck.cards.length) return;
+        stage = nextStage;
+        for (const name of ['edit', 'study', 'print']) byId(`${name}-stage`).hidden = name !== stage;
+        document.querySelectorAll('[data-stage]').forEach(button => {
+            if (button.dataset.stage === stage) button.setAttribute('aria-current', 'step');
+            else button.removeAttribute('aria-current');
+        });
+        if (stage === 'study') {
+            order = deck.cards.map(card => card.id);
+            index = 0;
+            showingAnswer = false;
+            renderStudy();
+        }
+        if (stage === 'print') renderPrint();
+    }
+    function studyCard() {return deck.cards.find(card => card.id === order[index]);}
+    function cardContent(card, back, paper = false) {
+        const content = make('div', `card-content${!back && card.picture ? ' has-picture' : ''}`);
+        if (!back && card.picture) {
+            const holder = make(paper ? 'div' : 'button', paper ? 'paper-image' : 'picture-button');
+            holder.append(pictureImage(card.picture));
+            addMarker(holder, card.picture.target);
+            if (!paper) {
+                holder.type = 'button';
+                holder.setAttribute('aria-label', 'Enlarge picture');
+                holder.addEventListener('click', event => {event.stopPropagation(); openPicture(card.picture);});
+            }
+            content.append(holder);
+        }
+        const copy = make('p', 'card-text', back ? card.answer : card.question);
+        copy.dir = 'auto';
+        content.append(copy);
+        return content;
+    }
+    function renderStudy() {
+        const card = studyCard();
+        if (!card) return;
+        byId('study-title').textContent = deck.title || 'Untitled knowledge set';
+        byId('study-count').textContent = `${deck.cards.length} card${deck.cards.length === 1 ? '' : 's'}`;
+        byId('position').textContent = `${index + 1} / ${order.length}`;
+        const progress = Math.round((index + 1) / order.length * 100);
+        byId('progress-bar').style.width = `${progress}%`;
+        document.querySelector('.progress').setAttribute('aria-valuenow', progress);
+        byId('card-number').textContent = `Card #${deck.cards.indexOf(card) + 1}`;
+        byId('side-number').textContent = showingAnswer ? '2 / 2' : '1 / 2';
+        byId('flashcard').setAttribute('aria-label', `${showingAnswer ? 'Answer' : 'Question'} side of flashcard. Press Space or Enter to flip.`);
+        const content = cardContent(card, showingAnswer);
+        byId('card-content').className = content.className;
+        byId('card-content').replaceChildren(...content.childNodes);
+        byId('additional-panel').hidden = !showingAnswer || !hasInformation(card);
+        byId('additional-text').textContent = card.additionalInformation;
+        for (const rating of ['known', 'almost', 'learning']) {
+            byId(`${rating}-count`).textContent = deck.cards.filter(item => ratings[item.id] === rating).length;
+        }
+    }
+    function move(amount) {
+        if (!order.length) return;
+        index = (index + amount + order.length) % order.length;
+        showingAnswer = false;
+        renderStudy();
+    }
+    function flip() {if (studyCard()) {showingAnswer = !showingAnswer; renderStudy();}}
+    async function openPicture(value) {
+        const container = byId('enlarged-picture');
+        const image = pictureImage(value);
+        container.replaceChildren(image);
+        addMarker(container, value.target);
+        byId('picture-dialog').showModal();
+        try {await image.decode();} catch (_) {byId('picture-dialog').close(); message('This picture could not be opened.', true); return;}
+        fitPicture();
+    }
+    function setZoom(percent) {
+        byId('enlarged-picture').style.width = `${pictureFitWidth * percent / 100}px`;
+        byId('zoom-range').value = Math.min(800, Math.max(25, percent));
+        byId('zoom-value').value = `${Math.round(percent)}%`;
+    }
+    function fitPicture() {
+        const image = byId('enlarged-picture').querySelector('img');
+        if (!image?.naturalWidth) return;
+        const viewport = byId('picture-viewport');
+        byId('picture-dialog').style.setProperty('--toolbar-height', `${document.querySelector('.picture-toolbar').offsetHeight}px`);
+        const style = getComputedStyle(viewport);
+        const width = viewport.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        const height = viewport.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+        pictureFitWidth = Math.min(image.naturalWidth, width, height * image.naturalWidth / image.naturalHeight);
+        setZoom(100);
+        viewport.scrollTo(0, 0);
+    }
+    function fitPrint() {
+        let overflow = false;
+        document.querySelectorAll('.paper-card:not(.paper-empty)').forEach(card => {
+            const content = card.querySelector('.paper-content');
+            const text = card.querySelector('.card-text');
+            const info = card.querySelector('.paper-information');
+            text.style.fontSize = '';
+            if (info) info.style.fontSize = '';
+            let font = parseFloat(getComputedStyle(text).fontSize);
+            const available = card.clientHeight - parseFloat(getComputedStyle(card).paddingTop) - parseFloat(getComputedStyle(card).paddingBottom);
+            while ((content.scrollHeight > available + 1 || text.scrollWidth > text.clientWidth + 1) && font > 12) {
+                font -= 1;
+                text.style.fontSize = `${font}px`;
+                if (info) info.style.fontSize = `${Math.max(12, font * .6)}px`;
+            }
+            if (content.scrollHeight > available + 1 || content.scrollWidth > card.clientWidth) overflow = true;
+        });
+        byId('print-warning').textContent = overflow ? 'Some content is too long for this layout. Choose fewer cards per page or shorten those cards before printing.' : '';
+        byId('print-warning').classList.toggle('error', overflow);
+        byId('print-now').disabled = overflow;
+    }
+    function renderPrint() {
+        const count = Number(byId('cards-per-page').value);
+        const pages = printSheets(deck.cards, count);
+        byId('print-pages').replaceChildren();
+        pages.forEach((page, pageIndex) => {
+            const caption = make('p', 'sheet-caption', `Sheet ${Math.floor(pageIndex / 2) + 1} · ${page.side === 'front' ? 'Fronts' : 'Backs'} · ${count} per page`);
+            const sheet = make('section', 'paper-sheet');
+            sheet.dataset.count = count;
+            sheet.setAttribute('aria-label', caption.textContent);
+            for (const card of page.cards) {
+                const cell = make('article', `paper-card${card ? '' : ' paper-empty'}`);
+                if (card) {
+                    cell.append(make('span', 'paper-number', `#${deck.cards.indexOf(card) + 1}`));
+                    const content = make('div', 'paper-content');
+                    content.append(cardContent(card, page.side === 'back', true));
+                    if (page.side === 'back' && hasInformation(card)) {
+                        const info = make('section', 'paper-information');
+                        const copy = make('p', '', card.additionalInformation); copy.dir = 'auto';
+                        info.append(make('h3', '', 'Additional Information'), copy);
+                        content.append(info);
+                    }
+                    cell.append(content);
+                }
+                sheet.append(cell);
+            }
+            byId('print-pages').append(caption, sheet);
+        });
+        for (const image of byId('print-pages').querySelectorAll('img')) image.addEventListener('load', fitPrint, {once: true});
+        requestAnimationFrame(fitPrint);
+    }
+    byId('card-form').addEventListener('input', () => {dirty = true; scheduleSave();});
+    byId('card-form').addEventListener('submit', event => {
+        event.preventDefault();
+        if (!dirty && !editingId) dirty = true;
+        if (commitEditor()) message('Card saved. Add another card or open Electronic Flashcards.');
+    });
+    byId('set-title').addEventListener('input', () => {deck.title = byId('set-title').value; scheduleSave();});
+    byId('new-card').addEventListener('click', () => {if (commitEditor()) {openEditor(); persist(); byId('question').focus();}});
+    byId('delete-card').addEventListener('click', async () => {
+        if (!await confirmAction('Delete this card from the set?')) return;
+        deck.cards = deck.cards.filter(card => card.id !== editingId);
+        delete ratings[editingId];
+        openEditor();
+        persist();
+    });
+    document.querySelectorAll('[data-stage]').forEach(button => button.addEventListener('click', () => setStage(button.dataset.stage)));
+    byId('picture-file').addEventListener('change', async event => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const version = ++uploadVersion;
+        if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type) || file.size > 12 * 1024 * 1024) {
+            message('Choose a PNG, JPEG, WebP, or GIF picture up to 12 MB.', true); event.target.value = ''; return;
+        }
+        uploading = true;
+        byId('save-card').disabled = true;
+        message('Loading picture…');
+        try {
+            const src = await new Promise((resolve, reject) => {
+                const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file);
+            });
+            const image = new Image(); image.src = src; await image.decode();
+            if (version !== uploadVersion) return;
+            if (image.naturalWidth * image.naturalHeight > 40000000) throw new Error('Choose a picture with no more than 40 million pixels.');
+            picture = {src, alt: byId('picture-alt').value, target: null};
+            dirty = true;
+            renderEditorPicture();
+            persist();
+            message('Picture added. Click a spot on the picture if you want to add a target.');
+        } catch (error) {
+            if (version === uploadVersion) message(error.message || 'This picture could not be read. Try another image file.', true);
+        } finally {
+            if (version === uploadVersion) {uploading = false; byId('save-card').disabled = false; event.target.value = '';}
+        }
+    });
+    function updateTarget(target) {
+        if (!picture) return;
+        picture.target = target;
+        dirty = true;
+        renderEditorPicture();
+        persist();
+    }
+    byId('target-surface').addEventListener('click', event => {
+        if (!picture) return;
+        const box = byId('target-surface').querySelector('img').getBoundingClientRect();
+        updateTarget({x: Math.max(0, Math.min(1, (event.clientX - box.left) / box.width)), y: Math.max(0, Math.min(1, (event.clientY - box.top) / box.height))});
+    });
+    byId('target-surface').addEventListener('keydown', event => {
+        if (!picture || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(event.key)) return;
+        event.preventDefault();
+        const target = {...(picture.target || {x: .5, y: .5})}, step = event.shiftKey ? .05 : .005;
+        if (event.key === 'ArrowLeft') target.x -= step;
+        if (event.key === 'ArrowRight') target.x += step;
+        if (event.key === 'ArrowUp') target.y -= step;
+        if (event.key === 'ArrowDown') target.y += step;
+        target.x = Math.max(0, Math.min(1, target.x)); target.y = Math.max(0, Math.min(1, target.y));
+        updateTarget(target);
+    });
+    byId('add-target').addEventListener('click', () => {updateTarget({x: .5, y: .5}); byId('target-surface').focus();});
+    byId('remove-target').addEventListener('click', () => updateTarget(null));
+    byId('remove-picture').addEventListener('click', () => {
+        uploadVersion++; uploading = false; byId('save-card').disabled = false;
+        picture = null; dirty = true; renderEditorPicture(); persist();
+    });
+    byId('download-draft').addEventListener('click', () => {
+        if (!commitEditor()) return;
+        const blob = new Blob([JSON.stringify(deck, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob), link = make('a');
+        link.href = url;
+        link.download = `${(deck.title || 'Penina-Knowledge-Cards').replace(/[^\p{L}\p{N} -]/gu, '').slice(0, 80) || 'Penina-Knowledge-Cards'}.json`;
+        link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+    byId('upload-draft').addEventListener('click', () => byId('draft-file').click());
+    byId('draft-file').addEventListener('change', async event => {
+        const file = event.target.files[0]; if (!file) return;
+        try {
+            if (file.size > 60 * 1024 * 1024) throw new Error('Choose a draft smaller than 60 MB.');
+            const next = normalizeDeck(JSON.parse(await file.text()));
+            for (const card of next.cards) if (card.picture) {
+                const image = new Image(); image.src = card.picture.src;
+                try {await image.decode();} catch (_) {throw new Error('A picture in this draft could not be opened.');}
+                if (image.naturalWidth * image.naturalHeight > 40000000) throw new Error('A picture in this draft is too large.');
+            }
+            if ((deck.cards.length || dirty) && !await confirmAction('Open this draft in place of the current set? Download the current draft first if you want to keep both.')) return;
+            deck = next; ratings = {};
+            byId('set-title').value = deck.title;
+            openEditor(deck.cards[0] || null); persist();
+            message(`Opened ${deck.cards.length} cards.`);
+        } catch (error) {message(error.message || 'This draft could not be opened.', true);}
+        finally {event.target.value = '';}
+    });
+    byId('previous').addEventListener('click', () => move(-1));
+    byId('next').addEventListener('click', () => move(1));
+    byId('flip').addEventListener('click', flip);
+    byId('flashcard').addEventListener('click', flip);
+    byId('flashcard').addEventListener('keydown', event => {
+        if (event.target === byId('flashcard') && event.key === 'Enter') {event.preventDefault(); flip();}
+    });
+    byId('shuffle').addEventListener('click', () => {
+        for (let i = order.length - 1; i > 0; i--) {const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]];}
+        index = 0; showingAnswer = false; renderStudy();
+    });
+    byId('reset-study').addEventListener('click', () => {ratings = {}; order = deck.cards.map(card => card.id); index = 0; showingAnswer = false; renderStudy();});
+    byId('edit-current').addEventListener('click', () => {openEditor(studyCard()); setStage('edit');});
+    document.querySelectorAll('[data-rating]').forEach(button => button.addEventListener('click', () => {
+        if (studyCard()) {ratings[studyCard().id] = button.dataset.rating; move(1);}
+    }));
+    document.addEventListener('keydown', event => {
+        if (stage !== 'study' || document.querySelector('dialog[open]') || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName) || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.key === 'ArrowLeft') {event.preventDefault(); move(-1);}
+        if (event.key === 'ArrowRight') {event.preventDefault(); move(1);}
+        if (event.key === ' ' && event.target.tagName !== 'BUTTON') {event.preventDefault(); flip();}
+    });
+    byId('close-picture').addEventListener('click', () => byId('picture-dialog').close());
+    byId('zoom-fit').addEventListener('click', fitPicture);
+    byId('zoom-original').addEventListener('click', () => setZoom(byId('enlarged-picture').querySelector('img').naturalWidth / pictureFitWidth * 100));
+    byId('zoom-range').addEventListener('input', event => setZoom(Number(event.target.value)));
+    window.addEventListener('resize', () => {if (byId('picture-dialog').open) fitPicture();});
+    byId('cards-per-page').addEventListener('change', renderPrint);
+    byId('print-now').addEventListener('click', async () => {
+        await Promise.all(Array.from(byId('print-pages').querySelectorAll('img'), image => image.decode().catch(() => {})));
+        fitPrint();
+        if (!byId('print-now').disabled) window.print();
+    });
+    window.addEventListener('beforeprint', () => {
+        if (stage === 'edit') commitEditor();
+        if (stage !== 'print') renderPrint();
+        fitPrint();
+    });
+    async function initialize() {
+        app.inert = true;
+        try {
+            db = await new Promise((resolve, reject) => {
+                const request = indexedDB.open('penina-knowledge-builder', 1);
+                request.onupgradeneeded = () => request.result.createObjectStore('drafts');
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+                request.onblocked = () => reject(new Error('Storage blocked'));
+            });
+            const saved = await new Promise((resolve, reject) => {
+                const request = db.transaction('drafts').objectStore('drafts').get('current');
+                request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+            });
+            if (saved) {
+                deck = normalizeDeck(saved.deck);
+                byId('set-title').value = deck.title;
+                const editor = saved.editor;
+                openEditor(deck.cards.find(card => card.id === editor?.editingId) || null);
+                if (editor?.dirty) {
+                    byId('question').value = editor.question || '';
+                    byId('answer').value = editor.answer || '';
+                    byId('additional-information').value = editor.additionalInformation || '';
+                    picture = editor.picture || null;
+                    byId('picture-alt').value = picture?.alt || '';
+                    dirty = true;
+                    renderEditorPicture();
+                }
+                storageMessage('Restored your draft from this browser.');
+            }
+        } catch (_) {storageMessage('Browser saving is unavailable. Download your draft to keep your work.', true);}
+        finally {app.inert = false; renderList();}
+    }
+    initialize();
+})();

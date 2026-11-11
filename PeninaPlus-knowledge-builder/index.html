@@ -6,6 +6,7 @@
   <title>Penina Knowledge Builder</title>
   <link rel="icon" type="image/png" href="../PeninaPlus-vocab-builder/Penina-favicon.png">
   <link rel="stylesheet" href="knowledge-builder.css">
+  <style id="print-page-style">@page{size:letter landscape;margin:0}</style>
   <script src="cards.js" defer></script>
   <script src="knowledge-builder.js" defer></script>
 </head>
@@ -70,7 +71,7 @@
     </section>
 
     <section id="print-stage" aria-label="Paper flashcards" hidden>
-      <div class="panel print-settings"><div><h2>Paper Flashcards</h2><p class="help">Print double-sided, flip on the long edge, use 100% scale, and turn off headers and footers. Cut along the dotted lines.</p></div><label for="cards-per-page">Cards per page<select id="cards-per-page"><option value="4">4 per page</option><option value="2">2 per page</option><option value="1">1 per page</option></select></label><button id="print-now" class="primary" type="button">Print Flashcards</button><p id="print-warning" class="form-message" role="status"></p></div>
+      <div class="panel print-settings"><div><h2>Paper Flashcards</h2><p id="print-instructions" class="help">Print double-sided, flip on the short edge, use 100% scale, and turn off headers and footers. Cut along the dotted lines.</p></div><label for="cards-per-page">Cards per page<select id="cards-per-page"><option value="4">4 per page · Landscape</option><option value="2">2 per page · Portrait</option><option value="1">1 per page · Landscape</option></select></label><button id="print-now" class="primary" type="button">Print Flashcards</button><p id="print-warning" class="form-message" role="status"></p></div>
       <div class="print-scroll"><div id="print-pages"></div></div>
     </section>
   </main>

@@ -38,7 +38,7 @@
         const pages = [];
         for (let start = 0; start < cards.length; start += count) {
             const front = Array.from({length: count}, (_, i) => cards[start + i] || null);
-            // Two-column backs mirror left/right for long-edge duplex printing.
+            // Two-column backs mirror left/right: short-edge landscape or long-edge portrait duplex.
             const back = count === 4 ? [front[1], front[0], front[3], front[2]] : [...front];
             pages.push({side: 'front', cards: front}, {side: 'back', cards: back});
         }

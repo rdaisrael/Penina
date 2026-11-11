@@ -235,16 +235,43 @@
             const content = card.querySelector('.paper-content');
             const text = card.querySelector('.card-text');
             const info = card.querySelector('.paper-information');
-            text.style.fontSize = '';
-            if (info) info.style.fontSize = '';
-            let font = parseFloat(getComputedStyle(text).fontSize);
-            const available = card.clientHeight - parseFloat(getComputedStyle(card).paddingTop) - parseFloat(getComputedStyle(card).paddingBottom);
-            while ((content.scrollHeight > available + 1 || text.scrollWidth > text.clientWidth + 1) && font > 12) {
-                font -= 1;
-                text.style.fontSize = `${font}px`;
-                if (info) info.style.fontSize = `${Math.max(12, font * .6)}px`;
+            const heading = info?.querySelector('h3');
+            const style = getComputedStyle(card);
+            const availableHeight = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+            const availableWidth = card.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            const image = card.querySelector('.paper-image img');
+            if (image?.naturalWidth && image.naturalHeight) {
+                const row = card.querySelector('.card-content');
+                const columnWidth = (row.clientWidth - parseFloat(getComputedStyle(row).columnGap)) / 2;
+                const aspect = image.naturalWidth / image.naturalHeight;
+                // Fill the picture column without cropping; keep space around the image and target.
+                image.style.width = `${Math.min(columnWidth, availableHeight * .94 * aspect)}px`;
             }
-            if (content.scrollHeight > available + 1 || content.scrollWidth > card.clientWidth) overflow = true;
+            const elements = [text, info, heading].filter(Boolean);
+            elements.forEach(element => {element.style.fontSize = '';});
+            const sizes = elements.map(element => parseFloat(getComputedStyle(element).fontSize));
+            const scaleTo = scale => elements.forEach((element, i) => {
+                element.style.fontSize = `${Math.max(12, sizes[i] * scale)}px`;
+            });
+            const fits = () => content.scrollHeight <= availableHeight + 1
+                && content.scrollWidth <= availableWidth + 1
+                && text.scrollWidth <= text.clientWidth + 1;
+            // Start at the generous size for this layout, then shrink only as much as needed.
+            // Scale additional information proportionally so shrinking never makes it larger.
+            if (!fits()) {
+                scaleTo(0);
+                if (fits()) {
+                    let low = 0, high = 1;
+                    for (let step = 0; step < 10; step++) {
+                        const middle = (low + high) / 2;
+                        scaleTo(middle);
+                        if (fits()) low = middle;
+                        else high = middle;
+                    }
+                    scaleTo(low);
+                }
+            }
+            if (!fits()) overflow = true;
         });
         byId('print-warning').textContent = overflow ? 'Some content is too long for this layout. Choose fewer cards per page or shorten those cards before printing.' : '';
         byId('print-warning').classList.toggle('error', overflow);
@@ -253,9 +280,15 @@
     function renderPrint() {
         const count = Number(byId('cards-per-page').value);
         const pages = printSheets(deck.cards, count);
+        const orientation = count === 2 ? 'portrait' : 'landscape';
+        const flipEdge = orientation === 'landscape' ? 'short' : 'long';
+        byId('print-pages').dataset.orientation = orientation;
+        byId('print-page-style').textContent = `@page{size:letter ${orientation};margin:0}`;
+        // Both settings turn the sheet around its vertical edge, matching the mirrored backs.
+        byId('print-instructions').textContent = `Print double-sided, flip on the ${flipEdge} edge, use 100% scale, and turn off headers and footers. Cut along the dotted lines.`;
         byId('print-pages').replaceChildren();
         pages.forEach((page, pageIndex) => {
-            const caption = make('p', 'sheet-caption', `Sheet ${Math.floor(pageIndex / 2) + 1} · ${page.side === 'front' ? 'Fronts' : 'Backs'} · ${count} per page`);
+            const caption = make('p', 'sheet-caption', `Sheet ${Math.floor(pageIndex / 2) + 1} · ${page.side === 'front' ? 'Fronts' : 'Backs'} · ${count} per page · ${orientation === 'landscape' ? 'Landscape' : 'Portrait'}`);
             const sheet = make('section', 'paper-sheet');
             sheet.dataset.count = count;
             sheet.setAttribute('aria-label', caption.textContent);

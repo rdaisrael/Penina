@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const v=require('../lib/quiz-vocabulary'),model=require('../lib/quiz-builder-model');
 function rows(n=15){return Array.from({length:n},(_,i)=>({word:'מילה'+i,definition:'meaning'+i,additionalAnswers:['alternate meaning'+i],definitionDistractors:['wrong meaning '+i+'a','wrong meaning '+i+'b','wrong meaning '+i+'c'],wordDistractors:['decoy'+i+'a','decoy'+i+'b','decoy'+i+'c']}));}
-function config(overrides={}){return {rows:rows(),count:15,types:['text','choice','multi','match','gaps','order'],wordBank:true,direction:'ltr',...overrides};}
+function config(overrides={}){return {rows:rows(),count:15,autoCount:false,types:['text','choice','multi','match','gaps','order'],wordBank:true,direction:'ltr',...overrides};}
 const sentenceAI=async prompt=>JSON.stringify({sentences:JSON.parse(prompt.split('\nData: ')[1]).map(r=>({index:r.index,sentence:'The context for '+r.definition+' is ___.'}))});
 test('CSV/TSV imports preserve quoted commas, multiline definitions, Unicode, BOM and optional headers',()=>{
  assert.deepEqual(v.parseTable('\uFEFFword,definition\r\nlucid,"clear, understandable"\r\nreluctant,"unwilling\nto proceed"').map(r=>[r.word,r.definition]),[['lucid','clear, understandable'],['reluctant','unwilling\nto proceed']]);
@@ -29,21 +29,21 @@ test('Regeneration updates only requested rows and preserves edited correct defi
  await assert.rejects(v.distractors({rows:original,index:0},async()=>{throw Error('SECRET API KEY');}),error=>error.status===503&&!error.message.includes('SECRET'));
 });
 test('All selected formats, exact counts, editable banks and grading survive generation',async()=>{
- const c=config({count:23}),all=[];
+ const c=config({count:23,rows:rows(50)}),all=[];
  for(let offset=0;offset<c.count;offset+=10)all.push(...await v.questions({...c,offset},sentenceAI));
  assert.equal(all.length,23);assert.deepEqual([...new Set(all.map(q=>q.type))],c.types);
  const quiz=model.validateQuiz({title:'Generated',durationMinutes:null,questions:all},true);
  const answers=all.map(q=>q.type==='text'?['A student explanation']:q.answer);
  assert(model.validAnswers(quiz,answers));assert.equal(model.grade(quiz,answers).automaticScore,all.filter(q=>q.type!=='text').length);
- assert.deepEqual(all[1].answer,['meaning1']);assert(all[1].choices.includes('wrong meaning 1a'));
+ const choiceIndex=v.plan(c).entries[1].indices[0];assert.deepEqual(all[1].answer,['meaning'+choiceIndex]);assert(all[1].choices.includes('wrong meaning '+choiceIndex+'a'));
  const plans=v.plan(c).entries;assert(all[3].choices.includes('wrong meaning '+plans[3].indices[0]+'a'));assert(all[4].choices.includes('wrong meaning '+plans[4].indices[0]+'a'));assert.deepEqual(all[4].answer,['meaning'+plans[4].indices[0]]);
  assert(model.publicQuestions(quiz).every(q=>!Object.hasOwn(q,'answer')));
 });
-test('100 questions are generated in bounded batches; selected type count and input bounds are enforced',async()=>{
- const c=config({count:100,types:['choice']}),all=[];
- for(let offset=0;offset<100;offset+=10)all.push(...await v.questions({...c,offset},async()=>assert.fail('no AI needed')));
- assert.equal(all.length,100);
- for(const overrides of [{count:0},{count:101},{count:2},{types:[]},{offset:11},{offset:100},{rows:rows(1)}])await assert.rejects(v.questions(config(overrides),sentenceAI));
+test('50 distinct words generate in bounded batches and excessive counts are rejected',async()=>{
+ const c=config({count:50,rows:rows(50),types:['choice']}),all=[];
+ for(let offset=0;offset<50;offset+=10)all.push(...await v.questions({...c,offset},async()=>assert.fail('no AI needed')));
+ assert.equal(all.length,50);
+ for(const overrides of [{count:0},{count:101},{count:100},{count:2},{types:[]},{offset:11},{offset:100},{rows:rows(1)}])await assert.rejects(v.questions(config(overrides),sentenceAI));
 });
 test('Translation blanks use opposite-language answers without requesting context sentences',async()=>{
  const c=config({count:3,types:['gaps'],wordBank:false,rows:rows().map(r=>({...r,wordDistractors:[],definitionDistractors:[]}))});
@@ -75,7 +75,7 @@ test('Every generated answer bank follows its term language, including mixed lis
  ];
  mixed.forEach((r,i)=>r.additionalAnswers=[i<4?'alternate meaning '+i:'חלופה'+i]);
  for(const type of ['choice','multi','match','gaps','text']){
-  const c=config({rows:mixed,count:mixed.length,types:[type]}),planned=v.plan(c);
+  const c=config({rows:mixed,autoCount:true,types:[type]}),planned=v.plan(c);
   const generated=await v.questions(c);
   for(let i=0;i<generated.length;i++){
    const q=generated[i],answers=type==='text'?[q.answer]:q.choices;
@@ -124,14 +124,14 @@ test('Markdown accepts named headers, optional outside pipes, alignments and esc
 });
 
 
-test('Coverage includes grouped words and never repeats until the complete list has been covered',()=>{
+test('Suggested counts cover every word exactly once across all selected formats',()=>{
  for(const n of [10,12,15])for(const types of [['choice','match','gaps'],['text','choice','multi','match','gaps','order'],['match'],['multi'],['order']]){
-  const p=v.plan(config({rows:rows(n),count:23,types})),used=new Set();
+  const p=v.plan(config({rows:rows(n),autoCount:true,types})),used=new Set();
   for(const entry of p.entries){
    assert.equal(new Set(entry.indices).size,entry.indices.length);
-   for(const index of entry.indices){if(used.has(index))assert.equal(used.size,n);used.add(index);}
+   for(const index of entry.indices){assert(!used.has(index));used.add(index);}
   }
-  assert.equal(p.coverage.coveredWords,n);assert(p.coverage.repeatedUses>0);
+  assert.equal(p.coverage.coveredWords,n);assert.equal(p.coverage.repeatedUses,0);
  }
 });
 test('Matching groups keep 4–6 terms and coverage stays consistent across ten-question batches',async()=>{
@@ -139,7 +139,7 @@ test('Matching groups keep 4–6 terms and coverage stays consistent across ten-
  const c=config({rows:rows(19),count:10,types:['choice','match','gaps']});
  const p=v.plan(c);assert.equal(p.coverage.repeatedUses,0);assert.equal(p.coverage.coveredWords,19);
  assert(p.entries.filter(e=>e.type==='match').every(e=>e.indices.length>=4&&e.indices.length<=6));
- const long=config({rows:rows(15),count:21,types:['choice','match','multi','order','gaps']});
+ const long=config({rows:rows(50),count:21,types:['choice','match','multi','order','gaps']});
  const expected=v.plan(long),generated=[];
  for(let offset=0;offset<long.count;offset+=10)generated.push(...await v.questions({...long,offset}));
  assert.equal(generated.length,21);
@@ -150,13 +150,13 @@ test('Matching groups keep 4–6 terms and coverage stays consistent across ten-
   else if(q.type==='multi')assert.deepEqual(q.answer,[long.rows[terms[0]].definition,...long.rows[terms[0]].additionalAnswers]);
   else assert.deepEqual(q.answer,terms.map(j=>long.rows[j].definition));
  });
- assert.deepEqual(v.coverage(long),expected.coverage);
+ assert.deepEqual(v.coverage(long),{...expected.coverage,error:''});
 });
 test('Short mixed-language groups cannot silently repeat before covering the other language',()=>{
  const short=[...rows(2),{word:'night',definition:'לילה',definitionDistractors:['יום']}];
- assert.throws(()=>v.plan(config({rows:short,count:3,types:['match']})),/4–6 terms in the same language/);
+ assert.throws(()=>v.plan(config({rows:short,count:3,types:['match']})),/4–6 untested terms in one language/);
  const mixed=[...rows(4),short[2]];
- assert.throws(()=>v.plan(config({rows:mixed,count:3,types:['match']})),/cover every word/);
+ assert.throws(()=>v.plan(config({rows:mixed,count:3,types:['match']})),/suggested/);
  const p=v.plan(config({rows:mixed,count:2,types:['match','choice']}));
  assert.equal(p.coverage.coveredWords,5);assert.equal(p.coverage.repeatedUses,0);
 });
@@ -189,7 +189,7 @@ test('Approved alternatives persist, follow answer language, and cannot become d
 });
 
 test('Every incorrect generated choice comes exclusively from its participating table rows',async()=>{
- const c=config({count:23}),p=v.plan(c),generated=[];
+ const c=config({count:23,rows:rows(50)}),p=v.plan(c),generated=[];
  c.rows.forEach((r,i)=>r.definitionDistractors=['teacher edited wrong '+i]);
  for(let offset=0;offset<c.count;offset+=10)generated.push(...await v.questions({...c,offset},async()=>assert.fail('Quiz generation must never invent distractors')));
  generated.forEach((q,i)=>{
@@ -208,4 +208,95 @@ test('Missing table distractors never fall back to other rows or generated choic
  assert.deepEqual(new Set(match[0].choices.filter(c=>!match[0].answer.includes(c))),new Set(input.flatMap(r=>r.definitionDistractors)));
  input.forEach(r=>r.definitionDistractors=[]);
  await assert.rejects(v.questions(config({rows:input,count:1,types:['match']})),/table rows/);
+});
+
+test('Generation excludes words tested anywhere in legacy and manually edited draft questions',async()=>{
+ const input=rows(12),existingQuestions=[
+  {type:'choice',prompt:'What does “מילה0” mean?',answer:['meaning0'],choices:['meaning0','מילה11']},
+  {type:'gaps',prompt:'The meaning of מילה1 is ___.',answer:['meaning1']},
+  {type:'text',prompt:'Write the Hebrew translation.',answer:'מילה2'},
+  {type:'multi',prompt:'Explain מילה3.',answer:['meaning3','alternate meaning3']},
+  {type:'match',prompt:'Match these.',items:['מילה4','מילה5','מילה11'],answer:['meaning4','meaning5','']},
+  {type:'order',prompt:'Sort these.',answer:['מילה6','מילה7']},
+  {type:'text',prompt:'Explain this term in your own words.',answer:'meaning8',vocabularyTerms:[{word:'מילה8',definition:'meaning8'}]},
+  {type:'text',prompt:'A reworded question about מילה0.',answer:'meaning0'}
+ ];
+ const c=config({rows:input,existingQuestions,autoCount:true,types:['choice']}),p=v.plan(c);
+ assert.equal(p.config.count,3);assert.equal(p.coverage.existingWords,9);assert.equal(p.coverage.coveredWords,12);
+ assert.deepEqual(p.entries.map(e=>e.indices[0]),[9,10,11]);
+ assert.deepEqual(p.coverage.words[0].existingQuestions,[1,8]);
+ const generated=await v.questions(c);
+ assert.deepEqual(generated.map(q=>q.vocabularyTerms[0].word),['מילה9','מילה10','מילה11']);
+ await assert.rejects(v.questions({...c,existingQuestions:[...existingQuestions,...generated]}),/already tested/);
+});
+test('Deleting or retargeting questions releases their words; rewording retains their identity',async()=>{
+ const c=config({count:1,types:['choice']}),[q]=await v.questions(c);
+ q.prompt='Choose its translation.';
+ assert.equal(v.coverage({...c,existingQuestions:[q]}).existingWords,1);
+ q.prompt='Translate מילה1.';q.answer=['meaning1'];
+ const after=v.coverage({...c,existingQuestions:[q]});
+ assert.equal(after.words[0].existingQuestions.length,0);assert.equal(after.words[1].existingQuestions.length,1);
+ assert.equal(v.coverage({...c,existingQuestions:[]}).existingWords,0);
+});
+test('Coverage uses whole words, Unicode normalization and correct answers, not distractor mentions',()=>{
+ const input=[{word:'אור',definition:'light'},{word:'מאור',definition:'luminary'},{word:'café',definition:'קפה'},{word:'sun',definition:'שמש'}];
+ const c=config({rows:input,autoCount:true,types:['text'],existingQuestions:[
+  {type:'text',prompt:'Translate מאור.',answer:'luminary'},
+  {type:'choice',prompt:'Translate CAFE\u0301.',answer:['קפה'],choices:['קפה','sun']}
+ ]});
+ const result=v.coverage(c);assert.equal(result.existingWords,2);
+ assert.deepEqual(result.words.map(w=>w.existingQuestions.length),[0,1,1,0]);
+});
+test('Suggestions fit remaining draft capacity and report incomplete or impossible coverage',async()=>{
+ const c=config({autoCount:true,types:['choice'],existingQuestions:Array.from({length:98},()=>({type:'text',prompt:'Unrelated question',answer:''}))});
+ const coverage=v.coverage(c);assert.equal(coverage.suggestedCount,2);assert.equal(coverage.untestedWords,13);
+ await assert.rejects(v.questions({...c,autoCount:false,count:3}),/suggested 2/);
+ c.existingQuestions.push(...c.existingQuestions.slice(0,2));assert.match(v.coverage(c).error,/100 questions/);
+ assert.match(v.coverage(config({rows:rows(3),autoCount:true,types:['match']})).error,/without repeats/);
+ const partial=v.coverage(config({rows:rows(7),autoCount:true,types:['match']}));assert.equal(partial.coveredWords,6);assert.equal(partial.untestedWords,1);
+});
+test('Mixed-language groups reserve scarce approved alternatives for multiple-answer questions',()=>{
+ const input=rows(5).map(({additionalAnswers,...row})=>row);
+ input[0].additionalAnswers=['alternate'];
+ input.push({word:'night',definition:'לילה',definitionDistractors:['יום']});
+ const p=v.plan(config({rows:input,autoCount:true,types:['choice','multi','match']}));
+ assert.equal(p.coverage.coveredWords,6);assert.equal(p.coverage.repeatedUses,0);
+ assert.deepEqual(p.entries.find(e=>e.type==='multi').indices,[0]);
+ assert.deepEqual(p.entries.find(e=>e.type==='choice').indices,[5]);
+ assert.deepEqual(new Set(p.entries.find(e=>e.type==='match').indices),new Set([1,2,3,4]));
+});
+test('Suggested count covers 2–50 words without repeating a target or exceeding group limits',()=>{
+ for(let n=2;n<=50;n++){
+  const input=rows(n);
+  for(const types of [['text'],['choice','gaps'],...(n>=6?[['choice','match','gaps']]:[])]){
+   const p=v.plan(config({rows:input,autoCount:true,types}));
+   assert.equal(p.coverage.coveredWords,n,JSON.stringify({n,types}));
+   const indices=p.entries.flatMap(e=>e.indices);assert.equal(new Set(indices).size,n);assert.equal(indices.length,n);
+   assert.deepEqual(new Set(p.entries.map(e=>e.type)),new Set(types));
+   for(const e of p.entries)if(e.type==='match')assert(e.indices.length>=4 && e.indices.length<=6);
+  }
+ }
+});
+test('Existing draft metadata is validated and never exposes vocabulary targets to students',async()=>{
+ const [q]=await v.questions(config({count:1,types:['choice']}));
+ const quiz=model.validateQuiz({title:'Generated',questions:[q]},true);
+ assert.deepEqual(quiz.questions[0].vocabularyTerms,q.vocabularyTerms);
+ const publicQuestion=model.publicQuestions(quiz)[0];assert(!('vocabularyTerms' in publicQuestion));assert(!('vocabularyGenerated' in publicQuestion));
+ for(const existingQuestions of [Array(101).fill(q),[null],[{...q,items:['x'.repeat(5001)]}],[{...q,vocabularyTerms:[{word:7,definition:'answer'}]}]])assert.throws(()=>v.coverage({...config(),existingQuestions}));
+ assert.throws(()=>model.validateQuiz({title:'Bad metadata',questions:[{...q,vocabularyTerms:[{word:'',definition:'a'}]}]}));
+});
+test('An unambiguous approved answer detects an older rephrased question without guessing shared meanings',()=>{
+ const input=rows(3);input[1].definition=input[2].definition='shared meaning';
+ const c=config({rows:input,autoCount:true,types:['text'],existingQuestions:[
+  {type:'text',prompt:'Translate the highlighted term.',answer:'meaning0'},
+  {type:'choice',prompt:'Choose the correct translation.',answer:['shared meaning']}
+ ]});
+ const result=v.coverage(c);assert.deepEqual(result.words.map(w=>w.existingQuestions.length),[1,0,0]);
+});
+test('The same translation imported in both directions is tested once',async()=>{
+ const c=config({rows:[{word:'אור',definition:'light'},{word:'light',definition:'אור'}],autoCount:true,types:['text']});
+ const p=v.plan(c);assert.equal(p.config.count,1);assert.equal(p.coverage.coveredWords,2);assert.equal(p.coverage.existingWords,0);
+ const generated=await v.questions(c);assert.equal(generated.length,1);
+ const next=v.coverage({...c,existingQuestions:generated});assert.equal(next.existingWords,2);assert.match(next.error,/already tested/);
+ const draft=v.coverage({...c,existingQuestions:[{type:'text',prompt:'Translate אור.',answer:''}]});assert.equal(draft.existingWords,2);assert.equal(draft.questionCount,0);
 });

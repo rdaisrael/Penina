@@ -303,6 +303,18 @@ test('Vocabulary source persists encrypted in drafts and duplicates but never in
  const published=await h.call(h.builder.handle,h.req({action:'publish',id}));assert.equal(published.code,200);assert.equal(published.data.quiz.vocabulary.rows.length,2);assert.equal((await h.builder.published(id)).vocabulary,undefined);
  const copy=await h.call(h.builder.handle,h.req({action:'save',quiz:{...published.data.quiz,published:false}}));assert.equal(copy.code,200);assert.notEqual(copy.data.quiz.id,id);assert.equal(copy.data.quiz.vocabulary.count,3);
 });
+test('Generation metadata and duplicate prevention survive authenticated save, load and duplication',async()=>{
+ const h=harness(),config={rows:[{word:'שלום',definition:'peace',definitionDistractors:['war']},{word:'אור',definition:'light',definitionDistractors:['darkness']}],types:['choice'],autoCount:true};
+ const generated=await h.call(h.builder.handle,h.req({action:'vocabulary-questions',...config}));assert.equal(generated.code,200);
+ const saved=await h.call(h.builder.handle,h.req({action:'save',quiz:{title:'Coverage',questions:generated.data.questions,vocabulary:config}}));assert.equal(saved.code,200);
+ const loaded=await h.call(h.builder.handle,h.req({action:'load',id:saved.data.quiz.id}));assert.equal(loaded.code,200);
+ assert.equal(loaded.data.quiz.vocabulary.autoCount,true);assert.equal(loaded.data.quiz.questions[0].vocabularyGenerated,true);
+ const copy=await h.call(h.builder.handle,h.req({action:'save',quiz:loaded.data.quiz}));assert.equal(copy.code,200);
+ assert.deepEqual(copy.data.quiz.questions[0].vocabularyTerms,[{word:'שלום',definition:'peace'}]);
+ const current={...config,existingQuestions:copy.data.quiz.questions};
+ const coverage=await h.call(h.builder.handle,h.req({action:'vocabulary-coverage',...current}));assert.equal(coverage.code,200);assert.equal(coverage.data.coverage.existingWords,2);assert.match(coverage.data.coverage.error,/already tested/);
+ const blocked=await h.call(h.builder.handle,h.req({action:'vocabulary-questions',...current}));assert.equal(blocked.code,400);assert.match(blocked.data.error,/already tested/);
+});
 
 test('Every typed answer waits for teacher correction regardless of content, timeout, or extra credit',()=>{
  for(const extraCredit of [false,true])for(const value of ['lucid','LUCID','wrong','']){

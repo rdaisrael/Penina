@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id),names={text:'Written answer',choice:'Mul
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let quiz={title:'Untitled quiz',durationMinutes:null,questions:[]},dirty=false,busy=false,connected=false;
 const status=message=>$('status').textContent=message;
-function changed(){dirty=true;summary();status('Unsaved changes. Save your draft when ready.');}
+function changed(){dirty=true;summary();if(typeof refreshVocabularyCoverage==='function')refreshVocabularyCoverage();status('Unsaved changes. Save your draft when ready.');}
 function responseCount(q){return q.type==='gaps'?q.prompt.split('___').length-1:q.type==='match'?q.answer.filter(Boolean).length:q.type==='order'?q.choices.length:q.type==='multi'?q.answer.length:1;}
 function maxPoints(q){return QuizScoring.maxPoints(q);}
 function pointsHint(q){if(q.potentialPoints!==undefined)return `${q.potentialPoints} points possible; original answer-key awards are unchanged. A duplicate will use the revised total for new grading.`;if(q.scoringMode==='proportional')return `${q.points} total points divided across ${responseCount(q)} responses; partial scores rounded to two decimal places.`;return q.scoringMode==='response'?`${q.points} points × ${responseCount(q)} response${responseCount(q)===1?'':'s'} = ${maxPoints(q)} points maximum${q.type==='multi'?'. All correct choices and no incorrect choices are required for credit.':q.type==='order'?'. The entire sequence must be correct for credit.':''}`:`${q.points} points for the whole question`; }
@@ -50,7 +50,8 @@ $('add').onclick=()=>{const pictureQuestion=$('type').value==='picture',type=pic
 $('reuseChoices').onclick=()=>{
     const previous=quiz.questions.at(-1);
     if(busy || quiz.published || !previous || !['choice','multi'].includes(previous.type))return;
-    quiz.questions.push({...structuredClone(previous),prompt:'',answer:[]});
+    const {vocabularyGenerated,vocabularyTerms,...settings}=structuredClone(previous);
+    quiz.questions.push({...settings,prompt:'',answer:[]});
     changed();render();$('questions').lastElementChild.querySelector('textarea').focus();
 };
 $('questions').addEventListener('input',e=>{

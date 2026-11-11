@@ -164,6 +164,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     document.querySelector('.toolbar').before(classGamify);
     let sets = [];
     const selectedForCombination = new Set();
+    window.PeninaStudySelection = { has: pathname => selectedForCombination.has(pathname) };
     let managementMode = false;
 
     const inputDialog = document.createElement('dialog');
@@ -277,7 +278,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
                 document.querySelector('h1').textContent = data.page.name;
             }
             sets = Array.isArray(data.sets) ? data.sets : [];
-            knowledgeSets=Array.isArray(data.knowledgeSets)?data.knowledgeSets:[];
+            knowledgeSets=(Array.isArray(data.knowledgeSets)?data.knowledgeSets:[]).map(set=>({...set,...knowledgeSets.find(existing=>existing.pathname===set.pathname)}));
             disabledGames = data.disabledGames || [];
             wordlistEmphasis = data.wordlistEmphasis || {};
             excludedWordlists = data.excludedWordlists || [];
@@ -295,6 +296,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     }
 
     function updateCombineControls() {
+        document.querySelectorAll('.combine-select').forEach(input => { input.checked = selectedForCombination.has(input.value); });
         const count = selectedForCombination.size;
         combineCount.textContent = `${count} set${count === 1 ? '' : 's'} selected`;
         viewCombinedButton.disabled = count === 0;
@@ -302,11 +304,13 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     }
 
     function selectedSets() {
-        return sets.filter(set => selectedForCombination.has(set.pathname));
+        return studySets().filter(set => selectedForCombination.has(set.pathname));
     }
 
-    function cardsFromHtml(html) {
+    function cardsFromHtml(html, pathname) {
         const documentCopy = new DOMParser().parseFromString(String(html || ''), 'text/html');
+        const knowledgeData = documentCopy.getElementById('peninaKnowledgeData');
+        if (knowledgeData) return PeninaOfflineStudyCards.fromKnowledgeDeck(JSON.parse(knowledgeData.textContent).deck, pathname);
         const cardData = documentCopy.getElementById('peninaCardData');
         if (cardData) return JSON.parse(cardData.textContent || '[]');
         const legacyMatch = String(html || '').match(/const originalCards=(\[[\s\S]*?\]);let cards=/);
@@ -320,7 +324,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         const cardGroups = await Promise.all(chosen.map(async set => {
             const response = await fetch(set.url);
             if (!response.ok) throw new Error(`Unable to load “${set.title}.”`);
-            return cardsFromHtml(await response.text());
+            return cardsFromHtml(await response.text(), set.pathname);
         }));
         const cards = cardGroups.flat().map((card, index) => ({ ...card, n: index + 1 }));
         const defaultTitle = chosen.map(set => set.title).join(' + ');
@@ -588,7 +592,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     removeButton.addEventListener('click', removeSelectedSets);
 
     search.addEventListener('input', render);
-    setsElement.addEventListener('change', event => {
+    document.addEventListener('change', event => {
         if (!event.target.classList.contains('combine-select')) return;
         event.target.checked ? selectedForCombination.add(event.target.value) : selectedForCombination.delete(event.target.value);
         updateCombineControls();
@@ -596,7 +600,14 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     viewCombinedButton.addEventListener('click', viewCombinedSet);
     downloadCombinedButton.addEventListener('click', downloadCombinedSet);
     manageTrigger.addEventListener('click', enterManagementMode);
-    window.addEventListener('penina-knowledge-library-loaded',event=>{knowledgeSets=(event.detail||[]).map(set=>({...set,kind:'knowledge',hasGames:set.hasPractice}));renderTeacherChoices();});
+    window.addEventListener('penina-knowledge-library-loaded', event => {
+        knowledgeSets=(event.detail||[]).map(set=>({...set,kind:'knowledge',hasGames:set.hasPractice}));
+        for (const pathname of selectedForCombination) {
+            if (pathname.startsWith('knowledge-cards/') && !knowledgeSets.some(set=>set.pathname===pathname)) selectedForCombination.delete(pathname);
+        }
+        updateCombineControls();
+        renderTeacherChoices();
+    });
     const knowledgeLibrary=document.createElement('script');knowledgeLibrary.src='/PeninaPlus-knowledge-builder/knowledge-library.js';document.head.append(knowledgeLibrary);
     load();
 })();

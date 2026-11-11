@@ -78,3 +78,51 @@ test('generation treats questions as knowledge data and returns only requested r
     await assert.rejects(generate({...input,rows:[{...input.rows[0],slots:[1,1]}]},()=>assert.fail('No provider call expected')),error=>error.status===400);
     await assert.rejects(generate(input,()=>{throw Error('private-provider-details');}),error=>error.status===503&&!error.message.includes('private-provider-details'));
 });
+
+
+test('knowledge sheets have distinct view, PDF-download and print links and preserve content',async()=>{
+    const h=harness(),published=await h.call('POST',{action:'publish',grade:'class-a',deck:deck()});
+    const set=published.body.set;
+    for(const [key,action] of [['sheetUrl',null],['sheetDownloadUrl','download'],['sheetPrintUrl','print']]) {
+        const url=new URL(set[key],'http://local.test');
+        assert.equal(url.searchParams.get('sheet'),'1');assert.equal(url.searchParams.get('action'),action);
+        const viewed=await h.call('GET',{},Object.fromEntries(url.searchParams));
+        assert.equal(viewed.code,200);
+        const data=JSON.parse(viewed.body.match(/id="peninaSheetData" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+        assert.equal(data.options.kind,'knowledge');assert.deepEqual(data.cards,normalizeDeck(deck()).cards);
+        assert.match(viewed.body,/Additional Information/);assert.match(viewed.body,/Marked location/);
+    }
+    assert.equal(h.operations.length,1,'Sheet actions never republish the deck');
+});
+
+test('combined flashcards retain knowledge identities, answers, pictures and both saved banks',()=>{
+    const app=require('../PeninaPlus-vocab-builder/offline-study-cards');
+    const input=deck();input.cards[0].distractors.hebrew=['מים','אדמה','אוויר','זרעים'];
+    const original=JSON.stringify(input),cards=app.fromKnowledgeDeck(input,'knowledge-cards/class-a/plants.json');
+    assert.equal(cards[0].sourceId,'knowledge-cards/class-a/plants.json#leaf');
+    assert.equal(cards[0].question,input.cards[0].question);assert.equal(cards[0].additionalInformation,input.cards[0].additionalInformation);
+    assert.deepEqual(cards[0].picture,input.cards[0].picture);assert.deepEqual(cards[0].distractors,input.cards[0].distractors);
+    for(const language of ['english','hebrew'])assert.deepEqual(cards[0].alternativeAnswers[language].answers,input.cards[0].distractors[language]);
+    const html=app.makeApp('Mixed',[{n:1,term:'ספר',english:'book',hebrew:'ספר'},...cards.map(card=>({...card,n:2}))],{hideGames:true});
+    const saved=JSON.parse(html.match(/id="peninaCardData" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+    assert.deepEqual(saved[1],{...cards[0],n:2});assert.equal(saved[0].hebrew,'ספר');
+    for(const match of html.matchAll(/<script>\n([\s\S]*?)<\/script>/g))assert.doesNotThrow(()=>new vm.Script(match[1]));
+    assert.equal(JSON.stringify(input),original);
+});
+
+test('knowledge PDF pages preserve long text, pictures and proportional markers',()=>{
+    const {renderPages,renderTable}=require('../PeninaPlus-vocab-builder/vocabulary-sheets');
+    const texts=[],pictures=[],markers=[];
+    const ctx={scale(){},fillRect(){},strokeRect(){},measureText:text=>({width:Array.from(text).length*7}),fillText:text=>texts.push(text),drawImage:(...args)=>pictures.push(args),beginPath(){},arc:(...args)=>markers.push(args),fill(){},stroke(){},moveTo(){},lineTo(){}};
+    const document={createElement:()=>({setAttribute(){},getContext:()=>ctx})};
+    const input=normalizeDeck(deck()),picture=input.cards[0].picture,image={naturalWidth:400,naturalHeight:200};
+    input.cards[0].additionalInformation='More information. '.repeat(200);
+    const options={kind:'knowledge',context:true};
+    const pages=renderPages(document,{...input,options},new Map([[picture.src,image]]));
+    assert(pages.length>1);assert.equal(pictures.length,1);assert.equal(markers.length,1);
+    const [,left,top,width,height]=pictures[0];assert.equal(markers[0][0],left+width*.25);assert.equal(markers[0][1],top+height*.75);
+    assert.equal(texts.join('').match(/information/g).length,200);
+    const table=renderTable([{question:'<script>',answer:'N',picture,additionalInformation:'Info'}],options);
+    assert(table.includes('&lt;script&gt;'));assert(table.includes('>N</p>'));assert(!table.includes('<script>'));
+    assert.throws(()=>renderPages(document,{...input,options}),/picture could not be loaded/);
+});

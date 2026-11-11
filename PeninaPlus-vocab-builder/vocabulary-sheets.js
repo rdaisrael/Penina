@@ -1,5 +1,6 @@
 (function () {
     'use strict';
+    const {pictureMarkup} = require('./offline-study-cards');
     const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const displayValue = value => String(value === undefined || value === null ? '' : value).trim().toLowerCase() === 'n' ? '' : String(value || '');
 
@@ -23,12 +24,13 @@
         }));
     }
 
-    function renderPages(document, data) {
+    function renderPages(document, data, images = new Map()) {
         const options = data.options || {};
-        const cards = sanitizeCards(data.cards);
+        const knowledge = options.kind === 'knowledge';
+        const cards = knowledge ? data.cards : sanitizeCards(data.cards);
         const size = Math.max(10, Math.min(24, Number(options.fontSize) || 14));
         const scale = 3, margin = 44, width = 524, bottom = 742;
-        const columns = options.context === false ? [140,384] : [100,144,280];
+        const columns = knowledge ? (options.context === false ? [240,284] : [200,144,180]) : (options.context === false ? [140,384] : [100,144,280]);
         const pages = [];
         let canvas, ctx, y;
         function newPage() {
@@ -44,7 +46,7 @@
             titleLines.forEach((line,index) => draw(line, margin+10, y+10+index*23, width-20, 18, true, '#fff'));
             y += titleHeight;
             let x = margin;
-            ['Term','Translation','Context'].slice(0,columns.length).forEach((text,i) => {
+            (knowledge ? ['Question','Answer','Additional Information'] : ['Term','Translation','Context']).slice(0,columns.length).forEach((text,i) => {
                 ctx.fillStyle='#f4efe6';ctx.fillRect(x,y,columns[i],26);
                 draw(text,x+8,y+6,columns[i]-16,11,true);
                 x += columns[i];
@@ -130,22 +132,35 @@
         }
         newPage();
         cards.forEach(card => {
-            const definitions=[];
-            if(options.hebrew!==false)definitions.push({text:card.hebrew,size,bold:false});
-            if(options.english!==false)definitions.push({text:card.english,size:size*.86,bold:false});
-            const context=[{text:card.contextQuote,runs:card.contextQuoteRuns,size:size*.95}];
-            if(options.hebrew!==false)context.push({text:card.hebrewTranslation,runs:card.hebrewTranslationRuns,size:size*.86});
-            if(options.english!==false)context.push({text:card.englishTranslation,runs:card.englishTranslationRuns,size:size*.8});
-            const cells=[cell([{text:card.term,size,bold:true}],columns[0]),cell(definitions,columns[1])];
-            if(columns.length===3) {
-                const items=cell(context,columns[2]);
-                const citationWidth=(columns[2]-24)/2;
-                const hebrew=card.sourceHebrew ? lines(card.sourceHebrew,citationWidth,9,false) : [];
-                const english=options.english!==false && card.sourceEnglish ? lines(card.sourceEnglish,citationWidth,9,false) : [];
-                const count=Math.max(hebrew.length,english.length);
-                if(count)items.push({text:'',height:10,size:10});
-                for(let i=0;i<count;i++)items.push({citation:true,hebrew:hebrew[i]||'',english:english[i]||'',height:12,size:9});
-                cells.push(items);
+            let cells;
+            if(knowledge) {
+                const question=cell([{text:card.question,size,bold:true}],columns[0]);
+                if(card.picture) {
+                    const image=images.get(card.picture.src);
+                    if(!image)throw new Error('A question picture could not be loaded. Please try again.');
+                    const ratio=Math.min((columns[0]-16)/image.naturalWidth,200/image.naturalHeight);
+                    question.push({image,picture:card.picture,width:image.naturalWidth*ratio,height:image.naturalHeight*ratio+10});
+                }
+                cells=[question,cell([{text:card.answer,size}],columns[1])];
+                if(columns.length===3)cells.push(cell([{text:card.additionalInformation,size:size*.9}],columns[2]));
+            } else {
+                const definitions=[];
+                if(options.hebrew!==false)definitions.push({text:card.hebrew,size,bold:false});
+                if(options.english!==false)definitions.push({text:card.english,size:size*.86,bold:false});
+                const context=[{text:card.contextQuote,runs:card.contextQuoteRuns,size:size*.95}];
+                if(options.hebrew!==false)context.push({text:card.hebrewTranslation,runs:card.hebrewTranslationRuns,size:size*.86});
+                if(options.english!==false)context.push({text:card.englishTranslation,runs:card.englishTranslationRuns,size:size*.8});
+                cells=[cell([{text:card.term,size,bold:true}],columns[0]),cell(definitions,columns[1])];
+                if(columns.length===3) {
+                    const items=cell(context,columns[2]);
+                    const citationWidth=(columns[2]-24)/2;
+                    const hebrew=card.sourceHebrew ? lines(card.sourceHebrew,citationWidth,9,false) : [];
+                    const english=options.english!==false && card.sourceEnglish ? lines(card.sourceEnglish,citationWidth,9,false) : [];
+                    const count=Math.max(hebrew.length,english.length);
+                    if(count)items.push({text:'',height:10,size:10});
+                    for(let i=0;i<count;i++)items.push({citation:true,hebrew:hebrew[i]||'',english:english[i]||'',height:12,size:9});
+                    cells.push(items);
+                }
             }
             const height=Math.max(30,...cells.map(items=>items.reduce((total,item)=>total+item.height,16)));
             if(y+height>bottom && height<=bottom-130) newPage();
@@ -166,7 +181,17 @@
                     const citationHeight=chunk.items.filter(item=>item.citation).reduce((sum,item)=>sum+item.height,0);
                     let citationTop=y+rowHeight-8-citationHeight;
                     chunk.items.forEach(item=>{
-                        if(item.citation) {
+                        if(item.image) {
+                            const left=x+(columns[index]-item.width)/2, imageHeight=item.height-10;
+                            ctx.drawImage(item.image,left,top,item.width,imageHeight);
+                            const target=item.picture.target;
+                            if(target && [target.x,target.y].every(value=>Number.isFinite(value)&&value>=0&&value<=1)) {
+                                const cx=left+target.x*item.width,cy=top+target.y*imageHeight;
+                                ctx.beginPath();ctx.arc(cx,cy,7,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#b42318';ctx.lineWidth=1.5;ctx.stroke();
+                                ctx.beginPath();ctx.moveTo(cx-4,cy);ctx.lineTo(cx+4,cy);ctx.moveTo(cx,cy-4);ctx.lineTo(cx,cy+4);ctx.stroke();
+                            }
+                            top+=item.height;
+                        } else if(item.citation) {
                             const half=(columns[index]-24)/2;
                             draw(item.english,x+8,citationTop,half,item.size,false,'#666','ltr');
                             draw(item.hebrew,x+16+half,citationTop,half,item.size,false,'#666','rtl');
@@ -183,6 +208,12 @@
     }
 
     function renderTable(cards, options = {}) {
+        if(options.kind === 'knowledge') {
+            const text=value=>'<p dir="auto">'+escapeHtml(value)+'</p>';
+            const rows=cards.map(card=>'<tr><td>'+text(card.question)+pictureMarkup(card.picture,240)+'</td><td>'+text(card.answer)+'</td>'+(options.context!==false?'<td>'+text(card.additionalInformation)+'</td>':'')+'</tr>').join('');
+            const columns=options.context===false?[46,54]:[38,28,34];
+            return '<table><colgroup>'+columns.map(width=>'<col style="width:'+width+'%">').join('')+'</colgroup><thead><tr><th scope="col">Question</th><th scope="col">Answer</th>'+(options.context!==false?'<th scope="col">Additional Information</th>':'')+'</tr></thead><tbody>'+rows+'</tbody></table>';
+        }
         const block = (value, language, className = '', runs) => {
             const text = displayValue(value);
             return text ? `<p class="${className}" lang="${language}" dir="${language === 'he' ? 'rtl' : 'auto'}">${textRuns(text,runs).map(run=>run.bold?'<strong>'+escapeHtml(run.text)+'</strong>':escapeHtml(run.text)).join('')}</p>` : '';
@@ -207,8 +238,11 @@
         const print = document.getElementById('print');
         const download = document.getElementById('download');
         const printSheet = async () => {
-            if (document.fonts) await document.fonts.ready;
-            window.print();
+            try {
+                if (document.fonts) await document.fonts.ready;
+                await Promise.all(Array.from(document.querySelectorAll('.sheet img'), image=>image.decode()));
+                window.print();
+            } catch (_) { status.textContent = 'A question picture could not be loaded. Refresh the sheet and try printing again.'; }
         };
         print.onclick = printSheet;
         download.onclick = async () => {
@@ -226,7 +260,11 @@
                 }
                 if (document.fonts) await document.fonts.ready;
                 const data = JSON.parse(document.getElementById('peninaSheetData').textContent);
-                const pages = renderPages(document, data);
+                const images = new Map();
+                await Promise.all((data.cards || []).filter(card=>card.picture).map(async card=>{
+                    const image=new Image();image.src=card.picture.src;await image.decode();images.set(card.picture.src,image);
+                }));
+                const pages = renderPages(document, data, images);
                 const pdf = await window.PDFLib.PDFDocument.create();
                 pdf.setTitle(data.title); pdf.setCreator('Penina-Hebrew Suite');
                 for (const canvas of pages) {
@@ -252,7 +290,7 @@
     function makeSheet(title, cards, options = {}) {
         const data = JSON.stringify({ title, cards, options }).replace(/</g, '\\u003c');
         const fontSize = Math.max(10, Math.min(24, Number(options.fontSize) || 14));
-        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — Vocabulary Sheets</title>
+        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — ${options.kind === 'knowledge' ? 'Knowledge' : 'Vocabulary'} Sheets</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#eeeae3;color:#263344;font:16px Arial,sans-serif}
 .toolbar{max-width:900px;margin:20px auto;padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:white;border-radius:12px}

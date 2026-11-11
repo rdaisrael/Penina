@@ -17,13 +17,29 @@
         section.hidden=!sets.length;
         list.replaceChildren(...visible.map(set=>{
             const card=document.createElement('article');card.className='set';
-            const heading=document.createElement('h2');heading.textContent=set.title;
-            const count=document.createElement('p');count.textContent=`${set.cardCount} cards`;
+            const heading=document.createElement('div');heading.className='set-heading';
+            const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.className='combine-select';checkbox.value=set.pathname;
+            checkbox.checked=!!window.PeninaStudySelection?.has(set.pathname);checkbox.setAttribute('aria-label',`Include ${set.title} in a combined set`);
+            const title=document.createElement('h2');title.textContent=set.title;heading.append(checkbox,title);
+            const date=document.createElement('time'),published=new Date(set.publishedAt);
+            date.textContent=Number.isNaN(published.getTime())?'':published.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+            if(!Number.isNaN(published.getTime()))date.dateTime=published.toISOString();
             const actions=document.createElement('div');actions.className='set-actions';
-            [['Flashcards',set.url],['Download',set.downloadUrl],['Print Cards',set.printUrl],['Knowledge Sheet',set.sheetUrl],...(set.hasPractice?[['Practice',set.practiceUrl]]:[])].forEach(([title,url])=>{
-                if(typeof url!=='string'||!/^\/(?!\/)/.test(url))return;
-                const link=document.createElement('a');link.className='set-action';link.textContent=title;link.href=url;link.target='_blank';link.rel='noopener';if(title==='Download')link.download='';actions.append(link);
-            });card.append(heading,count,actions);return card;
+            for(const [name,links] of [
+                ['Flashcards',[['View',set.url],['Download',set.downloadUrl],['Print',set.printUrl]]],
+                ['Sheets',[['View',set.sheetUrl],['Download PDF',set.sheetDownloadUrl],['Print',set.sheetPrintUrl]]]
+            ]) {
+                const group=document.createElement('section');group.className='set-action-group';group.setAttribute('aria-label',name);
+                const label=document.createElement('h3');label.textContent=name;group.append(label);
+                for(const [text,url] of links) {
+                    if(typeof url!=='string'||!/^\/(?!\/)/.test(url))continue;
+                    const link=document.createElement('a');link.className='set-action';link.textContent=text;link.href=url;link.target='_blank';link.rel='noopener';
+                    link.setAttribute('aria-label',text==='Download PDF'?'Download Sheets (PDF)':`${text} ${name}`);
+                    if(text==='Download')link.download='';group.append(link);
+                }
+                actions.append(group);
+            }
+            card.append(heading,date,actions);return card;
         }));
         note.textContent=visible.length?'':'No knowledge lists match that search.';note.hidden=visible.length>0;
         if(visible.length && !document.getElementById('sets').children.length)document.getElementById('status').hidden=true;

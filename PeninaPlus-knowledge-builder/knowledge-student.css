@@ -4,13 +4,15 @@
 #edit-stage,#practice-stage,#share-stage,#save-status,#edit-current{display:none!important}
 #additional-panel[hidden]{display:flex!important;visibility:hidden}
 #additional-text{margin:0;line-height:1.5;white-space:pre-wrap}
-#card-content{width:100%;height:185px;flex:none}
-#card-content .student-card-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;width:100%;height:185px;gap:0}
-#card-content .student-card-main.has-picture{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;direction:ltr}
-.student-question-copy{display:flex;align-items:center;justify-content:center;min-width:0;height:185px}
+#flashcard{padding:52px 20px 20px}
+#card-content{width:100%;height:244px;max-height:244px;flex:none;overflow:visible}
+#card-content .student-card-main{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);align-items:center;width:100%;height:100%;gap:0}
+#card-content .student-card-main.has-picture{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:16px;direction:ltr}
+.student-question-copy{display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;height:100%}
 .student-question-copy .card-text{width:100%;margin:0;font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
 .picture-button{background:transparent;border:0;padding:0;min-width:0;max-width:100%;justify-self:center;position:relative;cursor:zoom-in;line-height:0;border-radius:4px}
 .picture-button img{display:block;max-width:100%;width:auto;height:auto;max-height:160px;border-radius:4px}
+#card-content .picture-button img{max-height:220px}
 .picture-button:hover{transform:none;background:transparent}
 .student-practice{width:100%;margin-top:14px}
 .form-message{font-size:14px;line-height:1.5}.form-message.error{color:#a12d2d}

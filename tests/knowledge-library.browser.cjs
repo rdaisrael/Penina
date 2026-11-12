@@ -71,12 +71,14 @@ const server=http.createServer(async(req,res)=>{
   assert.equal(mixed.length,2);assert.equal(mixed[0].english,'book');assert.equal(mixed[0].contextQuote,'זה ספר');
   assert.equal(mixed[1].sourceId,records[0].pathname+'#leaf');assert.deepEqual(mixed[1].picture,picture);assert.deepEqual(mixed[1].distractors,decks[0].cards[0].distractors);
   await page.locator('#next').click();await page.locator('#mainText img').waitFor();
-  assert.equal(await page.locator('#sideLabel').textContent(),'Question');assert.equal(await page.locator('#mainText img').getAttribute('src'),picture.src);
+  assert.equal(await page.locator('#sideLabel').isVisible(),false);assert.equal(await page.locator('#mainText img').getAttribute('src'),picture.src);
   assert.equal(await page.locator('.study-picture-target').count(),1);
-  await page.locator('#flip').click();await page.getByText('Answer',{exact:true}).waitFor();assert.equal(await page.locator('#mainText').textContent(),'Leaf');
+  await page.locator('#flip').click();await page.waitForFunction(()=>document.getElementById('mainText').textContent==='Leaf');assert.equal(await page.locator('#sideLabel').isVisible(),false);
   assert.equal(await page.locator('#englishContext').textContent(),decks[0].cards[0].additionalInformation);
   await page.locator('#translationFirst').click();assert.equal(await page.locator('#mainText').textContent(),'Leaf');
   await page.locator('#termFirst').click();
+  await page.locator('#previous').click();assert.equal(await page.locator('#sideLabel').isVisible(),true);assert.equal(await page.locator('#sideLabel').textContent(),'Term');
+  await page.locator('#next').click();assert.equal(await page.locator('#sideLabel').isVisible(),false);
   for(const width of [1200,390]){
    await page.setViewportSize({width,height:950});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'combined overflow');
    await page.screenshot({path:'/tmp/penina-combined-'+width+'.png',fullPage:true});
@@ -119,9 +121,17 @@ const server=http.createServer(async(req,res)=>{
     const actual=await appearance(knowledgePage,knowledgeSelector),expected=await appearance(wordPage,vocabularySelector);
     // A saved-practice button may make the sidebar longer; card and control sizes must match.
     if(['body','.app'].includes(knowledgeSelector)){delete actual.height;delete expected.height;}
+    if(knowledgeSelector==='#flashcard'){delete actual.padding;delete expected.padding;} // Knowledge cards give the picture and text more room.
     assert.deepEqual(actual,expected,knowledgeSelector+' appearance at '+width);
    }
    assert.equal(await knowledgePage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'knowledge viewer overflow');
+   assert.equal(await knowledgePage.locator('#study-side-label, #flashcard > .label').count(),0);
+   assert.equal(await knowledgePage.locator('.student-question-copy').evaluate(el=>el.clientHeight),244);
+   if(width>=880)assert((await knowledgePage.locator('#card-content .picture-button img').boundingBox()).height>160,'initial picture is taller than the previous 160px limit');
+   const pictureBox=await knowledgePage.locator('#card-content .picture-button img').boundingBox();
+   const textBox=await knowledgePage.locator('.student-question-copy').boundingBox();
+   assert(pictureBox.x+pictureBox.width<=textBox.x,'picture and wording do not overlap');
+   assert(await knowledgePage.locator('.student-question-copy .card-text').evaluate(el=>el.scrollHeight<=el.parentElement.clientHeight+1 && el.scrollWidth<=el.parentElement.clientWidth+1),'question fits the larger text area');
    await knowledgePage.screenshot({path:'/tmp/penina-knowledge-viewer-'+width+'.png',fullPage:true});
    await wordPage.screenshot({path:'/tmp/penina-wordlist-viewer-'+width+'.png',fullPage:true});
   }
@@ -135,18 +145,18 @@ const server=http.createServer(async(req,res)=>{
   await knowledgePage.locator('#close-picture').click();
   await knowledgePage.locator('#picture-dialog').waitFor({state:'hidden'});
   assert.equal(await knowledgePage.locator('#side-number').textContent(),'1 / 2','enlargement does not flip the card');
-  await knowledgePage.locator('#flip').click();assert.equal(await knowledgePage.locator('#study-side-label').textContent(),'Answer');
+  await knowledgePage.locator('#flip').click();assert.match(await knowledgePage.locator('#flashcard').getAttribute('aria-label'),/^Answer side/);
   assert.equal(await knowledgePage.locator('#card-content').textContent(),'Leaf');assert.equal(await knowledgePage.locator('#additional-panel').isVisible(),true);
   assert.equal(await knowledgePage.locator('#additional-text').textContent(),decks[0].cards[0].additionalInformation);
   assert.equal(await knowledgePage.locator('#answer-first, #question-first, .orders').count(),0);
   for(const action of ['reset-study','next','previous','shuffle']) {
    await knowledgePage.locator('#'+action).click();
-   assert.equal(await knowledgePage.locator('#study-side-label').textContent(),'Question',action+' returns to the question');
+   assert.match(await knowledgePage.locator('#flashcard').getAttribute('aria-label'),/^Question side/,action+' returns to the question');
    assert.equal(await knowledgePage.locator('#side-number').textContent(),'1 / 2');
    assert.equal(await knowledgePage.locator('#card-content img').count(),1);
    assert.equal(await knowledgePage.locator('#additional-panel').isVisible(),false);
    await knowledgePage.locator('#flip').click();
-   assert.equal(await knowledgePage.locator('#study-side-label').textContent(),'Answer');
+   assert.match(await knowledgePage.locator('#flashcard').getAttribute('aria-label'),/^Answer side/);
   }
   await knowledgePage.locator('#flip').click();
   await knowledgePage.locator('#student-practice').click();await knowledgePage.locator('#quiz-options button').first().waitFor();
@@ -192,6 +202,6 @@ const server=http.createServer(async(req,res)=>{
   await pdf.saveAs('/tmp/penina-knowledge-sheets.pdf');
   await sheet.goto(origin+sheetPrint);await sheet.waitForFunction(()=>window.printCount===1);assert.equal(await sheet.locator('.sheet img').evaluate(image=>image.complete&&image.naturalWidth>0),true);
   assert.deepEqual(errors,[]);
-  console.log('Passed matching desktop/mobile list layouts, persistent mixed selection, both load orders, mixed/knowledge-only combinations, picture/marker/answer retention, flashcard download, PDF download, sheet printing, exact wordlist viewer styling at three widths, picture pop-out, question-first navigation, saved practice and all knowledge print layouts.');
+  console.log('Passed matching desktop/mobile list layouts, persistent mixed selection, both load orders, mixed/knowledge-only combinations, picture/marker/answer retention, flashcard download, PDF download, sheet printing, shared viewer styling and larger unlabeled knowledge-card content at three widths, picture pop-out, question-first navigation, saved practice and all knowledge print layouts.');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>server.close());

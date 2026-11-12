@@ -1146,13 +1146,14 @@ function render(){
     byId('position').textContent=(index+1)+' / '+cards.length;byId('bar').style.width=((index+1)/cards.length*100)+'%';byId('cardNumber').textContent='Card #'+card.n;byId('sideNumber').textContent=(sideIndex+1)+' / '+sides.length;
     byId('card').className='card'+(knowledge?' knowledge-card':'');
     byId('mainText').className=knowledge?'main knowledge-main':'main';byId('mainText').dir='auto';
-    byId('sideLabel').textContent=knowledge?(side==='term'?'Question':'Answer'):(side==='term'?'Term':'Definition');
+    byId('sideLabel').hidden=knowledge;
+    byId('sideLabel').textContent=knowledge?'':(side==='term'?'Term':'Definition');
     byId('cardContext').className='context'+(knowledge?' knowledge-context':'');
     byId('contextSlot').className='context-slot'+(knowledge?' knowledge-context-slot':'');
     byId('contextLabel').textContent=knowledge?'Additional Information':'Use in Context';
     if(knowledge){
         byId('mainText').style.fontSize='';byId('contextText').style.fontSize='';byId('contextText').style.setProperty('--text-scale',1);
-        byId('mainText').innerHTML=side==='term'?esc(card.question)+pictureMarkup(card.picture,240):esc(card.answer);
+        byId('mainText').innerHTML=side==='term'?esc(card.question)+pictureMarkup(card.picture,320):esc(card.answer);
         setVisible('cardContext',side==='definition'&&!!card.additionalInformation);
         byId('contextQuote').textContent='';byId('hebrewContext').textContent='';
         byId('englishContext').textContent=card.additionalInformation||'';byId('englishContext').dir='auto';

@@ -256,7 +256,6 @@
             const copy=make('div','student-question-copy');copy.append(content.querySelector('.card-text'));
             const picture=content.querySelector('.picture-button');if(picture)main.append(picture);
             main.append(copy);byId('card-content').replaceChildren(main);
-            byId('study-side-label').textContent=showingAnswer?'Answer':'Question';
         } else {
             byId('card-content').className = content.className;
             byId('card-content').replaceChildren(...content.childNodes);

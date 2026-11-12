@@ -2,7 +2,7 @@
     'use strict';
     const core=window.BinyanBuilder, $=id=>document.getElementById(id);
     const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    let vocabulary=null, pairs=[], uploadVersion=0, generationVersion=0, controller=null, busy=false, result=null;
+    let vocabulary=null, pairs=[], uploadVersion=0, generationVersion=0, controller=null, busy=false, result=null, worksheetTitle='';
     const mode=()=>document.querySelector('input[name="mode"]:checked').value;
     const pairLabel=pair=>{const [group,tense]=pair.split('|');return `${core.groupLabel(group)} · ${core.tenseNames[core.tenses.indexOf(tense)]} / ${tense}`;};
     function status(id,message,error=false){$(id).textContent=message;$(id).classList.toggle('error',error);}
@@ -53,7 +53,7 @@
         status('pair-status',!vocabulary?'Upload a workbook to begin.':mode()==='practice'&&!vocabulary.binyanim.length?'No supported Paal combinations are marked. Add X marks beside Paal Regular or Lamed hey, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
         updateTenses();updateButton();
     }
-    function request(){return core.validateRequest({mode:mode(),vocabulary,pairs:selectedPairs(),count:Number($('count').value),exercises:[...document.querySelectorAll('input[name=exercise]:checked')].map(input=>input.value)});}
+    function request(){return core.validateRequest({mode:mode(),vocabulary,pairs:selectedPairs(),count:Number($('count').value),exercises:[...document.querySelectorAll('input[name=exercise]:checked')].map(input=>input.value),footnotes:$('footnotes').value});}
     function updateButton(){
         let valid=true,reason='';try{request();}catch(error){valid=false;reason=error.message;}
         if(!busy&&!valid)status('generation-status',mode()==='practice'&&vocabulary&&!vocabulary.binyanim.length?'Practice needs X marks beside supported Paal combinations in your workbook. Choose Learn to introduce a pattern without X marks.':reason);
@@ -65,15 +65,17 @@
         try{
             const file=await getFile();
             if(!file)throw new Error('Choose an Excel workbook to begin.');
-            if(!file.name.toLowerCase().endsWith('.xlsx'))throw new Error('Please upload an Excel Workbook (.xlsx).');
+            if(!/\.xlsx?$/i.test(file.name))throw new Error('Please upload an Excel workbook (.xlsx or .xls).');
             if(file.size>5*1024*1024)throw new Error('Please upload a workbook smaller than 5 MB.');
-            const parsed=await VocabularyUpload.readExcel(await file.arrayBuffer(),ExcelJS);
+            const bytes=await file.arrayBuffer();
+            const parsed=/\.xls$/i.test(file.name)?VocabularyUpload.readXls(bytes,XLSX):await VocabularyUpload.readExcel(bytes,ExcelJS);
             if(!parsed.verbs.length)throw new Error('This workbook contains no mastered roots. Add roots in column A to build conjugation practice.');
             // Validate roots now, before a teacher spends time configuring a worksheet.
             core.validateRequest({mode:'learn',vocabulary:parsed,pairs:['פעל שלם|עבר'],count:6});
             if(version!==uploadVersion)return;
-            vocabulary={...parsed,binyanim:parsed.binyanim.filter(core.validPair)};
-            status('upload-status',`${file.name}: ${parsed.verbs.length} roots · ${vocabulary.binyanim.length} supported learned combinations · ${parsed.nouns.length} nouns · ${parsed.adjs.length} adjectives`);
+            vocabulary={...parsed,forms:parsed.binyanim,binyanim:parsed.binyanim.filter(core.validPair)};
+            const supporting=core.vocabularyKeys.reduce((sum,key)=>sum+(parsed[key]?.length||0),0);
+            status('upload-status',`${file.name}: ${parsed.verbs.length} roots · ${vocabulary.binyanim.length} supported learned combinations · ${supporting} familiar words and expressions`);
             $('roots').textContent=parsed.verbs.join('  ·  ');$('vocabulary-details').hidden=false;
             updatePicker();dirty();renderPairs();
         }catch(error){if(version===uploadVersion)status('upload-status',error.message,true);}
@@ -108,12 +110,13 @@
     $('title').addEventListener('input',dirty);
             const header=(title,r,key=false)=>`<div class="worksheet-heading"><p class="eyebrow">PENINA BINYAN BUILDER${key?' · ANSWER KEY':''}</p><h2>${esc(title)}</h2><p>${esc(r.request.mode==='learn'?'Learn a new pattern':'Practice learned patterns')} · ${r.questions.length} questions</p><p>${r.request.pairs.map(p=>`<bdi>${esc(pairLabel(p))}</bdi>`).join(' / ')}</p>${key?'':'<div class="name-line"><span>Name: ____________________</span><span>Date: ______________</span></div>'}</div>`;
     function renderWorksheet(r,title){
+        const footnotes=$('footnotes').value;
         $('empty-preview').hidden=true;$('output').hidden=false;
         $('student-sheet').innerHTML=header(title,r)+r.lessons.map(lesson=>`<section class="lesson"><h3><bdi>${esc(pairLabel(lesson.pair))}</bdi></h3><p>Model root: <bdi class="hebrew">${esc(lesson.root)}</bdi> — ${esc(lesson.meaning)}</p><p>${esc(lesson.explanation)}</p><table class="model-table" dir="rtl"><thead><tr><th>Person / form</th><th>Model conjugation</th></tr></thead><tbody>${lesson.forms.map(row=>`<tr><td dir="rtl" lang="he">${esc(core.people[row.person])}</td><td dir="rtl" lang="he">${esc(row.answer)}</td></tr>`).join('')}</tbody></table></section>`).join('')+
-            window.BinyanExercises.render(r.questions,{learn:r.request.mode==='learn'});
-        $('answer-sheet').innerHTML=header(title,r,true)+window.BinyanExercises.render(r.questions,{key:true});
-        $('show-key').checked=false;$('answer-sheet').hidden=true;
-        $('preview-label').textContent='Ready to review';
+            window.BinyanExercises.render(r.questions,{footnotes});
+        $('answer-sheet').innerHTML=header(title,r,true)+window.BinyanExercises.render(r.questions,{key:true,footnotes});
+        window.BinyanPagination.paginate($('student-sheet'),footnotes);
+        window.BinyanPagination.paginate($('answer-sheet'),footnotes);
     }
     $('generate').addEventListener('click',async()=>{
         let input;try{input=request();}catch(error){status('generation-status',error.message,true);return;}
@@ -127,14 +130,25 @@
             if(!response.ok)throw new Error(data.error||'The worksheet could not be built. Please try again.');
             core.validateResult(data,input);
             if(version!==generationVersion)return;
-            result={...data,request:input};renderWorksheet(result,title);
+            const prepared={...window.BinyanVocabulary.prepare(data,input),request:input};
+            await document.fonts.ready;
+            if(version!==generationVersion)return;
+            result=prepared;worksheetTitle=title;
+            $('show-key').checked=false;$('answer-sheet').hidden=true;
+            renderWorksheet(result,title);$('preview-label').textContent='Ready to review';
             status('generation-status','Worksheet ready. Review the model forms and answer key, then print.');
             if(window.innerWidth<801)$('preview-heading').scrollIntoView({behavior:'smooth'});
         }catch(error){if(version===generationVersion)status('generation-status',error.name==='AbortError'?'The request took too long. Please try fewer questions.':error.message,true);}
         finally{clearTimeout(timeout);if(version===generationVersion){busy=false;controller=null;updateButton();}}
     });
-    $('show-key').addEventListener('change',()=>{$('answer-sheet').hidden=!$('show-key').checked;});
-    $('font').addEventListener('change',()=>document.documentElement.style.setProperty('--hebrew-font',`"${$('font').value}"`));
+    $('show-key').addEventListener('change',()=>{$('answer-sheet').hidden=!$('show-key').checked;window.BinyanPagination.scale($('answer-sheet'));});
+    $('footnotes').addEventListener('change',()=>{if(result)renderWorksheet(result,worksheetTitle);});
+    $('font').addEventListener('change',async()=>{
+        document.documentElement.style.setProperty('--hebrew-font',`"${$('font').value}"`);
+        await document.fonts.load(`14pt "${$('font').value}"`);
+        if(result)renderWorksheet(result,worksheetTitle);
+    });
+    window.addEventListener('resize',()=>{for(const id of ['student-sheet','answer-sheet'])window.BinyanPagination.scale($(id));});
     document.body.dataset.print='student';
     $('print-target').addEventListener('change',()=>{document.body.dataset.print=$('print-target').value;});
     $('print').addEventListener('click',()=>{document.body.dataset.print=$('print-target').value;window.print();});

@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const path=require('node:path');
 const fs=require('node:fs');
 const core=require('../PeninaPlus-Binyan-Builder/core');
+const reader=require('../PeninaPlus-Reader/reader-core');
 const repo=path.resolve(__dirname,'..');
 const output=fs.mkdtempSync('/private/tmp/binyan-builder-');
 const past=['כָּתַבְתִּי','כָּתַבְתָּ','כָּתַבְתְּ','כָּתַב','כָּתְבָה','כָּתַבְנוּ','כְּתַבְתֶּם','כְּתַבְתֶּן','כָּתְבוּ','כָּתְבוּ'];
@@ -21,7 +22,9 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
   if(url.pathname==='/api/generate'){
    const req=core.validateRequest(route.request().postDataJSON());lastRequest=req;
    if(delay)await new Promise(r=>setTimeout(r,delay));
-   return route.fulfill({status:fail?502:200,contentType:'application/json',body:JSON.stringify(fail?{error:'Test service unavailable'}:fixture(req))}).catch(()=>{});
+   const data=fixture(req);
+   for(const q of data.questions){q.words=reader.words(q.sentence).map(([word])=>({word,mastered:true,translation:reader.normalizeWord(word)==='במחברת'?'in the notebook':'subject',match:reader.normalizeWord(word)==='במחברת'?'מחברת':'__pronoun__',form:'',prefix:reader.normalizeWord(word)==='במחברת'?'ב':'',isName:false}));q.phrases=[];}
+   return route.fulfill({status:fail?502:200,contentType:'application/json',body:JSON.stringify(fail?{error:'Test service unavailable'}:data)}).catch(()=>{});
   }
   const file=path.join(repo,decodeURIComponent(url.pathname),url.pathname.endsWith('/')?'index.html':'');
   try{await route.fulfill({path:file});}catch{await route.abort();}
@@ -53,7 +56,7 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.equal(await page.locator('#student-sheet .question').count(),12);
  assert.equal(await page.locator('#student-sheet .lesson').count(),2);
  assert.equal(await page.locator('#student-sheet img').count(),0,'title escaped');
- assert.equal(await page.locator('#student-sheet .exercise-section').count(),4);
+ assert.equal(await page.locator('#student-sheet .exercise-section').evaluateAll(sections=>new Set(sections.map(section=>section.dataset.section)).size),4);
  assert.equal(await page.locator('#student-sheet .choice-options').count()>0,true);
  assert.equal(await page.locator('#student-sheet .word-bank').count(),0);
  assert.equal(await page.locator('#student-sheet .writing-lines').count()>0,true);
@@ -102,6 +105,52 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.match(await page.locator('#generation-status').innerText(),/exercise type/);
  await page.locator('input[name=exercise][value=sentence]').check();
  assert.equal(await page.locator('#generate').isEnabled(),true);
+ // Current Reader multi-sheet vocabulary reaches generation and controls notes.
+ const current=new ExcelJS.Workbook(),verbs=current.addWorksheet('Verbs');
+ verbs.addRow(['שורשים','בניין','עבר','הווה','עתיד','שם הפועל','שם פעולה','ציווי']);
+ verbs.addRow(['כתב','פעל שלם','X','X']);
+ const supporting={Nouns:['מחברת','nouns'],Adjectives:['גדול','adjs'],Prepositions:['על','preps'],Adverbs:['היום','adverbs'],Conjunctions:['אבל','conjunctions'],'Question Words':['מתי','questionWords'],'Phrases & Expressions':['בית ספר','expressions']};
+ for(const [name,[term]] of Object.entries(supporting)){const sheet=current.addWorksheet(name);sheet.addRow(['Known words']);sheet.addRow([term]);}
+ const uploadCurrent=async()=>{
+  await page.locator('#vocabulary').setInputFiles({name:'Reader-vocabulary.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(await current.xlsx.writeBuffer())});
+  await page.waitForFunction(()=>document.getElementById('upload-status').textContent.includes('1 roots'));
+  await page.locator('#group').selectOption('פעל שלם');await page.locator('#tense').selectOption('הווה');
+  await page.locator('#count').selectOption('30');
+  await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('preview-label').textContent==='Ready to review');
+ };
+ await uploadCurrent();
+ for(const [term,key] of Object.values(supporting))assert.ok(lastRequest.vocabulary[key].includes(term),key);
+ assert.equal(await page.locator('#student-sheet .vocabulary-marker').count(),0,'familiar notebook needs no note');
+ current.getWorksheet('Nouns').getCell('A2').value='ספר';await uploadCurrent();
+ assert.equal(await page.locator('#student-sheet .question').count(),30);
+ assert.ok(await page.locator('#student-sheet .worksheet-page').count()>1,'long worksheet paginated');
+ assert.equal(await page.locator('#student-sheet .vocabulary-marker').count(),30);
+ const checkPages=async()=>assert.deepEqual(await page.locator('#student-sheet .worksheet-page').evaluateAll(pages=>pages.flatMap((page,i)=>{
+  const problems=[];
+  if(page.scrollHeight>page.clientHeight+1)problems.push(`page ${i+1} overflow`);
+  const markers=[...page.querySelectorAll('.vocabulary-marker')].map(n=>n.dataset.noteId);
+  const notes=[...page.querySelectorAll('.page-notes .vocabulary-note')].map(n=>n.dataset.noteId);
+  if(markers.some(id=>!notes.includes(id))||notes.some(id=>!markers.includes(id)))problems.push(`page ${i+1} notes mismatch`);
+  return problems;
+ })),[]);
+ await checkPages();
+ await page.locator('#print-target').selectOption('student');await page.emulateMedia({media:'print'});await checkPages();
+ await page.pdf({path:path.join(output,'page-notes.pdf'),preferCSSPageSize:true});
+ await page.emulateMedia({media:'screen'});
+ await page.locator('#student-sheet').screenshot({path:path.join(output,'page-notes.png')});
+ await page.locator('#footnotes').selectOption('end');
+ assert.equal(await page.locator('#student-sheet .page-notes .vocabulary-note').count(),0);
+ assert.equal(await page.locator('#student-sheet .vocabulary-note').count(),1,'end glossary deduplicated');
+ assert.ok(await page.locator('#student-sheet .worksheet-page:last-child .vocabulary-note').count()>0);
+ await page.locator('#footnotes').selectOption('none');
+ assert.equal(await page.locator('#student-sheet .vocabulary-marker').count(),0);
+ await page.locator('#footnotes').selectOption('page');await checkPages();
+ await page.locator('#font').selectOption('Arial');
+ await page.waitForFunction(()=>getComputedStyle(document.querySelector('.sentence-line')).fontFamily.includes('Arial'));
+ await checkPages();
+ await page.setViewportSize({width:390,height:844});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'paginated mobile preview fits');
+ await page.locator('#student-sheet').screenshot({path:path.join(output,'mobile-notes.png')});
  await page.locator('#vocabulary').setInputFiles({name:'bad.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('bad')});
  await page.waitForFunction(()=>document.getElementById('upload-status').classList.contains('error'));
  assert.equal(await page.locator('#generate').isDisabled(),true,'invalid upload clears vocabulary');

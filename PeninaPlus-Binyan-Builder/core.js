@@ -10,6 +10,7 @@
     const groupLabel = group => `${binyanLabel(group)} · ${rootTypeLabel(group)}`;
     const tenses = ['עבר','הווה','עתיד','שם הפועל','ציווי'];
     const tenseNames = ['Past','Present','Future','Infinitive','Imperative'];
+    const vocabularyKeys = ['nouns','adjs','preps','adverbs','conjunctions','questionWords','expressions'];
     const exerciseTypes = {
         choice:'Circle the correct form', conjugate:'Conjugate for a pronoun',
         sentence:'Complete the sentence', writing:'Write your own sentence'
@@ -69,7 +70,21 @@
         if(!Array.isArray(pairs)||!pairs.length||pairs.length>8||pairs.some(x=>!validPair(x))||new Set(pairs).size!==pairs.length)fail('Select 1–8 different binyan and tense combinations.');
         if(mode==='practice' && pairs.some(x=>!v.binyanim.includes(x)))fail('Practice can only use combinations marked X in the uploaded spreadsheet.');
         if(!Number.isInteger(count)||count<6||count>30||count<pairs.length)fail('Choose 6–30 questions, with at least one per selected combination.');
-        return {mode,vocabulary:{verbs:[...new Set(v.verbs.map(normalize))],binyanim:v.binyanim.filter(validPair)},pairs:[...pairs],count,exercises:[...exercises]};
+        const footnotes=input.footnotes===undefined?'none':input.footnotes;
+        if(!['none','page','end'].includes(footnotes))fail('Choose page-bottom notes, end notes, or no notes.');
+        const vocabulary={verbs:[...new Set(v.verbs.map(normalize))],binyanim:v.binyanim.filter(validPair)};
+        // Preserve every Reader vocabulary sheet, including learned context-verb forms
+        // outside the narrower set of patterns supported as exercise targets.
+        const forms=v.forms===undefined?v.binyanim:v.forms;
+        if(!Array.isArray(forms)||forms.length>100||forms.some(x=>typeof x!=='string'||x.length>80))fail('Invalid learned vocabulary forms.');
+        vocabulary.forms=[...new Set(forms)];
+        for(const key of vocabularyKeys){
+            const entries=v[key]===undefined?[]:v[key];
+            if(!Array.isArray(entries)||entries.length>5000||entries.some(x=>typeof x!=='string'||x.length>160||!/[א-ת]/.test(x)||!/^[א-ת\u0591-\u05C7\s.,־״"׳'!?()-]+$/.test(x)))fail('Vocabulary sheets must contain Hebrew words or expressions (up to 5,000 per sheet).');
+            vocabulary[key]=[...new Set(entries.map(x=>x.trim()).filter(Boolean))];
+        }
+        if(JSON.stringify(vocabulary).length>100000)fail('Please use a smaller vocabulary workbook (up to 100,000 characters).');
+        return {mode,vocabulary,pairs:[...pairs],count,exercises:[...exercises],footnotes};
     }
     function plan(request) {
         return Array.from({length:request.count},(_,i)=>{
@@ -114,5 +129,5 @@
         });
         return result;
     }
-    return {standardInfinitive,exerciseTypes,subject,alternativeTarget,eligibleRoot,binyanLabel,rootTypeLabel,groupLabel,generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
+    return {vocabularyKeys,standardInfinitive,exerciseTypes,subject,alternativeTarget,eligibleRoot,binyanLabel,rootTypeLabel,groupLabel,generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
 });

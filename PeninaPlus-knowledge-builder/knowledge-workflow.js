@@ -1,7 +1,7 @@
 /* Teacher practice/share tools and the student practice view. */
 (() => {
     'use strict';
-    const {validChoices, practiceCards} = window.PeninaKnowledgeCards;
+    const {validChoices, practiceCards, pictureTargets} = window.PeninaKnowledgeCards;
     const byId = id => document.getElementById(id);
     const make = (tag, className, text) => {
         const node = document.createElement(tag); if (className) node.className = className;
@@ -180,7 +180,7 @@
             publishing = true; updatePageLinks(); status('publish-status', 'Publishing flashcards, the knowledge sheet, and saved practice activities…');
             try {
                 const body = {kind: 'knowledge', action: 'publish', grade: byId('publish-card-grade').value, deck};
-                if (new Blob([JSON.stringify(body)]).size > 3500000) throw Error('This set is too large to publish. Use smaller picture files or split it into smaller sets. Your full draft is still available to download.');
+                if (new Blob([JSON.stringify(body)]).size > 3500000) throw Error('This set is too large to publish. Use smaller picture files or split it into smaller sets. You can still save your full draft.');
                 const data = await request('/api/flashcard-sets', body);
                 status('publish-status', `“${deck.title}” was published successfully. `);
                 if (safePageUrl(data.page?.url)) {const link = make('a', '', 'Open the class webpage →'); link.href = data.page.url; link.target = '_blank'; link.rel = 'noopener'; byId('publish-status').append(link);}
@@ -195,12 +195,12 @@
                 });
                 const deck = getDeck(), workbook = new window.ExcelJS.Workbook();
                 const sheet = workbook.addWorksheet('Knowledge Cards');
-                const headers = ['Question','Answer','Additional Information','Picture','Picture Description','Target X (%)','Target Y (%)', ...['English','Hebrew'].flatMap(lang => [1,2,3,4].map(n => `${lang} Distractor ${n}`))];
+                const headers = ['Question','Answer','Additional Information','Picture','Picture Description',...['A','B','C','D','E'].flatMap(label => [`Target ${label} X (%)`, `Target ${label} Y (%)`]), ...['English','Hebrew'].flatMap(lang => [1,2,3,4].map(n => `${lang} Distractor ${n}`))];
                 sheet.columns = headers.map((header, i) => ({header, width: i < 3 ? 42 : i === 3 ? 24 : 25}));
                 sheet.getRow(1).font = {bold:true,color:{argb:'FFFFFFFF'}}; sheet.getRow(1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FF0056B3'}};
                 for (const card of deck.cards) {
                     const row = sheet.addRow([card.question,card.answer,card.additionalInformation,'',card.picture?.alt || '',
-                        card.picture?.target ? Math.round(card.picture.target.x * 10000) / 100 : '',card.picture?.target ? Math.round(card.picture.target.y * 10000) / 100 : '',
+                        ...Array.from({length:5}, (_, i) => {const target=pictureTargets(card.picture)[i]; return target ? [Math.round(target.x * 10000) / 100, Math.round(target.y * 10000) / 100] : ['', ''];}).flat(),
                         ...(card.distractors?.english || ['', '', '', '']),...(card.distractors?.hebrew || ['', '', '', ''])]);
                     row.alignment = {vertical:'top',wrapText:true}; row.height = card.picture ? 120 : 75;
                     if (card.picture) {
@@ -208,7 +208,13 @@
                         const canvas = document.createElement('canvas'); const ratio = Math.min(600 / image.naturalWidth, 400 / image.naturalHeight, 1);
                         canvas.width = Math.max(1,Math.round(image.naturalWidth * ratio)); canvas.height = Math.max(1,Math.round(image.naturalHeight * ratio));
                         const ctx = canvas.getContext('2d'); ctx.drawImage(image,0,0,canvas.width,canvas.height);
-                        if (card.picture.target) {ctx.beginPath(); ctx.arc(card.picture.target.x * canvas.width,card.picture.target.y * canvas.height,10,0,Math.PI*2); ctx.strokeStyle='#d92323';ctx.lineWidth=3;ctx.stroke();}
+                        const targets = pictureTargets(card.picture);
+                        targets.forEach((target, i) => {
+                            const x=target.x*canvas.width,y=target.y*canvas.height;
+                            ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#d92323';ctx.lineWidth=3;ctx.stroke();
+                            if(targets.length>1){ctx.fillStyle='#b42318';ctx.font='bold 16px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('ABCDE'[i],x,y);}
+                            else{ctx.beginPath();ctx.moveTo(x-16,y);ctx.lineTo(x+16,y);ctx.moveTo(x,y-16);ctx.lineTo(x,y+16);ctx.stroke();}
+                        });
                         const id = workbook.addImage({base64:canvas.toDataURL('image/png'),extension:'png'});
                         const scale = Math.min(155/canvas.width,145/canvas.height);
                         sheet.addImage(id,{tl:{col:3,row:row.number-1},ext:{width:canvas.width*scale,height:canvas.height*scale}});

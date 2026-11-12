@@ -1,15 +1,15 @@
 /* Flashcard authoring, review, and printable layouts. */
 (() => {
     'use strict';
-    const {FORMAT, normalizeDeck, hasInformation, printSheets} = window.PeninaKnowledgeCards;
+    const {FORMAT, normalizeDeck, hasInformation, printSheets, pictureTargets} = window.PeninaKnowledgeCards;
     const byId = id => document.getElementById(id);
     const embedded = byId('peninaKnowledgeData');
     const studentMode = Boolean(embedded);
     let workflow;
     let deck = {format: FORMAT, version: 1, title: '', cards: []};
-    let editingId = null, picture = null, dirty = false, stage = 'edit';
+    let editingId = null, picture = null, activeTarget = 0, dirty = false, stage = 'edit';
     let order = [], index = 0, showingAnswer = false, answerFirst = false, ratings = {};
-    let db = null, saveTimer, uploadVersion = 0, uploading = false, pictureFitWidth = 0;
+    let db = null, saveTimer, uploadVersion = 0, uploading = false, pictureDisplayWidth = 0, pictureAspectRatio = 1, pictureTrigger = null;
     const app = document.querySelector('.app');
     const make = (tag, className, value) => {
         const element = document.createElement(tag);
@@ -36,10 +36,10 @@
         try {
             const transaction = db.transaction('drafts', 'readwrite');
             transaction.objectStore('drafts').put({deck, editor: editorSnapshot()}, 'current');
-            transaction.oncomplete = () => storageMessage('Saved in this browser. Download a draft to keep a copy.');
-            transaction.onerror = () => storageMessage('Browser storage is full or unavailable. Download your draft to keep your work.', true);
+            transaction.oncomplete = () => storageMessage('Saved in this browser. Save a draft to keep a copy.');
+            transaction.onerror = () => storageMessage('Browser storage is full or unavailable. Save your draft to keep your work.', true);
         } catch (_) {
-            storageMessage('Could not save in this browser. Download your draft to keep your work.', true);
+            storageMessage('Could not save in this browser. Save your draft to keep your work.', true);
         }
     }
     function scheduleSave() {
@@ -56,18 +56,22 @@
             dialog.showModal();
         });
     }
-    function addMarker(parent, target) {
-        if (!target) return;
-        const marker = make('span', 'target-marker');
-        marker.style.left = `${target.x * 100}%`;
-        marker.style.top = `${target.y * 100}%`;
-        marker.setAttribute('aria-hidden', 'true');
-        parent.append(marker);
+    function addMarkers(parent, value, selected = -1) {
+        const targets = pictureTargets(value);
+        targets.forEach((target, i) => {
+            const labeled = targets.length > 1;
+            const marker = make('span', `target-marker${labeled ? ' labeled-target' : ''}${i === selected && labeled ? ' selected-target' : ''}`, labeled ? 'ABCDE'[i] : '');
+            marker.style.left = `${target.x * 100}%`;
+            marker.style.top = `${target.y * 100}%`;
+            marker.setAttribute('role', 'img');
+            marker.setAttribute('aria-label', labeled ? `Target ${'ABCDE'[i]}` : 'Marked location');
+            parent.append(marker);
+        });
     }
     function pictureImage(value) {
         const image = make('img');
         image.src = value.src;
-        image.alt = value.alt || (value.target ? 'Card picture with a target marker' : 'Card picture');
+        image.alt = value.alt || (pictureTargets(value).length ? 'Card picture with target markers' : 'Card picture');
         return image;
     }
     function renderEditorPicture() {
@@ -75,12 +79,57 @@
         surface.replaceChildren();
         byId('picture-editor').hidden = !picture;
         byId('remove-picture').hidden = !picture;
-        byId('remove-target').hidden = !picture?.target;
-        byId('add-target').textContent = picture?.target ? 'Center Target' : 'Add Target';
+        const targets = pictureTargets(picture);
+        activeTarget = Math.max(0, Math.min(activeTarget, targets.length - 1));
+        byId('remove-target').hidden = !targets.length;
+        byId('remove-target').textContent = targets.length > 1 ? `Remove Target ${'ABCDE'[activeTarget]}` : 'Remove Target';
+        byId('add-target').disabled = targets.length >= 5;
+        byId('target-select-label').hidden = targets.length < 2;
+        byId('target-select').replaceChildren(...targets.map((_, i) => {
+            const option = make('option', '', 'ABCDE'[i]); option.value = i; return option;
+        }));
+        byId('target-select').value = activeTarget;
         if (picture) {
             surface.append(pictureImage(picture));
-            addMarker(surface, picture.target);
+            addMarkers(surface, picture, activeTarget);
         }
+    }
+
+    function reusePicture(source) {
+        uploadVersion++;
+        uploading = false;
+        byId('save-card').disabled = false;
+        byId('picture-file').value = '';
+        picture = {src: source.src, alt: source.alt || '', target: null};
+        activeTarget = 0;
+        byId('picture-alt').value = picture.alt;
+        dirty = true;
+        renderEditorPicture();
+        persist();
+        byId('reuse-pictures').open = false;
+        byId('reuse-pictures').querySelector('summary').focus();
+        message('Picture reused. Add up to 5 targets for this question if needed.');
+    }
+    function renderReusablePictures() {
+        const seen = new Set(), choices = [];
+        deck.cards.forEach((card, number) => {
+            if (!card.picture || seen.has(card.picture.src)) return;
+            seen.add(card.picture.src);
+            const button = make('button', 'reuse-picture');
+            button.type = 'button';
+            button.setAttribute('aria-label', `Reuse picture from card ${number + 1}: ${card.question}`);
+            const thumbnail = pictureImage(card.picture);
+            thumbnail.alt = '';
+            thumbnail.loading = 'lazy';
+            const label = make('span', '', `Card ${number + 1}: ${card.question}`);
+            label.dir = 'auto';
+            button.append(thumbnail, label);
+            button.addEventListener('click', () => reusePicture(card.picture));
+            choices.push(button);
+        });
+        byId('reusable-pictures').replaceChildren(...choices);
+        byId('reuse-pictures').hidden = !choices.length;
+        if (!choices.length) byId('reuse-pictures').open = false;
     }
     function openEditor(card = null) {
         uploadVersion++;
@@ -88,11 +137,13 @@
         byId('save-card').disabled = false;
         editingId = card?.id || null;
         picture = card?.picture ? structuredClone(card.picture) : null;
+        activeTarget = 0;
         byId('question').value = card?.question || '';
         byId('answer').value = card?.answer || '';
         byId('additional-information').value = card?.additionalInformation || '';
         byId('picture-alt').value = picture?.alt || '';
         byId('picture-file').value = '';
+        byId('reuse-pictures').open = false;
         byId('editor-title').textContent = card ? `Edit Card ${deck.cards.indexOf(card) + 1}` : 'Add a Card';
         byId('save-card').textContent = card ? 'Save Card' : 'Add Card';
         byId('delete-card').hidden = !card;
@@ -102,6 +153,7 @@
         renderList();
     }
     function renderList() {
+        renderReusablePictures();
         byId('card-count').textContent = deck.cards.length;
         byId('empty-list').hidden = deck.cards.length > 0;
         byId('card-list').replaceChildren(...deck.cards.map((card, number) => {
@@ -172,11 +224,11 @@
         if (!back && card.picture) {
             const holder = make(paper ? 'div' : 'button', paper ? 'paper-image' : 'picture-button');
             holder.append(pictureImage(card.picture));
-            addMarker(holder, card.picture.target);
+            addMarkers(holder, card.picture);
             if (!paper) {
                 holder.type = 'button';
                 holder.setAttribute('aria-label', 'Enlarge picture');
-                holder.addEventListener('click', event => {event.stopPropagation(); openPicture(card.picture);});
+                holder.addEventListener('click', event => {event.stopPropagation(); openPicture(card.picture, holder);});
             }
             content.append(holder);
         }
@@ -237,31 +289,32 @@
         renderStudy();
     }
     function flip() {if (studyCard()) {showingAnswer = !showingAnswer; renderStudy();}}
-    async function openPicture(value) {
-        const container = byId('enlarged-picture');
+    async function openPicture(value, trigger) {
+        const source = trigger.querySelector('img');
+        pictureTrigger = trigger;
+        pictureDisplayWidth = source.getBoundingClientRect().width || source.naturalWidth;
+        pictureAspectRatio = source.naturalWidth / source.naturalHeight || 1;
+        const container = byId('enlarged-picture'), dialog = byId('picture-dialog');
         const image = pictureImage(value);
         container.replaceChildren(image);
-        addMarker(container, value.target);
-        byId('picture-dialog').showModal();
-        try {await image.decode();} catch (_) {byId('picture-dialog').close(); message('This picture could not be opened.', true); return;}
+        addMarkers(container, value);
         fitPicture();
-    }
-    function setZoom(percent) {
-        byId('enlarged-picture').style.width = `${pictureFitWidth * percent / 100}px`;
-        byId('zoom-range').value = Math.min(800, Math.max(25, percent));
-        byId('zoom-value').value = `${Math.round(percent)}%`;
+        dialog.showModal();
+        container.focus({preventScroll: true});
+        try {await image.decode();} catch (_) {
+            if (dialog.open && container.firstElementChild === image) {dialog.close(); message('This picture could not be opened.', true);}
+            return;
+        }
+        if (dialog.open && container.firstElementChild === image) {
+            pictureAspectRatio = image.naturalWidth / image.naturalHeight;
+            fitPicture();
+        }
     }
     function fitPicture() {
-        const image = byId('enlarged-picture').querySelector('img');
-        if (!image?.naturalWidth) return;
-        const viewport = byId('picture-viewport');
-        byId('picture-dialog').style.setProperty('--toolbar-height', `${document.querySelector('.picture-toolbar').offsetHeight}px`);
-        const style = getComputedStyle(viewport);
-        const width = viewport.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-        const height = viewport.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-        pictureFitWidth = Math.min(image.naturalWidth, width, height * image.naturalWidth / image.naturalHeight);
-        setZoom(100);
-        viewport.scrollTo(0, 0);
+        const width = Math.max(1, (window.visualViewport?.width || innerWidth) - 32);
+        const height = Math.max(1, (window.visualViewport?.height || innerHeight) - 80);
+        const desiredWidth = window.matchMedia('(max-width: 620px), (max-height: 620px) and (pointer: coarse)').matches ? width : pictureDisplayWidth * 2;
+        byId('enlarged-picture').style.width = `${Math.min(desiredWidth, width, height * pictureAspectRatio)}px`;
     }
     function fitPrint() {
         let overflow = false;
@@ -365,7 +418,7 @@
         persist();
         byId('set-title').focus();
     });
-    byId('new-card').addEventListener('click', () => {if (commitEditor()) {openEditor(); persist(); byId('question').focus();}});
+    byId('new-card').addEventListener('click', () => {if (commitEditor()) {openEditor(); persist(); byId('picture-file').focus();}});
     byId('delete-card').addEventListener('click', async () => {
         if (!await confirmAction('Delete this card from the set?')) return;
         deck.cards = deck.cards.filter(card => card.id !== editingId);
@@ -392,6 +445,7 @@
             if (version !== uploadVersion) return;
             if (image.naturalWidth * image.naturalHeight > 40000000) throw new Error('Choose a picture with no more than 40 million pixels.');
             picture = {src, alt: byId('picture-alt').value, target: null};
+            activeTarget = 0;
             dirty = true;
             renderEditorPicture();
             persist();
@@ -402,22 +456,35 @@
             if (version === uploadVersion) {uploading = false; byId('save-card').disabled = false; event.target.value = '';}
         }
     });
-    function updateTarget(target) {
-        if (!picture) return;
-        picture.target = target;
+    function setTargets(targets) {
+        if (!picture || targets.length > 5) return;
+        picture.target = targets[0] || null;
+        if (targets.length > 1) picture.targets = targets;
+        else delete picture.targets;
         dirty = true;
         renderEditorPicture();
         persist();
     }
+    function updateTarget(target) {
+        const targets = pictureTargets(picture).map(value => ({...value}));
+        targets[activeTarget] = target;
+        setTargets(targets);
+    }
+    byId('target-select').addEventListener('change', event => {
+        activeTarget = Number(event.target.value);
+        renderEditorPicture();
+    });
     byId('target-surface').addEventListener('click', event => {
         if (!picture) return;
         const box = byId('target-surface').querySelector('img').getBoundingClientRect();
+        const hit = pictureTargets(picture).findIndex(target => Math.hypot(event.clientX - box.left - target.x * box.width, event.clientY - box.top - target.y * box.height) <= 16);
+        if (hit >= 0) {activeTarget = hit; renderEditorPicture(); return;}
         updateTarget({x: Math.max(0, Math.min(1, (event.clientX - box.left) / box.width)), y: Math.max(0, Math.min(1, (event.clientY - box.top) / box.height))});
     });
     byId('target-surface').addEventListener('keydown', event => {
         if (!picture || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(event.key)) return;
         event.preventDefault();
-        const target = {...(picture.target || {x: .5, y: .5})}, step = event.shiftKey ? .05 : .005;
+        const target = {...(pictureTargets(picture)[activeTarget] || {x: .5, y: .5})}, step = event.shiftKey ? .05 : .005;
         if (event.key === 'ArrowLeft') target.x -= step;
         if (event.key === 'ArrowRight') target.x += step;
         if (event.key === 'ArrowUp') target.y -= step;
@@ -425,8 +492,18 @@
         target.x = Math.max(0, Math.min(1, target.x)); target.y = Math.max(0, Math.min(1, target.y));
         updateTarget(target);
     });
-    byId('add-target').addEventListener('click', () => {updateTarget({x: .5, y: .5}); byId('target-surface').focus();});
-    byId('remove-target').addEventListener('click', () => updateTarget(null));
+    byId('add-target').addEventListener('click', () => {
+        const targets = pictureTargets(picture).map(target => ({...target}));
+        if (!picture || targets.length >= 5) return;
+        activeTarget = targets.length;
+        const [x, y] = [[.5,.5],[.7,.5],[.3,.5],[.5,.3],[.5,.7]][activeTarget];
+        setTargets([...targets, {x, y}]);
+        byId('target-surface').focus();
+    });
+    byId('remove-target').addEventListener('click', () => {
+        const targets = pictureTargets(picture).filter((_, i) => i !== activeTarget);
+        setTargets(targets);
+    });
     byId('remove-picture').addEventListener('click', () => {
         uploadVersion++; uploading = false; byId('save-card').disabled = false;
         picture = null; dirty = true; renderEditorPicture(); persist();
@@ -452,7 +529,7 @@
                 try {await image.decode();} catch (_) {throw new Error('A picture in this draft could not be opened.');}
                 if (image.naturalWidth * image.naturalHeight > 40000000) throw new Error('A picture in this draft is too large.');
             }
-            if ((deck.cards.length || dirty) && !await confirmAction('Open this draft in place of the current set? Download the current draft first if you want to keep both.')) return;
+            if ((deck.cards.length || dirty) && !await confirmAction('Open this draft in place of the current set? Save the current draft first if you want to keep both.')) return;
             deck = next; ratings = {}; workflow.reset();
             byId('set-title').value = deck.title;
             openEditor(deck.cards[0] || null); persist();
@@ -483,10 +560,17 @@
         if (event.key === ' ' && event.target.tagName !== 'BUTTON') {event.preventDefault(); flip();}
     });
     byId('close-picture').addEventListener('click', () => byId('picture-dialog').close());
-    byId('zoom-fit').addEventListener('click', fitPicture);
-    byId('zoom-original').addEventListener('click', () => setZoom(byId('enlarged-picture').querySelector('img').naturalWidth / pictureFitWidth * 100));
-    byId('zoom-range').addEventListener('input', event => setZoom(Number(event.target.value)));
-    window.addEventListener('resize', () => {if (byId('picture-dialog').open) fitPicture();});
+    byId('enlarged-picture').addEventListener('click', () => byId('picture-dialog').close());
+    byId('picture-dialog').addEventListener('click', event => {
+        if (event.target === byId('picture-dialog')) byId('picture-dialog').close();
+    });
+    byId('picture-dialog').addEventListener('close', () => {
+        if (pictureTrigger?.isConnected) pictureTrigger.focus({preventScroll: true});
+        pictureTrigger = null;
+    });
+    const resizePicture = () => {if (byId('picture-dialog').open) fitPicture();};
+    window.addEventListener('resize', resizePicture);
+    window.visualViewport?.addEventListener('resize', resizePicture);
     byId('cards-per-page').addEventListener('change', renderPrint);
     byId('print-now').addEventListener('click', async () => {
         await Promise.all(Array.from(byId('print-pages').querySelectorAll('img'), image => image.decode().catch(() => {})));
@@ -570,7 +654,7 @@
                 }
                 storageMessage('Restored your draft from this browser.');
             }
-        } catch (_) {storageMessage('Browser saving is unavailable. Download your draft to keep your work.', true);}
+        } catch (_) {storageMessage('Browser saving is unavailable. Save your draft to keep your work.', true);}
         finally {app.inert = false; renderList();}
     }
     initialize();

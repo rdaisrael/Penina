@@ -214,7 +214,8 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  }
  function pictureMarkup(picture){
   if(!picture || !/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(picture.src||''))return '';
-  const t=picture.target,marker=t&&[t.x,t.y].every(v=>Number.isFinite(v)&&v>=0&&v<=1)?`<span class="live-picture-target" style="left:${t.x*100}%;top:${t.y*100}%" aria-label="Marked location">＋</span>`:'';
+  const targets=(Array.isArray(picture.targets)?picture.targets:picture.target?[picture.target]:[]).slice(0,5).filter(t=>t&&[t.x,t.y].every(v=>Number.isFinite(v)&&v>=0&&v<=1));
+  const marker=targets.map((t,i)=>`<span class="live-picture-target${targets.length>1?' lettered':''}" style="left:${t.x*100}%;top:${t.y*100}%" aria-label="${targets.length>1?'Target '+'ABCDE'[i]:'Marked location'}">${targets.length>1?'ABCDE'[i]:'＋'}</span>`).join('');
   return `<div class="live-picture"><span><img src="${esc(picture.src)}" alt="${esc(picture.alt||'Question picture')}" draggable="false">${marker}</span></div>`;
  }
  function disconnectRealtime(){

@@ -184,12 +184,16 @@
                         if(item.image) {
                             const left=x+(columns[index]-item.width)/2, imageHeight=item.height-10;
                             ctx.drawImage(item.image,left,top,item.width,imageHeight);
-                            const target=item.picture.target;
-                            if(target && [target.x,target.y].every(value=>Number.isFinite(value)&&value>=0&&value<=1)) {
+                            const targets=(Array.isArray(item.picture.targets)?item.picture.targets:item.picture.target?[item.picture.target]:[]).slice(0,5).filter(target=>target&&[target.x,target.y].every(value=>Number.isFinite(value)&&value>=0&&value<=1));
+                            targets.forEach((target,i)=>{
                                 const cx=left+target.x*item.width,cy=top+target.y*imageHeight;
                                 ctx.beginPath();ctx.arc(cx,cy,7,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#b42318';ctx.lineWidth=1.5;ctx.stroke();
-                                ctx.beginPath();ctx.moveTo(cx-4,cy);ctx.lineTo(cx+4,cy);ctx.moveTo(cx,cy-4);ctx.lineTo(cx,cy+4);ctx.stroke();
-                            }
+                                if(targets.length>1){
+                                    const {font,textAlign,textBaseline,direction}=ctx;
+                                    ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.direction='ltr';ctx.fillStyle='#b42318';ctx.fillText('ABCDE'[i],cx,cy);
+                                    Object.assign(ctx,{font,textAlign,textBaseline,direction});
+                                }else{ctx.beginPath();ctx.moveTo(cx-4,cy);ctx.lineTo(cx+4,cy);ctx.moveTo(cx,cy-4);ctx.lineTo(cx,cy+4);ctx.stroke();}
+                            });
                             top+=item.height;
                         } else if(item.citation) {
                             const half=(columns[index]-24)/2;

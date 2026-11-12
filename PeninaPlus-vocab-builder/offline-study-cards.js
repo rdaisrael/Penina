@@ -23,19 +23,19 @@
         frame.style.cssText='display:inline-block;position:relative;max-width:100%;line-height:0';
         img.src=picture.src;img.alt=picture.alt || 'Question picture';img.draggable=false;
         img.style.cssText='display:block;max-width:100%;width:auto;max-height:160px;height:auto;margin:auto;object-fit:contain';frame.append(img);
-        const target=picture.target;
-        if(target && [target.x,target.y].every(v=>Number.isFinite(v)&&v>=0&&v<=1)){
-            const pin=doc.createElement('span');pin.textContent='＋';pin.setAttribute('aria-label','Marked location');
-            pin.style.cssText='position:absolute;transform:translate(-50%,-50%);font:900 26px/1 system-ui;color:#b42318;background:white;border:2px solid #b42318;border-radius:50%;pointer-events:none;left:'+(target.x*100)+'%;top:'+(target.y*100)+'%';frame.append(pin);
-        }
+        const targets=(Array.isArray(picture.targets)?picture.targets:picture.target?[picture.target]:[]).slice(0,5).filter(target=>target&&[target.x,target.y].every(v=>Number.isFinite(v)&&v>=0&&v<=1));
+        targets.forEach((target,i)=>{
+            const pin=doc.createElement('span');pin.textContent=targets.length>1?'ABCDE'[i]:'＋';pin.setAttribute('aria-label',targets.length>1?'Target '+'ABCDE'[i]:'Marked location');
+            pin.className='study-picture-target';
+            pin.style.cssText='position:absolute;transform:translate(-50%,-50%);font:900 22px/1 system-ui;color:#b42318;background:white;border:2px solid #b42318;border-radius:50%;pointer-events:none;display:grid;place-items:center;width:26px;height:26px;left:'+(target.x*100)+'%;top:'+(target.y*100)+'%';frame.append(pin);
+        });
         outer.append(frame);node.append(outer);
     }
 
     function pictureMarkup(picture, maxHeight = 160) {
         if (!picture || !/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(picture.src || '')) return '';
-        const target=picture.target;
-        const marker=target && [target.x,target.y].every(value=>Number.isFinite(value)&&value>=0&&value<=1)
-            ? '<span class="study-picture-target" aria-label="Marked location" style="position:absolute;left:'+target.x*100+'%;top:'+target.y*100+'%;transform:translate(-50%,-50%);color:#b42318;background:white;border:2px solid #b42318;border-radius:50%;font:900 22px/1 system-ui">＋</span>' : '';
+        const targets=(Array.isArray(picture.targets)?picture.targets:picture.target?[picture.target]:[]).slice(0,5).filter(target=>target&&[target.x,target.y].every(value=>Number.isFinite(value)&&value>=0&&value<=1));
+        const marker=targets.map((target,i)=>'<span class="study-picture-target" role="img" aria-label="'+(targets.length>1?'Target '+'ABCDE'[i]:'Marked location')+'" style="position:absolute;left:'+target.x*100+'%;top:'+target.y*100+'%;transform:translate(-50%,-50%);color:#b42318;background:white;border:2px solid #b42318;border-radius:50%;font:900 22px/1 system-ui;display:grid;place-items:center;width:26px;height:26px">'+(targets.length>1?'ABCDE'[i]:'＋')+'</span>').join('');
         return '<span class="study-picture" style="display:block;margin:8px auto;text-align:center;line-height:0"><span style="display:inline-block;position:relative;max-width:100%;line-height:0"><img src="'+escapeHtml(picture.src)+'" alt="'+escapeHtml(picture.alt || 'Question picture')+'" style="display:block;max-width:100%;max-height:'+maxHeight+'px;width:auto;height:auto;margin:auto">'+marker+'</span></span>';
     }
 

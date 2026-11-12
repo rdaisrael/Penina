@@ -26,30 +26,35 @@
       <button type="button" data-stage="practice" disabled>3. Create Practice Activities</button>
       <button type="button" data-stage="share" disabled>4. Share</button>
     </nav>
-    <p id="save-status" class="save-status" role="status">Your set is saved in this browser. Download a draft to keep a copy.</p>
+    <p id="save-status" class="save-status" role="status">Your set is saved in this browser. Save a draft to keep a copy.</p>
 
     <section id="edit-stage" aria-label="Add and edit cards">
       <div class="panel set-panel">
         <label for="set-title">Set title</label><input id="set-title" type="text" placeholder="Name your knowledge set" maxlength="200">
-        <div class="set-actions"><button id="new-list" type="button">New List</button><button id="download-draft" type="button">Download Draft</button><button id="upload-draft" type="button">Open Draft</button><input id="draft-file" type="file" accept=".json,application/json" hidden></div>
+        <div class="set-actions"><button id="new-list" type="button">New List</button><button id="download-draft" type="button">Save Draft</button><button id="upload-draft" type="button">Open Draft</button><input id="draft-file" type="file" accept=".json,application/json" hidden></div>
       </div>
       <div class="editor-layout">
         <aside class="panel card-list-panel"><div class="panel-heading"><h2>Your Cards <span id="card-count" class="count">0</span></h2><button id="new-card" type="button">+ Add Card</button></div><p id="empty-list" class="muted">Start with a question and its answer.</p><ol id="card-list" class="card-list"></ol></aside>
         <section class="panel editor-panel" aria-labelledby="editor-title">
           <h2 id="editor-title">Add a Card</h2>
           <form id="card-form">
+            <div class="picture-heading"><label for="picture-file">Picture <span class="optional">(optional)</span></label><button id="remove-picture" type="button" class="small" hidden>Remove Picture</button></div>
+            <input id="picture-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+            <details id="reuse-pictures" class="reuse-pictures" hidden>
+              <summary>Reuse a Picture</summary>
+              <p class="help">Choose a picture from this set. You can add different targets for each question.</p>
+              <div id="reusable-pictures" class="reusable-pictures" role="group" aria-label="Pictures from this set"></div>
+            </details>
+            <p class="help">The picture appears on the left, with the question on the right. Students can click it to enlarge.</p>
+            <div id="picture-editor" hidden>
+              <div id="target-surface" class="target-surface" tabindex="0" role="button" aria-label="Move the selected target. Click a spot, or press Enter then use the arrow keys."></div>
+              <div class="target-controls"><label id="target-select-label" hidden>Target<select id="target-select" aria-label="Target to move"></select></label><button id="add-target" type="button">Add Target</button><button id="remove-target" type="button" hidden>Remove Target</button></div>
+              <p class="help">Add up to 5 targets. Select a target, then click the picture or use arrow keys to move it. Two or more targets are labeled A–E.</p>
+              <label for="picture-alt">Picture description <span class="optional">(for screen readers)</span></label><input id="picture-alt" type="text" placeholder="Describe the picture and what the target indicates">
+            </div>
             <label for="question">Question</label><textarea id="question" dir="auto" rows="3" required placeholder="What would you like students to know?"></textarea>
             <label for="answer">Answer</label><textarea id="answer" dir="auto" rows="3" required placeholder="The answer on the other side of the card"></textarea>
             <label for="additional-information">Additional Information <span class="optional">(optional)</span></label><textarea id="additional-information" dir="auto" rows="3" placeholder="Appears in the white area below the card when the answer is showing."></textarea>
-            <div class="picture-heading"><label for="picture-file">Picture <span class="optional">(optional)</span></label><button id="remove-picture" type="button" class="small" hidden>Remove Picture</button></div>
-            <input id="picture-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
-            <p class="help">The picture appears on the left, with the question on the right. Students can click it to enlarge.</p>
-            <div id="picture-editor" hidden>
-              <div id="target-surface" class="target-surface" tabindex="0" role="button" aria-label="Place a target on the picture. Click a spot, or press Enter then use the arrow keys."></div>
-              <div class="target-controls"><button id="add-target" type="button">Add Target</button><button id="remove-target" type="button" hidden>Remove Target</button></div>
-              <p class="help">Click the picture to place or move the target. Use arrow keys for precise placement.</p>
-              <label for="picture-alt">Picture description <span class="optional">(for screen readers)</span></label><input id="picture-alt" type="text" placeholder="Describe the picture and what the target indicates">
-            </div>
             <p id="editor-message" role="status" class="form-message"></p>
             <div class="form-actions"><button id="save-card" class="primary" type="submit">Add Card</button><button id="delete-card" class="danger" type="button" hidden>Delete Card</button></div>
           </form>
@@ -98,7 +103,7 @@
         <h2 id="share-heading">Share Your Knowledge Set</h2>
         <p>Print or download your set, or publish flashcards, a knowledge sheet, and practice activities to a class page for students.</p>
         <div class="workflow-actions"><button type="button" data-stage="study">Back to Review</button></div>
-        <div class="share-downloads"><button type="button" class="sheet-action" data-stage="sheet">Print Knowledge Sheet</button><button id="download-spreadsheet" class="spreadsheet-action" type="button">Download Spreadsheet</button><button id="share-download-draft" class="draft-action" type="button">Download Draft</button><button type="button" data-stage="print">Print Paper Flashcards</button></div>
+        <div class="share-downloads"><button type="button" class="sheet-action" data-stage="sheet">Print Knowledge Sheet</button><button id="download-spreadsheet" class="spreadsheet-action" type="button">Download Spreadsheet</button><button id="share-download-draft" class="draft-action" type="button">Save Draft</button><button type="button" data-stage="print">Print Paper Flashcards</button></div>
         <p id="share-status" class="form-message" role="status"></p>
         <div class="publish-panel">
           <div class="publish-grid"><div><p>Publish your set for students.</p><label for="publish-card-grade">Class Page</label><select id="publish-card-grade"><option value="">Choose a class page</option></select></div><div><a id="selected-page-link" target="_blank" rel="noopener" hidden></a><details><summary>Open a published class webpage</summary><nav id="published-page-links" aria-label="Published class webpages"></nav></details></div></div>
@@ -116,9 +121,9 @@
 
   </main>
 
-  <dialog id="picture-dialog" class="picture-dialog" aria-labelledby="picture-dialog-title">
-    <div class="picture-toolbar"><h2 id="picture-dialog-title">Picture</h2><button id="zoom-fit" type="button">Fit</button><button id="zoom-original" type="button">Original Size</button><label for="zoom-range">Zoom <output id="zoom-value">100%</output></label><input id="zoom-range" type="range" min="25" max="800" step="25" value="100"><button id="close-picture" type="button" aria-label="Close enlarged picture">Close ✕</button></div>
-    <div id="picture-viewport" class="picture-viewport"><div id="enlarged-picture" class="enlarged-picture"></div></div>
+  <dialog id="picture-dialog" class="picture-dialog" aria-label="Enlarged picture">
+    <button id="close-picture" class="picture-close" type="button" aria-label="Close enlarged picture">✕</button>
+    <button id="enlarged-picture" class="enlarged-picture" type="button" aria-label="Close picture and return" autofocus></button>
   </dialog>
   <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-message"><form method="dialog"><p id="confirm-message"></p><div class="form-actions"><button value="cancel">Cancel</button><button value="confirm" class="primary">Continue</button></div></form></dialog>
 </body>

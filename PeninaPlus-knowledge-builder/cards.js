@@ -15,6 +15,7 @@
     function practiceCards(deck, language) {
         return deck.cards.filter(card => validChoices(card.answer, card.distractors?.[language]));
     }
+    const pictureTargets = picture => Array.isArray(picture?.targets) ? picture.targets : picture?.target ? [picture.target] : [];
     function normalizeDeck(input) {
         if (!input || input.format !== FORMAT || input.version !== 1 || !Array.isArray(input.cards)) {
             throw new Error('Choose a Penina Knowledge Builder draft.');
@@ -31,11 +32,17 @@
                 if (!/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(card.picture.src || '')) {
                     throw new Error(`Card ${i + 1} has an unsupported picture. Use a PNG, JPEG, WebP, or GIF.`);
                 }
-                const target = card.picture.target;
-                if (target && (!Number.isFinite(target.x) || !Number.isFinite(target.y) || target.x < 0 || target.x > 1 || target.y < 0 || target.y > 1)) {
-                    throw new Error(`Card ${i + 1} has an invalid picture target.`);
+                if (card.picture.targets !== undefined && (!Array.isArray(card.picture.targets) || card.picture.targets.length > 5)) {
+                    throw new Error(`Card ${i + 1} can have up to 5 picture targets.`);
                 }
-                picture = {src: card.picture.src, alt: text(card.picture.alt), target: target ? {x: target.x, y: target.y} : null};
+                const targets = pictureTargets(card.picture).map(target => {
+                    if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y) || target.x < 0 || target.x > 1 || target.y < 0 || target.y > 1) {
+                        throw new Error(`Card ${i + 1} has an invalid picture target.`);
+                    }
+                    return {x: target.x, y: target.y};
+                });
+                picture = {src: card.picture.src, alt: text(card.picture.alt), target: targets[0] || null,
+                    ...(targets.length > 1 ? {targets} : {})};
             }
             const distractors = {};
             for (const language of ['english', 'hebrew']) {
@@ -60,5 +67,5 @@
         }
         return pages;
     }
-    return {FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards};
+    return {FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, pictureTargets};
 });

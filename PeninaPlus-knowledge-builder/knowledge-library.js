@@ -52,7 +52,7 @@
         button.onclick=async()=>{
             const pathnames=[...tools.querySelectorAll('input:checked')].map(input=>input.value);
             if(!pathnames.length){message.textContent='Select at least one knowledge set.';return;}
-            if(!window.confirm('Remove these knowledge sets from this class page? Keep a downloaded draft if you want to publish them again.'))return;
+            if(!window.confirm('Remove these knowledge sets from this class page? Keep a saved draft if you want to publish them again.'))return;
             button.disabled=true;
             try{const response=await fetch('/api/flashcard-sets',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'knowledge',grade,pathnames})});const data=await response.json();if(!response.ok)throw Error(data.error);await load();}
             catch(error){message.textContent=error.message;button.disabled=false;}

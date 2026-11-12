@@ -146,3 +146,5 @@ button.answer:active:not(:disabled){background:var(--wash);border-color:var(--pu
 .live-settings .live-wordlist-row{display:flex;align-items:center;justify-content:space-between;gap:16px}.live-settings .wordlist-choice{flex:1;min-width:0}.live-settings .live-wordlist-row select{width:110px;flex-shrink:0}.live-settings .live-wordlist-row select:disabled{opacity:.5}
 
 .live-picture{text-align:center;margin:12px auto;line-height:0}.live-picture>span{display:inline-block;position:relative;max-width:100%}.live-picture img{display:block;max-width:100%;max-height:260px;width:auto;height:auto;border-radius:10px}.live-picture-target{position:absolute;transform:translate(-50%,-50%);color:#b42318;background:#fff;border:2px solid #b42318;border-radius:50%;font:900 28px/1 system-ui;pointer-events:none}
+
+.live-picture-target.lettered{display:grid;place-items:center;width:28px;height:28px;font-size:20px}

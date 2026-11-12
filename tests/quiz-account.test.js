@@ -95,6 +95,46 @@ test('Students cannot configure class assignments and unconfigured sign-in stays
     assert.equal((await h.run(h.request({method:'POST',query:{},body:{action:'login',classId:'c'.repeat(32)}}))).code,503);
 });
 
+test('Concurrent sign-ins retain separate state cookies and both return to their own quiz',async()=>{
+    const h=harness(),jar=new Map(),attempts=[];
+    const apply=value=>{for(const item of [value].flat()) {const pair=item.split(';')[0],split=pair.indexOf('=');const name=pair.slice(0,split);if(item.includes('Max-Age=0'))jar.delete(name);else jar.set(name,pair.slice(split+1));}};
+    for(const quiz of ['gemara-6-wl-2','gemara-8-intro-retake']) {
+        const login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'student',quiz,classId:'c'.repeat(32)}}));
+        apply(login.headers['Set-Cookie']);attempts.push({quiz,options:h.state.options});
+    }
+    for(const attempt of attempts) {
+        h.state.options=attempt.options;
+        const result=await h.run(h.request({query:{action:'callback',state:attempt.options.state,code:'code'},headers:{cookie:[...jar].map(([k,v])=>k+'='+v).join('; ')}}));
+        assert.equal(result.code,303);assert.equal(result.headers.Location,'/Penina-Quizzes/'+attempt.quiz+'/?class='+'c'.repeat(32));
+        apply(result.headers['Set-Cookie']);
+    }
+    assert.equal([...jar.keys()].filter(k=>k.startsWith('__Host-penina-quiz-state')).length,0);
+});
+test('An invalid callback does not clear an unrelated pending sign-in',async()=>{
+    const h=harness(),login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'student',classId:'c'.repeat(32)}}));
+    const result=await h.run(h.request({query:{action:'callback',state:'f'.repeat(48),code:'code'},headers:{cookie:login.headers['Set-Cookie'].split(';')[0]}}));
+    assert.equal(result.code,400);assert.equal(result.headers['Set-Cookie'],undefined);assert.equal(h.state.exchange,undefined);
+});
+test('An old expired API request cannot delete the cookie from a newer sign-in',()=>{
+    const h=harness(),headers={},req=h.request({headers:{cookie:h.cookie({idleAt:Date.now()-61*60000})}});
+    assert.equal(h.api.touchSession(req,{setHeader:(k,v)=>headers[k]=v}),false);
+    assert.equal(headers['Set-Cookie'],undefined);assert.throws(()=>h.api.session(req),/Sign in/);
+});
+test('Pending OAuth callbacks from the previous shared-cookie version still complete safely',async()=>{
+    const h=harness(),login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'student',classId:'c'.repeat(32)}}));
+    const pending=login.headers['Set-Cookie'].split(';')[0],legacy='__Host-penina-quiz-state='+pending.slice(pending.indexOf('=')+1);
+    const mismatch=await h.run(h.request({query:{action:'callback',state:'e'.repeat(48),code:'code'},headers:{cookie:legacy}}));
+    assert.equal(mismatch.code,400);assert.equal(mismatch.headers['Set-Cookie'],undefined);
+    const result=await h.run(h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:legacy}}));
+    assert.equal(result.code,303);assert.match(result.headers['Set-Cookie'][0],/^__Host-penina-quiz-state=;.*Max-Age=0$/);
+});
+test('Expired OAuth transactions cannot exchange a code or issue a session',async()=>{
+    const h=harness(),login=await h.run(h.request({method:'POST',query:{},body:{action:'login',role:'student',classId:'c'.repeat(32)}}));
+    const pair=login.headers['Set-Cookie'].split(';')[0],split=pair.indexOf('='),state=h.api.unseal(pair.slice(split+1));state.exp=Date.now()-1;
+    const result=await h.run(h.request({query:{action:'callback',state:state.state,code:'code'},headers:{cookie:pair.slice(0,split+1)+h.api.seal(state)}}));
+    assert.equal(result.code,400);assert.equal(h.state.exchange,undefined);assert.equal(result.headers['Set-Cookie'],undefined);
+});
+
 test('Only an enrolled student can retrieve the quiz image',async()=>{
     const h=harness();const req=h.request({query:{action:'image',classId:'c'.repeat(32)}});
     const result=await h.run(req);assert.equal(result.code,200);assert.equal(result.headers['Content-Type'],'image/png');assert(Buffer.isBuffer(result.data));
@@ -332,7 +372,7 @@ test('Missing offline access requests consent once, while explicit reconnect req
  const h=harness();h.state.email='disrael@saracademy.org';h.state.noRefresh=true;
  const req=h.request({method:'POST',query:{},body:{action:'login',role:'teacher',portal:true}});
  const login=await h.run(req);
- const callback=(cookie)=>h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:cookie.split(';')[0]}});
+ const callback=(cookie)=>h.request({query:{action:'callback',state:h.state.options.state,code:'code'},headers:{cookie:[cookie].flat().filter(c=>!c.includes('Max-Age=0')).map(c=>c.split(';')[0]).join('; ')}});
  const retry=await h.run(callback(login.headers['Set-Cookie']));assert.equal(retry.code,303);assert(retry.headers.Location.startsWith('https://accounts.google.com/'));assert.equal(h.state.options.prompt,'consent');
  assert.equal((await h.run(callback(retry.headers['Set-Cookie']))).code,403);
  h.state.noRefresh=false;assert.equal((await h.run(callback(retry.headers['Set-Cookie']))).headers.Location,'/');

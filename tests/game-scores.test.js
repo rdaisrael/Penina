@@ -38,3 +38,17 @@ test('A deleted teacher can still sign out or switch Google accounts',async()=>{
  }
  assert.deepEqual(calls,['logout','login','callback']);
 });
+
+test('Identity changes do not refresh an older session over the new sign-in',async()=>{
+ const touched=[],ctx={module:{exports:{}},require:name=>{
+  if(name==='../lib/quiz-teachers')return {rejectDeletedSession:async()=>{}};
+  if(name==='../lib/quiz-account')return {touchSession:req=>touched.push(req.query.action),handle:(req,res)=>res.status(200).json({ok:true})};
+  return ()=>{};
+ }};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../api/game-scores.js'),'utf8'),ctx);
+ for(const action of ['login','callback','logout','email-login','email-verify','password-login','password-change','activity']){
+  const res={setHeader(){},status(){return this;},json(){}};
+  await ctx.module.exports({query:{game:'quiz-account',action},headers:{cookie:'__Host-penina-quiz-session=old'}},res);
+ }
+ assert.deepEqual(touched,['activity']);
+});

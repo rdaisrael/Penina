@@ -2,13 +2,13 @@
 'use strict';
 const QuizPicture = (() => {
     const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    function render(q, editable=false) {
+    function render(q, editable=false, selected=0) {
         if (!q.image || !/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+=*$/.test(q.image.src)) return '';
         const numbered=Array.isArray(q.image.markers), targets=Array.isArray(q.image.targets)?q.image.targets:null, lettered=targets?.length>1, markers=numbered?q.image.markers:targets||[q.image.marker];
-        const active=q.markerIndex ?? 0;
+        const active=q.markerIndex ?? (editable?selected:null);
         const label=numbered?`Move marker ${active+1}: click the picture or use arrow keys`:'Place marker: click the picture or use arrow keys';
-        const pins=markers.map((marker,i)=>marker?`<span class="picture-marker ${numbered?'numbered '+(i===active?'active':'inactive'):lettered?'lettered':''}" style="left:${Number(marker.x)*100}%;top:${Number(marker.y)*100}%" aria-label="${numbered?'Marker '+(i+1)+(i===active?', current question':''):lettered?'Target '+'ABCDE'[i]:'Marked location'}">${numbered?i+1:lettered?'ABCDE'[i]:'＋'}</span>`:'').join('');
-        return `<figure class="quiz-picture"><div class="picture-frame" ${editable?`data-picture-target tabindex="0" role="button" aria-label="${label}"`:''}><img src="${escape(q.image.src)}" alt="${escape(q.image.alt || 'Question picture')}" draggable="false">${pins}</div>${numbered?`<figcaption>Answer about marker <strong>${active+1}</strong> (highlighted).</figcaption>`:lettered?`<figcaption>Targets A–${'ABCDE'[targets.length-1]}.</figcaption>`:q.image.marker?'<figcaption>Answer about the location marked with ＋.</figcaption>':''}</figure>`;
+        const pins=markers.map((marker,i)=>marker?`<span class="picture-marker ${numbered?'numbered '+(i===active?'active':'inactive'):lettered?'lettered':''}" style="left:${Number(marker.x)*100}%;top:${Number(marker.y)*100}%" aria-label="${numbered?'Marker '+(i+1)+(i===active?(q.pictureGroup||q.markerIndex!==undefined?', current question':', current marker'):''):lettered?'Target '+'ABCDE'[i]:'Marked location'}">${numbered?i+1:lettered?'ABCDE'[i]:'＋'}</span>`:'').join('');
+        return `<figure class="quiz-picture"><div class="picture-frame" ${editable?`data-picture-target tabindex="0" role="button" aria-label="${label}"`:''}><img src="${escape(q.image.src)}" alt="${escape(q.image.alt || 'Question picture')}" draggable="false">${pins}</div>${numbered?`<figcaption>${q.markerIndex!==undefined?'Answer about marker <strong>'+(active+1)+'</strong> (highlighted).':editable?'Editing marker <strong>'+(active+1)+'</strong>. Click the picture to move it.':q.pictureResponseMode==='markers'?'Write an answer for each numbered marker.':'Use the numbered markers to answer the question.'}</figcaption>`:lettered?`<figcaption>Targets A–${'ABCDE'[targets.length-1]}.</figcaption>`:q.image.marker?'<figcaption>Answer about the location marked with ＋.</figcaption>':''}</figure>`;
     }
     function group(questions,q){return q.pictureGroup?questions.filter(item=>item.pictureGroup===q.pictureGroup):[q];}
     function addMarker(questions,q){
@@ -23,9 +23,26 @@ const QuizPicture = (() => {
         const added={type:'text',pictureQuestion:true,pictureGroup:q.pictureGroup,markerIndex:next.length-1,image:structuredClone(q.image),prompt:'',answer:'',points:q.points,allowHalfCredit:q.allowHalfCredit===true,extraCredit:q.extraCredit===true,scoringMode:'total',direction:q.direction};
         const last=Math.max(...members.map(item=>questions.indexOf(item)));questions.splice(last+1,0,added);return added;
     }
-    function setMarker(questions,q,marker){
+    function addQuestionMarker(q){
+        if(!q.image)throw Error('Upload a picture first.');
+        if(q.pictureGroup)throw Error('Use Add marker question for this existing group.');
+        const markers=q.image.markers || q.image.targets || (q.image.marker?[q.image.marker]:[]);
+        if(markers.length>=20)throw Error('Use up to 20 markers per picture.');
+        q.pictureResponseMode ||= q.image.targets?'shared':'markers';
+        const answers=q.pictureAnswers || markers.map((_,i)=>i===0?q.answer || '':'');
+        q.image.markers=[...markers,{x:0.2+0.15*(markers.length%5),y:0.25+0.15*Math.floor(markers.length/5)}];
+        q.pictureAnswers=[...answers,markers.length?'':q.answer || ''];
+        q.image.marker=null;delete q.image.targets;
+        return q.image.markers.length-1;
+    }
+    function removeMarker(q,index){
+        if(q.pictureGroup || !q.image?.markers || !Number.isInteger(index) || index<0 || index>=q.image.markers.length)throw Error('Choose a marker in this picture question.');
+        q.image.markers.splice(index,1);q.pictureAnswers?.splice(index,1);
+        if(!q.image.markers.length){delete q.image.markers;delete q.pictureAnswers;q.image.marker=null;}
+    }
+    function setMarker(questions,q,marker,index=q.markerIndex ?? 0){
         if(!q.image.markers){q.image.marker=marker;return;}
-        for(const item of group(questions,q))item.image.markers[q.markerIndex]=structuredClone(marker);
+        for(const item of group(questions,q))item.image.markers[index]=structuredClone(marker);
     }
     function removeQuestion(questions,q){
         const members=group(questions,q);
@@ -37,7 +54,7 @@ const QuizPicture = (() => {
     function copyQuestion(q){
         const copy=structuredClone(q);
         // A duplicated question is independent of the original picture group.
-        if(copy.image?.markers){copy.image.marker=copy.image.markers[copy.markerIndex];delete copy.image.markers;delete copy.markerIndex;delete copy.pictureGroup;}
+        if(copy.image?.markers && copy.pictureGroup){copy.image.marker=copy.image.markers[copy.markerIndex];delete copy.image.markers;delete copy.markerIndex;delete copy.pictureGroup;}
         return copy;
     }
     function replaceImage(questions,q,image){
@@ -61,7 +78,7 @@ const QuizPicture = (() => {
             return {src,alt:'',marker:null};
         } finally {URL.revokeObjectURL(url);}
     }
-    return {render,read,group,addMarker,setMarker,removeQuestion,copyQuestion,replaceImage};
+    return {render,read,group,addMarker,addQuestionMarker,removeMarker,setMarker,removeQuestion,copyQuestion,replaceImage};
 })();
 
 if(typeof module!=='undefined')module.exports=QuizPicture;

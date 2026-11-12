@@ -54,3 +54,51 @@ test('incomplete groups, duplicate marker assignments and malformed coordinates 
  }
  const quiz=fiveMarkers();while(quiz.questions.length<20)picture.addMarker(quiz.questions,quiz.questions[0]);assert.throws(()=>picture.addMarker(quiz.questions,quiz.questions[0]),/20 markers/);
 });
+
+test('one picture question holds several markers with shared or per-marker answers and scoring',()=>{
+ const quiz=fixture(),q=quiz.questions[0];
+ for(let i=1;i<5;i++)picture.addQuestionMarker(q);
+ assert.equal(quiz.questions.length,1);assert.equal(q.image.markers.length,5);
+ q.pictureAnswers=['First','Second','Third','Fourth','Fifth'];q.scoringMode='response';
+ const saved=model.validateQuiz(JSON.parse(JSON.stringify(quiz)),true),question=saved.questions[0];
+ assert.equal(model.responseCount(question),5);assert.equal(model.maxPoints(question),10);
+ const safe=model.publicQuestions(saved)[0];assert.equal(safe.pictureResponseMode,'markers');assert.equal(safe.responseCount,5);
+ assert.equal(safe.answer,undefined);assert.equal(safe.pictureAnswers,undefined);
+ assert(model.validAnswers(saved,[['one','two','three','four','five']]));
+ assert(!model.validAnswers(saved,[['one']]));assert(!model.validAnswers(saved,[['one','two','','four','five']]));
+ assert(model.validAnswers(saved,[['','','','','']],true));
+ const pending=model.grade(saved,[question.pictureAnswers]);assert.equal(pending.pending,1,'written marker answers require correction even when exact');
+ assert.equal(pending.manual[0].max,10);assert.match(pending.manual[0].modelAnswer,/Marker 5: Fifth/);
+ const graded=model.grade(saved,[question.pictureAnswers],{scores:[8]});assert.equal(graded.total,8);assert.equal(graded.baseMax,10);
+ assert.deepEqual(picture.copyQuestion(question),question,'duplicate retains all markers and answers');
+ question.scoringMode='total';assert.equal(model.maxPoints(question),2);
+ question.pictureResponseMode='shared';question.scoringMode='response';assert.equal(model.responseCount(question),1);assert.equal(model.maxPoints(question),2);
+ assert(model.validAnswers(saved,[['One answer covering the picture']]));assert(!model.validAnswers(saved,[['one','two']]));
+ assert.equal(model.grade(saved,[['answer']]).manual[0].modelAnswer,question.answer);
+ assert.deepEqual(model.validateQuiz(saved,true).questions[0].pictureAnswers,question.pictureAnswers,'switching to shared retains private marker answers');
+ assert.doesNotMatch(picture.render(model.publicQuestions(saved)[0]),/current marker|current question/);
+});
+test('standalone marker edits preserve the other locations and answers without mutating a copy',()=>{
+ const q=fixture().questions[0];picture.addQuestionMarker(q);picture.addQuestionMarker(q);q.pictureAnswers=['first','second','third'];
+ const before=structuredClone(q),copy=picture.copyQuestion(q);picture.setMarker([q],q,{x:.8,y:.2},1);
+ assert.deepEqual(q.image.markers[0],before.image.markers[0]);assert.deepEqual(q.image.markers[2],before.image.markers[2]);assert.deepEqual(copy,before);
+ picture.removeMarker(q,1);assert.deepEqual(q.pictureAnswers,['first','third']);assert.equal(q.image.markers.length,2);
+ picture.replaceImage([q],q,{...image,alt:'New diagram'});assert.equal(q.image.markers.length,2);assert.equal(q.image.alt,'New diagram');
+ assert.doesNotThrow(()=>model.validateQuiz({title:'Markers',questions:[q]},true));
+ const noMarker=fixture().questions[0];noMarker.image.marker=null;picture.addQuestionMarker(noMarker);assert.equal(noMarker.image.markers.length,1);
+ picture.removeMarker(noMarker,0);assert.equal(noMarker.image.markers,undefined);assert.equal(noMarker.pictureAnswers,undefined);
+ assert.doesNotThrow(()=>model.validateQuiz({title:'No markers',questions:[noMarker]},true));
+});
+test('standalone markers validate answer count, modes, limits and cannot lose responses through conversion',()=>{
+ const q=fixture().questions[0];picture.addQuestionMarker(q);
+ for(const mutate of [q=>q.pictureAnswers.pop(),q=>delete q.pictureAnswers,q=>q.pictureAnswers[0]=7,q=>q.pictureAnswers[0]='a'.repeat(5001),q=>q.pictureResponseMode='unknown',q=>q.pictureGroup='legacy',q=>q.markerIndex=0,q=>q.image.markers[0].x=2]){
+  const broken=structuredClone(q);mutate(broken);assert.throws(()=>model.validateQuiz({title:'Invalid',questions:[broken]},true));
+ }
+ assert.throws(()=>require('../Penina-Quizzes/builder/question-conversion').create(q,'text'),/markers and answers stay together/);
+ while(q.image.markers.length<20)picture.addQuestionMarker(q);const before=JSON.stringify(q);assert.throws(()=>picture.addQuestionMarker(q),/20 markers/);assert.equal(JSON.stringify(q),before);
+});
+test('imported lettered targets can become numbered markers without conflicting marker formats',()=>{
+ const q=fixture().questions[0];q.image.targets=[{x:.1,y:.2},{x:.7,y:.8}];picture.addQuestionMarker(q);
+ assert.equal(q.pictureResponseMode,'shared');assert.equal(q.image.targets,undefined);assert.equal(q.image.markers.length,3);
+ assert.doesNotThrow(()=>model.validateQuiz({title:'Imported',questions:[q]},true));
+});

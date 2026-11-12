@@ -1,7 +1,8 @@
 'use strict';
 // Shared by server grading and the isolated teacher preview.
 (function(root,factory){if(typeof module==='object' && module.exports)module.exports=factory();else root.QuizScoring=factory();})(typeof globalThis!=='undefined'?globalThis:this,function(){
-    function responseCount(q){return q.type==='gaps'?q.prompt.split('___').length-1:q.type==='match'?q.answer.filter(Boolean).length:q.type==='order'?q.choices.length:q.type==='multi'?q.answer.length:1;}
+    function responseCount(q){return q.pictureQuestion && q.pictureResponseMode==='markers'?q.image?.markers?.length || 1:q.type==='gaps'?q.prompt.split('___').length-1:q.type==='match'?q.answer.filter(Boolean).length:q.type==='order'?q.choices.length:q.type==='multi'?q.answer.length:1;}
+    function modelAnswer(q){return q.pictureResponseMode==='markers' && q.pictureAnswers?q.pictureAnswers.map((answer,i)=>'Marker '+(i+1)+': '+(answer || '(No model answer)')).join('\n'):Array.isArray(q.answer)?q.answer.join('; '):q.answer;}
     function originalMax(q){return q.points*(q.scoringMode==='response'?responseCount(q):1);}
     function maxPoints(q){return q.potentialPoints ?? originalMax(q);}
     function score(q,a){
@@ -27,5 +28,5 @@
         const points=score(q,answers[index]||[]),max=originalMax(q);
         return [{index,correct:points===max,partial:points>0 && points<max,...(detailed?{correctAnswers:[...q.answer]}:{})}];
     });}
-    return {responseCount,originalMax,maxPoints,score,feedback,duplicateQuestions};
+    return {responseCount,modelAnswer,originalMax,maxPoints,score,feedback,duplicateQuestions};
 });

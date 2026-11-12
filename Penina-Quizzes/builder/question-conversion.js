@@ -18,6 +18,7 @@
     }
     function blocked(question){
         if(!supported(question))return 'Change type is available for written answer, multiple choice, fill in the blanks, and picture questions.';
+        if(question.pictureResponseMode && question.image?.markers)return 'This picture has numbered markers. Keep it as a picture question so its markers and answers stay together.';
         if(question.pictureGroup || question.image?.markers)return 'This question shares numbered picture markers with other questions. Duplicate this question first, then change the independent copy’s type.';
         const q=read(question);
         if(q.vocabularyTerms?.length>1)return 'This question tests several source items. Keep its type so no source items are lost.';
@@ -47,7 +48,7 @@
         const bank=q.type==='choice' || q.type==='gaps'?q.distractors ?? q.choices ?? []:q.conversionDistractors ?? row?.definitionDistractors ?? [];
         const distractors=unique(bank.filter(value=>key(value)!==key(answer)));
         const next=structuredClone(q);
-        for(const field of ['choices','items','pairs','sentence','distractors','wordBank','pictureQuestion','markerIndex','pictureGroup','potentialPoints','perResponseCredit'])delete next[field];
+        for(const field of ['choices','items','pairs','sentence','distractors','wordBank','pictureQuestion','markerIndex','pictureGroup','pictureResponseMode','pictureAnswers','potentialPoints','perResponseCredit'])delete next[field];
         next.type=target==='picture'?'text':target;
         next.conversionDistractors=distractors;
         // All supported conversions have one response; proportional scoring is

@@ -568,3 +568,24 @@ test('five picture marker questions save, publish, submit and receive separate t
  const submitted=await h.call(h.submissions,h.req({action:'submit',id:attemptId,classId,quiz:id,token:started.data.token,answers:[['one'],['two'],['three'],['four'],['five']]},'student'));assert.equal(submitted.code,200);
  const corrected=await h.call(h.submissions,h.req({action:'correct',id:attemptId,quiz:id,scores:[1,0,1,0,1],feedback:''}));assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,3);assert.equal(corrected.data.grading.manual.length,5);
 });
+
+test('one multi-marker picture saves, publishes, collects all responses and grades with its configured points',async()=>{
+ const picture=require('../Penina-Quizzes/picture');
+ for(const mode of ['markers','shared']){
+  const quiz={title:'One picture with markers',questions:[{type:'text',pictureQuestion:true,prompt:'Identify the marked shapes',answer:'Shared model',points:2,scoringMode:'response',image:{src:'data:image/png;base64,iVBORw0KGgo=',alt:'Shapes',marker:{x:.1,y:.2}}}]};
+  const q=quiz.questions[0];picture.addQuestionMarker(q);picture.addQuestionMarker(q);q.pictureResponseMode=mode;q.pictureAnswers=['One','Two','Three'];
+  const h=harness(),id=await h.publish(quiz),max=mode==='markers'?6:2;
+  const loaded=await h.call(h.builder.handle,h.req({action:'load',id}));assert.equal(loaded.code,200);assert.deepEqual(loaded.data.quiz.questions[0].pictureAnswers,q.pictureAnswers);
+  const assigned=await h.call(h.account.handle,h.req({action:'assign',courseId:'course',quiz:id}));assert.equal(assigned.code,200);assert.equal(h.state.work.maxPoints,max);
+  const classId=new URL(assigned.data.url).searchParams.get('class'),attemptId='c'.repeat(32);
+  const identityRequest=h.req({},'student',{action:'student',classId,quiz:id});identityRequest.method='GET';
+  const identity=await h.call(h.account.handle,identityRequest);assert.equal(identity.code,200);
+  assert.equal(identity.data.questions[0].pictureAnswers,undefined);assert.equal(identity.data.questions[0].answer,undefined);assert.equal(identity.data.questions[0].maxPoints,max);
+  const started=await h.call(h.submissions,h.req({action:'start',id:attemptId,classId,quiz:id},'student'));assert.equal(started.code,200);
+  const answers=mode==='markers'?[['first','second','third']]:[['shared response']];
+  const submitted=await h.call(h.submissions,h.req({action:'submit',id:attemptId,classId,quiz:id,token:started.data.token,answers},'student'));assert.equal(submitted.code,200);assert.deepEqual(submitted.data.answers,answers);assert.deepEqual(submitted.data.automatic,[]);
+  const corrected=await h.call(h.submissions,h.req({action:'correct',id:attemptId,quiz:id,scores:[max-1],feedback:''}));assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,max-1);assert.equal(corrected.data.grading.baseMax,max);
+  const points=await h.call(h.builder.handle,h.req({action:'load-points',id}));assert.equal(points.code,200);assert.equal(points.data.questions[0].responseCount,mode==='markers'?3:1);
+  assert.equal(points.data.questions[0].answer,mode==='markers'?'Marker 1: One\nMarker 2: Two\nMarker 3: Three':'Shared model');
+ }
+});

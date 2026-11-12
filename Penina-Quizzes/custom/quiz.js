@@ -35,7 +35,7 @@ function restoreAnswers(){
 }
 function answer(q,i) {
     if(q.type==='multi')return [...form.querySelectorAll(`[data-question="${i}"] input:checked`)].map(c=>c.value);
-    const count=q.type==='gaps'?q.prompt.split('___').length-1:q.type==='match'?q.items.length:q.type==='order'?q.choices.length:1;
+    const count=q.pictureResponseMode==='markers'?q.image?.markers?.length || 1:q.type==='gaps'?q.prompt.split('___').length-1:q.type==='match'?q.items.length:q.type==='order'?q.choices.length:1;
     return Array.from({length:count},(_,j)=>form.elements.namedItem(`q${i}-${j}`)?.value || '');
 }
 function shuffled(values) {
@@ -115,7 +115,7 @@ function showReceipt() {
             const label=q.type==='match'?q.items[j]:`${q.type==='order'?'Position':'Blank'} ${j+1}`;
             return `<p dir="ltr"><strong><bdi dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(label)}</bdi></strong>: ${right?'✓ Correct':'✕ Incorrect'}<br>Your answer: <bdi dir="auto">${esc(actual || '(Unanswered)')}</bdi>${right?'':`<br>Correct answer: <bdi dir="auto">${esc(expected || 'Leave unmatched (distractor)')}</bdi>`}</p>`;
         }).join(''):`<p dir="ltr">Correct ${key.length>1?'answers':'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${key.map(v=>esc(v)).join('<br>')}</span></p>`}</div>`:'';
-        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${i+1}. ${esc(q.prompt)}</h3>${q.image?QuizPicture.render(q):''}<p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>${result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}${review}</section>`;
+        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${i+1}. ${esc(q.prompt)}</h3>${q.image?QuizPicture.render(q):''}<p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>${result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}${review}</section>`;
     }).join('');
 }
 function tick() {

@@ -44,11 +44,18 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     const studySets=()=>[...sets,...knowledgeSets];
     const listTitle=set=>set.title+(set.kind==='knowledge'?' · Knowledge':'');
     let disabledGames = [], excludedWordlists = [], hiddenWordlists = [], wordlistEmphasis = {};
+    const liveListChoices = new Map();
     function renderTeacherChoices() {
         removalChoices.innerHTML = '<legend>Choose lists to hide or delete</legend>' + sets.map(set => `<label><input type="checkbox" class="delete-select" value="${escapeHtml(set.pathname)}"><span>${escapeHtml(set.title)}${hiddenWordlists.includes(set.pathname) ? ' (hidden)' : ''}</span>${hiddenWordlists.includes(set.pathname) ? `<button type="button" class="combine-action show-list" data-path="${escapeHtml(set.pathname)}">Show again</button>` : ''}</label>`).join('');
         hideButton.disabled = !sets.length;
         removeButton.disabled = !sets.length;
-        setChoices.innerHTML = '<legend>Included wordlists and knowledge lists</legend>' + studySets().filter(set => !hiddenWordlists.includes(set.pathname)).map(set => `<label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}" ${excludedWordlists.includes(set.pathname) ? '' : 'checked'}><span>${escapeHtml(listTitle(set))}</span></label>`).join('');
+        setChoices.innerHTML = '<legend>Included lists and priority</legend><p>Choose wordlists and knowledge lists, then set Normal, 2×, or 3× priority for this Live game.</p>' + studySets().filter(set => !hiddenWordlists.includes(set.pathname)).map(set => {
+            const choice = liveListChoices.get(set.pathname);
+            const checked = choice?.checked ?? !excludedWordlists.includes(set.pathname);
+            const emphasis = choice?.emphasis ?? wordlistEmphasis[set.pathname] ?? 1;
+            liveListChoices.set(set.pathname, {checked, emphasis});
+            return `<div class="live-wordlist-row"><label><input type="checkbox" class="remove-select" value="${escapeHtml(set.pathname)}" ${checked ? 'checked' : ''}><span>${escapeHtml(listTitle(set))}</span></label><select class="live-emphasis" aria-label="Priority for ${escapeHtml(listTitle(set))}" ${checked ? '' : 'disabled'}>${[[1,'Normal'],[2,'2×'],[3,'3×']].map(([value,label]) => `<option value="${value}" ${emphasis === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>`;
+        }).join('');
         const newest = studySets().slice().sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt) || a.pathname.localeCompare(b.pathname))[0]?.pathname;
         practiceChoices.innerHTML = '<legend>Wordlists, Knowledge Lists and Prioritization</legend><p>Wordlists and knowledge lists are included by default. Choose Normal, 2×, or 3× practice frequency for each list, then save. Hidden wordlists remain hidden.</p>' + studySets().map(set => {
             const weight = wordlistEmphasis[set.pathname] ?? (set.pathname === newest ? 3 : 1);
@@ -59,6 +66,14 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     }
     practiceChoices.addEventListener('change', event => {
         if (event.target.matches('.practice-list-select')) event.target.closest('.practice-wordlist-row').querySelector('select').disabled = !event.target.checked;
+    });
+    setChoices.addEventListener('change', event => {
+        const row = event.target.closest('.live-wordlist-row');
+        if (!row) return;
+        const checkbox = row.querySelector('.remove-select');
+        const priority = row.querySelector('.live-emphasis');
+        priority.disabled = !checkbox.checked;
+        liveListChoices.set(checkbox.value, {checked: checkbox.checked, emphasis: Number(priority.value)});
     });
     saveGames.addEventListener('click', async () => {
         saveGames.disabled = true; gameStatus.textContent = 'Saving…';
@@ -384,9 +399,10 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         const chosen = studySets().filter(set => selected.has(set.pathname));
         if (!chosen.length) { await showMessage('Choose lists', 'Check at least one wordlist or knowledge list to include.'); return; }
         const pathnames = chosen.map(set => set.pathname);
+        const emphasis = Object.fromEntries(chosen.map(set => [set.pathname, liveListChoices.get(set.pathname)?.emphasis ?? wordlistEmphasis[set.pathname] ?? 1]));
         const dialog = document.createElement('dialog');
         dialog.className = 'input-dialog live-setup';
-        dialog.innerHTML = `<form class="input-dialog-form"><h2>Start Live Game</h2><p>Students join with a game code.</p><div class="live-wordlist-summary"><h3>Included wordlists and knowledge lists</h3><ul>${chosen.map((set, index) => `<li class="live-wordlist-row"><span class="live-wordlist-title">${escapeHtml(set.title)}</span><select name="emphasis-${index}" aria-label="Emphasis for ${escapeHtml(set.title)}">${[[1,'Normal'],[2,'2×'],[3,'3×']].map(([value,label]) => `<option value="${value}" ${(wordlistEmphasis[set.pathname] ?? 1) === value ? 'selected' : ''}>${label}</option>`).join('')}</select></li>`).join('')}</ul><p>Choose how often each list appears. Emphasized lists may repeat terms. These choices start from your saved exercise settings and apply only to this Live game. To change the included lists, cancel and return to Start Live Game.</p></div><label>Answer language<select name="language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><label>Questions<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label>Question pacing<select name="seconds"><option value="0">Manual — teacher advances</option><option value="5">5 seconds</option><option value="7">7 seconds</option><option value="10" selected>10 seconds</option></select></label><label>Show correct answer for<select name="revealSeconds"><option value="5" selected>5 seconds</option><option value="7">7 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option></select></label><p>Students see right/wrong feedback when the answer is revealed.</p><p>100 points per correct answer.</p><p class="live-setup-error" role="alert"></p><div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Open lobby →</button></div></form>`;
+        dialog.innerHTML = `<form class="input-dialog-form"><h2>Start Live Game</h2><p>Students join with a game code.</p><div class="live-wordlist-summary"><h3>Included wordlists and knowledge lists</h3><ul>${chosen.map(set => `<li class="live-wordlist-row"><span class="live-wordlist-title">${escapeHtml(set.title)}</span><span class="live-wordlist-priority">${emphasis[set.pathname] === 1 ? 'Normal' : emphasis[set.pathname] + '×'} priority</span></li>`).join('')}</ul><p>Prioritized lists appear more often and may repeat terms. These choices apply only to this Live game. To change lists or priorities, cancel and return to Start Live Game.</p></div><label>Answer language<select name="language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><label>Questions<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label>Question pacing<select name="seconds"><option value="0">Manual — teacher advances</option><option value="5">5 seconds</option><option value="7">7 seconds</option><option value="10" selected>10 seconds</option></select></label><label>Show correct answer for<select name="revealSeconds"><option value="5" selected>5 seconds</option><option value="7">7 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option></select></label><p>Students see right/wrong feedback when the answer is revealed.</p><p>100 points per correct answer.</p><p class="live-setup-error" role="alert"></p><div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Open lobby →</button></div></form>`;
         document.body.appendChild(dialog);dialog.showModal();
         let creating = false;
         dialog.addEventListener('cancel', event => { if (creating) event.preventDefault(); });
@@ -399,7 +415,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
             if (!pathnames.length) { note.textContent = 'Choose at least one study list.'; return; }
             creating = true;note.textContent = 'Opening the lobby…';form.querySelectorAll('button').forEach(button => { button.disabled = true; });
             try {
-                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, pathnames, wordlistEmphasis: Object.fromEntries(chosen.map((set,index) => [set.pathname, Number(form.elements['emphasis-'+index].value)])), language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), revealSeconds: Number(form.elements.revealSeconds.value), sendScoresToTeacher: sendScores, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
+                const response = await fetch('/api/game-scores?game=live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', grade, pathnames, wordlistEmphasis: emphasis, language: form.elements.language.value, count: Number(form.elements.count.value), seconds: Number(form.elements.seconds.value), revealSeconds: Number(form.elements.revealSeconds.value), sendScoresToTeacher: sendScores, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
                 const data = await response.json();if (!response.ok) throw new Error(data.error || 'Unable to open a lobby.');
                 sessionStorage.setItem('penina-live-host-' + data.code, data.hostToken);
                 window.location.assign('/PeninaPlus-vocab-builder/flash-cards/live/?host=1&code=' + data.code);
@@ -524,6 +540,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
             excludedWordlists = data.excludedWordlists || [];
             if (data.hiddenWordlists) hiddenWordlists = data.hiddenWordlists;
 
+            liveListChoices.clear();
             managementMode = true;
             selectedForCombination.clear();
             manageTrigger.hidden = true;

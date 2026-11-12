@@ -3,6 +3,14 @@
 function distractorLanguage(word){return /[א-ת]/u.test(word)?'English':'Hebrew';}
 function vocabularySource(){return quiz.vocabulary?{...quiz.vocabulary,autoCount:quiz.vocabulary.autoCount!==false,wordBank:true}: {rows:[],count:15,types:['choice','match','gaps'],autoCount:true,wordBank:true,direction:'ltr'};}
 let vocabularyCoverage=null;
+$('openVocabulary').onclick=()=>{
+    const panel=$('vocabularyPanel');panel.open=true;
+    const target=vocabularySource().rows.length?$('vocabularySettings').querySelector('h2'):panel.querySelector('summary');
+    target.focus({preventScroll:true});target.scrollIntoView({block:'start'});
+};
+$('vocabularyPanel').addEventListener('toggle',()=>{
+    $('openVocabulary').setAttribute('aria-expanded',String($('vocabularyPanel').open));
+});
 function vocabularyMessage(message){$('vocabularyStatus').textContent=message;}
 function vocabularyButtons(){
     const panel=$('vocabularyPanel');if(!panel)return;
@@ -128,7 +136,7 @@ function refreshVocabularyCoverage(){
     $('vocabularyCount').readOnly=source.autoCount;
     $('vocabularyUseSuggestion').hidden=source.autoCount || !c?.suggestedCount;
     $('vocabularyUseSuggestion').textContent='Use suggested count'+(c?.suggestedCount?' ('+c.suggestedCount+')':'');
-    $('vocabularyGenerate').textContent=context.replace?'Replace generated questions':'Add questions for untested words';
+    $('vocabularyGenerate').textContent=context.replace?'Regenerate quiz':'Generate quiz';
     $('vocabularyCoverage').textContent=!c?'Load a wordlist to see the suggested count.':[
         c.suggestedCount?'Suggested: '+c.suggestedCount+' questions.':'',
         c.error || c.questionCount+' new questions · '+c.totalUses+' newly tested words · '+c.existingWords+' words already tested · '+c.coveredWords+' of '+c.wordCount+' words covered · No new repeats.',

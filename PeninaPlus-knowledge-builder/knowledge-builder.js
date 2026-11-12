@@ -8,8 +8,9 @@
     let workflow;
     let deck = {format: FORMAT, version: 1, title: '', cards: []};
     let editingId = null, picture = null, activeTarget = 0, dirty = false, stage = 'edit';
-    let order = [], index = 0, showingAnswer = false, answerFirst = false, ratings = {};
-    let db = null, saveTimer, uploadVersion = 0, uploading = false, pictureDisplayWidth = 0, pictureAspectRatio = 1, pictureTrigger = null;
+    let order = [], index = 0, showingAnswer = false, ratings = {};
+    let db = null, saveTimer, uploadVersion = 0, uploading = false, pictureDisplayWidth = 0, pictureAspectRatio = 1, pictureTrigger = null, pictureZoomStep = 0;
+    const pictureZoomSteps = [1.5, 2, 3];
     const app = document.querySelector('.app');
     const make = (tag, className, value) => {
         const element = document.createElement(tag);
@@ -211,7 +212,7 @@
         if (stage === 'study') {
             order = deck.cards.map(card => card.id);
             index = 0;
-            showingAnswer = answerFirst;
+            showingAnswer = false;
             renderStudy();
         }
         if (stage === 'print') renderPrint();
@@ -247,7 +248,7 @@
         byId('progress-bar').style.width = `${progress}%`;
         document.querySelector('.progress').setAttribute('aria-valuenow', progress);
         byId('card-number').textContent = `Card #${deck.cards.indexOf(card) + 1}`;
-        byId('side-number').textContent = showingAnswer !== answerFirst ? '2 / 2' : '1 / 2';
+        byId('side-number').textContent = showingAnswer ? '2 / 2' : '1 / 2';
         byId('flashcard').setAttribute('aria-label', `${showingAnswer ? 'Answer' : 'Question'} side of flashcard. Press Space or Enter to flip.`);
         const content = cardContent(card, showingAnswer);
         if (studentMode) {
@@ -276,22 +277,18 @@
     if(studentMode) {
         window.addEventListener('resize',fitStudentStudy);
         if(document.fonts)document.fonts.ready.then(fitStudentStudy);
-        for(const [id,reverse] of [['question-first',false],['answer-first',true]])byId(id).addEventListener('click',()=>{
-            answerFirst=reverse;showingAnswer=reverse;
-            byId('question-first').classList.toggle('active',!reverse);byId('answer-first').classList.toggle('active',reverse);
-            renderStudy();
-        });
     }
     function move(amount) {
         if (!order.length) return;
         index = (index + amount + order.length) % order.length;
-        showingAnswer = answerFirst;
+        showingAnswer = false;
         renderStudy();
     }
     function flip() {if (studyCard()) {showingAnswer = !showingAnswer; renderStudy();}}
     async function openPicture(value, trigger) {
         const source = trigger.querySelector('img');
         pictureTrigger = trigger;
+        pictureZoomStep = 0;
         pictureDisplayWidth = source.getBoundingClientRect().width || source.naturalWidth;
         pictureAspectRatio = source.naturalWidth / source.naturalHeight || 1;
         const container = byId('enlarged-picture'), dialog = byId('picture-dialog');
@@ -312,9 +309,17 @@
     }
     function fitPicture() {
         const width = Math.max(1, (window.visualViewport?.width || innerWidth) - 32);
-        const height = Math.max(1, (window.visualViewport?.height || innerHeight) - 80);
-        const desiredWidth = window.matchMedia('(max-width: 620px), (max-height: 620px) and (pointer: coarse)').matches ? width : pictureDisplayWidth * 2;
-        byId('enlarged-picture').style.width = `${Math.min(desiredWidth, width, height * pictureAspectRatio)}px`;
+        const height = Math.max(1, (window.visualViewport?.height || innerHeight) - 112);
+        const limit = Math.min(width, height * pictureAspectRatio);
+        const renderedWidth = Math.min(pictureDisplayWidth * pictureZoomSteps[pictureZoomStep], limit);
+        const canEnlarge = pictureZoomStep < pictureZoomSteps.length - 1 && renderedWidth < limit - 1;
+        const container = byId('enlarged-picture');
+        container.style.width = `${renderedWidth}px`;
+        container.classList.toggle('zoom-limit', !canEnlarge);
+        container.setAttribute('aria-disabled', String(!canEnlarge));
+        container.setAttribute('aria-label', canEnlarge ? 'Enlarge picture further' : 'Picture at maximum size');
+        byId('picture-zoom-hint').hidden = !canEnlarge;
+        return canEnlarge;
     }
     function fitPrint() {
         let overflow = false;
@@ -411,7 +416,7 @@
     byId('new-list').addEventListener('click', async () => {
         if (studentMode || !await confirmAction('Clear the current draft and start a new list?', 'Start New')) return;
         deck = {format: FORMAT, version: 1, title: '', cards: []};
-        ratings = {}; order = []; index = 0; showingAnswer = answerFirst;
+        ratings = {}; order = []; index = 0; showingAnswer = false;
         workflow.reset();
         byId('set-title').value = '';
         openEditor();
@@ -546,9 +551,9 @@
     });
     byId('shuffle').addEventListener('click', () => {
         for (let i = order.length - 1; i > 0; i--) {const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]];}
-        index = 0; showingAnswer = answerFirst; renderStudy();
+        index = 0; showingAnswer = false; renderStudy();
     });
-    byId('reset-study').addEventListener('click', () => {ratings = {}; order = deck.cards.map(card => card.id); index = 0; showingAnswer = answerFirst; renderStudy();});
+    byId('reset-study').addEventListener('click', () => {ratings = {}; order = deck.cards.map(card => card.id); index = 0; showingAnswer = false; renderStudy();});
     byId('edit-current').addEventListener('click', () => {openEditor(studyCard()); setStage('edit');});
     document.querySelectorAll('[data-rating]').forEach(button => button.addEventListener('click', () => {
         if (studyCard()) {ratings[studyCard().id] = button.dataset.rating; move(1);}
@@ -560,7 +565,11 @@
         if (event.key === ' ' && event.target.tagName !== 'BUTTON') {event.preventDefault(); flip();}
     });
     byId('close-picture').addEventListener('click', () => byId('picture-dialog').close());
-    byId('enlarged-picture').addEventListener('click', () => byId('picture-dialog').close());
+    byId('enlarged-picture').addEventListener('click', () => {
+        if (!fitPicture()) return;
+        pictureZoomStep++;
+        fitPicture();
+    });
     byId('picture-dialog').addEventListener('click', event => {
         if (event.target === byId('picture-dialog')) byId('picture-dialog').close();
     });

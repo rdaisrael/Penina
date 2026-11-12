@@ -39,22 +39,24 @@ const server = http.createServer((req,res) => {
         studentHtml=makeStudentApp(deck);
         await page.goto(origin+'/student.html');
         const dialog=page.locator('#picture-dialog'),enlarged=page.locator('#enlarged-picture'),trigger=page.locator('#card-content .picture-button');
-        async function checkPopup(expectedCount) {
-            const before=await trigger.locator('img').boundingBox();
-            await trigger.click();await dialog.waitFor({state:'visible'});
+        async function assertPopup(expectedCount,before,factor) {
             await enlarged.locator('img').evaluate(img=>img.decode());
             await dialog.evaluate(el=>Promise.all(el.getAnimations().map(animation=>animation.finished)));
             const bounds=await enlarged.locator('img').boundingBox();
             const viewport=page.viewportSize(),ratio=before.width/before.height;
-            const mobile=await page.evaluate(()=>matchMedia('(max-width: 620px), (max-height: 620px) and (pointer: coarse)').matches);
-            const expected=Math.min(mobile?viewport.width-32:before.width*2,viewport.width-32,(viewport.height-80)*ratio);
-            assert(Math.abs(bounds.width-expected)<1.5,`expected ${expected}px, got ${bounds.width}px`);
+            const limit=Math.min(viewport.width-32,(viewport.height-112)*ratio);
+            const expected=Math.min(before.width*factor,limit);
+            assert(Math.abs(bounds.width-expected)<1.5,`expected ${factor}× (${expected}px), got ${bounds.width}px`);
             const popup=await dialog.boundingBox();
-            assert(Math.abs(popup.height-bounds.height-44)<1.5,'popup wraps the picture and close button');
+            assert(Math.abs(popup.height-bounds.height-76)<1.5,'popup reserves space for close button and hint');
             assert(Math.abs(popup.y+popup.height/2-viewport.height/2)<1.5,'popup is centered vertically');
             assert(popup.x>=0 && popup.y>=0 && popup.x+popup.width<=viewport.width+1 && popup.y+popup.height<=viewport.height+1,'popup fits on screen');
             assert(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1 && el.scrollHeight<=el.clientHeight+1),'popup has no scrolling');
             assert.equal(await dialog.locator('input[type=range], #zoom-fit, #zoom-original').count(),0);
+            const canEnlarge=factor<3 && expected<limit-1;
+            assert.equal(await page.locator('#picture-zoom-hint').isVisible(),canEnlarge);
+            assert.equal(await enlarged.getAttribute('aria-disabled'),String(!canEnlarge));
+            assert.equal(await enlarged.evaluate(el=>getComputedStyle(el).cursor),canEnlarge?'zoom-in':'default');
             const labels=await enlarged.locator('.target-marker').allTextContents();
             assert.deepEqual(labels,expectedCount===5?['A','B','C','D','E']:['']);
             for(let i=0;i<expectedCount;i++) {
@@ -62,6 +64,22 @@ const server = http.createServer((req,res) => {
                 assert(Math.abs(marker.x+marker.width/2-bounds.x-targets[i].x*bounds.width)<1);
                 assert(Math.abs(marker.y+marker.height/2-bounds.y-targets[i].y*bounds.height)<1);
             }
+        }
+        async function clickPicture() {
+            const box=await enlarged.boundingBox();
+            if(page.viewportSize().width===390)await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);
+            else await page.mouse.click(box.x+box.width/2,box.y+box.height/2);
+        }
+        async function checkPopup(expectedCount) {
+            const before=await trigger.locator('img').boundingBox();
+            await trigger.click();await dialog.waitFor({state:'visible'});
+            for(const factor of [1.5,2,3]) {
+                await assertPopup(expectedCount,before,factor);
+                if(expectedCount===5)await page.screenshot({path:path.join(output,`popup-${page.viewportSize().width}-${factor}x.png`)});
+                await clickPicture();
+                assert(await dialog.isVisible(),'picture clicks never close it');
+            }
+            await assertPopup(expectedCount,before,3);
         }
         async function closed() {
             await dialog.waitFor({state:'hidden'});
@@ -72,12 +90,12 @@ const server = http.createServer((req,res) => {
             await page.setViewportSize(viewport);
             for(let i=0;i<3;i++) {
                 await checkPopup(i<2?5:1);
-                if(i===0)await page.screenshot({path:path.join(output,`popup-${viewport.width}.png`)});
-                if(viewport.width===390) {
-                    const box=await enlarged.boundingBox();await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);
-                }else await enlarged.click();
-                await closed();
+                await page.locator('#close-picture').click();await closed();
+                const before=await trigger.locator('img').boundingBox();
                 await trigger.focus();await page.keyboard.press('Enter');await dialog.waitFor({state:'visible'});
+                await assertPopup(i<2?5:1,before,1.5);
+                await enlarged.press('Enter');await assertPopup(i<2?5:1,before,2);
+                await enlarged.press('Space');await assertPopup(i<2?5:1,before,3);
                 await page.keyboard.press('Escape');await closed();
                 await trigger.click();await dialog.waitFor({state:'visible'});
                 await page.mouse.click(3,3);await closed();
@@ -91,7 +109,7 @@ const server = http.createServer((req,res) => {
             const box=document.querySelector('#picture-dialog').getBoundingClientRect();
             return box.x>=0 && box.y>=0 && box.right<=innerWidth+1 && box.bottom<=innerHeight+1;
         });
-        await enlarged.click();await closed();
+        await page.locator('#close-picture').click();await closed();
         await page.emulateMedia({reducedMotion:'reduce'});await trigger.click();
         assert.equal(await dialog.evaluate(el=>getComputedStyle(el).animationName),'none');
         await page.keyboard.press('Escape');await closed();
@@ -100,9 +118,9 @@ const server = http.createServer((req,res) => {
         await page.locator('#draft-file').setInputFiles({name:'pictures.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(deck))});
         await page.waitForFunction(()=>document.querySelector('#editor-message').textContent==='Opened 3 cards.');
         await page.locator('nav [data-stage="study"]').click();
-        await page.setViewportSize({width:1200,height:950});await checkPopup(5);await enlarged.click();await closed();
+        await page.setViewportSize({width:1200,height:950});await checkPopup(5);await page.locator('#close-picture').click();await closed();
         assert.deepEqual(errors,[]);
-        console.log('Passed: 2× desktop sizing, screen-fit portrait/landscape phones, tall/wide pictures, all targets, click/tap/outside/Escape/close-button dismissal, focus return, no card flipping, resize, reduced motion, and author/student views.');
+        console.log('Passed: 1.5×/2×/3× click/tap/keyboard enlargement, screen limits and hint visibility, tall/wide pictures, target alignment at every step, reopen reset, outside/Escape/close-button dismissal, focus return, no card flipping, resize, reduced motion, and author/student views.');
         console.log('Screenshots: '+output);
     } finally {
         if(browser)await browser.close();

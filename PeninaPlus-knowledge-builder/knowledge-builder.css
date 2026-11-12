@@ -32,12 +32,15 @@ dialog{border:1px solid var(--line);border-radius:14px;padding:20px;color:var(--
 .target-controls{flex-wrap:wrap;align-items:end}.target-controls label{margin:0;min-width:90px;font-size:13px}.target-controls select{display:block;margin-top:5px}
 .target-surface .selected-target{outline:3px solid #0056b3;outline-offset:3px;z-index:1}
 
-.picture-dialog{width:fit-content;min-width:36px;max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);height:fit-content;padding:44px 0 0;border:0;border-radius:0;background:transparent;overflow:visible;margin:auto;color:var(--ink)}
+.picture-dialog{width:fit-content;min-width:min(180px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);height:fit-content;padding:44px 0 32px;border:0;border-radius:0;background:transparent;overflow:visible;margin:auto;color:var(--ink)}
 .picture-dialog::backdrop{background:#18212b66}
 .picture-dialog[open]{animation:picture-pop 140ms ease-out}
 .picture-close{position:absolute;top:0;right:0;display:grid;place-items:center;width:36px;height:36px;min-height:36px;padding:0;background:#fff;color:#4a4238;border:1px solid #dcd3c6;border-radius:50%;font:700 18px/1 Arial,sans-serif;cursor:pointer}
-.enlarged-picture{position:relative;display:block;max-width:none;min-height:0;padding:0;border:0;border-radius:10px;line-height:0;margin:0 auto;background:#fff;cursor:zoom-out;box-shadow:0 16px 48px #18212b40}
+.enlarged-picture{position:relative;display:block;max-width:none;min-height:0;padding:0;border:0;border-radius:10px;line-height:0;margin:0 auto;background:#fff;cursor:zoom-in;box-shadow:0 16px 48px #18212b40}
 .enlarged-picture:hover,.picture-close:hover{transform:none;background:#fff}
 .enlarged-picture img{display:block;width:100%;height:auto;max-width:none;border-radius:inherit}
 @keyframes picture-pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.picture-dialog[open]{animation:none}}
+
+.enlarged-picture.zoom-limit{cursor:default}
+.picture-zoom-hint{position:absolute;bottom:0;left:0;width:100%;margin:0;padding:4px 8px;border-radius:5px;background:#fff;color:#4a4238;font:13px/20px Arial,sans-serif;text-align:center;pointer-events:none}

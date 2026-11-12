@@ -128,14 +128,27 @@ const server=http.createServer(async(req,res)=>{
   await knowledgePage.getByRole('button',{name:'Enlarge picture',exact:true}).click();await knowledgePage.locator('#picture-dialog').waitFor({state:'visible'});
   assert.equal(await knowledgePage.locator('#enlarged-picture img').getAttribute('src'),picture.src);assert.equal(await knowledgePage.locator('#enlarged-picture .target-marker').count(),1);
   assert.equal(await knowledgePage.locator('#picture-dialog input[type=range]').count(),0);
+  const initialPictureWidth=(await knowledgePage.locator('#enlarged-picture img').boundingBox()).width;
   await knowledgePage.locator('#enlarged-picture').click();
+  assert(await knowledgePage.locator('#picture-dialog').isVisible(),'picture clicks enlarge without closing');
+  assert((await knowledgePage.locator('#enlarged-picture img').boundingBox()).width>=initialPictureWidth);
+  await knowledgePage.locator('#close-picture').click();
   await knowledgePage.locator('#picture-dialog').waitFor({state:'hidden'});
   assert.equal(await knowledgePage.locator('#side-number').textContent(),'1 / 2','enlargement does not flip the card');
   await knowledgePage.locator('#flip').click();assert.equal(await knowledgePage.locator('#study-side-label').textContent(),'Answer');
   assert.equal(await knowledgePage.locator('#card-content').textContent(),'Leaf');assert.equal(await knowledgePage.locator('#additional-panel').isVisible(),true);
   assert.equal(await knowledgePage.locator('#additional-text').textContent(),decks[0].cards[0].additionalInformation);
-  await knowledgePage.locator('#answer-first').click();await knowledgePage.locator('#reset-study').click();assert.equal(await knowledgePage.locator('#card-content').textContent(),'Leaf');
-  await knowledgePage.locator('#question-first').click();assert.equal(await knowledgePage.locator('#card-content img').count(),1);
+  assert.equal(await knowledgePage.locator('#answer-first, #question-first, .orders').count(),0);
+  for(const action of ['reset-study','next','previous','shuffle']) {
+   await knowledgePage.locator('#'+action).click();
+   assert.equal(await knowledgePage.locator('#study-side-label').textContent(),'Question',action+' returns to the question');
+   assert.equal(await knowledgePage.locator('#side-number').textContent(),'1 / 2');
+   assert.equal(await knowledgePage.locator('#card-content img').count(),1);
+   assert.equal(await knowledgePage.locator('#additional-panel').isVisible(),false);
+   await knowledgePage.locator('#flip').click();
+   assert.equal(await knowledgePage.locator('#study-side-label').textContent(),'Answer');
+  }
+  await knowledgePage.locator('#flip').click();
   await knowledgePage.locator('#student-practice').click();await knowledgePage.locator('#quiz-options button').first().waitFor();
   assert.equal(await knowledgePage.locator('#quiz-prompt img').getAttribute('src'),picture.src);
   const choices=await knowledgePage.locator('#quiz-options button').allTextContents();assert(choices.includes('Leaf'));assert(choices.filter(choice=>decks[0].cards[0].distractors.english.includes(choice)).length>=3);
@@ -179,6 +192,6 @@ const server=http.createServer(async(req,res)=>{
   await pdf.saveAs('/tmp/penina-knowledge-sheets.pdf');
   await sheet.goto(origin+sheetPrint);await sheet.waitForFunction(()=>window.printCount===1);assert.equal(await sheet.locator('.sheet img').evaluate(image=>image.complete&&image.naturalWidth>0),true);
   assert.deepEqual(errors,[]);
-  console.log('Passed matching desktop/mobile list layouts, persistent mixed selection, both load orders, mixed/knowledge-only combinations, picture/marker/answer retention, flashcard download, PDF download, sheet printing, exact wordlist viewer styling at three widths, picture pop-out, flip order, saved practice and all knowledge print layouts.');
+  console.log('Passed matching desktop/mobile list layouts, persistent mixed selection, both load orders, mixed/knowledge-only combinations, picture/marker/answer retention, flashcard download, PDF download, sheet printing, exact wordlist viewer styling at three widths, picture pop-out, question-first navigation, saved practice and all knowledge print layouts.');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>server.close());

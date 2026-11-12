@@ -7,7 +7,7 @@ const QuizPicture = (() => {
         const numbered=Array.isArray(q.image.markers), targets=Array.isArray(q.image.targets)?q.image.targets:null, lettered=targets?.length>1, markers=numbered?q.image.markers:targets||[q.image.marker];
         const active=q.markerIndex ?? (editable?selected:null);
         const label=numbered?`Move marker ${active+1}: click the picture or use arrow keys`:'Place marker: click the picture or use arrow keys';
-        const pins=markers.map((marker,i)=>marker?`<span class="picture-marker ${numbered?'numbered '+(i===active?'active':'inactive'):lettered?'lettered':''}" style="left:${Number(marker.x)*100}%;top:${Number(marker.y)*100}%" aria-label="${numbered?'Marker '+(i+1)+(i===active?(q.pictureGroup||q.markerIndex!==undefined?', current question':', current marker'):''):lettered?'Target '+'ABCDE'[i]:'Marked location'}">${numbered?i+1:lettered?'ABCDE'[i]:'＋'}</span>`:'').join('');
+        const pins=markers.map((marker,i)=>marker?`<span class="picture-marker ${numbered?'numbered '+(i===active?'active':'inactive'):lettered?'lettered '+(editable&&i===active?'active':''):''}" style="left:${Number(marker.x)*100}%;top:${Number(marker.y)*100}%" aria-label="${numbered?'Marker '+(i+1)+(i===active?(q.pictureGroup||q.markerIndex!==undefined?', current question':', current marker'):''):lettered?'Target '+'ABCDE'[i]:'Marked location'}">${numbered?i+1:lettered?'ABCDE'[i]:'＋'}</span>`:'').join('');
         return `<figure class="quiz-picture"><div class="picture-frame" ${editable?`data-picture-target tabindex="0" role="button" aria-label="${label}"`:''}><img src="${escape(q.image.src)}" alt="${escape(q.image.alt || 'Question picture')}" draggable="false">${pins}</div>${numbered?`<figcaption>${q.markerIndex!==undefined?'Answer about marker <strong>'+(active+1)+'</strong> (highlighted).':editable?'Editing marker <strong>'+(active+1)+'</strong>. Click the picture to move it.':q.pictureResponseMode==='markers'?'Write an answer for each numbered marker.':'Use the numbered markers to answer the question.'}</figcaption>`:lettered?`<figcaption>Targets A–${'ABCDE'[targets.length-1]}.</figcaption>`:q.image.marker?'<figcaption>Answer about the location marked with ＋.</figcaption>':''}</figure>`;
     }
     function group(questions,q){return q.pictureGroup?questions.filter(item=>item.pictureGroup===q.pictureGroup):[q];}
@@ -15,7 +15,7 @@ const QuizPicture = (() => {
         if(!q.image)throw Error('Upload a picture first.');
         if(questions.length>=100)throw Error('Use up to 100 questions per quiz.');
         const markers=q.image.markers || [q.image.marker || {x:0.5,y:0.5}];
-        if(markers.length>=20)throw Error('Use up to 20 markers per picture.');
+        if(markers.length>=5)throw Error('Use up to 5 markers per picture.');
         if(questions.reduce((n,item)=>n+(item.image?.src.length||0),0)+q.image.src.length>2500000)throw Error('Use a smaller picture or split this quiz into two quizzes.');
         q.pictureGroup ||= crypto.randomUUID();q.markerIndex ??= 0;
         const members=group(questions,q), next=[...markers,{x:0.2+0.15*(markers.length%5),y:0.25+0.15*Math.floor(markers.length/5)}];
@@ -23,11 +23,24 @@ const QuizPicture = (() => {
         const added={type:'text',pictureQuestion:true,pictureGroup:q.pictureGroup,markerIndex:next.length-1,image:structuredClone(q.image),prompt:'',answer:'',points:q.points,allowHalfCredit:q.allowHalfCredit===true,extraCredit:q.extraCredit===true,scoringMode:'total',direction:q.direction};
         const last=Math.max(...members.map(item=>questions.indexOf(item)));questions.splice(last+1,0,added);return added;
     }
+    function markerLocations(q){return q.image?.markers || q.image?.targets || (q.image?.marker?[q.image.marker]:[]);}
+    function addTarget(q){
+        if(!q.image)throw Error('Upload a picture first.');
+        const markers=markerLocations(q);
+        if(markers.length>=5)throw Error('Use up to 5 markers per picture.');
+        q.image.targets=[...markers,{x:0.2+0.15*markers.length,y:0.4}];q.image.marker=q.image.targets[0];
+        return q.image.targets.length-1;
+    }
+    function removeTarget(q,index){
+        const markers=[...markerLocations(q)];markers.splice(index,1);
+        q.image.marker=markers[0] || null;
+        if(markers.length)q.image.targets=markers;else delete q.image.targets;
+    }
     function addQuestionMarker(q){
         if(!q.image)throw Error('Upload a picture first.');
         if(q.pictureGroup)throw Error('Use Add marker question for this existing group.');
         const markers=q.image.markers || q.image.targets || (q.image.marker?[q.image.marker]:[]);
-        if(markers.length>=20)throw Error('Use up to 20 markers per picture.');
+        if(markers.length>=5)throw Error('Use up to 5 markers per picture.');
         q.pictureResponseMode ||= q.image.targets?'shared':'markers';
         const answers=q.pictureAnswers || markers.map((_,i)=>i===0?q.answer || '':'');
         q.image.markers=[...markers,{x:0.2+0.15*(markers.length%5),y:0.25+0.15*Math.floor(markers.length/5)}];
@@ -41,6 +54,7 @@ const QuizPicture = (() => {
         if(!q.image.markers.length){delete q.image.markers;delete q.pictureAnswers;q.image.marker=null;}
     }
     function setMarker(questions,q,marker,index=q.markerIndex ?? 0){
+        if(q.image.targets){q.image.targets[index]=structuredClone(marker);q.image.marker=q.image.targets[0];return;}
         if(!q.image.markers){q.image.marker=marker;return;}
         for(const item of group(questions,q))item.image.markers[index]=structuredClone(marker);
     }
@@ -78,7 +92,7 @@ const QuizPicture = (() => {
             return {src,alt:'',marker:null};
         } finally {URL.revokeObjectURL(url);}
     }
-    return {render,read,group,addMarker,addQuestionMarker,removeMarker,setMarker,removeQuestion,copyQuestion,replaceImage};
+    return {render,read,group,markerLocations,addTarget,removeTarget,addMarker,addQuestionMarker,removeMarker,setMarker,removeQuestion,copyQuestion,replaceImage};
 })();
 
 if(typeof module!=='undefined')module.exports=QuizPicture;

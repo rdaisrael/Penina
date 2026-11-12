@@ -43,6 +43,7 @@ const server=http.createServer(async(req,res)=>{
  await question(0).locator('[data-picture-answer="'+i+'"]').fill('Answer '+(i+1));
  await question(0).locator('[data-picture-target]').click({position:{x:80+i*60,y:120+i*20}});
  }
+ assert.equal(await question(0).locator('[data-action="add-marker"]').isDisabled(),true,'five markers disables adding a sixth');
  const first=await page.evaluate(()=>structuredClone(quiz.questions[0]));
  await question(0).locator('[data-picture-marker]').selectOption('1');await question(0).locator('[data-picture-target]').press('ArrowRight');
  const moved=await page.evaluate(()=>quiz.questions[0].image.markers);
@@ -90,6 +91,35 @@ const server=http.createServer(async(req,res)=>{
  await page.reload();await page.locator('#library [data-id="custom-local"]').click();await page.getByText('Draft loaded.',{exact:true}).waitFor();
  await question(0).locator('[data-action="add-marker"]').click();assert.equal(await page.locator('#questions .question').count(),3);
  assert.equal(await question(2).locator('.picture-marker').count(),3);assert.equal(await question(0).locator('[data-picture-response]').count(),0);
- assert.deepEqual(errors,[]);console.log('Passed: five markers within one question, shared/per-marker answers, total/per-response points, selected-marker movement, save/reload, student preview and answer recovery/submission, independent duplication/removal, published lock, and desktop/mobile layout. Screenshots: /tmp/penina-markers-{1200,390,320}.png');
+ // Generated written and multiple-choice questions with an image must expose controls too.
+ for(const type of ['text','choice']){
+ saved.questions=[{type,prompt:'Generated picture question',answer:type==='text'?'Blue':['Blue'],...(type==='choice'?{choices:['Blue','Red']}:{ }),points:1,direction:'ltr',image:{src:saved.questions[0].image.src,alt:'Generated picture',marker:null}}];
+ await page.reload();await page.locator('#library [data-id="custom-local"]').click();await page.getByText('Draft loaded.',{exact:true}).waitFor();
+ for(let i=0;i<5;i++)await question(0).locator('[data-action="add-marker"]').click();
+ assert.equal(await question(0).locator('.picture-marker').count(),5,type+' image exposes five markers');
+ assert.equal(await question(0).locator('[data-action="add-marker"]').isDisabled(),true);
+ assert.equal(await page.evaluate(()=>quiz.questions[0].type),type,'marker edits keep the question format');
+ await page.locator('#save').click();await page.getByText('Draft saved.',{exact:true}).waitFor();model.validateQuiz(saved,true);
+ }
+ // The change-type popup supports marker placement before applying, including cancel without mutation.
+ saved.questions[0].image={src:saved.questions[0].image.src,alt:'Conversion picture',marker:null};
+ await page.reload();await page.locator('#library [data-id="custom-local"]').click();await page.getByText('Draft loaded.',{exact:true}).waitFor();
+ const beforeConversion=await page.evaluate(()=>JSON.stringify(quiz.questions[0]));
+ async function markInPopup(){
+ await question(0).locator('[data-action="change-type"]').click();await page.locator('#conversionType').selectOption('picture');
+ const preview=page.locator('#conversionPreview');
+ for(let i=0;i<5;i++)await preview.locator('[data-action="add-marker"]').click();
+ assert.equal(await preview.locator('.picture-marker').count(),5);assert.equal(await preview.locator('[data-action="add-marker"]').isDisabled(),true);
+ await preview.locator('[data-picture-marker]').selectOption('1');await preview.locator('[data-picture-target]').press('ArrowRight');
+ assert.equal(await page.evaluate(()=>JSON.stringify(quiz.questions[0])),beforeConversion,'preview keeps the original unchanged');
+ }
+ await markInPopup();await page.locator('#cancelQuestionType').click();assert.equal(await page.evaluate(()=>JSON.stringify(quiz.questions[0])),beforeConversion);
+ await markInPopup();
+ for(const width of [1200,390,320]){await page.setViewportSize({width,height:1000});assert(await page.locator('#conversionDialog').evaluate(el=>el.scrollWidth<=el.clientWidth+1));await page.screenshot({path:'/tmp/penina-conversion-markers-'+width+'.png'});}
+ await page.locator('#replaceQuestionType').click();await page.getByText('Question type changed. Review the question and answer key, then save your draft.',{exact:true}).waitFor();
+ assert.equal(await question(0).locator('.picture-marker').count(),5);assert.equal(await question(0).locator('[data-picture-response]').inputValue(),'shared');
+ await question(0).locator('[data-picture-response]').selectOption('markers');assert.equal(await question(0).locator('[data-picture-answer]').count(),5);
+ await page.locator('#save').click();await page.getByText('Draft saved.',{exact:true}).waitFor();model.validateQuiz(saved,true);
+ assert.deepEqual(errors,[]);console.log('Passed: five markers within one question, shared/per-marker answers, total/per-response points, selected-marker movement, save/reload, student preview and answer recovery/submission, independent duplication/removal, published lock, generated-question controls, conversion-popup add/move/cancel/apply, and desktop/mobile layout. Screenshots: /tmp/penina-markers-{1200,390,320}.png');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

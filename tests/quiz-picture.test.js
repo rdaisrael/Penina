@@ -52,7 +52,7 @@ test('incomplete groups, duplicate marker assignments and malformed coordinates 
  for(const mutate of [q=>q.questions.pop(),q=>q.questions[1].markerIndex=0,q=>q.questions[0].image.markers[0].x=NaN,q=>q.questions[0].markerIndex=5,q=>q.questions[0].image.alt='Different',q=>q.questions[0].image.markers=[]]){
   const quiz=fiveMarkers();mutate(quiz);assert.throws(()=>model.validateQuiz(quiz,true));
  }
- const quiz=fiveMarkers();while(quiz.questions.length<20)picture.addMarker(quiz.questions,quiz.questions[0]);assert.throws(()=>picture.addMarker(quiz.questions,quiz.questions[0]),/20 markers/);
+ const quiz=fiveMarkers();while(quiz.questions.length<5)picture.addMarker(quiz.questions,quiz.questions[0]);assert.throws(()=>picture.addMarker(quiz.questions,quiz.questions[0]),/5 markers/);
 });
 
 test('one picture question holds several markers with shared or per-marker answers and scoring',()=>{
@@ -95,7 +95,8 @@ test('standalone markers validate answer count, modes, limits and cannot lose re
   const broken=structuredClone(q);mutate(broken);assert.throws(()=>model.validateQuiz({title:'Invalid',questions:[broken]},true));
  }
  assert.throws(()=>require('../Penina-Quizzes/builder/question-conversion').create(q,'text'),/markers and answers stay together/);
- while(q.image.markers.length<20)picture.addQuestionMarker(q);const before=JSON.stringify(q);assert.throws(()=>picture.addQuestionMarker(q),/20 markers/);assert.equal(JSON.stringify(q),before);
+ while(q.image.markers.length<5)picture.addQuestionMarker(q);const before=JSON.stringify(q);assert.throws(()=>picture.addQuestionMarker(q),/5 markers/);assert.equal(JSON.stringify(q),before);
+ q.image.markers.push({x:.5,y:.5});q.pictureAnswers.push('Sixth');assert.throws(()=>model.validateQuiz({title:'Too many markers',questions:[q]},true),/1–5 markers/);
 });
 test('imported lettered targets can become numbered markers without conflicting marker formats',()=>{
  const q=fixture().questions[0];q.image.targets=[{x:.1,y:.2},{x:.7,y:.8}];picture.addQuestionMarker(q);

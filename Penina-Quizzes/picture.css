@@ -5,3 +5,5 @@
 .picture-marker.lettered{font-size:18px}
 
 .picture-actions label{flex:1;min-width:130px;max-width:220px}.picture-actions{align-items:end}.picture-actions select{margin-top:6px}.picture-tools [data-picture-status]{font-weight:600}.picture-tools .picture-frame{scroll-margin-block:100px}
+
+.picture-tools h3{margin:0;font-size:16px}

@@ -22,7 +22,7 @@ function syncQuestion(q){
     if(q.type==='gaps'){q.answer=[];q.prompt=q.sentence.replace(/<<([^<>]+)>>/g,(_,v)=>{q.answer.push(v.trim());return '___';});q.choices=[...new Set([...q.answer,...q.distractors])];q.wordBank=true;}
 }
 const pictureMarkerSelection=new WeakMap();
-function selectedPictureMarker(q){return q.markerIndex ?? Math.min(pictureMarkerSelection.get(q)||0,Math.max(0,(QuizPicture.markerLocations(q).length||1)-1));}
+function selectedPictureMarker(q){return Math.min(pictureMarkerSelection.get(q) ?? q.markerIndex ?? 0,Math.max(0,(QuizPicture.markerLocations(q).length||1)-1));}
 function focusPicture(q){
     const frame=$('questions').querySelector(`[data-index="${quiz.questions.indexOf(q)}"] [data-picture-target]`);
     if(frame){frame.focus({preventScroll:true});frame.scrollIntoView({block:'center'});}
@@ -30,7 +30,7 @@ function focusPicture(q){
 function renderPictureMarkerActions(q,selected=selectedPictureMarker(q)){
     if(!q.image)return '';
     const markers=QuizPicture.markerLocations(q),numbered=!!q.image.markers;
-    return `<div class="picture-actions"><button type="button" data-action="add-marker" ${markers.length>=5?'disabled':''}>${q.pictureGroup?'Add marker question':'＋ Add marker'}</button>${!q.pictureGroup && markers.length?`<label>Marker to move<select data-picture-marker>${markers.map((_,j)=>`<option value="${j}" ${j===selected?'selected':''}>Marker ${numbered?j+1:'ABCDE'[j]}</option>`).join('')}</select></label><button class="secondary" type="button" data-action="remove-marker">Remove selected marker</button>`:''}</div><p class="hint" data-picture-status role="status">${markers.length} of 5 markers. ${markers.length>=5?'Select a marker to move it.':'Use Add marker, then click its location on the picture.'}</p>`;
+    return `<div class="picture-actions"><button type="button" data-action="add-marker" ${markers.length>=5?'disabled':''}>＋ Add marker</button>${!q.pictureGroup && markers.length?`<label>Marker to move<select data-picture-marker>${markers.map((_,j)=>`<option value="${j}" ${j===selected?'selected':''}>Marker ${numbered?j+1:'ABCDE'[j]}</option>`).join('')}</select></label><button class="secondary" type="button" data-action="remove-marker">Remove selected marker</button>`:''}</div><p class="hint" data-picture-status role="status">${markers.length} of 5 markers. ${markers.length>=5?'Select a marker to move it.':'Add up to 5 markers to this question. Use Add marker, then click its location on the picture.'}</p>`;
 }
 function renderPictureTools(q){
     const selected=selectedPictureMarker(q),responseMode=q.pictureResponseMode || (q.image?.targets?'shared':'markers');
@@ -105,7 +105,7 @@ $('questions').addEventListener('input',e=>{
     const article=e.target.closest('[data-index]');if(!article || quiz.published)return;const q=quiz.questions[Number(article.dataset.index)],el=e.target;
     if(el.hasAttribute('data-picture-marker')){pictureMarkerSelection.set(q,Number(el.value));render();focusPicture(q);return;}
     if(el.hasAttribute('data-picture-response')){
-        q.pictureQuestion=true;q.pictureResponseMode=el.value;
+        q.pictureQuestion=true;q.pictureResponseMode=el.value;delete q.markerIndex;
         if(!q.image.markers && (q.image.targets || q.image.marker)){q.image.markers=q.image.targets || [q.image.marker];q.image.marker=null;delete q.image.targets;}
         if(q.image.markers)q.pictureAnswers ||= q.image.markers.map((_,j)=>j===0?q.answer || '':'');
         changed();render();return;
@@ -134,12 +134,9 @@ $('questions').addEventListener('click',e=>{
     if(action==='undo-type'){$('undoConversion').onclick();return;}
     if(action==='add-marker'){
         try{
-            const added=q.pictureGroup?QuizPicture.addMarker(quiz.questions,q):q;
-            if(!q.pictureGroup){
-                if(q.type==='text'){q.pictureQuestion=true;pictureMarkerSelection.set(q,QuizPicture.addQuestionMarker(q));}
-                else pictureMarkerSelection.set(q,QuizPicture.addTarget(q));
-            }
-            changed();render();focusPicture(added);
+            if(q.type==='text'){q.pictureQuestion=true;pictureMarkerSelection.set(q,QuizPicture.addQuestionMarker(q,quiz.questions));}
+            else pictureMarkerSelection.set(q,QuizPicture.addTarget(q));
+            changed();render();focusPicture(q);
         }catch(error){article.querySelector('[data-picture-status]').textContent=error.message;status(error.message);}return;
     }
     if(action==='remove-marker'){

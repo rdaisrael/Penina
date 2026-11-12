@@ -103,3 +103,50 @@ test('imported lettered targets can become numbered markers without conflicting 
  assert.equal(q.pictureResponseMode,'shared');assert.equal(q.image.targets,undefined);assert.equal(q.image.markers.length,3);
  assert.doesNotThrow(()=>model.validateQuiz({title:'Imported',questions:[q]},true));
 });
+
+test('adding markers to a saved one-marker group keeps the same question through save and reload',()=>{
+ const quiz=fixture(),q=quiz.questions[0];
+ q.pictureGroup='saved-draft';q.markerIndex=0;q.image.markers=[q.image.marker];q.image.marker=null;
+ for(let i=1;i<5;i++){
+  picture.addQuestionMarker(q,quiz.questions);
+  assert.equal(quiz.questions.length,1);assert.equal(q.image.markers.length,i+1);
+ }
+ assert.equal(q.pictureGroup,undefined);assert.equal(q.markerIndex,undefined);
+ assert.equal(q.prompt,'What is marked?');assert.equal(q.answer,'Model answer');assert.equal(q.pictureAnswers[0],'Model answer');
+ const saved=model.validateQuiz(JSON.parse(JSON.stringify(quiz)),true);
+ assert.equal(saved.questions.length,1);assert.equal(saved.questions[0].image.markers.length,5);
+ assert.equal(saved.questions[0].pictureResponseMode,'markers');
+ const before=JSON.stringify(quiz);assert.throws(()=>picture.addQuestionMarker(q,quiz.questions),/5 markers/);assert.equal(JSON.stringify(quiz),before);
+});
+
+test('editing an authored legacy group never adds or discards questions, answers, positions or point settings',()=>{
+ const quiz=fiveMarkers();picture.removeQuestion(quiz.questions,quiz.questions[4]);
+ const before=structuredClone(quiz.questions),edited=quiz.questions[2];
+ quiz.questions.reverse(); // Question order need not match marker order.
+ picture.addQuestionMarker(edited,quiz.questions);
+ assert.equal(quiz.questions.length,4);assert.equal(edited.image.markers.length,5);
+ for(const q of quiz.questions){
+  const original=before.find(item=>item.prompt===q.prompt);
+  for(const field of ['answer','points','scoringMode','direction','extraCredit','allowHalfCredit'])assert.deepEqual(q[field],original[field]);
+  assert.equal(q.pictureGroup,undefined);assert.equal(q.pictureResponseMode,'shared');
+  assert.equal(model.responseCount(q),1);assert.equal(model.maxPoints(q),model.maxPoints(original));
+  if(q!==edited){assert.deepEqual(q.image,original.image);assert.equal(q.markerIndex,original.markerIndex);}
+ }
+ assert.equal(edited.markerIndex,undefined);assert.deepEqual(edited.pictureAnswers,['Model answer','Answer 2','Answer 3','Answer 4','']);
+ const saved=model.validateQuiz(JSON.parse(JSON.stringify(quiz)),true),safe=model.publicQuestions(saved);
+ assert(safe.every(q=>!('pictureAnswers' in q)&&!('answer' in q)));
+ const unchanged=saved.questions.find(q=>q.markerIndex===1);
+ assert.match(picture.render(safe.find(q=>q.markerIndex===1)),/Answer about marker <strong>2/);
+ assert.match(picture.render(unchanged,true,0),/Editing marker <strong>1/);
+ picture.removeMarker(unchanged,0);assert.equal(unchanged.markerIndex,0);assert.doesNotThrow(()=>model.validateQuiz(saved,true));
+ picture.removeMarker(unchanged,0);assert.equal(unchanged.markerIndex,undefined);assert.doesNotThrow(()=>model.validateQuiz(saved,true));
+ for(const markerIndex of [-1,8,0.5]){const invalid=structuredClone(saved);invalid.questions[0].markerIndex=markerIndex;assert.throws(()=>model.validateQuiz(invalid,true),/choose the marker/);}
+});
+
+test('full or incomplete legacy groups fail without partially changing the saved quiz',()=>{
+ for(const quiz of [fiveMarkers(),fixture()]){
+  const q=quiz.questions[0];
+  if(!q.pictureGroup){q.pictureGroup='missing-member';q.markerIndex=0;q.image.markers=[{x:.2,y:.3},{x:.7,y:.8}];q.image.marker=null;}
+  const before=JSON.stringify(quiz);assert.throws(()=>picture.addQuestionMarker(q,quiz.questions));assert.equal(JSON.stringify(quiz),before);
+ }
+});

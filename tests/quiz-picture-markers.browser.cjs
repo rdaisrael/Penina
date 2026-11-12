@@ -85,12 +85,44 @@ const server=http.createServer(async(req,res)=>{
  await question(0).locator('[data-picture-response]').selectOption('markers');assert.equal(await question(0).locator('[data-picture-answer]').count(),2);
  assert.equal(await question(0).locator('[data-picture-answer="0"]').inputValue(),'Shared answer');
  await page.locator('#save').click();await page.getByText('Draft saved.',{exact:true}).waitFor();model.validateQuiz(saved,true);
- // Existing separate-question marker groups retain their add-marker workflow.
- saved.questions=[{type:'text',pictureQuestion:true,prompt:'Legacy marker',answer:'Legacy answer',points:1,direction:'ltr',image:{src:saved.questions[0].image.src,alt:'Legacy',marker:{x:.2,y:.3}}}];
- require(root+'/Penina-Quizzes/picture').addMarker(saved.questions,saved.questions[0]);
+ // Regression: the live saved draft had a one-marker legacy group in question 16.
+ const legacyImage={src:saved.questions[0].image.src,alt:'Legacy',marker:null,markers:[{x:.2,y:.3}]};
+ saved.questions=[...Array.from({length:15},(_,i)=>({type:'text',prompt:'Existing question '+(i+1),answer:'Existing answer '+(i+1),points:1,direction:'ltr'})),{type:'text',pictureQuestion:true,pictureGroup:'saved-picture',markerIndex:0,prompt:'Where is Rashi?',answer:'Rashi',points:1,extraCredit:true,direction:'ltr',image:legacyImage}];
+ const earlierQuestions=structuredClone(saved.questions.slice(0,15));
  await page.reload();await page.locator('#library [data-id="custom-local"]').click();await page.getByText('Draft loaded.',{exact:true}).waitFor();
- await question(0).locator('[data-action="add-marker"]').click();assert.equal(await page.locator('#questions .question').count(),3);
- assert.equal(await question(2).locator('.picture-marker').count(),3);assert.equal(await question(0).locator('[data-picture-response]').count(),0);
+ assert.equal(await question(15).getByRole('button',{name:'＋ Add marker',exact:true}).count(),1);
+ for(let i=1;i<5;i++){
+ await question(15).getByRole('button',{name:'＋ Add marker',exact:true}).click();
+ assert.equal(await page.locator('#questions .question').count(),16,'legacy draft must stay at 16 questions after every added marker');
+ assert.equal(await question(15).locator('.picture-marker').count(),i+1);
+ }
+ assert.equal(await question(15).locator('[data-action="add-marker"]').isDisabled(),true);
+ assert.equal(await question(15).locator('[data-picture-answer="0"]').inputValue(),'Rashi');
+ assert.equal(await question(15).locator('[data-field="prompt"]').inputValue(),'Where is Rashi?');
+ await question(15).locator('[data-field="scoringMode"][value="response"]').check();
+ assert.match(await page.locator('#summary').textContent(),/16 questions · 15 regular points · 5 extra-credit points/);
+ await question(15).locator('[data-picture-response]').selectOption('shared');
+ assert.match(await page.locator('#summary').textContent(),/16 questions · 15 regular points · 1 extra-credit points/);
+ await question(15).locator('[data-picture-response]').selectOption('markers');
+ await page.locator('#save').click();await page.getByText('Draft saved.',{exact:true}).waitFor();model.validateQuiz(saved,true);
+ assert.equal(saved.questions.length,16);assert.deepEqual(saved.questions.slice(0,15).map(q=>[q.prompt,q.answer]),earlierQuestions.map(q=>[q.prompt,q.answer]));
+ await page.reload();await page.locator('#library [data-id="custom-local"]').click();await page.getByText('Draft loaded.',{exact:true}).waitFor();
+ assert.equal(await page.locator('#questions .question').count(),16);assert.equal(await question(15).locator('.picture-marker').count(),5);
+ assert.equal(await question(15).locator('[data-picture-answer="0"]').inputValue(),'Rashi');
+ // Already-authored legacy groups retain their existing questions, never append another.
+ saved.questions=[{type:'text',pictureQuestion:true,prompt:'Legacy marker',answer:'Legacy answer',points:1,direction:'ltr',image:{src:legacyImage.src,alt:'Legacy',marker:{x:.2,y:.3}}}];
+ require(root+'/Penina-Quizzes/picture').addMarker(saved.questions,saved.questions[0]);
+ saved.questions[1].prompt='Second existing prompt';saved.questions[1].answer='Second existing answer';
+ const secondLegacy=structuredClone(saved.questions[1]);
+ await page.reload();await page.locator('#library [data-id="custom-local"]').click();await page.getByText('Draft loaded.',{exact:true}).waitFor();
+ await question(0).locator('[data-action="add-marker"]').click();assert.equal(await page.locator('#questions .question').count(),2);
+ assert.equal(await question(0).locator('.picture-marker').count(),3);assert.equal(await question(1).locator('.picture-marker').count(),2);
+ await page.locator('#save').click();await page.getByText('Draft saved.',{exact:true}).waitFor();model.validateQuiz(saved,true);
+ assert.equal(saved.questions[1].prompt,secondLegacy.prompt);assert.equal(saved.questions[1].answer,secondLegacy.answer);assert.deepEqual(saved.questions[1].image,secondLegacy.image);assert.equal(saved.questions[1].markerIndex,1);
+ await page.reload();await page.locator('#library [data-id="custom-local"]').click();await page.getByText('Draft loaded.',{exact:true}).waitFor();
+ await question(1).locator('[data-picture-marker]').selectOption('0');await question(1).locator('[data-picture-target]').press('ArrowRight');
+ assert.equal(await page.evaluate(()=>quiz.questions[1].image.markers[0].x),secondLegacy.image.markers[0].x+.01);
+ assert.equal(await page.evaluate(()=>quiz.questions[0].image.markers[0].x),secondLegacy.image.markers[0].x,'editing an existing question keeps the other question independent');
  // Generated written and multiple-choice questions with an image must expose controls too.
  for(const type of ['text','choice']){
  saved.questions=[{type,prompt:'Generated picture question',answer:type==='text'?'Blue':['Blue'],...(type==='choice'?{choices:['Blue','Red']}:{ }),points:1,direction:'ltr',image:{src:saved.questions[0].image.src,alt:'Generated picture',marker:null}}];
@@ -120,6 +152,6 @@ const server=http.createServer(async(req,res)=>{
  assert.equal(await question(0).locator('.picture-marker').count(),5);assert.equal(await question(0).locator('[data-picture-response]').inputValue(),'shared');
  await question(0).locator('[data-picture-response]').selectOption('markers');assert.equal(await question(0).locator('[data-picture-answer]').count(),5);
  await page.locator('#save').click();await page.getByText('Draft saved.',{exact:true}).waitFor();model.validateQuiz(saved,true);
- assert.deepEqual(errors,[]);console.log('Passed: five markers within one question, shared/per-marker answers, total/per-response points, selected-marker movement, save/reload, student preview and answer recovery/submission, independent duplication/removal, published lock, generated-question controls, conversion-popup add/move/cancel/apply, and desktop/mobile layout. Screenshots: /tmp/penina-markers-{1200,390,320}.png');
+ assert.deepEqual(errors,[]);console.log('Passed: legacy 16-question draft stays at 16 through five markers and save/reload; authored legacy groups preserve their existing questions; five markers within one question, shared/per-marker answers, total/per-response points, selected-marker movement, save/reload, student preview and answer recovery/submission, independent duplication/removal, published lock, generated-question controls, conversion-popup add/move/cancel/apply, and desktop/mobile layout. Screenshots: /tmp/penina-markers-{1200,390,320}.png');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

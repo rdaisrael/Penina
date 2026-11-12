@@ -125,7 +125,7 @@ test('Streak meter fills at five, starts the next target at zero, and retains bo
  context.host = true;assert.equal(context.streakMeter(data), '');
 });
 
-test('First correct responder gets a larger private fireworks burst, once per question and round', () => {
+test('First correct responder reserves the private celebration for the Leviim', () => {
  for (const host of [false, true]) for (const reduced of [false, true]) {
   const bursts = [], timers = [];
   const element = () => ({ style: {}, children: [], setAttribute() {}, append(child) { this.children.push(child); }, remove() { this.removed = true; } });
@@ -134,11 +134,7 @@ test('First correct responder gets a larger private fireworks burst, once per qu
   const data = { phase: 'question', round: 0, index: 0, question: { correct: 1 }, me: { choice: 1, bonuses: { first: 25 } } };
   context.fireworks(data);assert.equal(bursts.length, 0);
   data.phase = 'reveal';context.fireworks(data);context.fireworks(data);
-  assert.equal(bursts.length, host || reduced ? 0 : 1);
-  if (bursts.length) {
-   assert.equal(bursts[0].children.length, 120);assert.match(bursts[0].className, /first-response-fireworks/);
-   timers[0]();assert.equal(bursts[0].removed, true);
-  }
-  context.fireworks({ ...data, round: 1 });assert.equal(bursts.length, host || reduced ? 0 : 2);
+  assert.equal(bursts.length,0,'the first-correct celebration must not add overlapping fireworks');
+  context.fireworks({ ...data, round: 1 });assert.equal(bursts.length,0);
  }
 });

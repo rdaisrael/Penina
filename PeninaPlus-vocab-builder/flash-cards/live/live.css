@@ -9,7 +9,6 @@
 .scoring-rules{line-height:1.8;color:var(--muted)}.scoring-rules strong{color:var(--purple)}
 .fireworks{position:fixed;inset:0;pointer-events:none;z-index:1000;overflow:hidden}
 .fireworks i{position:absolute;width:8px;height:8px;border-radius:50%;opacity:0;animation:live-spark 1s ease-out var(--delay) forwards}
-.first-response-fireworks i{width:10px;height:10px;box-shadow:0 0 10px currentColor}
 @keyframes live-spark{0%{opacity:1;transform:translate(0,0) scale(.6)}70%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.2)}}
 @media(prefers-reduced-motion:reduce){.fireworks{display:none}}
 

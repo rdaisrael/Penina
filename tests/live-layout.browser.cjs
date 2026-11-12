@@ -23,7 +23,7 @@ async function check(browser,viewport,timed){
    }
    if(url.pathname.endsWith('/live.js'))return route.fulfill({contentType:'text/javascript',body:source.slice(0,source.indexOf(' auth=stored(storageKey())'))+' window.liveTest={present,getSnapshot:()=>snapshot};})();'});
    const file=path.join(root,url.pathname,url.pathname.endsWith('/')?'index.html':'');
-   if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!live.js)[^"]+"><\/script>/g,'')});
+   if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live|shofar).js)[^"]+"><\/script>/g,'')});
    if(fs.existsSync(file))return route.fulfill({path:file});
    return route.abort();
   });
@@ -72,8 +72,9 @@ async function check(browser,viewport,timed){
   assert.equal(await page.locator('.bonus-notice').count(),0);
   await page.emulateMedia({reducedMotion:'no-preference'});
   await page.evaluate(data=>{window.liveTest.present(data);window.liveTest.present(data);},{...reveal,round:2});
-  assert.equal(await page.locator('.first-response-fireworks').count(),1,'repeated snapshots must not replay the celebration');
-  assert.equal(await page.locator('.first-response-fireworks i').count(),120);
+  assert.equal(await page.locator('.leviim-celebration').count(),1,'repeated snapshots must not replay the celebration');
+  assert.equal(await page.locator('.levi-performer').count(),2);
+  assert.equal(await page.locator('.first-response-fireworks').count(),0);
   assert.deepEqual(errors,[]);
   console.log('Passed '+label);
  }finally{finishSave();await page.close();}

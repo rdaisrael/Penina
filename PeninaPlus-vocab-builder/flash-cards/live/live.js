@@ -96,14 +96,14 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   if(host||data.phase!=='reveal'||data.me?.choice!==data.question.correct||celebrated.has(`${data.round||0}:${data.index}`))return;
   celebrated.add(`${data.round||0}:${data.index}`);
   if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
-  const first=!!data.me.bonuses?.first;
-  const burst=document.createElement('div');burst.className='fireworks'+(first?' first-response-fireworks':'');burst.setAttribute('aria-hidden','true');
-  const groups=first?5:3,sparks=first?24:16;
+  if(data.me.bonuses?.first)return; // The first correct responder gets the Leviim instead.
+  const burst=document.createElement('div');burst.className='fireworks';burst.setAttribute('aria-hidden','true');
+  const groups=3,sparks=16;
   for(let group=0;group<groups;group++)for(let i=0;i<sparks;i++){
-   const spark=document.createElement('i'),angle=i*Math.PI*2/sparks,radius=first?150:110;
+   const spark=document.createElement('i'),angle=i*Math.PI*2/sparks,radius=110;
    spark.style.cssText=`left:${(group+1)*100/(groups+1)}%;top:${25+(group%2)*20}%;--dx:${Math.cos(angle)*radius}px;--dy:${Math.sin(angle)*radius}px;--delay:${group*0.12}s;background:${['#fbbf24','#38bdf8','#fb7185','#a78bfa'][i%4]}`;burst.append(spark);
   }
-  document.body.append(burst);setTimeout(()=>burst.remove(),first?1800:1400);
+  document.body.append(burst);setTimeout(()=>burst.remove(),1400);
  }
  function wrongAnswer(data){
   if(host||data.phase!=='reveal'||data.me?.choice==null||data.me.choice===data.question.correct||celebrated.has(`${data.round||0}:${data.index}`))return;
@@ -182,6 +182,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   if(answerSubmission&&data.me?.choice!=null)Object.assign(answerSubmission,{choice:data.me.choice,saved:true});
   if(data.phase==='question'&&answerSubmission?.saved&&data.me?.choice===null)data={...data,me:{...data.me,choice:answerSubmission.choice}};
   if(host)window.PeninaMusic?.update(data);
+  else window.PeninaShofar?.update(data);
   startConfetti(data);startConfetti(data,true);fireworks(data);wrongAnswer(data);
   // Poll timestamps (including lastReveal's) must not replace a button mid-tap.
   // Keep the latest version for submissions even when nothing visible changed.

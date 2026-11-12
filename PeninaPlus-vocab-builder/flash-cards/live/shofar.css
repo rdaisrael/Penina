@@ -1,0 +1,20 @@
+/* Fixed edge decorations never move content or capture a student's tap. */
+.leviim-celebration{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:900;contain:layout paint;isolation:isolate}
+.leviim-celebration *{pointer-events:none!important;user-select:none}
+.levi-performer{position:absolute;bottom:max(16px,env(safe-area-inset-bottom));width:clamp(96px,22vw,176px);aspect-ratio:3/4;animation:levi-arrive 2.1s ease-in-out both;will-change:transform,opacity}
+.levi-left{left:0;--entry:-110%;--note-travel:58px}
+.levi-right{right:0;--entry:110%;--note-travel:-58px}
+.levi-sprite{position:absolute;inset:0;background-image:url('leviim.webp');background-repeat:no-repeat;background-size:200% 100%;transform-origin:50% 80%;animation:levi-breathe .46s ease-in-out .28s 3}
+.levi-left .levi-sprite{background-position:left center}
+.levi-right .levi-sprite{background-position:right center}
+.shofar-notes{position:absolute;top:5%;left:76%;width:1px;height:1px}
+.levi-right .shofar-notes{left:24%}
+.shofar-notes span{position:absolute;left:0;top:0;font:bold 25px/1 Georgia,serif;color:#8637bc;text-shadow:0 1px 2px white,0 -1px 2px white;opacity:0;animation:shofar-note .65s ease-out var(--note-delay) both}
+.shofar-notes span:nth-child(even){color:#bf7400;font-size:22px}
+@keyframes levi-arrive{0%{transform:translate3d(var(--entry),0,0);opacity:0}15%,80%{transform:translate3d(0,0,0);opacity:1}100%{transform:translate3d(var(--entry),0,0);opacity:0}}
+@keyframes levi-breathe{0%,100%{transform:scale(1)}40%{transform:scale(1.018,1.008)}}
+@keyframes shofar-note{0%{opacity:0;transform:translate3d(0,0,0) scale(.65)}20%{opacity:1}100%{opacity:0;transform:translate3d(var(--note-travel),var(--note-rise),0) scale(1.1)}}
+.leviim-celebration.reduced-motion .levi-performer,.leviim-celebration.reduced-motion .levi-sprite{animation:none}
+.leviim-celebration.reduced-motion .shofar-notes{display:none}
+@media(prefers-reduced-motion:reduce){.levi-performer,.levi-sprite{animation:none}.shofar-notes{display:none}}
+@media(max-height:500px){.levi-performer{width:110px;bottom:8px}}

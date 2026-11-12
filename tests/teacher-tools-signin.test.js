@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 const source=fs.readFileSync(require.resolve('../PeninaPlus-vocab-builder/flash-cards/library.js'),'utf8');
 function management(statuses,signedIn=true){
  let calls=0,signins=0,opened=0;const messages=[];
- const ctx={manageTrigger:{},management:{hidden:true},grade:'sixth',selectedForCombination:new Set(),render(){},teacherDialog:{showModal(){opened++;}},showMessage:async(...a)=>messages.push(a),signInForTeacherTools:async()=>{signins++;return signedIn;},fetch:async()=>{const status=statuses[calls++];return{status,ok:status===200,json:async()=>status===200?{}:{error:'Access denied'}};}};
+ const ctx={manageTrigger:{},management:{hidden:true},grade:'sixth',selectedForCombination:new Set(),liveListChoices:new Map(),render(){},teacherDialog:{showModal(){opened++;}},showMessage:async(...a)=>messages.push(a),signInForTeacherTools:async()=>{signins++;return signedIn;},fetch:async()=>{const status=statuses[calls++];return{status,ok:status===200,json:async()=>status===200?{}:{error:'Access denied'}};}};
  vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('    async function enterManagementMode()'),source.indexOf('    async function setListVisibility(')),ctx);
  return{ctx,messages,get calls(){return calls;},get signins(){return signins;},get opened(){return opened;}};
 }

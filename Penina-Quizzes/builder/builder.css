@@ -41,3 +41,6 @@
 #conversionUndo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#edf4e9;border:1px solid #bdcdbb;border-radius:9px;padding:12px;margin-top:16px;font-size:13px}
 #conversionUndoMessage{flex:1;min-width:180px}
 @media(max-width:480px){#conversionDialog{padding:20px;width:calc(100% - 24px)}#conversionDialog .actions button{width:100%}}
+
+/* Make saved drafts easy to identify and reopen from either end of the editor. */
+.intro{flex-wrap:wrap}.intro-actions{flex-shrink:1}.library-item{overflow-wrap:anywhere}.library-action{display:block;font-size:13px;color:#246a57;margin-top:10px}#title{scroll-margin-top:100px}#draftDialog{max-width:620px}#draftDialog .dialog-head{gap:16px}#draftDialog h2{margin:0}#draftLibraryStatus{font-size:14px;overflow-wrap:anywhere}#draftLibrary .library-item{min-width:0}#draftLibrary .library-item:focus-visible{outline:3px solid #d5a849;outline-offset:2px}@media(max-width:480px){#draftDialog{padding:20px;width:calc(100% - 24px)}}

@@ -46,6 +46,7 @@ const server=http.createServer(async(req,res)=>{
         page.on('dialog',dialog=>dialog.accept());
         await page.goto(origin+'/Penina-Quizzes/builder/');
         await page.locator('[data-id="custom-conversion"]').click();
+        await page.getByText('Draft loaded.',{exact:true}).waitFor();
         const question=i=>page.locator('#questions [data-index="'+i+'"]');
         const current=i=>page.evaluate(i=>structuredClone(quiz.questions[i]),i);
         async function open(i,type){await question(i).locator('[data-action="change-type"]').click();if(type)await page.locator('#conversionType').selectOption(type);}

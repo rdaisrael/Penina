@@ -10,7 +10,7 @@ function pointsHint(q){if(q.potentialPoints!==undefined)return `${q.potentialPoi
 function summary(){$('summary').textContent=quiz.questions.length+' question'+(quiz.questions.length===1?'':'s')+' · '+quiz.questions.filter(q=>!q.extraCredit).reduce((n,q)=>n+maxPoints(q),0)+' regular points · '+quiz.questions.filter(q=>q.extraCredit).reduce((n,q)=>n+maxPoints(q),0)+' extra-credit points';for(const article of $('questions').querySelectorAll('[data-index]')){const hint=article.querySelector('.scoring-hint');if(hint && quiz.questions[Number(article.dataset.index)])hint.textContent=pointsHint(quiz.questions[Number(article.dataset.index)]);}}
 async function api(action,body={}){if(new Blob([JSON.stringify({...body,action})]).size>4000000)throw Error('This request is too large. Use smaller pictures or fewer source items before saving or generating. Your current draft is unchanged.');const r=await fetch('/api/game-scores?game=quiz-builder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,action})});const data=await r.json();if(!r.ok)throw Error(data.error || 'The request could not be completed.');return data;}
 async function run(fn){if(busy)return;busy=true;renderButtons();try{await fn();}catch(e){status(e.message);}finally{busy=false;renderButtons();}}
-function renderButtons(){if(typeof renderQuestionConversionUndo==='function')renderQuestionConversionUndo();if(typeof vocabularyButtons==='function')vocabularyButtons();for(const id of ['save','publish','add','new','duplicate','refresh'])$(id).disabled=busy || (['save','publish','add'].includes(id) && quiz.published);const previous=quiz.questions.at(-1);$('reuseChoices').disabled=busy || !!quiz.published || !previous || !['choice','multi'].includes(previous.type);$('save').disabled ||= !connected;$('publish').disabled ||= !connected;$('title').disabled=!!quiz.published || busy;$('duration').disabled=!!quiz.published || busy || quiz.durationMinutes===null;for(const id of ['timing','checkpoint','checkpointMessage'])$(id).disabled=!!quiz.published || busy;for(const el of $('questions').querySelectorAll('input,textarea,select,button'))el.disabled=!!quiz.published || busy;}
+function renderButtons(){if(typeof renderQuestionConversionUndo==='function')renderQuestionConversionUndo();if(typeof vocabularyButtons==='function')vocabularyButtons();for(const id of ['save','publish','add','new','duplicate','refresh','loadDraft','loadDraftBottom','refreshDrafts'])$(id).disabled=busy || (['save','publish','add'].includes(id) && quiz.published);for(const el of document.querySelectorAll('#library [data-id],#draftLibrary [data-draft-id]'))el.disabled=busy;const previous=quiz.questions.at(-1);$('reuseChoices').disabled=busy || !!quiz.published || !previous || !['choice','multi'].includes(previous.type);$('save').disabled ||= !connected;$('publish').disabled ||= !connected;$('title').disabled=!!quiz.published || busy;$('duration').disabled=!!quiz.published || busy || quiz.durationMinutes===null;for(const id of ['timing','checkpoint','checkpointMessage'])$(id).disabled=!!quiz.published || busy;for(const el of $('questions').querySelectorAll('input,textarea,select,button'))el.disabled=!!quiz.published || busy;}
 function options(q,value,blank=true){return (blank?'<option value="">Choose an answer</option>':'')+q.choices.map(c=>`<option value="${esc(c)}" ${c===value?'selected':''}>${esc(c || '(Empty choice)')}</option>`).join('');}
 function prepareQuestion(q){
     if(q.type==='order' && !q.answer.length)q.answer=[...q.choices];
@@ -37,9 +37,40 @@ function render(){
     $('questions').innerHTML=quiz.questions.map((q,i)=>(i===quiz.forwardOnlyFrom?'<section class="checkpoint-banner"><strong>Review checkpoint</strong><p>'+esc($('checkpointMessage').value)+'</p></section>':'')+renderQuestion(q,i)).join('') || '<p class="muted">A blank page for your next great lesson. Add a question below.</p>';
     $('assign').hidden=!quiz.published;if(quiz.published)$('assign').href='/Penina-Quizzes/custom/teacher.html?quiz='+encodeURIComponent(quiz.id)+'&mode=assign';renderButtons();
 }
-async function library(){const data=await api('list');connected=true;$('connect').hidden=true;$('account').textContent='Connected as '+data.email;$('library').innerHTML=data.quizzes.map(q=>`<button class="library-item" data-id="${esc(q.id)}">${esc(q.title)}<small>${q.published?'Published':'Draft'} · ${q.count} question${q.count===1?'':'s'}</small></button>`).join('') || '<p class="muted">Your saved quizzes will appear here.</p>';renderButtons();}
+function libraryItems(quizzes,attribute='data-id'){
+    return quizzes.map(q=>`<button type="button" class="library-item" ${attribute}="${esc(q.id)}"><span>${esc(q.title || 'Untitled quiz')}</span><small>${q.published?'Published':'Draft'} · ${q.count} question${q.count===1?'':'s'}</small><strong class="library-action">${q.published?'View quiz':'Load draft'} →</strong></button>`).join('');
+}
+async function library(){
+    const data=await api('list');connected=true;$('connect').hidden=true;$('account').textContent='Connected as '+data.email;
+    $('library').innerHTML=libraryItems(data.quizzes) || '<p class="muted">No saved quizzes yet. Choose Save draft to keep your work here.</p>';
+    const drafts=data.quizzes.filter(q=>!q.published);
+    $('draftLibrary').innerHTML=libraryItems(drafts,'data-draft-id');
+    $('draftLibraryStatus').textContent=drafts.length?drafts.length+' saved draft'+(drafts.length===1?'':'s')+' for '+data.email+'.':'No saved drafts for '+data.email+'. Choose Save draft to keep a quiz here.';
+    renderButtons();
+}
+async function refreshDrafts(){
+    $('draftLibrary').replaceChildren();$('draftLibraryStatus').textContent='Loading saved drafts…';
+    try{await library();}catch(error){$('draftLibraryStatus').textContent=error.message;throw error;}
+}
+function openDrafts(){if(busy)return;$('draftDialog').showModal();run(refreshDrafts);}
+$('loadDraft').onclick=openDrafts;$('loadDraftBottom').onclick=openDrafts;
+$('refreshDrafts').onclick=()=>run(refreshDrafts);
+$('closeDrafts').onclick=()=>$('draftDialog').close();
 function leave(){return !dirty || confirm('Discard unsaved changes to this quiz?');}
-$('library').addEventListener('click',e=>{const button=e.target.closest('[data-id]');if(!button || busy || !leave())return;run(async()=>{quiz=(await api('load',{id:button.dataset.id})).quiz;dirty=false;render();status(quiz.published?'Published quiz. Duplicate it to create a revised version.':'Draft loaded.');});});
+async function loadSavedQuiz(id){
+    if(busy || !leave())return;
+    let loaded=false;
+    await run(async()=>{
+        try{
+            const data=await api('load',{id});quiz=data.quiz;dirty=false;render();
+            $('draftDialog').close();status(quiz.published?'Published quiz. Duplicate it to create a revised version.':'Draft loaded.');
+            $('title').scrollIntoView({block:'start'});loaded=true;
+        }catch(error){if($('draftDialog').open)$('draftLibraryStatus').textContent=error.message;throw error;}
+    });
+    if(loaded && !quiz.published)$('title').focus({preventScroll:true});
+}
+$('library').addEventListener('click',e=>{const button=e.target.closest('[data-id]');if(button)loadSavedQuiz(button.dataset.id);});
+$('draftLibrary').addEventListener('click',e=>{const button=e.target.closest('[data-draft-id]');if(button)loadSavedQuiz(button.dataset.draftId);});
 $('new').onclick=()=>{if(busy || !leave())return;quiz={title:'',durationMinutes:null,questions:[]};for(const key of Object.keys(sessionStorage))if(key.startsWith('ppquiz-preview:'))sessionStorage.removeItem(key);dirty=false;$('vocabularyPaste').value='';$('vocabularyFile').value='';$('vocabularyStatus').textContent='';$('type').selectedIndex=0;render();status('Start by adding your first question.');};
 $('duplicate').onclick=()=>{if(busy)return;quiz=structuredClone(quiz);quiz.questions=QuizScoring.duplicateQuestions(quiz.questions);delete quiz.pointsRevision;delete quiz.id;delete quiz.owner;delete quiz.updatedAt;quiz.published=false;quiz.title+=' (copy)';dirty=true;render();status('Copy created. Save it as a new draft.');};
 $('title').oninput=e=>{quiz.title=e.target.value;changed();};$('duration').oninput=e=>{quiz.durationMinutes=Number(e.target.value);changed();};

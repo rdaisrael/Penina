@@ -522,7 +522,7 @@
                     const button=make('button','',label);button.type='button';button.dataset.stage=name;button.onclick=()=>setStage(name);nav.append(button);
                 }
                 if(typeof saved.homeUrl==='string' && /^\/(?!\/)/.test(saved.homeUrl)){
-                    const link=make('a','home-link','← Class home');link.target='_blank';link.rel='noopener';link.href='https://www.penina-hebrew.org'+saved.homeUrl;app.prepend(link);
+                    const link=make('a','home-link');link.innerHTML=window.PeninaStudyLayout.classHomeButtonContent;link.target='_blank';link.rel='noopener';link.href='https://www.penina-hebrew.org'+saved.homeUrl;app.prepend(link);
                 }
                 const language=window.PeninaKnowledgeCards.practiceCards(deck,'english').length?'english':'hebrew';byId('quiz-language').value=language;
                 setStage(['print','sheet','quiz'].includes(location.hash.slice(1))?location.hash.slice(1):'study');

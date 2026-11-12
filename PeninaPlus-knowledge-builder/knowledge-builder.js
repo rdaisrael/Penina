@@ -46,9 +46,10 @@
         clearTimeout(saveTimer);
         saveTimer = setTimeout(persist, 350);
     }
-    async function confirmAction(text) {
+    async function confirmAction(text, confirmLabel = 'Continue') {
         const dialog = byId('confirm-dialog');
         byId('confirm-message').textContent = text;
+        dialog.querySelector('[value="confirm"]').textContent = confirmLabel;
         dialog.returnValue = 'cancel';
         return new Promise(resolve => {
             dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm'), {once: true});
@@ -354,6 +355,16 @@
         if (commitEditor()) message('Card saved. Add another card or open Electronic Flashcards.');
     });
     byId('set-title').addEventListener('input', () => {deck.title = byId('set-title').value; scheduleSave();});
+    byId('new-list').addEventListener('click', async () => {
+        if (studentMode || !await confirmAction('Clear the current draft and start a new list?', 'Start New')) return;
+        deck = {format: FORMAT, version: 1, title: '', cards: []};
+        ratings = {}; order = []; index = 0; showingAnswer = answerFirst;
+        workflow.reset();
+        byId('set-title').value = '';
+        openEditor();
+        persist();
+        byId('set-title').focus();
+    });
     byId('new-card').addEventListener('click', () => {if (commitEditor()) {openEditor(); persist(); byId('question').focus();}});
     byId('delete-card').addEventListener('click', async () => {
         if (!await confirmAction('Delete this card from the set?')) return;
@@ -544,6 +555,7 @@
             });
             if (saved) {
                 deck = normalizeDeck(saved.deck);
+                if (saved.deck.title === '') deck.title = '';
                 byId('set-title').value = deck.title;
                 const editor = saved.editor;
                 openEditor(deck.cards.find(card => card.id === editor?.editingId) || null);

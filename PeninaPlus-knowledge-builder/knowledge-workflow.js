@@ -256,7 +256,7 @@
                 if(stage==='quiz')startQuiz();
             },
             leave(stage) {return stage !== 'practice' || saveAnswers();},
-            reset() {generation++;controller?.abort();busy=false;dirty=false;sourceKey='';rows=[];status('publish-status','');},
+            reset() {generation++;controller?.abort();busy=false;dirty=false;sourceKey='';rows=[];renderRows();for(const id of ['practice-status','share-status','publish-status'])status(id,'');},
             hasPractice() {return ['english','hebrew'].some(lang=>practiceCards(getDeck(),lang).length);}
         };
     }

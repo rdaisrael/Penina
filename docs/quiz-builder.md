@@ -10,6 +10,8 @@ Create a quiz title and a 1–1,000 minute time limit or **No time limit**, then
 
 Students use the existing Google enrollment checks, immutable attempts, server-verified identities, browser answer recovery, and timed quiz flow. Teachers review only quizzes they authored, correct written work in whole-point increments, or half-point increments for questions with **Allow half credit** checked, export CSV, and send completed grades to the linked Classroom assignment. Existing imported quizzes retain their pages and grading rules.
 
+**Print quiz** beside Student preview opens a blank student worksheet from the current draft or published quiz, including unsaved edits. Choose **Print / Save PDF** to open the browser print dialog, or **Back to quiz** (Escape) to return to editing. The paper layout includes name, date and class lines, points, generous ruled writing space, paper-friendly choices and word banks, Hebrew reading direction, pictures and markers. Answer keys, teacher controls and online review checkpoints are omitted. Choices and banks are shuffled once when the preview opens; repeated printing of that preview keeps the same order. Turn off browser Headers and footers for a clean copy.
+
 ## Implementation and verification
 
 `quiz-builder-model.js` validates question definitions, removes keys from student responses, and grades custom quizzes. `quiz-builder.js` stores encrypted owner-scoped drafts and immutable published snapshots in the existing Blob store. The account handler resolves published custom quiz IDs and creates class-specific assignment URLs. `quiz-custom-submissions.js` scopes attempts, responses, and correction records to each published quiz. All new operations share `/api/game-scores`, so no extra serverless function is added.

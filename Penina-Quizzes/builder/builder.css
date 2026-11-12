@@ -25,3 +25,17 @@
 .q-settings input[type=radio]{display:inline-block;width:16px;height:16px;flex:0 0 16px;margin:2px 0 0;padding:0}
 .question-body>.half-credit{display:flex;align-items:flex-start;gap:8px}
 .question-body>.half-credit input{margin-top:3px}
+
+#conversionDialog{max-width:680px}
+#conversionDialog>label,#conversionFields>label,#conversionPictureFields>label{margin-top:16px}
+#conversionPreview{background:#f5f7f1;border:1px solid #d9e2d5;border-radius:10px;padding:16px;margin-top:20px;overflow-wrap:anywhere}
+#conversionPreview:empty{display:none}
+#conversionPreview h3{font-size:16px;margin:0 0 12px}
+.conversion-prompt{white-space:pre-wrap}
+.conversion-choices{padding-inline-start:24px}
+.conversion-choices li{margin:8px 0;white-space:pre-wrap}
+.conversion-choices strong{color:#23654f}
+#conversionError{color:#9b342d;white-space:pre-wrap}
+#conversionUndo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#edf4e9;border:1px solid #bdcdbb;border-radius:9px;padding:12px;margin-top:16px;font-size:13px}
+#conversionUndoMessage{flex:1;min-width:180px}
+@media(max-width:480px){#conversionDialog{padding:20px;width:calc(100% - 24px)}#conversionDialog .actions button{width:100%}}

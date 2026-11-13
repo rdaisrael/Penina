@@ -26,14 +26,15 @@
             if(!Number.isNaN(published.getTime()))date.dateTime=published.toISOString();
             const actions=document.createElement('div');actions.className='set-actions';
             for(const [name,links] of [
-                ['Flashcards',[['View',set.url],['Download',set.downloadUrl],['Print',set.printUrl]]],
-                ['Sheets',[['View',set.sheetUrl],['Download PDF',set.sheetDownloadUrl],['Print',set.sheetPrintUrl]]]
+                ['Flashcards',[['View',set.url],['Download',set.downloadUrl,true],['Print',set.printUrl,true],['Print/PDF',set.printUrl]]],
+                ['Sheets',[['View',set.sheetUrl],['Download PDF',set.sheetDownloadUrl,true],['Print',set.sheetPrintUrl,true],['Print/PDF',set.sheetPrintUrl]]]
             ]) {
                 const group=document.createElement('section');group.className='set-action-group';group.setAttribute('aria-label',name);
                 const label=document.createElement('h3');label.textContent=name;group.append(label);
-                for(const [text,url] of links) {
+                for(const [text,url,hidden=false] of links) {
                     if(typeof url!=='string'||!/^\/(?!\/)/.test(url))continue;
                     const link=document.createElement('a');link.className='set-action';link.textContent=text;link.href=url;link.target='_blank';link.rel='noopener';
+                    link.hidden=hidden;
                     link.setAttribute('aria-label',text==='Download PDF'?'Download Sheets (PDF)':`${text} ${name}`);
                     if(text==='Download')link.download='';group.append(link);
                 }

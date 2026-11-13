@@ -55,7 +55,9 @@ const server=http.createServer(async(req,res)=>{
    for(const card of await page.locator('.set').all()){
     assert.equal(await card.locator('.combine-select').count(),1);
     assert.deepEqual(await card.locator('.set-action-group h3').allTextContents(),['Flashcards','Sheets']);
-    assert.deepEqual(await card.locator('.set-action').allTextContents(),['View','Download','Print','View','Download PDF','Print']);
+    assert.deepEqual(await card.locator('.set-action:visible').allTextContents(),['View','Print/PDF','View','Print/PDF']);
+    assert.deepEqual(await card.locator('.set-action[hidden]').allTextContents(),['Download','Print','Download PDF','Print']);
+    for(const name of ['Flashcards','Sheets'])assert.equal(await card.getByRole('link',{name:'Print/PDF '+name,exact:true}).getAttribute('href'),await card.locator(`[aria-label="Print ${name}"]`).getAttribute('href'));
     assert(!/\d+ cards/.test(await card.textContent()));
     assert(await card.locator('time').textContent());
    }
@@ -96,7 +98,7 @@ const server=http.createServer(async(req,res)=>{
   const card=page.locator('.knowledge-library .set').first();
   // The original standalone knowledge flashcard download still carries the full deck.
   const cardDownloadPromise=page.waitForEvent('download');
-  await card.getByRole('link',{name:'Download Flashcards',exact:true}).click();
+  await card.locator('[aria-label="Download Flashcards"]').evaluate(link=>link.click());
   const cardDownload=await cardDownloadPromise,exported=fs.readFileSync(await cardDownload.path(),'utf8');
   assert.deepEqual(JSON.parse(exported.match(/id="peninaKnowledgeData" type="application\/json">([\s\S]*?)<\/script>/)[1]).deck.cards[0].picture,picture);
   const studyUrl=await card.getByRole('link',{name:'View Flashcards',exact:true}).getAttribute('href');
@@ -192,8 +194,8 @@ const server=http.createServer(async(req,res)=>{
   decks[0].cards[0].answer=originalAnswer;decks[0].cards[0].additionalInformation=originalInformation;
   await knowledgePage.close();await wordPage.close();
   const sheetView=await card.getByRole('link',{name:'View Sheets',exact:true}).getAttribute('href');
-  const sheetDownload=await card.getByRole('link',{name:'Download Sheets (PDF)',exact:true}).getAttribute('href');
-  const sheetPrint=await card.getByRole('link',{name:'Print Sheets',exact:true}).getAttribute('href');
+  const sheetDownload=await card.locator('[aria-label="Download Sheets (PDF)"]').getAttribute('href');
+  const sheetPrint=await card.getByRole('link',{name:'Print/PDF Sheets',exact:true}).getAttribute('href');
   const sheet=await context.newPage();await sheet.goto(origin+sheetView);await sheet.locator('.sheet img').waitFor();
   assert.deepEqual(await sheet.locator('thead th').allTextContents(),['Question','Answer','Additional Information']);
   assert.equal(await sheet.locator('.study-picture-target').count(),1);

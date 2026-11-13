@@ -264,14 +264,16 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
                     <section class="set-action-group" aria-label="Flashcards">
                         <h3>Flashcards</h3>
                         <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.url)}" aria-label="View Flashcards">View</a>
-                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.downloadUrl || set.url)}" download aria-label="Download Flashcards">Download</a>
-                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.printUrl || set.url + '#print')}" aria-label="Print Flashcards">Print</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.downloadUrl || set.url)}" download aria-label="Download Flashcards" hidden>Download</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.printUrl || set.url + '#print')}" aria-label="Print Flashcards" hidden>Print</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.printUrl || set.url + '#print')}" aria-label="Print/PDF Flashcards">Print/PDF</a>
                     </section>
                     ${set.sheetUrl ? `<section class="set-action-group" aria-label="Sheets">
                         <h3>Sheets</h3>
                         <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetUrl)}" aria-label="View Sheets">View</a>
-                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (PDF)">Download PDF</a>
-                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetPrintUrl)}" aria-label="Print Sheets">Print</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetDownloadUrl)}" aria-label="Download Sheets (PDF)" hidden>Download PDF</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetPrintUrl)}" aria-label="Print Sheets" hidden>Print</a>
+                        <a class="set-action" target="_blank" rel="noopener" href="${escapeHtml(set.sheetPrintUrl)}" aria-label="Print/PDF Sheets">Print/PDF</a>
                     </section>` : ''}
                 </div></article>`;
         }).join('');

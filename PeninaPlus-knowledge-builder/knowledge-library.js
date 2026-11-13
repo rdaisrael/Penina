@@ -12,10 +12,10 @@
     document.getElementById('management').append(tools);
     let sets=[];
     function render() {
-        const query=document.getElementById('search').value.trim().toLowerCase();
-        const visible=sets.filter(set=>set.title.toLowerCase().includes(query));
+        const query=document.getElementById('search').value;
+        const visible=sets.map(set=>({set,result:PeninaLibrarySearch.find(set,query)})).filter(item=>item.result.matches);
         section.hidden=!sets.length;
-        list.replaceChildren(...visible.map(set=>{
+        list.replaceChildren(...visible.map(({set,result})=>{
             const card=document.createElement('article');card.className='set';
             const heading=document.createElement('div');heading.className='set-heading';
             const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.className='combine-select';checkbox.value=set.pathname;
@@ -40,11 +40,13 @@
                 }
                 actions.append(group);
             }
-            card.append(heading,date,actions);return card;
+            card.append(heading);
+            card.insertAdjacentHTML('beforeend',PeninaLibrarySearch.preview(result.entries));
+            card.append(date,actions);return card;
         }));
-        note.textContent=visible.length?'':'No knowledge lists match that search.';note.hidden=visible.length>0;
+        note.textContent=visible.length?'':'No knowledge sets, questions, or answers match that search.';note.hidden=visible.length>0;
         if(visible.length && !document.getElementById('sets').children.length)document.getElementById('status').hidden=true;
-        if(sets.length){document.querySelector('.intro').textContent='Choose a vocabulary or knowledge set to study its flashcards, sheets, and practice activities.';const search=document.getElementById('search');search.placeholder='Search vocabulary and knowledge sets…';search.setAttribute('aria-label','Search vocabulary and knowledge sets');}
+        if(sets.length){document.querySelector('.intro').textContent='Choose a vocabulary or knowledge set to study its flashcards, sheets, and practice activities.';const search=document.getElementById('search');search.setAttribute('aria-label','Search set names, Hebrew terms, English or Hebrew definitions, and knowledge questions and answers');}
         tools.hidden=!sets.length;tools.replaceChildren();
         const legend=document.createElement('legend');legend.textContent='Knowledge sets';tools.append(legend);
         sets.forEach(set=>{const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=set.pathname;label.append(input,document.createTextNode(set.title));tools.append(label);});

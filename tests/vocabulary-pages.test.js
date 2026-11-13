@@ -125,7 +125,7 @@ test('A custom page supports empty view, publishing, viewing, authentication, an
     assert.equal(empty.body.sets.length, 0);
     assert.equal(empty.body.page.name, 'Ninth');
     assert(!JSON.stringify(empty.body).includes('passwordVerifier'));
-    const html = require('../PeninaPlus-vocab-builder/offline-study-cards').makeApp('Review', [{ n: 1, term: 'מילה', english: 'Word' }]);
+    const html = require('../PeninaPlus-vocab-builder/offline-study-cards').makeApp('Review', [{ n: 1, term: 'מִלָּה', english: 'Word', hebrew: 'צירוף אותיות', contextQuote: 'Context is not a definition' }]);
     const body = { grade, title: 'Review', html, password };
     assert.equal((await request('api/flashcard-sets.js', 'POST', { ...body, password: 'wrong' }, {}, {})).code, 401);
     const published = await request('api/flashcard-sets.js', 'POST', body);
@@ -133,9 +133,11 @@ test('A custom page supports empty view, publishing, viewing, authentication, an
     const pathname = published.body.set.pathname;
     const listing = await request('api/flashcard-sets.js', 'GET', {}, { grade });
     assert.equal(listing.body.sets.length, 1);
+    assert.deepEqual(listing.body.sets[0].searchEntries, [{term:'מִלָּה',english:'Word',hebrew:'צירוף אותיות'}]);
+    assert.equal(listing.body.sets[0].hasGames, false, 'Terms remain searchable without game distractors');
     const viewed = await request('api/flashcard-sets.js', 'GET', {}, { grade, view: pathname });
     assert.equal(viewed.code, 200);
-    assert(viewed.body.includes('מילה'));
+    assert(viewed.body.includes('מִלָּה'));
     assert.equal((await request('api/flashcard-sets.js', 'GET', {}, { grade: 'tenth', view: pathname })).code, 404);
     assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade, password: '1-different', pathnames: [pathname] }, {}, {})).code, 401);
     assert.equal((await request('api/flashcard-sets.js', 'DELETE', { grade: 'tenth', password: '1-different', pathnames: [pathname] })).code, 400);

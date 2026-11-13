@@ -21,6 +21,7 @@ test('knowledge publishing keeps questions, pictures, targets and distractors; r
     assert.equal(published.code,201);assert.equal(published.body.set.hasPractice,true);assert.equal(h.operations.length,1);
     assert.equal(h.operations[0].options.allowOverwrite,false);
     const listing=await h.call('GET',{}, {grade:'class-a'});assert.equal(listing.body.sets.length,1);
+    assert.deepEqual(listing.body.sets[0].searchEntries,[{term:'What is a leaf for?',english:'Making food',hebrew:''}]);
     assert.equal((await h.call('GET',{}, {grade:'class-b'})).body.sets.length,0);
     const pathname=published.body.set.pathname;
     assert.equal((await h.call('GET',{}, {grade:'class-b',view:pathname})).code,404);

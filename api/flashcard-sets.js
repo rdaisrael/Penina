@@ -60,15 +60,20 @@ function savedCards(html) {
     return Array.isArray(cards) ? cards : [];
 }
 
-async function gameAvailability(blob) {
+async function studyMetadata(blob) {
     try {
         const response = await fetch(blob.url);
-        if (!response.ok) return false;
+        if (!response.ok) throw new Error('Stored set unavailable.');
         const cards = savedCards(await response.text());
-        return ['english', 'hebrew'].some(language => practiceRows(cards, language).length > 0);
+        return {
+            hasGames: ['english', 'hebrew'].some(language => practiceRows(cards, language).length > 0),
+            searchEntries: cards.filter(card => card && typeof card === 'object').map(card => ({
+                term: card.term || '', english: card.english || '', hebrew: card.hebrew || ''
+            }))
+        };
     } catch (_error) {
         // A damaged or unavailable set must not prevent the rest of the library loading.
-        return false;
+        return { hasGames: false, searchEntries: [] };
     }
 }
 
@@ -141,7 +146,7 @@ module.exports = async function (req, res) {
             // Bound storage reads when a class has many published sets.
             for (let offset = 0; offset < vocabularyBlobs.length; offset += 8) {
                 sets.push(...await Promise.all(vocabularyBlobs.slice(offset, offset + 8).map(async blob => ({
-                    ...formatSet(blob, grade), hasGames: await gameAvailability(blob)
+                    ...formatSet(blob, grade), ...await studyMetadata(blob)
                 }))));
             }
             sets.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));

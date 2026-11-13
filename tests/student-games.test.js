@@ -75,8 +75,12 @@ test('Student library detects teacher-created games from published data, hides l
     assert(games.body.includes('game=matching&grade=sixth&set=class'));
     html = app.makeApp('Review',[card]);
     assert.equal((await request({})).body.sets[0].hasGames,false);
+    assert.deepEqual(JSON.parse(JSON.stringify((await request({})).body.sets[0].searchEntries)),[{term:card.term,english:card.english || '',hebrew:card.hebrew || ''}]);
+    html = 'const originalCards='+JSON.stringify([card])+';let cards=[];';
+    assert.equal((await request({})).body.sets[0].searchEntries[0].term,card.term,'Legacy saved terms are searchable');
     html = 'invalid stored data';
     assert.equal((await request({})).body.sets[0].hasGames,false);
+    assert.equal((await request({})).body.sets[0].searchEntries.length,0);
 });
 
 test('Matching rounds always reserve three decoys, including sets whose alternatives are other correct definitions',()=>{

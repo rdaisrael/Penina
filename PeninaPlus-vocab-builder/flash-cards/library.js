@@ -247,11 +247,12 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
     }
 
     function render() {
-        const query = search.value.trim().toLowerCase();
-        const visible = sets.filter(set => !hiddenWordlists.includes(set.pathname) && set.title.toLowerCase().includes(query));
+        const query = search.value;
+        const visible = sets.filter(set => !hiddenWordlists.includes(set.pathname))
+            .map(set => ({ set, result: PeninaLibrarySearch.find(set, query) })).filter(item => item.result.matches);
         status.hidden = true;
         document.getElementById('vocabulary-lists-heading').hidden = !visible.length;
-        setsElement.innerHTML = visible.map(set => {
+        setsElement.innerHTML = visible.map(({ set, result }) => {
             const date = new Date(set.publishedAt);
             const readableDate = Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, {
                 year: 'numeric', month: 'long', day: 'numeric'
@@ -259,7 +260,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
             const combineChecked = selectedForCombination.has(set.pathname) ? ' checked' : '';
             const combineCheckbox = `<input class="combine-select" type="checkbox" value="${escapeHtml(set.pathname)}"${combineChecked} aria-label="Include ${escapeHtml(set.title)} in a combined set">`;
             const removeCheckbox = '';
-            return `<article class="set"><div class="set-heading">${combineCheckbox}${removeCheckbox}<h2>${escapeHtml(set.title)}</h2></div><time>${escapeHtml(readableDate)}</time>
+            return `<article class="set"><div class="set-heading">${combineCheckbox}${removeCheckbox}<h2>${escapeHtml(set.title)}</h2></div>${PeninaLibrarySearch.preview(result.entries)}<time>${escapeHtml(readableDate)}</time>
                 <div class="set-actions">
                     <section class="set-action-group" aria-label="Flashcards">
                         <h3>Flashcards</h3>
@@ -278,7 +279,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
                 </div></article>`;
         }).join('');
         if (!visible.length) {
-            status.textContent = query ? 'No vocabulary sets match that search.' : 'No vocabulary sets have been published yet.';
+            status.textContent = PeninaLibrarySearch.normalize(query) ? 'No vocabulary sets, terms, or definitions match that search.' : 'No vocabulary sets have been published yet.';
             status.hidden = false;
         }
         updateCombineControls();

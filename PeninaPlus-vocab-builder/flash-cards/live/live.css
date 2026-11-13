@@ -17,6 +17,14 @@
 @keyframes live-wrong{from{opacity:0;scale:.8}to{opacity:1;scale:1}}
 @media(prefers-reduced-motion:reduce){.wrong-answer-mark{animation:none}}
 
+/* Overlay the join details in the existing upper-right space without moving the game. */
+.live-host-join{position:relative;margin-left:auto}.live-host-join-original,.host-answered-count{visibility:hidden}
+.live-host-join-panel{position:absolute;right:0;top:-22px;height:96px;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.live-host-code{display:grid;text-align:right}.live-host-code b{font-size:32px;line-height:1.1}
+.live-join-qr{display:block;flex:0 0 96px;width:96px;background:white;line-height:0}.live-join-qr svg{display:block;width:100%;height:auto}
+@media(max-width:650px){.live-host-join-panel{top:0;height:72px;gap:8px}.live-host-code b{font-size:26px;line-height:1}.live-join-qr{flex-basis:72px;width:72px}}
+@media(max-width:380px){.live-host-code b{font-size:22px}}
+
 /* Keep revealed standings beside the question on classroom screens. */
 .live-round{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
 .live-question{min-width:0}

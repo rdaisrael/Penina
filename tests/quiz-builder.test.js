@@ -7,7 +7,7 @@ function fixture(){return {title:'Hebrew review',durationMinutes:30,questions:[
  {type:'gaps',prompt:'___ and ___',points:2,choices:['א','ב'],answer:['א','א'],direction:'rtl'},
  {type:'order',prompt:'Order',points:1,choices:['א','ב'],answer:['ב','א'],direction:'rtl'}]};}
 function harness(){
- const blobs=new Map(),cache=new Map(),state={enrolled:true,teacher:true,work:null,grade:null},ORIGIN='https://www.penina-hebrew.org';
+ const blobs=new Map(),cache=new Map(),state={enrolled:true,teacher:true,work:null,grade:null,reads:[],logs:[],delays:[]},ORIGIN='https://www.penina-hebrew.org';
  class OAuth2Client {setCredentials(){} generateAuthUrl(options){state.oauth=options;return 'https://accounts.google.com/test';}async getToken(){return {tokens:{id_token:'test',refresh_token:'test',scope:state.oauth.scope.join(' ')}};}async verifyIdToken(){return {getPayload:()=>({sub:'owner',name:'Teacher',email:'teacher@school.org',email_verified:true,nonce:state.oauth.nonce})};}async request({url,method,data,params={}}){
   if(url.endsWith(':turnIn')){state.turnInCalls=(state.turnInCalls || 0)+1;if(state.turnInFailure)throw {response:{status:503}};return {data:{}};}
   if(method==='PATCH' && params.updateMask==='maxPoints'){
@@ -24,11 +24,12 @@ function harness(){
   if(url.includes('/students/')){if(!state.enrolled)throw {response:{status:404}};return {data:{userId:url.split('/').pop()}};}
   return {data:{id:'course',name:'Test class',courseState:'ACTIVE'}};
  }}
- function load(name){if(cache.has(name))return cache.get(name).exports;const module={exports:{}};cache.set(name,module);const context={module,exports:module.exports,Date:class extends Date {static now(){return state.now ?? Date.now();}},console,URL,URLSearchParams,Buffer,__dirname:path.join(__dirname,'../lib'),process:{env:{BLOB_READ_WRITE_TOKEN:'test',GOOGLE_CLASSROOM_CLIENT_ID:'test',GOOGLE_CLASSROOM_CLIENT_SECRET:'test'}},fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:n=>{
+ function load(name){if(cache.has(name))return cache.get(name).exports;const module={exports:{}};cache.set(name,module);const context={module,exports:module.exports,Date:class extends Date {static now(){return state.now ?? Date.now();}},console:{...console,warn:(...args)=>state.logs.push(args),error:(...args)=>state.logs.push(args)},AbortSignal,URL,URLSearchParams,Buffer,__dirname:path.join(__dirname,'../lib'),process:{env:{BLOB_READ_WRITE_TOKEN:'test',GOOGLE_CLASSROOM_CLIENT_ID:'test',GOOGLE_CLASSROOM_CLIENT_SECRET:'test'}},fetch:async (url,options)=>{state.reads.push(url);if(state.readFailure){const response=state.readFailure(url,options);if(response)return response;}return {ok:blobs.has(url),status:blobs.has(url)?200:404,text:async()=>blobs.get(url)};},require:n=>{
+   if(n==='node:timers/promises')return {setTimeout:async ms=>state.delays.push(ms)};
    if(n==='./openai-text')return {generateOpenAIText:async(...args)=>{if(!state.aiGenerator)throw Error('No test AI response configured');return state.aiGenerator(...args);}};
    if(n==='./quiz-correction-email')return {sendCorrectedTest:async data=>{state.emailed=data;if(state.emailFailure)throw Error('Email failed');return {status:'accepted',to:data.record.email};}};
    if(n==='google-auth-library')return {OAuth2Client};
-   if(n==='@vercel/blob')return {list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),put:async(p,s,o)=>{if(!o.allowOverwrite&&blobs.has(p))throw Error('exists');blobs.set(p,s);},del:async p=>blobs.delete(p)};
+   if(n==='@vercel/blob')return {list:async({prefix,cursor,limit})=>{if(state.listFailure)state.listFailure(prefix);const found=[...blobs.keys()].filter(p=>p.startsWith(prefix)),start=Number(cursor)||0,size=Math.min(limit,state.pageSize || limit);return {blobs:found.slice(start,start+size).map(p=>({pathname:p,url:p})),hasMore:start+size<found.length,cursor:String(start+size)};},put:async(p,s,o)=>{if(!o.allowOverwrite&&blobs.has(p))throw Error('exists');blobs.set(p,s);},del:async p=>blobs.delete(p)};
    if(n==='./vocabulary-pages')return {getPage:async()=>({}),authenticatePage:(_,pw)=>pw==='secret'?null:{status:401,error:'Bad password'}};
    if(n.startsWith('./quiz-'))return load(n.slice(2));return require(n);
  }};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../lib/'+name+'.js'),'utf8'),context);return module.exports;}
@@ -87,6 +88,90 @@ async function assigned(h,quiz=fixture()){
  const id=await h.publish(quiz),r=await h.call(h.account.handle,h.req({action:'assign',courseId:'course',quiz:id}));assert.equal(r.code,200);return {quiz:id,classId:new URL(r.data.url).searchParams.get('class')};
 }
 const correctAnswers=()=>[['answer'],['B'],['A','C'],['א','א'],['ב','א']];
+async function resumableAttempt(){
+ const h=harness(),link=await assigned(h),id='a'.repeat(32);
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ assert.equal(start.code,200);
+ const request=h.req({...link,action:'start',id:'b'.repeat(32)},'student');
+ request.headers['x-vercel-id']='iad1::quiz-request';
+ return {h,link,start,request};
+}
+for(const status of [408,429,500,502,503,504])test('Quiz attempts recover from temporary storage HTTP '+status,async()=>{
+ const {h,start,request}=await resumableAttempt();let reads=0;
+ h.state.readFailure=(url,options)=>{
+  if(!url.startsWith('quiz-attempts/'))return;
+  assert.equal(options.cache,'no-store');assert(options.signal instanceof AbortSignal);
+  if(++reads===1)return {ok:false,status,headers:new Headers({'x-vercel-id':'blob-request'})};
+ };
+ const result=await h.call(h.submissions,request);
+ assert.equal(result.code,200);assert.equal(result.data.id,start.data.id);assert.equal(result.data.deadline,start.data.deadline);
+ assert.equal(reads,2);assert.equal(h.state.delays.length,1);
+ const log=h.state.logs[0][1];assert.equal(log.operation,'read-record');assert.equal(log.storageStatus,status);
+ assert.equal(log.requestId,'iad1::quiz-request');assert.equal(log.storageRequestId,'blob-request');assert.equal(log.attempts,1);
+});
+for(const kind of ['network','timeout','body'])test('Quiz reads recover from a temporary '+kind+' failure',async()=>{
+ const {h,start,request}=await resumableAttempt();let reads=0;
+ h.state.readFailure=url=>{
+  if(!url.startsWith('quiz-attempts/') || ++reads!==1)return;
+  if(kind==='timeout')throw Object.assign(Error('Timed out'),{name:'TimeoutError'});
+  if(kind==='body')return {ok:true,status:200,text:async()=>{throw TypeError('terminated');}};
+  throw Object.assign(TypeError('fetch failed'),{cause:{code:'ECONNRESET'}});
+ };
+ const result=await h.call(h.submissions,request);assert.equal(result.code,200);assert.equal(result.data.id,start.data.id);assert.equal(reads,2);
+});
+test('Exhausted reads stop after three attempts, keep the saved attempt, and log safe diagnostics',async()=>{
+ const {h,request}=await resumableAttempt(),before=[...h.blobs];let reads=0;
+ h.state.readFailure=url=>{if(url.startsWith('quiz-attempts/')){reads++;return {ok:false,status:503,headers:new Headers({'x-request-id':'storage-request'})};}};
+ const result=await h.call(h.submissions,request);assert.equal(result.code,503);assert.equal(reads,3);assert.equal(h.state.delays.length,2);
+ assert.deepEqual([...h.blobs],before);assert(h.state.delays[0]>=150 && h.state.delays[0]<250);assert(h.state.delays[1]>=300 && h.state.delays[1]<400);
+ const log=h.state.logs.at(-1)[1];assert.equal(log.operation,'read-record');assert.equal(log.storageStatus,503);assert.equal(log.attempts,3);assert.equal(log.requestId,'iad1::quiz-request');
+ const serialized=JSON.stringify(h.state.logs);assert(!serialized.includes('student@school.org'));assert(!serialized.includes(request.headers.cookie));assert(!serialized.includes('quiz-attempts/'));
+ assert.match(result.data.error,/answers are still available/);assert(!JSON.stringify(result.data).includes('storage-request'));
+});
+for(const status of [400,401,403,404])test('Permanent storage HTTP '+status+' errors are not retried or treated as missing records',async()=>{
+ const {h,request}=await resumableAttempt();let reads=0;
+ h.state.readFailure=url=>{if(url.startsWith('quiz-attempts/')){reads++;return {ok:false,status};}};
+ const result=await h.call(h.submissions,request);assert.equal(result.code,503);assert.equal(reads,1);assert.equal(h.state.delays.length,0);assert.equal(h.state.logs.at(-1)[1].storageStatus,status);
+});
+test('Corrupt records fail closed without retrying decryption',async()=>{
+ const {h,request}=await resumableAttempt();let reads=0;
+ h.state.readFailure=url=>{if(url.startsWith('quiz-attempts/')){reads++;return {ok:true,status:200,text:async()=>'{broken'};}};
+ assert.equal((await h.call(h.submissions,request)).code,503);assert.equal(reads,1);assert.equal(h.state.delays.length,0);
+ assert.equal(h.state.logs.at(-1)[1].operation,'decrypt-record');assert.equal(h.state.logs.at(-1)[1].storageStatus,200);
+});
+test('A timeout while consuming the response body retries the whole read',async()=>{
+ const {h,request}=await resumableAttempt();let reads=0;
+ h.state.readFailure=(url,options)=>{
+  if(!url.startsWith('quiz-attempts/') || ++reads!==1)return;
+  return {ok:true,status:200,text:async()=>{
+   Object.defineProperty(options.signal,'aborted',{value:true});
+   throw Object.assign(Error('The operation was aborted'),{name:'AbortError'});
+  }};
+ };
+ assert.equal((await h.call(h.submissions,request)).code,200);assert.equal(reads,2);
+});
+test('List failures retain SDK retry handling and include the request and operation in the log',async()=>{
+ const {h,request}=await resumableAttempt();let lists=0;
+ h.state.listFailure=prefix=>{if(prefix.startsWith('quiz-submissions/')){lists++;throw new class BlobServiceNotAvailable extends Error {}();}};
+ assert.equal((await h.call(h.submissions,request)).code,503);assert.equal(lists,1);
+ const log=h.state.logs.at(-1)[1];assert.equal(log.operation,'list-records');assert.equal(log.storageStatus,503);assert.equal(log.requestId,'iad1::quiz-request');
+});
+test('Published quiz loading failures are logged even before the submission handler starts',async()=>{
+ const {h,request}=await resumableAttempt();h.state.listFailure=prefix=>{if(prefix.startsWith('quiz-builder/published/'))throw Object.assign(Error('storage unavailable'),{statusCode:503});};
+ assert.equal((await h.call(h.submissions,request)).code,503);
+ const log=h.state.logs.at(-1)[1];assert.equal(log.operation,'load-published-quiz');assert.equal(log.storageStatus,503);assert.equal(log.requestId,'iad1::quiz-request');
+});
+test('Paginated reports retain all submissions once when one record download is retried',async()=>{
+ const h=harness(),link=await assigned(h);
+ for(const [user,char] of [['student','a'],['student2','b'],['student3','c']]){
+  const id=char.repeat(32),start=await h.call(h.submissions,h.req({...link,action:'start',id},user));
+  assert.equal((await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},user))).code,200);
+ }
+ h.state.pageSize=1;let failed=false;
+ h.state.readFailure=url=>{if(url.startsWith('quiz-submissions/') && !failed){failed=true;return {ok:false,status:502};}};
+ const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.code,200);assert.equal(report.data.submissions.length,3);
+ assert.equal(new Set(report.data.submissions.map(r=>r.id)).size,3);assert.equal(h.state.delays.length,1);
+});
 test('Unlimited duration and valid checkpoint positions survive validation; invalid values fail',()=>{
  const q=fixture();q.durationMinutes=null;q.forwardOnlyFrom=2;q.checkpointMessage='Review now.';const value=model.validateQuiz(q,true);assert.equal(value.durationMinutes,null);assert.equal(value.forwardOnlyFrom,2);
  for(const from of [0,5,-1,1.5,'2'])assert.throws(()=>model.validateQuiz({...q,forwardOnlyFrom:from},true));

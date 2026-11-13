@@ -4,10 +4,13 @@
     const activityCookie = 'penina_activity';
     const productionDomain = location.hostname === 'penina-hebrew.org' || location.hostname.endsWith('.penina-hebrew.org');
     const hostPage = location.hostname === 'www.penina-hebrew.org';
+    const homepage = location.pathname === '/' || location.pathname === '/index.html';
     let lastActivity = 0;
     let lastHeartbeat = 0;
     let lastWrite = 0;
     let ending = false;
+    let heartbeatStopped = false;
+    let heartbeatPending = false;
     const readSharedActivity = () => {
         const match = document.cookie.split('; ').find(item => item.startsWith(activityCookie + '='));
         const value = Number(match?.slice(activityCookie.length + 1)) || 0;
@@ -73,9 +76,16 @@
     setInterval(() => {
         syncActivity();
         if (Date.now() - lastActivity >= idleLimit) { finishSession(); return; }
-        if (hostPage && Date.now() - lastHeartbeat >= 60_000) {
+        // The homepage already checks sign-in and shows this account element only on success.
+        // The activity cookie alone is not proof of sign-in: anonymous activity also writes it.
+        const signedIn = !homepage || document.getElementById('signed-in-account')?.hidden === false;
+        if (hostPage && signedIn && !ending && !heartbeatStopped && !heartbeatPending && Date.now() - lastHeartbeat >= 60_000) {
             lastHeartbeat = Date.now();
-            fetch('/api/game-scores?game=quiz-account&action=activity', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}',credentials:'same-origin'}).catch(() => {});
+            heartbeatPending = true;
+            fetch('/api/game-scores?game=quiz-account&action=activity', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}',credentials:'same-origin'})
+                .then(response => { if (response.status === 401) heartbeatStopped = true; })
+                .catch(() => {})
+                .finally(() => { heartbeatPending = false; });
         }
     }, 5000);
 })();

@@ -9,8 +9,8 @@
     const hasInformation = card => Boolean(text(card.additionalInformation));
     const choiceKey = value => text(value).normalize('NFKC').toLowerCase().replace(/[\u0591-\u05c7]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
     function validChoices(answer, choices) {
-        return Array.isArray(choices) && choices.length === 4 && choices.every(value => typeof value === 'string' && value.length <= 500 && choiceKey(value) && choiceKey(value) !== choiceKey(answer))
-            && new Set(choices.map(choiceKey)).size === 4;
+        return Array.isArray(choices) && choices.length >= 1 && choices.length <= 5 && choices.every(value => typeof value === 'string' && value.length <= 500 && choiceKey(value) && choiceKey(value) !== choiceKey(answer))
+            && new Set(choices.map(choiceKey)).size === choices.length;
     }
     function practiceCards(deck, language) {
         return deck.cards.filter(card => validChoices(card.answer, card.distractors?.[language]));
@@ -84,7 +84,7 @@
             for (const language of ['english', 'hebrew']) {
                 const values = card.distractors?.[language];
                 if (values !== undefined) {
-                    if (!Array.isArray(values) || values.length !== 4 || values.some(value => typeof value !== 'string' || value.length > 500)) throw new Error(`Card ${i + 1} has invalid distractors.`);
+                    if (!Array.isArray(values) || (values.length < 1 || values.length > 5) || values.some(value => typeof value !== 'string' || value.length > 500)) throw new Error(`Card ${i + 1} has invalid distractors.`);
                     distractors[language] = values.map(text);
                 }
             }

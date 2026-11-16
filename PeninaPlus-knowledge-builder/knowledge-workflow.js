@@ -23,7 +23,7 @@
         const status = (id, text, error = false) => {byId(id).textContent = text; byId(id).classList.toggle('error', error);};
         const signature = () => JSON.stringify(getDeck().cards.map(card => [card.id, card.question, card.answer, card.distractors]));
         function resetRows() {
-            rows = getDeck().cards.map(card => ({id: card.id, question: card.question, answer: card.answer, answers: [...(card.distractors?.[language] || ['', '', '', ''])]}));
+            rows = getDeck().cards.map(card => ({id: card.id, question: card.question, answer: card.answer, answers: [...(card.distractors?.[language] || ['', '', ''])]}));
             sourceKey = signature(); dirty = false;
         }
         function refreshPractice() {
@@ -70,7 +70,7 @@
                 if (!row.answer.trim()) {status('practice-status', 'Enter a correct answer for every question.', true); return false;}
                 const filled = row.answers.some(value => value.trim());
                 if (filled && !validChoices(row.answer, row.answers)) {
-                    status('practice-status', 'Use four different incorrect answers for each completed question. None may match its correct answer. Leave all four empty to skip a question.', true); return false;
+                    status('practice-status', 'Fill each incorrect-answer cell with a different answer. None may match its correct answer. Leave every cell empty to skip a question.', true); return false;
                 }
             }
             for (const row of rows) {
@@ -94,7 +94,7 @@
             }
             const selectedSlots = [...byId('practice-rows').querySelectorAll('input:checked')];
             const requests = rows.map((row, i) => ({id: i, term: row.question, definition: row.answer,
-                answers: [...row.answers], slots: [0,1,2,3].filter(slot => selected
+                answers: [...row.answers], slots: row.answers.map((_, slot) => slot).filter(slot => selected
                     ? selectedSlots.some(input => +input.dataset.row === i && +input.dataset.slot === slot)
                     : !row.answers[slot].trim())})).filter(row => row.slots.length);
             if (!requests.length) {status('practice-status', selected ? 'Check the answers you want to regenerate.' : 'All cells are filled. Select answers to regenerate, or edit them directly.'); return;}
@@ -127,7 +127,7 @@
         byId('save-answers').onclick = saveAnswers;
         byId('practice-language').onchange = event => {
             if (!saveAnswers()) {event.target.value = language; return;}
-            language = event.target.value; resetRows(); renderRows(); status('practice-status', 'Enter four incorrect answers for each question, or use Generate to fill empty cells.');
+            language = event.target.value; resetRows(); renderRows(); status('practice-status', 'Enter incorrect answers for each question, or use Generate to fill empty cells.');
         };
         byId('practice-cancel').onclick = () => {generation++; controller?.abort(); busy = false; resetRows(); renderRows(); status('practice-status', 'Unsaved changes discarded.');};
         byId('preview-practice').onclick = () => {if (saveAnswers()) {byId('quiz-language').value = language; setStage('quiz');}};
@@ -189,19 +189,16 @@
         async function spreadsheet() {
             const button = byId('download-spreadsheet'); button.disabled = true;
             try {
-                if (!window.ExcelJS) await new Promise((resolve,reject) => {
-                    const script = make('script'); script.src = '/PeninaPlus-Reader/vendor/exceljs-4.4.0.min.js';
-                    script.onload = resolve; script.onerror = () => {script.remove(); reject(Error('The spreadsheet tools could not be loaded. Try again.'));}; document.head.append(script);
-                });
+                await window.PeninaKnowledgeSpreadsheet.loadExcel();
                 const deck = getDeck(), workbook = new window.ExcelJS.Workbook();
                 const sheet = workbook.addWorksheet('Knowledge Cards');
-                const headers = ['Question','Answer','Additional Information','Picture','Picture Description',...['A','B','C','D','E'].flatMap(label => [`Target ${label} X (%)`, `Target ${label} Y (%)`]), ...['English','Hebrew'].flatMap(lang => [1,2,3,4].map(n => `${lang} Distractor ${n}`)), ...['A','B','C','D','E'].flatMap(label => [`Marker ${label} Type`, `Arrow ${label} Tail X (%)`, `Arrow ${label} Tail Y (%)`])];
+                const headers = ['Question','Answer','Additional Information','Picture','Picture Description',...['A','B','C','D','E'].flatMap(label => [`Target ${label} X (%)`, `Target ${label} Y (%)`]), ...['English','Hebrew'].flatMap(lang => [1,2,3,4,5].map(n => `${lang} Distractor ${n}`)), ...['A','B','C','D','E'].flatMap(label => [`Marker ${label} Type`, `Arrow ${label} Tail X (%)`, `Arrow ${label} Tail Y (%)`])];
                 sheet.columns = headers.map((header, i) => ({header, width: i < 3 ? 42 : i === 3 ? 24 : 25}));
                 sheet.getRow(1).font = {bold:true,color:{argb:'FFFFFFFF'}}; sheet.getRow(1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FF0056B3'}};
                 for (const card of deck.cards) {
                     const row = sheet.addRow([card.question,card.answer,card.additionalInformation,'',card.picture?.alt || '',
                         ...Array.from({length:5}, (_, i) => {const target=pictureTargets(card.picture)[i]; return target ? [Math.round(target.x * 10000) / 100, Math.round(target.y * 10000) / 100] : ['', ''];}).flat(),
-                        ...(card.distractors?.english || ['', '', '', '']),...(card.distractors?.hebrew || ['', '', '', '']),
+                        ...['english','hebrew'].flatMap(language => Array.from({length:5}, (_, i) => card.distractors?.[language]?.[i] || '')),
                         ...Array.from({length:5}, (_, i) => {const target=pictureTargets(card.picture)[i]; return target ? [target.type === 'arrow' ? 'Arrow' : 'Target', ...(target.type === 'arrow' ? [Math.round(target.tail.x * 10000) / 100, Math.round(target.tail.y * 10000) / 100] : ['', ''])] : ['', '', ''];}).flat()]);
                     row.alignment = {vertical:'top',wrapText:true}; row.height = card.picture ? 120 : 75;
                     if (card.picture) {
@@ -234,7 +231,7 @@
         function renderQuiz() {
             byId('quiz-prompt').replaceChildren(); byId('quiz-options').replaceChildren(); byId('quiz-information').hidden = true;
             byId('quiz-next').hidden = true; answered = false;
-            if (!quiz.length) {status('quiz-status','This language does not yet have questions with four saved distractors.');return;}
+            if (!quiz.length) {status('quiz-status','This language does not yet have questions with saved distractors.');return;}
             if (quizIndex >= quiz.length) {
                 status('quiz-status',`Practice complete — ${score} of ${quiz.length} correct.`); byId('quiz-next').hidden=false;byId('quiz-next').textContent='Try Again';return;
             }

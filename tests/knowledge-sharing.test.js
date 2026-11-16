@@ -69,7 +69,8 @@ test('draft choices survive normalization and invalid or incomplete choices neve
     const input=normalizeDeck(deck());assert.equal(practiceCards(input,'english').length,1);assert.equal(practiceCards(input,'hebrew').length,0);
     assert(!validChoices('food',['food','Water','Soil','Air']));assert(!validChoices('food',['Air','AIR!','Soil','Water']));
     input.cards[0].distractors.english[3]='';assert.equal(practiceCards(input,'english').length,0);
-    assert.throws(()=>normalizeDeck({...deck(),cards:[{...deck().cards[0],distractors:{english:['a']}}]}));
+    assert.equal(normalizeDeck({...deck(),cards:[{...deck().cards[0],distractors:{english:['a']}}]}).cards[0].distractors.english.length,1);
+    assert.throws(()=>normalizeDeck({...deck(),cards:[{...deck().cards[0],distractors:{english:['a','b','c','d','e','f']}}]}));
 });
 test('generation treats questions as knowledge data and returns only requested replacement cells',async()=>{
     const input={language:'english',rows:[{id:2,term:'What does a root do?',definition:'Absorb water',answers:['Make food','Carry water','Create seeds','Protect the trunk'],slots:[1]}]};

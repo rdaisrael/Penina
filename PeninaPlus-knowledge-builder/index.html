@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="knowledge-builder.css">
   <style id="print-page-style">@page{size:letter landscape;margin:0}</style>
   <script src="cards.js" defer></script>
+  <script src="knowledge-spreadsheet.js" defer></script>
   <script src="../PeninaPlus-vocab-builder/practice-exercises.js" defer></script>
   <script src="knowledge-workflow.js" defer></script>
   <script src="knowledge-builder.js" defer></script>
@@ -32,6 +33,13 @@
       <div class="panel set-panel">
         <label for="set-title">Set title</label><input id="set-title" type="text" placeholder="Name your knowledge set" maxlength="200">
         <div class="set-actions"><button id="new-list" type="button">New List</button><button id="download-draft" type="button">Save Draft</button><button id="upload-draft" type="button">Open Draft</button><input id="draft-file" type="file" accept=".json,application/json" hidden></div>
+      </div>
+      <div class="panel spreadsheet-panel">
+        <h2>Import a Spreadsheet</h2>
+        <p class="help">Download the blank template and add one question per row. Enter the answer text in Correct Answer, followed by any incorrect answers in Distractor 1–3. Leave distractors blank to generate them after uploading. Pictures and Additional Information are optional.</p>
+        <div class="spreadsheet-actions"><a class="template-download" href="Penina-Knowledge-Template.xlsx" download>Download Excel Template</a><label for="import-language">Practice answer language<select id="import-language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label><button id="upload-spreadsheet" type="button">Upload Filled Template</button><input id="spreadsheet-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></div>
+        <p class="help">Insert each picture in its Picture cell, or position it over that cell. Upload up to 500 questions. Existing A–F sheets with a Correct Answer letter are also supported. Review and edit imported cards before sharing.</p>
+        <p id="spreadsheet-status" class="form-message" role="status" aria-live="polite"></p>
       </div>
       <div class="editor-layout">
         <aside class="panel card-list-panel"><div class="panel-heading"><h2>Your Cards <span id="card-count" class="count">0</span></h2><button id="new-card" type="button">+ Add Card</button></div><p id="empty-list" class="muted">Start with a question and its answer.</p><ol id="card-list" class="card-list"></ol></aside>
@@ -85,11 +93,11 @@
     <section id="practice-stage" aria-labelledby="practice-heading" hidden>
       <div class="panel workflow-panel">
         <h2 id="practice-heading">Create Distractors for Practice Activities</h2>
-        <p>Prepare four incorrect answers for each question. Generate distractors in English or Hebrew, then review, edit, or regenerate them. You can also enter your own.</p>
+        <p>Prepare incorrect answers for each question. New questions start with three distractors, for four choices in Penina Live and Quiz. Imported questions keep their supplied choices, up to five distractors. Generate answers in English or Hebrew, then review, edit, or regenerate them.</p>
         <div id="practice-editor">
           <div class="workflow-actions"><button id="generate-english" class="primary" type="button">Generate English Distractors</button><button id="generate-hebrew" class="primary" type="button">Generate Hebrew Distractors</button></div>
           <label class="language-select" for="practice-language">Edit distractors in<select id="practice-language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label>
-          <p class="help">The correct answer stays in the language you entered. Editing it here updates the flashcard. Leave all four distractors empty to include a question only in flashcards and the knowledge sheet.</p>
+          <p class="help">The correct answer stays in the language you entered. Editing it here updates the flashcard. Leave all distractors empty to include a question only in flashcards and the knowledge sheet.</p>
           <div id="practice-rows"></div>
           <div class="workflow-actions"><button id="regenerate-selected" type="button">Regenerate Selected Answers</button><button id="save-answers" class="primary" type="button">Save Answers</button><button id="practice-cancel" type="button" hidden>Discard Unsaved Changes</button></div>
         </div>

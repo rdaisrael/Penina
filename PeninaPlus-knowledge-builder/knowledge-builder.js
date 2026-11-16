@@ -573,6 +573,39 @@
         } catch (error) {message(error.message || 'This draft could not be opened.', true);}
         finally {event.target.value = '';}
     });
+    byId('upload-spreadsheet').addEventListener('click', () => byId('spreadsheet-file').click());
+    byId('spreadsheet-file').addEventListener('change', async event => {
+        const file = event.target.files[0]; if (!file || studentMode) return;
+        const status = (text, error = false) => {
+            byId('spreadsheet-status').textContent = text;
+            byId('spreadsheet-status').classList.toggle('error', error);
+        };
+        const language = byId('import-language').value;
+        app.inert = true;
+        status('Reading the spreadsheet and pictures…');
+        try {
+            if (!/\.xlsx$/i.test(file.name)) throw Error('Choose an Excel Workbook (.xlsx).');
+            if (file.size > 60 * 1024 * 1024) throw Error('Choose a spreadsheet smaller than 60 MB.');
+            const importer = window.PeninaKnowledgeSpreadsheet;
+            const [ExcelJS, JSZip] = await Promise.all([importer.loadExcel(), importer.loadZip()]);
+            const next = await importer.readExcel(await file.arrayBuffer(), ExcelJS, JSZip, {
+                title:file.name.replace(/\.xlsx$/i, ''), language
+            });
+            for (let i = 0; i < next.cards.length; i++) if (next.cards[i].picture) {
+                const image = new Image(); image.src = next.cards[i].picture.src;
+                try {await image.decode();} catch (_) {throw Error(`Question ${i + 1}: The picture could not be opened. Insert it again and save the workbook.`);}
+                if (image.naturalWidth * image.naturalHeight > 40000000) throw Error(`Question ${i + 1}: The picture is too large. Use a smaller image.`);
+            }
+            if ((deck.cards.length || dirty) && !await confirmAction(`Replace the current set with ${next.cards.length} imported cards? Save the current draft first if you want to keep both.`, 'Import Cards')) {
+                status('Import canceled. Your current set is unchanged.'); return;
+            }
+            deck = next; ratings = {}; workflow.reset();
+            byId('set-title').value = deck.title;
+            openEditor(deck.cards[0]); persist();
+            status(`Imported ${deck.cards.length} cards. Correct answers, supplied practice choices, pictures, and additional information are ready to review.`);
+        } catch (error) {status(error.message || 'This spreadsheet could not be opened.', true);}
+        finally {event.target.value = ''; app.inert = false;}
+    });
     byId('previous').addEventListener('click', () => move(-1));
     byId('next').addEventListener('click', () => move(1));
     byId('flip').addEventListener('click', flip);

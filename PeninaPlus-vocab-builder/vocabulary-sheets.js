@@ -1,6 +1,7 @@
 (function () {
     'use strict';
     const {pictureMarkup} = require('./offline-study-cards');
+    const {drawPictureArrow} = require('../PeninaPlus-knowledge-builder/cards');
     const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const displayValue = value => String(value === undefined || value === null ? '' : value).trim().toLowerCase() === 'n' ? '' : String(value || '');
 
@@ -186,6 +187,7 @@
                             ctx.drawImage(item.image,left,top,item.width,imageHeight);
                             const targets=(Array.isArray(item.picture.targets)?item.picture.targets:item.picture.target?[item.picture.target]:[]).slice(0,5).filter(target=>target&&[target.x,target.y].every(value=>Number.isFinite(value)&&value>=0&&value<=1));
                             targets.forEach((target,i)=>{
+                                if(target.type==='arrow'){drawPictureArrow(ctx,target,left,top,item.width,imageHeight,targets.length>1?'ABCDE'[i]:'',.6);return;}
                                 const cx=left+target.x*item.width,cy=top+target.y*imageHeight;
                                 ctx.beginPath();ctx.arc(cx,cy,7,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#b42318';ctx.lineWidth=1.5;ctx.stroke();
                                 if(targets.length>1){
@@ -306,7 +308,7 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px so
 </style></head><body>
 <div class="toolbar"><button id="print" class="primary" type="button">Print Sheets</button><button id="download" type="button">Download Sheets (PDF)</button><p id="status" role="status">Use Print Sheets, then adjust Scale in your browser’s print dialog.</p></div>
 <main class="sheet"><h1>${escapeHtml(title)}</h1>${renderTable(cards, options)}<footer>Generated with Penina-Hebrew Suite</footer></main>
-<script id="peninaSheetData" type="application/json">${data}</script><script>(() => { const displayValue = ${displayValue.toString()}; const textRuns = ${textRuns.toString()}; const sanitizeCards = ${sanitizeCards.toString()}; const renderPages = ${renderPages.toString()}; return (${start.toString()})(); })();</script></body></html>`;
+<script id="peninaSheetData" type="application/json">${data}</script><script>(() => { ${drawPictureArrow.toString()} const displayValue = ${displayValue.toString()}; const textRuns = ${textRuns.toString()}; const sanitizeCards = ${sanitizeCards.toString()}; const renderPages = ${renderPages.toString()}; return (${start.toString()})(); })();</script></body></html>`;
     }
     if (typeof module !== 'undefined' && module.exports) module.exports = { makeSheet, renderTable, renderPages };
 })();

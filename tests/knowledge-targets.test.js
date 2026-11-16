@@ -67,3 +67,49 @@ test('quiz import, validation, duplication and student output retain all lettere
         assert.throws(()=>model.validateQuiz(unsafe),/targets/);
     }
 });
+
+test('arrows round-trip with independent endpoints and reject invalid or zero-length geometry', () => {
+    const arrow = {type:'arrow',x:.75,y:.6,tail:{x:.15,y:.2}};
+    for (const image of [{...picture,target:arrow,targets:undefined},{...picture,targets:[targets[0],arrow]}]) {
+        const result = normalizeDeck(deck(image));
+        assert.deepEqual(pictureTargets(result.cards[0].picture),pictureTargets(image));
+        assert.deepEqual(normalizeDeck(JSON.parse(JSON.stringify(result))),result);
+        const copy = pictureTargets(result.cards[0].picture).at(-1);
+        copy.tail.x = .9;
+        assert.equal(arrow.tail.x,.15,'normalization copies the tail as well as the tip');
+    }
+    for (const invalid of [{...arrow,tail:null},{...arrow,tail:{x:2,y:0}},{...arrow,tail:{x:'0.1',y:.2}},{...arrow,tail:{x:.75,y:.6}},{...arrow,type:'unknown'}]) {
+        assert.throws(()=>normalizeDeck(deck({...picture,target:invalid,targets:undefined})),/target/);
+    }
+});
+
+test('shared sheets, games, quizzes and offline apps retain arrow geometry', async () => {
+    const api = require('../PeninaPlus-knowledge-builder/cards');
+    const arrow = {type:'arrow',x:.75,y:.6,tail:{x:.15,y:.2}};
+    const image = {...picture,target:arrow,targets:[arrow,targets[1]]};
+    const input = normalizeDeck(deck(image));
+    const html = study.pictureMarkup(image);
+    assert.match(html,/class="picture-arrow"/);
+    assert.match(html,/x1="15%" y1="20%" x2="75%" y2="60%"/);
+    assert.match(html,/aria-label="Arrow A"/);
+    assert.match(html,/aria-label="Target B"/);
+    const questions = await vocab.questions({rows:[{kind:'knowledge',word:'What is here?',definition:'Leaf',picture:image,definitionDistractors:[]}],types:['text'],autoCount:true});
+    const quiz = model.validateQuiz({title:'Arrows',questions},true);
+    assert.deepEqual(model.publicQuestions(quiz)[0].image.targets,image.targets);
+    const renderer=vm.runInNewContext(fs.readFileSync(require.resolve('../Penina-Quizzes/picture.js'),'utf8')+'\nQuizPicture;',{structuredClone,PeninaKnowledgeCards:api});
+    assert.match(renderer.render(model.publicQuestions(quiz)[0]),/aria-label="Arrow A"/);
+    renderer.setMarker(quiz.questions,quiz.questions[0],{x:.8,y:.7},0);
+    assert.deepEqual(JSON.parse(JSON.stringify(quiz.questions[0].image.targets[0])),{...arrow,x:.8,y:.7});
+    const invalid=structuredClone(quiz);invalid.questions[0].image.targets[0].tail.x=-1;
+    assert.throws(()=>model.validateQuiz(invalid),/targets/);
+    const texts=[],lines=[],images=[];
+    const ctx={save(){},restore(){},scale(){},fillRect(){},strokeRect(){},measureText:text=>({width:text.length*7}),fillText:text=>texts.push(text),drawImage:(...args)=>images.push(args),beginPath(){},arc(){},fill(){},stroke(){},moveTo:(...args)=>lines.push(args),lineTo:(...args)=>lines.push(args)};
+    sheets.renderPages({createElement:()=>({setAttribute(){},getContext:()=>ctx})},{...input,options:{kind:'knowledge',context:true}},new Map([[image.src,{naturalWidth:400,naturalHeight:200}]]));
+    const [,left,top,width,height]=images[0];
+    assert(lines.some(([x,y])=>x===left+width*arrow.x&&y===top+height*arrow.y));
+    assert(lines.some(([x,y])=>x===left+width*arrow.tail.x&&y===top+height*arrow.tail.y));
+    assert(texts.includes('A'));
+    const app=study.makeApp('Arrows',study.fromKnowledgeDeck(input));
+    assert.match(app,/function arrowMarkup/);
+    for(const match of app.matchAll(/<script>\n([\s\S]*?)<\/script>/g))assert.doesNotThrow(()=>new vm.Script(match[1]));
+});

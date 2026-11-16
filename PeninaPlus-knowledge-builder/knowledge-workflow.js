@@ -1,7 +1,7 @@
 /* Teacher practice/share tools and the student practice view. */
 (() => {
     'use strict';
-    const {validChoices, practiceCards, pictureTargets} = window.PeninaKnowledgeCards;
+    const {validChoices, practiceCards, pictureTargets, drawPictureArrow} = window.PeninaKnowledgeCards;
     const byId = id => document.getElementById(id);
     const make = (tag, className, text) => {
         const node = document.createElement(tag); if (className) node.className = className;
@@ -195,13 +195,14 @@
                 });
                 const deck = getDeck(), workbook = new window.ExcelJS.Workbook();
                 const sheet = workbook.addWorksheet('Knowledge Cards');
-                const headers = ['Question','Answer','Additional Information','Picture','Picture Description',...['A','B','C','D','E'].flatMap(label => [`Target ${label} X (%)`, `Target ${label} Y (%)`]), ...['English','Hebrew'].flatMap(lang => [1,2,3,4].map(n => `${lang} Distractor ${n}`))];
+                const headers = ['Question','Answer','Additional Information','Picture','Picture Description',...['A','B','C','D','E'].flatMap(label => [`Target ${label} X (%)`, `Target ${label} Y (%)`]), ...['English','Hebrew'].flatMap(lang => [1,2,3,4].map(n => `${lang} Distractor ${n}`)), ...['A','B','C','D','E'].flatMap(label => [`Marker ${label} Type`, `Arrow ${label} Tail X (%)`, `Arrow ${label} Tail Y (%)`])];
                 sheet.columns = headers.map((header, i) => ({header, width: i < 3 ? 42 : i === 3 ? 24 : 25}));
                 sheet.getRow(1).font = {bold:true,color:{argb:'FFFFFFFF'}}; sheet.getRow(1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FF0056B3'}};
                 for (const card of deck.cards) {
                     const row = sheet.addRow([card.question,card.answer,card.additionalInformation,'',card.picture?.alt || '',
                         ...Array.from({length:5}, (_, i) => {const target=pictureTargets(card.picture)[i]; return target ? [Math.round(target.x * 10000) / 100, Math.round(target.y * 10000) / 100] : ['', ''];}).flat(),
-                        ...(card.distractors?.english || ['', '', '', '']),...(card.distractors?.hebrew || ['', '', '', ''])]);
+                        ...(card.distractors?.english || ['', '', '', '']),...(card.distractors?.hebrew || ['', '', '', '']),
+                        ...Array.from({length:5}, (_, i) => {const target=pictureTargets(card.picture)[i]; return target ? [target.type === 'arrow' ? 'Arrow' : 'Target', ...(target.type === 'arrow' ? [Math.round(target.tail.x * 10000) / 100, Math.round(target.tail.y * 10000) / 100] : ['', ''])] : ['', '', ''];}).flat()]);
                     row.alignment = {vertical:'top',wrapText:true}; row.height = card.picture ? 120 : 75;
                     if (card.picture) {
                         const image = new Image(); image.src = card.picture.src; await image.decode();
@@ -210,6 +211,7 @@
                         const ctx = canvas.getContext('2d'); ctx.drawImage(image,0,0,canvas.width,canvas.height);
                         const targets = pictureTargets(card.picture);
                         targets.forEach((target, i) => {
+                            if(target.type==='arrow'){drawPictureArrow(ctx,target,0,0,canvas.width,canvas.height,targets.length>1?'ABCDE'[i]:'');return;}
                             const x=target.x*canvas.width,y=target.y*canvas.height;
                             ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#d92323';ctx.lineWidth=3;ctx.stroke();
                             if(targets.length>1){ctx.fillStyle='#b42318';ctx.font='bold 16px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('ABCDE'[i],x,y);}

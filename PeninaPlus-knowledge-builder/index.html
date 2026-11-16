@@ -42,15 +42,15 @@
             <input id="picture-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
             <details id="reuse-pictures" class="reuse-pictures" hidden>
               <summary>Reuse a Picture</summary>
-              <p class="help">Choose a picture from this set. You can add different targets for each question.</p>
+              <p class="help">Choose a picture from this set. You can add different targets and arrows for each question.</p>
               <div id="reusable-pictures" class="reusable-pictures" role="group" aria-label="Pictures from this set"></div>
             </details>
             <p class="help">The picture appears on the left, with the question on the right. Students can click it to enlarge.</p>
             <div id="picture-editor" hidden>
-              <div id="target-surface" class="target-surface" tabindex="0" role="button" aria-label="Move the selected target. Click a spot, or press Enter then use the arrow keys."></div>
-              <div class="target-controls"><label id="target-select-label" hidden>Target<select id="target-select" aria-label="Target to move"></select></label><button id="add-target" type="button">Add Target</button><button id="remove-target" type="button" hidden>Remove Target</button></div>
-              <p class="help">Add up to 5 targets. Select a target, then click the picture or use arrow keys to move it. Two or more targets are labeled A–E.</p>
-              <label for="picture-alt">Picture description <span class="optional">(for screen readers)</span></label><input id="picture-alt" type="text" placeholder="Describe the picture and what the target indicates">
+              <div id="target-surface" class="target-surface" tabindex="0" role="button" aria-label="Move the selected marker. Click a spot, or press Enter then use the arrow keys." aria-describedby="marker-help"></div>
+              <div class="target-controls"><label id="target-select-label" hidden>Marker<select id="target-select" aria-label="Marker to move"></select></label><label id="arrow-end-label" hidden>Move<select id="arrow-end"><option value="tip">Arrow tip</option><option value="tail">Arrow tail</option></select></label><button id="add-target" type="button">Add Target</button><button id="add-arrow" type="button">Add Arrow</button><button id="remove-target" type="button" hidden>Remove Target</button></div>
+              <p id="marker-help" class="help">Add up to 5 targets and arrows in total. Select a marker, then click the picture or use arrow keys to move it. For an arrow, choose its tip or tail to set where it points and where it starts. Two or more markers are labeled A–E.</p>
+              <label for="picture-alt">Picture description <span class="optional">(for screen readers)</span></label><input id="picture-alt" type="text" placeholder="Describe the picture and what the markers indicate">
             </div>
             <label for="question">Question</label><textarea id="question" dir="auto" rows="3" required placeholder="What would you like students to know?"></textarea>
             <label for="answer">Answer</label><textarea id="answer" dir="auto" rows="3" required placeholder="The answer on the other side of the card"></textarea>

@@ -1,7 +1,7 @@
 /* Flashcard authoring, review, and printable layouts. */
 (() => {
     'use strict';
-    const {FORMAT, normalizeDeck, hasInformation, printSheets, pictureTargets} = window.PeninaKnowledgeCards;
+    const {FORMAT, normalizeDeck, hasInformation, printSheets, pictureTargets, validPictureTarget, arrowMarkup} = window.PeninaKnowledgeCards;
     const byId = id => document.getElementById(id);
     const embedded = byId('peninaKnowledgeData');
     const studentMode = Boolean(embedded);
@@ -61,6 +61,16 @@
         const targets = pictureTargets(value);
         targets.forEach((target, i) => {
             const labeled = targets.length > 1;
+            if (target.type === 'arrow') {
+                parent.insertAdjacentHTML('beforeend', arrowMarkup(target, labeled ? 'ABCDE'[i] : ''));
+                if (i === selected) {
+                    const point = byId('arrow-end').value === 'tail' ? target.tail : target;
+                    const handle = make('span', 'arrow-handle');
+                    handle.style.left = `${point.x * 100}%`; handle.style.top = `${point.y * 100}%`;
+                    handle.setAttribute('aria-hidden', 'true'); parent.append(handle);
+                }
+                return;
+            }
             const marker = make('span', `target-marker${labeled ? ' labeled-target' : ''}${i === selected && labeled ? ' selected-target' : ''}`, labeled ? 'ABCDE'[i] : '');
             marker.style.left = `${target.x * 100}%`;
             marker.style.top = `${target.y * 100}%`;
@@ -72,7 +82,7 @@
     function pictureImage(value) {
         const image = make('img');
         image.src = value.src;
-        image.alt = value.alt || (pictureTargets(value).length ? 'Card picture with target markers' : 'Card picture');
+        image.alt = value.alt || (pictureTargets(value).length ? 'Card picture with markers' : 'Card picture');
         return image;
     }
     function renderEditorPicture() {
@@ -83,11 +93,15 @@
         const targets = pictureTargets(picture);
         activeTarget = Math.max(0, Math.min(activeTarget, targets.length - 1));
         byId('remove-target').hidden = !targets.length;
-        byId('remove-target').textContent = targets.length > 1 ? `Remove Target ${'ABCDE'[activeTarget]}` : 'Remove Target';
+        const type = targets[activeTarget]?.type === 'arrow' ? 'Arrow' : 'Target';
+        byId('remove-target').textContent = `Remove ${type}${targets.length > 1 ? ' ' + 'ABCDE'[activeTarget] : ''}`;
         byId('add-target').disabled = targets.length >= 5;
+        byId('add-arrow').disabled = targets.length >= 5;
+        byId('arrow-end-label').hidden = type !== 'Arrow';
+        surface.setAttribute('aria-label', `Move ${type === 'Arrow' ? 'arrow ' + byId('arrow-end').value : 'target'}. Click a spot, or use the arrow keys.`);
         byId('target-select-label').hidden = targets.length < 2;
-        byId('target-select').replaceChildren(...targets.map((_, i) => {
-            const option = make('option', '', 'ABCDE'[i]); option.value = i; return option;
+        byId('target-select').replaceChildren(...targets.map((target, i) => {
+            const option = make('option', '', `${target.type === 'arrow' ? 'Arrow' : 'Target'} ${'ABCDE'[i]}`); option.value = i; return option;
         }));
         byId('target-select').value = activeTarget;
         if (picture) {
@@ -109,7 +123,7 @@
         persist();
         byId('reuse-pictures').open = false;
         byId('reuse-pictures').querySelector('summary').focus();
-        message('Picture reused. Add up to 5 targets for this question if needed.');
+        message('Picture reused. Add up to 5 targets and arrows for this question if needed.');
     }
     function renderReusablePictures() {
         const seen = new Set(), choices = [];
@@ -453,7 +467,7 @@
             dirty = true;
             renderEditorPicture();
             persist();
-            message('Picture added. Click a spot on the picture if you want to add a target.');
+            message('Picture added. Click a spot to add a target, or choose Add Arrow.');
         } catch (error) {
             if (version === uploadVersion) message(error.message || 'This picture could not be read. Try another image file.', true);
         } finally {
@@ -470,40 +484,58 @@
         persist();
     }
     function updateTarget(target) {
+        if (!validPictureTarget(target)) return;
         const targets = pictureTargets(picture).map(value => ({...value}));
         targets[activeTarget] = target;
         setTargets(targets);
     }
     byId('target-select').addEventListener('change', event => {
         activeTarget = Number(event.target.value);
+        byId('arrow-end').value = 'tip';
         renderEditorPicture();
     });
+    byId('arrow-end').addEventListener('change', renderEditorPicture);
+    function updatePoint(point) {
+        const target = pictureTargets(picture)[activeTarget];
+        updateTarget(target?.type === 'arrow' && byId('arrow-end').value === 'tail' ? {...target, tail: point} : {...target, ...point});
+    }
     byId('target-surface').addEventListener('click', event => {
         if (!picture) return;
         const box = byId('target-surface').querySelector('img').getBoundingClientRect();
-        const hit = pictureTargets(picture).findIndex(target => Math.hypot(event.clientX - box.left - target.x * box.width, event.clientY - box.top - target.y * box.height) <= 16);
-        if (hit >= 0) {activeTarget = hit; renderEditorPicture(); return;}
-        updateTarget({x: Math.max(0, Math.min(1, (event.clientX - box.left) / box.width)), y: Math.max(0, Math.min(1, (event.clientY - box.top) / box.height))});
+        if (!box.width || !box.height) return;
+        const nearby = point => Math.hypot(event.clientX - box.left - point.x * box.width, event.clientY - box.top - point.y * box.height) <= 16;
+        const targets = pictureTargets(picture);
+        const hit = targets.findIndex(target => nearby(target) || (target.type === 'arrow' && nearby(target.tail)));
+        if (hit >= 0) {
+            activeTarget = hit;
+            byId('arrow-end').value = targets[hit].type === 'arrow' && nearby(targets[hit].tail) ? 'tail' : 'tip';
+            renderEditorPicture(); return;
+        }
+        updatePoint({x: Math.max(0, Math.min(1, (event.clientX - box.left) / box.width)), y: Math.max(0, Math.min(1, (event.clientY - box.top) / box.height))});
     });
     byId('target-surface').addEventListener('keydown', event => {
         if (!picture || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(event.key)) return;
         event.preventDefault();
-        const target = {...(pictureTargets(picture)[activeTarget] || {x: .5, y: .5})}, step = event.shiftKey ? .05 : .005;
+        const marker = pictureTargets(picture)[activeTarget];
+        const target = {...(marker?.type === 'arrow' && byId('arrow-end').value === 'tail' ? marker.tail : marker || {x: .5, y: .5})}, step = event.shiftKey ? .05 : .005;
         if (event.key === 'ArrowLeft') target.x -= step;
         if (event.key === 'ArrowRight') target.x += step;
         if (event.key === 'ArrowUp') target.y -= step;
         if (event.key === 'ArrowDown') target.y += step;
         target.x = Math.max(0, Math.min(1, target.x)); target.y = Math.max(0, Math.min(1, target.y));
-        updateTarget(target);
+        updatePoint({x: target.x, y: target.y});
     });
-    byId('add-target').addEventListener('click', () => {
+    function addTarget(arrow = false) {
         const targets = pictureTargets(picture).map(target => ({...target}));
         if (!picture || targets.length >= 5) return;
         activeTarget = targets.length;
         const [x, y] = [[.5,.5],[.7,.5],[.3,.5],[.5,.3],[.5,.7]][activeTarget];
-        setTargets([...targets, {x, y}]);
+        byId('arrow-end').value = 'tip';
+        setTargets([...targets, {x, y, ...(arrow ? {type: 'arrow', tail: {x: x - .2, y: y - .2}} : {})}]);
         byId('target-surface').focus();
-    });
+    }
+    byId('add-target').addEventListener('click', () => addTarget());
+    byId('add-arrow').addEventListener('click', () => addTarget(true));
     byId('remove-target').addEventListener('click', () => {
         const targets = pictureTargets(picture).filter((_, i) => i !== activeTarget);
         setTargets(targets);

@@ -31,6 +31,7 @@ dialog{border:1px solid var(--line);border-radius:14px;padding:20px;color:var(--
 .paper-card .target-marker.labeled-target{font-size:12px}
 .target-controls{flex-wrap:wrap;align-items:end}.target-controls label{margin:0;min-width:90px;font-size:13px}.target-controls select{display:block;margin-top:5px}
 .target-surface .selected-target{outline:3px solid #0056b3;outline-offset:3px;z-index:1}
+.arrow-handle{position:absolute;width:12px;height:12px;transform:translate(-50%,-50%);border:2px solid #0056b3;border-radius:50%;box-shadow:0 0 0 2px #fff;pointer-events:none;z-index:1}
 
 .picture-dialog{width:fit-content;min-width:min(180px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);height:fit-content;padding:44px 0 32px;border:0;border-radius:0;background:transparent;overflow:visible;margin:auto;color:var(--ink)}
 .picture-dialog::backdrop{background:#18212b66}

@@ -1,14 +1,15 @@
 /* Shared image presentation: marker coordinates are relative to the actual image. */
 'use strict';
 const QuizPicture = (() => {
+    const cardMarkers = typeof module !== 'undefined' && module.exports ? require('../PeninaPlus-knowledge-builder/cards') : globalThis.PeninaKnowledgeCards;
     const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function render(q, editable=false, selected=0) {
         if (!q.image || !/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+=*$/.test(q.image.src)) return '';
         const numbered=Array.isArray(q.image.markers), targets=Array.isArray(q.image.targets)?q.image.targets:null, lettered=targets?.length>1, markers=numbered?q.image.markers:targets||[q.image.marker];
         const active=editable?selected:q.markerIndex ?? null;
         const label=numbered?`Move marker ${active+1}: click the picture or use arrow keys`:'Place marker: click the picture or use arrow keys';
-        const pins=markers.map((marker,i)=>marker?`<span class="picture-marker ${numbered?'numbered '+(i===active?'active':'inactive'):lettered?'lettered '+(editable&&i===active?'active':''):''}" style="left:${Number(marker.x)*100}%;top:${Number(marker.y)*100}%" aria-label="${numbered?'Marker '+(i+1)+(i===active?(q.pictureGroup||q.markerIndex!==undefined?', current question':', current marker'):''):lettered?'Target '+'ABCDE'[i]:'Marked location'}">${numbered?i+1:lettered?'ABCDE'[i]:'＋'}</span>`:'').join('');
-        return `<figure class="quiz-picture"><div class="picture-frame" ${editable?`data-picture-target tabindex="0" role="button" aria-label="${label}"`:''}><img src="${escape(q.image.src)}" alt="${escape(q.image.alt || 'Question picture')}" draggable="false">${pins}</div>${numbered?`<figcaption>${editable?'Editing marker <strong>'+(active+1)+'</strong>. Click the picture to move it.':q.markerIndex!==undefined?'Answer about marker <strong>'+(active+1)+'</strong> (highlighted).':q.pictureResponseMode==='markers'?'Write an answer for each numbered marker.':'Use the numbered markers to answer the question.'}</figcaption>`:lettered?`<figcaption>Targets A–${'ABCDE'[targets.length-1]}.</figcaption>`:q.image.marker?'<figcaption>Answer about the location marked with ＋.</figcaption>':''}</figure>`;
+        const pins=markers.map((marker,i)=>marker?.type==='arrow'?cardMarkers.arrowMarkup(marker,numbered?String(i+1):lettered?'ABCDE'[i]:''):marker?`<span class="picture-marker ${numbered?'numbered '+(i===active?'active':'inactive'):lettered?'lettered '+(editable&&i===active?'active':''):''}" style="left:${Number(marker.x)*100}%;top:${Number(marker.y)*100}%" aria-label="${numbered?'Marker '+(i+1)+(i===active?(q.pictureGroup||q.markerIndex!==undefined?', current question':', current marker'):''):lettered?'Target '+'ABCDE'[i]:'Marked location'}">${numbered?i+1:lettered?'ABCDE'[i]:'＋'}</span>`:'').join('');
+        return `<figure class="quiz-picture"><div class="picture-frame" ${editable?`data-picture-target tabindex="0" role="button" aria-label="${label}"`:''}><img src="${escape(q.image.src)}" alt="${escape(q.image.alt || 'Question picture')}" draggable="false">${pins}</div>${numbered?`<figcaption>${editable?'Editing marker <strong>'+(active+1)+'</strong>. Click the picture to move it.':q.markerIndex!==undefined?'Answer about marker <strong>'+(active+1)+'</strong> (highlighted).':q.pictureResponseMode==='markers'?'Write an answer for each numbered marker.':'Use the numbered markers to answer the question.'}</figcaption>`:lettered?`<figcaption>Markers A–${'ABCDE'[targets.length-1]}.</figcaption>`:q.image.marker?.type==='arrow'?'<figcaption>Answer about the location the arrow points to.</figcaption>':q.image.marker?'<figcaption>Answer about the location marked with ＋.</figcaption>':''}</figure>`;
     }
     function group(questions,q){return q.pictureGroup?questions.filter(item=>item.pictureGroup===q.pictureGroup):[q];}
     function addMarker(questions,q){
@@ -68,9 +69,9 @@ const QuizPicture = (() => {
         if(!q.image.markers.length){delete q.image.markers;delete q.pictureAnswers;q.image.marker=null;}
     }
     function setMarker(questions,q,marker,index=q.markerIndex ?? 0){
-        if(q.image.targets){q.image.targets[index]=structuredClone(marker);q.image.marker=q.image.targets[0];return;}
-        if(!q.image.markers){q.image.marker=marker;return;}
-        for(const item of group(questions,q))item.image.markers[index]=structuredClone(marker);
+        if(q.image.targets){q.image.targets[index]={...q.image.targets[index],...structuredClone(marker)};q.image.marker=q.image.targets[0];return;}
+        if(!q.image.markers){q.image.marker={...q.image.marker,...marker};return;}
+        for(const item of group(questions,q))item.image.markers[index]={...item.image.markers[index],...structuredClone(marker)};
     }
     function removeQuestion(questions,q){
         const members=group(questions,q);

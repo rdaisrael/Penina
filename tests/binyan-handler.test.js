@@ -22,8 +22,8 @@ function handler(generate,verify){
 const response=()=>({setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}});
 
 test('rejected morphology remains a specific JSON application error, with a private server diagnostic',async()=>{
-    const bad={...payload,BGU:payload.BGU.replaceAll('כָּתַבְתִּי','כִּתַּבְתִּי')};
-    const {run,messages}=handler(async()=>JSON.stringify(candidate),(result,request)=>verifyWorksheet(result,request,async()=>bad));
+    const bad={BGU:payload.BGU.split(/\r?\n/).filter(Boolean).slice(0,19).join('\n').replaceAll('כָּתַבְתִּי','כִּתַּבְתִּי')};
+    const {run,messages}=handler(async()=>JSON.stringify({...candidate,unavailablePairs:[]}),(result,request)=>verifyWorksheet(result,request,async()=>bad));
     const res=response();await run({method:'POST',body:input},res);
     assert.equal(res.code,422);
     assert.match(res.body.error,/Could not verify/);

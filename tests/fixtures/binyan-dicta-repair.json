@@ -1,0 +1,64 @@
+{
+  "source": "Public Dicta response, November 16, 2026. Constructed wrong-binyan candidates (Hifil forms requested as Piel) and correct Piel replacements; not the lost production candidate.",
+  "items": [
+    {
+      "root": "לבש",
+      "pair": "פיעל שלם|הווה",
+      "person": "masculine_singular",
+      "answer": "מַלְבִּישׁ",
+      "pronoun": "הוּא"
+    },
+    {
+      "root": "לבש",
+      "pair": "פיעל שלם|הווה",
+      "person": "feminine_singular",
+      "answer": "מַלְבִּישָׁה",
+      "pronoun": "הִיא"
+    },
+    {
+      "root": "לבש",
+      "pair": "פיעל שלם|הווה",
+      "person": "masculine_plural",
+      "answer": "מַלְבִּישִׁים",
+      "pronoun": "הֵם"
+    },
+    {
+      "root": "לבש",
+      "pair": "פיעל שלם|הווה",
+      "person": "feminine_plural",
+      "answer": "מַלְבִּישׁוֹת",
+      "pronoun": "הֵן"
+    },
+    {
+      "root": "למד",
+      "pair": "פיעל שלם|הווה",
+      "person": "masculine_singular",
+      "answer": "מְלַמֵּד",
+      "pronoun": "הוּא"
+    },
+    {
+      "root": "למד",
+      "pair": "פיעל שלם|הווה",
+      "person": "feminine_singular",
+      "answer": "מְלַמֶּדֶת",
+      "pronoun": "הִיא"
+    },
+    {
+      "root": "למד",
+      "pair": "פיעל שלם|הווה",
+      "person": "masculine_plural",
+      "answer": "מְלַמְּדִים",
+      "pronoun": "הֵם"
+    },
+    {
+      "root": "למד",
+      "pair": "פיעל שלם|הווה",
+      "person": "feminine_plural",
+      "answer": "מְלַמְּדוֹת",
+      "pronoun": "הֵן"
+    }
+  ],
+  "payload": {
+    "BGU": "word\tmenukad\tlex\tunvocalized_lex\tPOS\tPrefix\tGender\tNumber\tPerson\tStatus\tTense\tBinyan\tSuffix\tSuf_Gender\tSuf_Number\tSuf_Person\tfAramaic\tno_pipe_menukad\tno_prefix_menukad\nהוא\tהוּא\tהוּא\tהוא\tPRONOUN\t\tMASCULINE\tSINGULAR\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהוּא\tהוּא\nמלביש\tמַלְבִּישׁ\tלבשׁ\tלבשׁ\tVERB\t\tMASCULINE\tSINGULAR\tPERSON_ANY\t\tPRESENT\tBINYAN_HIFIL\t\t\t\t\tFalse\tמַלְבִּישׁ\tמַלְבִּישׁ\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהיא\tהִיא\tהוּא\tהוא\tPRONOUN\t\tFEMININE\tSINGULAR\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהִיא\tהִיא\nמלבישה\tמַלְבִּישָׁה\tלבשׁ\tלבשׁ\tVERB\t\tFEMININE\tSINGULAR\tPERSON_ANY\t\tPRESENT\tBINYAN_HIFIL\t\t\t\t\tFalse\tמַלְבִּישָׁה\tמַלְבִּישָׁה\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהם\tהֵם\tהוּא\tהוא\tPRONOUN\t\tMASCULINE\tPLURAL\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהֵם\tהֵם\nמלבישים\tמַלְבִּישִׁים\tלבשׁ\tלבשׁ\tVERB\t\tMASCULINE\tPLURAL\tPERSON_ANY\t\tPRESENT\tBINYAN_HIFIL\t\t\t\t\tFalse\tמַלְבִּישִׁים\tמַלְבִּישִׁים\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהן\tהֵן\tהוּא\tהוא\tPRONOUN\t\tFEMININE\tPLURAL\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהֵן\tהֵן\nמלבישות\tמַלְבִּישׁוֹת\tלבשׁ\tלבשׁ\tVERB\t\tFEMININE\tPLURAL\tPERSON_ANY\t\tPRESENT\tBINYAN_HIFIL\t\t\t\t\tFalse\tמַלְבִּישׁוֹת\tמַלְבִּישׁוֹת\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהוא\tהוּא\tהוּא\tהוא\tPRONOUN\t\tMASCULINE\tSINGULAR\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהוּא\tהוּא\nמלמד\tמְלַמֵּד\tלמד\tלמד\tVERB\t\tMASCULINE\tSINGULAR\tPERSON_ANY\t\tPRESENT\tBINYAN_PIEL\t\t\t\t\tFalse\tמְלַמֵּד\tמְלַמֵּד\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהיא\tהִיא\tהוּא\tהוא\tPRONOUN\t\tFEMININE\tSINGULAR\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהִיא\tהִיא\nמלמדת\tמְלַמֶּדֶת\tלמד\tלמד\tVERB\t\tFEMININE\tSINGULAR\tPERSON_ANY\t\tPRESENT\tBINYAN_PIEL\t\t\t\t\tFalse\tמְלַמֶּדֶת\tמְלַמֶּדֶת\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהם\tהֵם\tהוּא\tהוא\tPRONOUN\t\tMASCULINE\tPLURAL\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהֵם\tהֵם\nמלמדים\tמְלַמְּדִים\tלמד\tלמד\tVERB\t\tMASCULINE\tPLURAL\tPERSON_ANY\t\tPRESENT\tBINYAN_PIEL\t\t\t\t\tFalse\tמְלַמְּדִים\tמְלַמְּדִים\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהן\tהֵן\tהוּא\tהוא\tPRONOUN\t\tFEMININE\tPLURAL\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהֵן\tהֵן\nמלמדות\tמְלַמְּדוֹת\tלמד\tלמד\tVERB\t\tFEMININE\tPLURAL\tPERSON_ANY\t\tPRESENT\tBINYAN_PIEL\t\t\t\t\tFalse\tמְלַמְּדוֹת\tמְלַמְּדוֹת\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\n"
+  }
+}

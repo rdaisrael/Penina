@@ -11,12 +11,15 @@ test('all 16 vetted full-spelling infinitives verify against actual Dicta defect
         assert.equal(matches(rows[i],items[i]),true,items[i].root);
     }
     await verifyWorksheet({lessons:[],questions:items},{},async()=>payload);
+    await verifyWorksheet({lessons:[],questions:items.map(item=>({...item,pair:'פעל — כל הגזרות|שם הפועל'}))},{},async()=>payload);
 });
 
 test('spelling equivalence does not admit incorrect vowels, roots, tenses or binyanim',()=>{
     const item=items[0],row=parseRows(payload)[0];
-    for(const change of [{menukad:'לִכְתַּב'},{menukad:'לְכַתֵּב'},{lex:'למד'},{Tense:'PAST'},{Binyan:'BINYAN_PIEL'},{Prefix:'HE'},{Suffix:'X'},{POS:'NOUN'}])
-        assert.equal(matches({...row,...change},item),false,JSON.stringify(change));
+    for(const pair of [item.pair,'פעל — כל הגזרות|שם הפועל']){
+        for(const change of [{menukad:'לִכְתַּב'},{menukad:'לְכַתֵּב'},{lex:'למד'},{Tense:'PAST'},{Binyan:'BINYAN_PIEL'},{Prefix:'HE'},{Suffix:'X'},{POS:'NOUN'}])
+            assert.equal(matches({...row,...change},{...item,pair}),false,JSON.stringify(change));
+    }
     assert.equal(matches(row,{...item,answer:'לִכְתּוּב'}),false);
     assert.equal(matches(row,{...item,answer:'לִכְתּוֹב',pair:'פעל ל-ה|שם הפועל'}),false);
 });

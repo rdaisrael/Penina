@@ -52,22 +52,59 @@ test('endpoint rejects invalid requests before calling a provider',async()=>{
     const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};
     await api({method:'GET'},res);assert.equal(res.code,405);
     await api({method:'POST',body:{...input,action:'binyan-worksheet',mode:'practice',pairs:['נפעל שלם|הווה']}},res);
-    assert.equal(res.code,400);assert.match(res.body.error,/different/);
+    assert.equal(res.code,400);assert.match(res.body.error,/marked X/);
 });
 
 
-test('only the two Paal groups and five verified tenses are available',()=>{
-    assert.deepEqual(core.groups,['פעל שלם','פעל ל-ה']);
-    for(const pair of ['פיעל שלם|עבר','פעל — כל הגזרות|עבר','פעל שלם|שם פעולה','פעל ע"ו|הווה'])assert.equal(core.validPair(pair),false);
+test('Learn offers every binyan without learned marks; only supported forms are offered',()=>{
+    assert.deepEqual(core.binyanim,['פעל','פיעל','הפעיל','התפעל','נפעל','פועל','הופעל']);
+    for(const binyan of core.binyanim){
+        for(const group of [`${binyan} שלם`,`${binyan} — כל הגזרות`]){
+            const pair=`${group}|עבר`;
+            assert.equal(core.validPair(pair),true,pair);
+            const req=core.validateRequest({...input,pairs:[pair],vocabulary:{verbs:['כתב'],binyanim:[]}});
+            core.validateResult(fixture(req),req);
+            assert.deepEqual(req.pairs,[pair]);
+            assert.throws(()=>core.validateRequest({...req,mode:'practice'}),/marked X/);
+        }
+    }
+    for(const pair of ['פעל שלם|שם פעולה','פועל שלם|ציווי','הופעל — כל הגזרות|שם הפועל','לא קיים|עבר'])assert.equal(core.validPair(pair),false);
     const req=core.validateRequest({...input,vocabulary:{verbs:['אכל','שתה','הלך'],binyanim:['פעל שלם|עבר','פיעל שלם|עבר']}});
-    assert.deepEqual(req.vocabulary.binyanim,['פעל שלם|עבר']);
+    assert.deepEqual(req.vocabulary.binyanim,['פעל שלם|עבר','פיעל שלם|עבר']);
+});
+test('Practice follows exact marked squares across binyanim, root types and tenses',()=>{
+    const marks=['פעל שלם|עבר','פיעל ל-ה|הווה','הפעיל ע"ו|עתיד'];
+    const request={...input,mode:'practice',vocabulary:{verbs:['כתב','נסה','קום'],binyanim:marks},pairs:marks};
+    assert.deepEqual(core.validateRequest(request).pairs,marks);
+    for(const pair of ['פעל שלם|הווה','פיעל ל-ה|עבר','פיעל שלם|הווה','הפעיל ע"ו|הווה','הפעיל — כל הגזרות|עתיד']){
+        assert.throws(()=>core.validateRequest({...request,pairs:[pair]}),/marked X/,pair);
+        assert.deepEqual(core.validateRequest({...request,mode:'learn',pairs:[pair]}).pairs,[pair]);
+    }
+});
+test('specific root classes retain their filters while All root types permits irregular learning',()=>{
     for(const root of ['אכל','הלך','כתב'])assert.equal(core.eligibleRoot(root,'פעל שלם|הווה'),true);
     for(const root of ['שתה','בנה','קנה']){assert.equal(core.eligibleRoot(root,'פעל ל-ה|הווה'),true);assert.equal(core.eligibleRoot(root,'פעל שלם|הווה'),false);}
     for(const root of ['היה','חיה','נתן','ישב','קום'])assert.equal(core.eligibleRoot(root,'פעל שלם|עבר'),false);
+    for(const root of ['היה','חיה','נתן','ישב','קום','טלפן'])assert.equal(core.eligibleRoot(root,'פעל — כל הגזרות|עבר'),true);
+    for(const [root,pair] of [['קום','פעל ע"ו|הווה'],['נתן','פעל חפ"נ|עבר'],['ישב','פעל פ"י|עבר'],['נסה','פיעל ל-ה|עבר'],['נקה','פיעל ל-ה|עבר'],['ירד','הפעיל פ"י|עבר'],['קום','הפעיל ע"ו|עתיד'],['נגן','פיעל שלם|עבר']])assert.equal(core.eligibleRoot(root,pair),true,`${root}: ${pair}`);
+    for(const pair of ['פעל ע"ו|עבר','פעל חפ"נ|עבר','פעל פ"י|עבר','פיעל ל-ה|עבר','הפעיל ע"ו|עבר'])assert.equal(core.eligibleRoot('כתב',pair),false,pair);
 });
 test('unsupported pairs give actionable errors',async()=>{
-    await assert.rejects(generateWorksheet(input,async()=>JSON.stringify({unavailablePairs:input.pairs,lessons:[],questions:[]})),/other Paal root type/);
+    await assert.rejects(generateWorksheet(input,async()=>JSON.stringify({unavailablePairs:input.pairs,lessons:[],questions:[]})),/another binyan or root type/);
     await assert.rejects(generateWorksheet({...input,vocabulary:{verbs:['שתה'],binyanim:[]}},()=>{throw new Error('must not call AI');}),/No suitable roots/);
+});
+test('generation teaches all seven binyanim without marks and always verifies them',async()=>{
+    for(const binyan of core.binyanim){
+        const pair=`${binyan} שלם|עבר`,request=core.validateRequest({...input,pairs:[pair],vocabulary:{verbs:['כתב'],binyanim:[]}});
+        let verified=false;
+        const output=await generateWorksheet(request,async prompt=>{
+            assert.match(prompt,/All seven binyanim are supported/);
+            assert.doesNotMatch(prompt,/Only Paal \/ Kal is supported|No other binyan is allowed/);
+            assert.deepEqual(JSON.parse(prompt.match(/Eligible roots per pair: (.*)/)[1]),{[pair]:['כתב']});
+            return JSON.stringify(fixture(request));
+        },async result=>{verified=true;assert.equal(result.lessons[0].pair,pair);});
+        assert.equal(verified,true);assert.equal(output.questions.length,6);
+    }
 });
 test('generation always invokes verification and propagates failures',async()=>{
     let called=false;

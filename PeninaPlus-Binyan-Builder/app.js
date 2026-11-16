@@ -31,7 +31,7 @@
         if(groups.includes(previous))$('group').value=previous;
         $('group').disabled=!groups.length;
         updateTenses();
-        $('selection-help').textContent=mode()==='practice'?'Only combinations marked X in this workbook are available. Enable mixed practice to include several.':'Paal / Kal only: choose Regular or Lamed hey and a tense. Other root types are ignored. היה and חיה are not yet supported.';
+        $('selection-help').textContent=mode()==='practice'?'Only the exact binyan, root type and tense combinations marked X in this workbook are available.':'Choose any of the seven binyanim, even if it has no X marks in your workbook. All root types includes weak and irregular roots.';
     }
     function updateTenses(){
         const previous=$('tense').value;
@@ -50,13 +50,13 @@
         }));
         $('pairs').hidden=!mixing();$('add-pair').hidden=!mixing();
         const selected=selectedPairs();
-        status('pair-status',!vocabulary?'Upload a workbook to begin.':mode()==='practice'&&!vocabulary.binyanim.length?'No supported Paal combinations are marked. Add X marks beside Paal Regular or Lamed hey, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
+        status('pair-status',!vocabulary?'Upload a workbook to begin.':mode()==='practice'&&!vocabulary.binyanim.length?'No supported combinations are marked X in your workbook. Mark the learned combinations, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
         updateTenses();updateButton();
     }
     function request(){return core.validateRequest({mode:mode(),vocabulary,pairs:selectedPairs(),count:Number($('count').value),exercises:[...document.querySelectorAll('input[name=exercise]:checked')].map(input=>input.value),footnotes:$('footnotes').value});}
     function updateButton(){
         let valid=true,reason='';try{request();}catch(error){valid=false;reason=error.message;}
-        if(!busy&&!valid)status('generation-status',mode()==='practice'&&vocabulary&&!vocabulary.binyanim.length?'Practice needs X marks beside supported Paal combinations in your workbook. Choose Learn to introduce a pattern without X marks.':reason);
+        if(!busy&&!valid)status('generation-status',mode()==='practice'&&vocabulary&&!vocabulary.binyanim.length?'Practice needs X marks beside learned combinations in your workbook. Choose Learn to introduce a binyan or pattern without X marks.':reason);
         $('generate').disabled=busy||!valid;$('generate').textContent=busy?'Building your worksheet…':'Build worksheet';
     }
     async function loadWorkbook(getFile){

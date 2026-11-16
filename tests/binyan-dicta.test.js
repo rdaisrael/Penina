@@ -20,3 +20,39 @@ test('failed, missing, reordered and extra analysis never produces a worksheet',
     await assert.rejects(verifyWorksheet(result,{},async()=>({...payload,BGU:payload.BGU.replace('כָּתַבְתִּי','כִּתַּבְתִּי')})),/verify/);
     await assert.rejects(verifyWorksheet(result,{},async()=>({...payload,BGU:payload.BGU+'unexpected\n'})),/unexpected/);
 });
+
+// Hand-built BGU contract fixtures, not recordings from the live service.
+// Exercise the selected-binyan check with actual representative pointed forms.
+const binyanExamples=[
+    ['פעל','BINYAN_PAAL','כתב','כָּתַב'],
+    ['פיעל','BINYAN_PIEL','למד','לִמֵּד'],
+    ['הפעיל','BINYAN_HIFIL','כתב','הִכְתִּיב'],
+    ['התפעל','BINYAN_HITPAEL','לבש','הִתְלַבֵּשׁ'],
+    ['נפעל','BINYAN_NIFAL','כתב','נִכְתַּב'],
+    ['פועל','BINYAN_PUAL','למד','לֻמַּד'],
+    ['הופעל','BINYAN_HUFAL','כתב','הֻכְתַּב']
+];
+const pastRow=(code,root,answer)=>({word:answer,menukad:answer,lex:root,POS:'VERB',Binyan:code,Tense:'PAST',Person:'PERSON_3',Number:'SINGULAR',Gender:'MASCULINE',Prefix:'',Suffix:'',fAramaic:'False'});
+test('verification accepts each selected binyan and rejects every wrong binyan',async()=>{
+    const rows=[],questions=[];
+    for(const [binyan,code,root,answer] of binyanExamples){
+        const item={pair:`${binyan} שלם|עבר`,root,answer,person:'third_m_sg'};
+        const row=pastRow(code,root,answer);
+        assert.equal(matches(row,item),true,binyan);
+        for(const [,otherCode] of binyanExamples)if(otherCode!==code)assert.equal(matches({...row,Binyan:otherCode},item),false,`${binyan}: ${otherCode}`);
+        for(const change of [{lex:'סגר'},{Tense:'FUTURE'},{Person:'PERSON_1'},{Number:'PLURAL'},{Gender:'FEMININE'},{Prefix:'HE'},{Suffix:'X'},{menukad:'סָגַר'},{POS:'NOUN'}])assert.equal(matches({...row,...change},item),false,binyan);
+        questions.push(item);rows.push({word:'הוּא'},row,{word:'.'});
+    }
+    const keys=Object.keys(rows[1]);
+    const BGU=[keys.join('\t'),...rows.map(row=>keys.map(key=>row[key]||'').join('\t'))].join('\n');
+    await verifyWorksheet({lessons:[],questions},{},async()=>({BGU}));
+    await assert.rejects(verifyWorksheet({lessons:[],questions},{},async()=>({BGU:BGU.replace('BINYAN_PIEL','BINYAN_PAAL')})),/Could not verify/);
+});
+test('final-hey root notation works across binyanim without allowing unrelated roots',()=>{
+    const item={pair:'פיעל ל-ה|עבר',root:'נסה',answer:'נִסָּה',person:'third_m_sg'};
+    const row=pastRow('BINYAN_PIEL','נסי',item.answer);
+    assert.equal(matches(row,item),true);
+    assert.equal(matches(row,{...item,pair:'פיעל — כל הגזרות|עבר'}),true);
+    assert.equal(matches(row,{...item,root:'נסע'}),false);
+    assert.equal(matches({...row,Binyan:'BINYAN_PAAL'},item),false);
+});

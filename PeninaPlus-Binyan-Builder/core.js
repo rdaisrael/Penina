@@ -3,10 +3,12 @@
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.BinyanBuilder = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
-    const generalGroups = [];
-    const groups = ['פעל שלם','פעל ל-ה'];
-    const binyanLabel = () => 'קל (פעל)';
-    const rootTypeLabel = group => group==='פעל ל-ה'?'ל״ה — Lamed hey':'Regular — שלם';
+    const binyanim = ['פעל','פיעל','הפעיל','התפעל','נפעל','פועל','הופעל'];
+    const generalGroups = binyanim.map(binyan=>`${binyan} — כל הגזרות`);
+    const groups = [...generalGroups,'פעל שלם','פעל ל-ה','פעל ע"ו','פעל חפ"נ','פעל פ"י','פיעל שלם','פיעל ל-ה','הפעיל שלם','הפעיל ל-ה','הפעיל ע"ו','הפעיל פ"י','התפעל שלם','נפעל שלם','פועל שלם','הופעל שלם'];
+    const binyanLabel = group => ({'פעל':'קל (פעל)','פיעל':'פיעל','הפעיל':'הפעיל','התפעל':'התפעל','נפעל':'נפעל','פועל':'פועל','הופעל':'הופעל'}[group.split(' ')[0]]);
+    const rootTypeLabel = group => generalGroups.includes(group)?'All root types — כל הגזרות':
+        ({'שלם':'Regular — שלם','ל-ה':'ל״ה — Lamed hey','ע"ו':'ע״ו — Hollow','חפ"נ':'חפ״נ — Initial nun','פ"י':'פ״י — Initial yod'}[group.split(' ')[1]]);
     const groupLabel = group => `${binyanLabel(group)} · ${rootTypeLabel(group)}`;
     const tenses = ['עבר','הווה','עתיד','שם הפועל','ציווי'];
     const tenseNames = ['Past','Present','Future','Infinitive','Imperative'];
@@ -32,7 +34,8 @@
     function validPair(pair) {
         if(typeof pair!=='string')return false;
         const [group,tense,...rest]=pair.split('|');
-        return !rest.length && groups.includes(group) && tenses.includes(tense);
+        return !rest.length && groups.includes(group) && tenses.includes(tense) &&
+            (!['פועל','הופעל'].includes(group.split(' ')[0]) || ['עבר','הווה','עתיד'].includes(tense));
     }
     // Deliberately conservative: expand only after reviewing the actual infinitive.
     // Eligibility is per tense; this list must not exclude roots from other tenses.
@@ -53,10 +56,20 @@
     }
     function eligibleRoot(root, pair) {
         root=normalize(root);
-        if(root.length!==3 || !validPair(pair))return false;
+        if(!validPair(pair))return false;
+        const group=pair.split('|')[0], [binyan,type]=group.split(' ');
+        // Broad Learn selections include weak roots without calling them Regular.
+        // Dicta still has to verify every actual form in the selected binyan.
+        if(generalGroups.includes(group))return root.length>=2 && root.length<=4;
+        if(root.length!==3)return false;
         if(pair==='פעל שלם|שם הפועל')return !!standardInfinitive(root,pair);
-        if(pair.startsWith('פעל ל-ה|'))return root.endsWith('ה') && !['היה','חיה'].includes(root);
-        return !root.endsWith('ה') && !/^[ני]/.test(root) && !/[וי]/.test(root[1]);
+        if(type==='ל-ה')return root.endsWith('ה') && (binyan!=='פעל'||!['היה','חיה'].includes(root));
+        if(type==='ע"ו')return /[וי]/.test(root[1]);
+        if(type==='חפ"נ')return root.startsWith('נ');
+        if(type==='פ"י')return root.startsWith('י');
+        if(root.endsWith('ה'))return false;
+        if(['פיעל','פועל','התפעל'].includes(binyan))return true;
+        return !/^[ני]/.test(root) && !/[וי]/.test(root[1]);
     }
     function validateRequest(input) {
         const fail = message => {throw new Error(message);};
@@ -129,5 +142,5 @@
         });
         return result;
     }
-    return {vocabularyKeys,standardInfinitive,exerciseTypes,subject,alternativeTarget,eligibleRoot,binyanLabel,rootTypeLabel,groupLabel,generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
+    return {binyanim,vocabularyKeys,standardInfinitive,exerciseTypes,subject,alternativeTarget,eligibleRoot,binyanLabel,rootTypeLabel,groupLabel,generalGroups,groups,tenses,tenseNames,people,persons,normalize,validPair,validateRequest,plan,validateResult};
 });

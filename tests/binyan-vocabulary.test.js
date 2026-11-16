@@ -9,12 +9,13 @@ const word=(word,match='',translation='supporting word',form='')=>({word,match,t
 function question(sentence='הוּא ___ בַּמַּחְבֶּרֶת.',words=[word('הוּא','__pronoun__','he'),{...word('בַּמַּחְבֶּרֶת','מחברת','in the notebook'),prefix:'ב'}],phrases=[]){return {number:1,exercise:'sentence',pair:input.pairs[0],person:'masculine_singular',root:'כתב',meaning:'write',answer:'כּוֹתֵב',sentence,words,phrases};}
 const prepared=(q=question(),v={})=>prepare({questions:[q]},core.validateRequest({...input,vocabulary:{...input.vocabulary,...v}})).questions[0];
 test('all Reader sheets and context forms survive repeated request validation',()=>{
- const v={...input.vocabulary,binyanim:[...input.vocabulary.binyanim,'פיעל שלם|עבר']};
+ const v={...input.vocabulary,binyanim:[...input.vocabulary.binyanim,'פיעל שלם|עבר','פעל שלם|שם פעולה']};
  for(const key of core.vocabularyKeys)v[key]=['סֵפֶר','סֵפֶר'];
  const request=core.validateRequest({...input,vocabulary:v});
  assert.deepEqual(core.validateRequest(request),request);
- assert.deepEqual(request.vocabulary.binyanim,input.vocabulary.binyanim);
+ assert.deepEqual(request.vocabulary.binyanim,[...input.vocabulary.binyanim,'פיעל שלם|עבר']);
  assert.ok(request.vocabulary.forms.includes('פיעל שלם|עבר'));
+ assert.ok(request.vocabulary.forms.includes('פעל שלם|שם פעולה'));
  for(const key of core.vocabularyKeys)assert.deepEqual(request.vocabulary[key],['סֵפֶר']);
  for(const value of [null,'ספר',['English'],['<script>ספר'],Array(5001).fill('ספר')])assert.throws(()=>core.validateRequest({...input,vocabulary:{...input.vocabulary,nouns:value}}),/Vocabulary/);
  assert.throws(()=>core.validateRequest({...input,footnotes:'invalid'}),/notes/);

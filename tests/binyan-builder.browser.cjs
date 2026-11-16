@@ -36,11 +36,12 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  await page.locator('#sample').click();
  await page.waitForFunction(()=>document.getElementById('upload-status').textContent.includes('6 roots'));
  assert.equal(await page.locator('#generate').isEnabled(),true,'upload immediately enables single-pattern build');
- assert.equal(await page.locator('#group').inputValue(),'פעל שלם','default is the supported regular Paal group');
- assert.equal(await page.locator('#binyan option').count(),1);
- assert.equal(await page.locator('#group option').count(),2);
+ assert.equal(await page.locator('#group').inputValue(),'פעל — כל הגזרות','Learn defaults to all root types');
+ assert.equal(await page.locator('#binyan option').count(),7);
+ assert.equal(await page.locator('#group option').count(),6);
  assert.equal(await page.locator('#tense option').count(),5);
  assert.equal(await page.locator('#add-pair').isVisible(),false,'single-pattern needs no Add action');
+ await page.locator('#group').selectOption('פעל שלם');
  await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('generation-status').textContent.startsWith('Worksheet ready.'));
  assert.deepEqual(lastRequest.pairs,['פעל שלם|עבר']);
  await page.locator('#tense').selectOption('הווה');
@@ -90,8 +91,17 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.match(await page.locator('#generation-status').innerText(),/Practice needs X marks/);
  await page.locator('input[value=learn]').check();await page.locator('#mix-patterns').uncheck();
  assert.equal(await page.locator('#generate').isEnabled(),true,'roots-only workbook works in Learn without X marks');
- assert.equal(await page.locator('#group').inputValue(),'פעל שלם');
+ assert.equal(await page.locator('#group').inputValue(),'פעל — כל הגזרות');
  assert.doesNotMatch(await page.locator('#generation-status').innerText(),/Practice needs X marks/,'old disabled reason cleared');
+ assert.deepEqual(await page.locator('#binyan option').evaluateAll(options=>options.map(o=>o.value)),core.binyanim);
+ for(const binyan of core.binyanim){
+  await page.locator('#binyan').selectOption(binyan);
+  assert.equal(await page.locator('#group').inputValue(),`${binyan} — כל הגזרות`);
+  assert.equal(await page.locator('#tense option').count(),['פועל','הופעל'].includes(binyan)?3:5);
+  assert.equal(await page.locator('#generate').isEnabled(),true,`${binyan} available without any learned squares`);
+  assert.ok((await page.locator('#binyan option:checked').innerText()).includes(binyan),'label names selected binyan');
+ }
+ await page.locator('#binyan').selectOption('פעל');await page.locator('#group').selectOption('פעל שלם');
  await page.locator('#mix-patterns').check();
  await page.locator('#count').selectOption('6');
  for(const tense of ['הווה','עתיד','שם הפועל','ציווי']){await page.locator('#tense').selectOption(tense);await page.locator('#add-pair').click();}
@@ -149,8 +159,35 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  await page.waitForFunction(()=>getComputedStyle(document.querySelector('.sentence-line')).fontFamily.includes('Arial'));
  await checkPages();
  await page.setViewportSize({width:390,height:844});
+ // Resize events scale the print-sized pages on the next browser frame.
+ await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'paginated mobile preview fits');
  await page.locator('#student-sheet').screenshot({path:path.join(output,'mobile-notes.png')});
+ // Marked squares, not the cross-product of learned binyanim and tenses.
+ const marked=new ExcelJS.Workbook(),markedVerbs=marked.addWorksheet('Verbs');
+ markedVerbs.addRow(['שורשים','בניין','עבר','הווה','עתיד','שם הפועל','שם פעולה','ציווי']);
+ markedVerbs.addRow(['כתב','פעל שלם','X']);
+ markedVerbs.addRow(['למד','פיעל שלם','','X']);
+ markedVerbs.addRow(['קום','הפעיל ע"ו','','','X']);
+ await page.locator('#vocabulary').setInputFiles({name:'marked-squares.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(await marked.xlsx.writeBuffer())});
+ await page.waitForFunction(()=>document.getElementById('upload-status').textContent.startsWith('marked-squares.xlsx:'));
+ await page.locator('input[value=practice]').check();
+ assert.deepEqual(await page.locator('#binyan option').evaluateAll(options=>options.map(o=>o.value)),['פעל','פיעל','הפעיל']);
+ for(const [binyan,group,tense] of [['פעל','פעל שלם','עבר'],['פיעל','פיעל שלם','הווה'],['הפעיל','הפעיל ע"ו','עתיד']]){
+  await page.locator('#binyan').selectOption(binyan);
+  assert.deepEqual(await page.locator('#group option').evaluateAll(options=>options.map(o=>o.value)),[group]);
+  assert.deepEqual(await page.locator('#tense option').evaluateAll(options=>options.map(o=>o.value)),[tense]);
+ }
+ await page.locator('input[value=learn]').check();
+ await page.locator('#binyan').selectOption('נפעל');
+ assert.equal(await page.locator('#generate').isEnabled(),true,'unmarked binyan is available in Learn');
+ await page.locator('#mix-patterns').check();
+ assert.equal(await page.locator('.pair-chip').count(),1);
+ await page.locator('input[value=practice]').check();
+ assert.equal(await page.locator('.pair-chip').count(),0,'switching to Practice discards unmarked Learn selections');
+ assert.equal(await page.locator('#generate').isDisabled(),true);
+ await page.locator('#mix-patterns').uncheck();
+ assert.equal(await page.locator('#generate').isEnabled(),true,'Practice uses the visible marked square');
  await page.locator('#vocabulary').setInputFiles({name:'bad.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('bad')});
  await page.waitForFunction(()=>document.getElementById('upload-status').classList.contains('error'));
  assert.equal(await page.locator('#generate').isDisabled(),true,'invalid upload clears vocabulary');

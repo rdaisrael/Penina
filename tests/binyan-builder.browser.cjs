@@ -32,11 +32,33 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  await page.goto('http://binyan.test/PeninaPlus-Binyan-Builder/');
  await page.evaluate(()=>document.fonts.ready);
  assert.equal(await page.locator('#generate').isDisabled(),true);
+ for(const id of ['binyan','group','tense'])assert.equal(await page.locator('#'+id).isEnabled(),true,`Learn ${id} works before upload`);
+ assert.deepEqual(await page.locator('#binyan option').evaluateAll(options=>options.map(o=>o.value)),core.binyanim);
+ for(const binyan of core.binyanim){
+  await page.locator('#binyan').selectOption(binyan);
+  assert.equal(await page.locator('#group').inputValue(),`${binyan} — כל הגזרות`);
+  assert.equal(await page.locator('#tense option').count(),['פועל','הופעל'].includes(binyan)?3:5);
+ }
+ await page.locator('#binyan').selectOption('פיעל');
+ await page.locator('#group').selectOption('פיעל ל-ה');
+ await page.locator('#tense').selectOption('הווה');
+ assert.equal(await page.locator('#generate').isDisabled(),true,'choosing patterns alone cannot build without vocabulary');
+ await page.locator('input[value=practice]').check();
+ for(const id of ['binyan','group','tense'])assert.equal(await page.locator('#'+id).isDisabled(),true,`Practice ${id} waits for marked squares`);
+ await page.locator('input[value=learn]').check();
+ assert.equal(await page.locator('#binyan option').count(),7,'switching back to Learn restores its options without upload');
+ await page.locator('#binyan').selectOption('פיעל');
+ await page.locator('#group').selectOption('פיעל ל-ה');
+ await page.locator('#tense').selectOption('הווה');
  await page.screenshot({path:path.join(output,'desktop.png'),fullPage:true});
  await page.locator('#sample').click();
  await page.waitForFunction(()=>document.getElementById('upload-status').textContent.includes('6 roots'));
  assert.equal(await page.locator('#generate').isEnabled(),true,'upload immediately enables single-pattern build');
- assert.equal(await page.locator('#group').inputValue(),'פעל — כל הגזרות','Learn defaults to all root types');
+ assert.equal(await page.locator('#binyan').inputValue(),'פיעל','upload preserves the binyan chosen beforehand');
+ assert.equal(await page.locator('#group').inputValue(),'פיעל ל-ה','upload preserves the chosen root type');
+ assert.equal(await page.locator('#tense').inputValue(),'הווה','upload preserves the chosen tense');
+ await page.locator('#binyan').selectOption('פעל');await page.locator('#tense').selectOption('עבר');
+ assert.equal(await page.locator('#group').inputValue(),'פעל — כל הגזרות','a new binyan defaults to all root types');
  assert.equal(await page.locator('#binyan option').count(),7);
  assert.equal(await page.locator('#group option').count(),6);
  assert.equal(await page.locator('#tense option').count(),5);

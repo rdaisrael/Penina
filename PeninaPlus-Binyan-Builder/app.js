@@ -13,8 +13,9 @@
         updateButton();
     }
     function eligiblePairs(){
-        if(!vocabulary)return [];
-        return mode()==='practice'?vocabulary.binyanim.filter(core.validPair):core.groups.flatMap(g=>core.tenses.map(t=>`${g}|${t}`).filter(core.validPair));
+        // Learn's catalogue does not depend on an uploaded mastery workbook.
+        // Practice remains empty until its exact marked squares are available.
+        return mode()==='practice'?(vocabulary?.binyanim||[]).filter(core.validPair):core.groups.flatMap(g=>core.tenses.map(t=>`${g}|${t}`).filter(core.validPair));
     }
     const mixing=()=>$('mix-patterns').checked;
     const currentPair=()=>`${$('group').value}|${$('tense').value}`;
@@ -50,7 +51,7 @@
         }));
         $('pairs').hidden=!mixing();$('add-pair').hidden=!mixing();
         const selected=selectedPairs();
-        status('pair-status',!vocabulary?'Upload a workbook to begin.':mode()==='practice'&&!vocabulary.binyanim.length?'No supported combinations are marked X in your workbook. Mark the learned combinations, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
+        status('pair-status',!vocabulary?(mode()==='learn'?'Choose a binyan and tense now. Upload your workbook to build the worksheet.':'Upload your filled-in workbook to choose from its X-marked combinations.'):mode()==='practice'&&!vocabulary.binyanim.length?'No supported combinations are marked X in your workbook. Mark the learned combinations, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
         updateTenses();updateButton();
     }
     function request(){return core.validateRequest({mode:mode(),vocabulary,pairs:selectedPairs(),count:Number($('count').value),exercises:[...document.querySelectorAll('input[name=exercise]:checked')].map(input=>input.value),footnotes:$('footnotes').value});}

@@ -26,6 +26,8 @@ Commit `323676537f25cd485c44e157123a111858d8cecb` (September 17, “Limit Binyan
 
 The restored catalogue and selected-binyan verification retain exact marked-square Practice behavior. Regression tests cover all seven unmarked Learn selections, exact Practice squares across binyanim/root types/tenses, passive-tense restrictions, wrong-binyan rejection, and the existing Regular Kal infinitive rule. The expanded morphology tests use explicitly synthetic BGU contract fixtures; the older recorded Paal/infinitive fixtures are also replayed locally. No new live generation, production-site or deployment checks were performed. Dicta's seven label names were cross-checked against its [public wordlist metadata](https://huggingface.co/datasets/dicta-il/wordlist).
 
+Follow-up: Learn's dropdowns now populate on initial load, before a workbook is uploaded. The previous `eligiblePairs()` guard returned an empty list without vocabulary in both modes, disabling all three controls; the browser test missed it because it uploaded the sample first. The regression check now selects every binyan before upload and confirms that root-type/tense selections survive upload. Building still requires uploaded roots. Practice stays unavailable until a workbook supplies its marked squares.
+
 ## Validation
 
 - `node --test tests/*.test.js`: 810 tests passed on November 16.

@@ -15,13 +15,14 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- let fail=false,delay=0,lastRequest=null;
+ let fail=false,delay=0,lastRequest=null,httpFailure=null;
  await page.route('**/*',async route=>{
   const url=new URL(route.request().url());
   if(url.hostname!=='binyan.test')return route.abort();
   if(url.pathname==='/api/generate'){
    const req=core.validateRequest(route.request().postDataJSON());lastRequest=req;
    if(delay)await new Promise(r=>setTimeout(r,delay));
+   if(httpFailure)return route.fulfill(httpFailure);
    const data=fixture(req);
    for(const q of data.questions){q.words=reader.words(q.sentence).map(([word])=>({word,mastered:true,translation:reader.normalizeWord(word)==='במחברת'?'in the notebook':'subject',match:reader.normalizeWord(word)==='במחברת'?'מחברת':'__pronoun__',form:'',prefix:reader.normalizeWord(word)==='במחברת'?'ב':'',isName:false}));q.phrases=[];}
    return route.fulfill({status:fail?502:200,contentType:'application/json',body:JSON.stringify(fail?{error:'Test service unavailable'}:data)}).catch(()=>{});
@@ -101,6 +102,22 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  const before=await page.locator('#student-sheet').innerHTML();
  fail=true;await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('generation-status').textContent==='Test service unavailable');
  assert.equal(await page.locator('#student-sheet').innerHTML(),before,'failed request preserves result');
+ fail=false;
+ for(const [status,message] of [[422,'Could not verify Piel. No unverified worksheet was created.'],[503,'Dicta did not return grammatical analysis. Please try again.']]){
+  httpFailure={status,contentType:'application/json',body:JSON.stringify({error:message})};
+  await page.locator('#generate').click();
+  await page.waitForFunction(message=>document.getElementById('generation-status').textContent===message,message);
+  assert.equal(await page.locator('#student-sheet').innerHTML(),before,'specific validation/service failures preserve the previous worksheet');
+  assert.equal(await page.locator('#generate').isEnabled(),true);
+ }
+ for(const [status,message] of [[502,'gateway error (HTTP 502)'],[504,'timed out on the server (HTTP 504)'],[200,'unreadable response (HTTP 200)']]){
+  httpFailure={status,contentType:'text/html',body:'<!doctype html><title>Gateway response</title><p>Upstream response</p>'};
+  await page.locator('#generate').click();
+  await page.waitForFunction(message=>document.getElementById('generation-status').textContent.includes(message),message);
+  assert.equal(await page.locator('#student-sheet').innerHTML(),before,'non-JSON failures preserve the previous worksheet');
+  assert.equal(await page.locator('#generate').isEnabled(),true,'failed request can be retried');
+ }
+ httpFailure=null;
  fail=false;delay=500;await page.locator('#generate').click();await page.locator('#title').fill('Changed while loading');
  await page.waitForTimeout(700);assert.equal(await page.locator('#student-sheet').innerHTML(),before,'late response ignored');delay=0;
  // Construct the reported workbook shape: three roots and no X-marked categories.

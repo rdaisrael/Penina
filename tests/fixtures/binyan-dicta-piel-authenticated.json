@@ -1,0 +1,32 @@
+{
+  "source": "Authenticated Dicta Nakdan endpoint; four standard Piel-present forms; November 16, 2026",
+  "items": [
+    {
+      "root": "למד",
+      "answer": "מְלַמֵּד",
+      "person": "masculine_singular",
+      "pair": "פיעל שלם|הווה"
+    },
+    {
+      "root": "למד",
+      "answer": "מְלַמֶּדֶת",
+      "person": "feminine_singular",
+      "pair": "פיעל שלם|הווה"
+    },
+    {
+      "root": "למד",
+      "answer": "מְלַמְּדִים",
+      "person": "masculine_plural",
+      "pair": "פיעל שלם|הווה"
+    },
+    {
+      "root": "למד",
+      "answer": "מְלַמְּדוֹת",
+      "person": "feminine_plural",
+      "pair": "פיעל שלם|הווה"
+    }
+  ],
+  "payload": {
+    "BGU": "word\tmenukad\tlex\tunvocalized_lex\tPOS\tPrefix\tGender\tNumber\tPerson\tStatus\tTense\tBinyan\tSuffix\tSuf_Gender\tSuf_Number\tSuf_Person\tfAramaic\tno_pipe_menukad\tno_prefix_menukad\nהוא\tהוּא\tהוּא\tהוא\tPRONOUN\t\tMASCULINE\tSINGULAR\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהוּא\tהוּא\nמלמד\tמְלַמֵּד\tלמד\tלמד\tVERB\t\tMASCULINE\tSINGULAR\tPERSON_ANY\t\tPRESENT\tBINYAN_PIEL\t\t\t\t\tFalse\tמְלַמֵּד\tמְלַמֵּד\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהיא\tהִיא\tהוּא\tהוא\tPRONOUN\t\tFEMININE\tSINGULAR\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהִיא\tהִיא\nמלמדת\tמְלַמֶּדֶת\tלמד\tלמד\tVERB\t\tFEMININE\tSINGULAR\tPERSON_ANY\t\tPRESENT\tBINYAN_PIEL\t\t\t\t\tFalse\tמְלַמֶּדֶת\tמְלַמֶּדֶת\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהם\tהֵם\tהוּא\tהוא\tPRONOUN\t\tMASCULINE\tPLURAL\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהֵם\tהֵם\nמלמדים\tמְלַמְּדִים\tלמד\tלמד\tVERB\t\tMASCULINE\tPLURAL\tPERSON_ANY\t\tPRESENT\tBINYAN_PIEL\t\t\t\t\tFalse\tמְלַמְּדִים\tמְלַמְּדִים\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\nהן\tהֵן\tהוּא\tהוא\tPRONOUN\t\tFEMININE\tPLURAL\tPERSON_3\t\t\t\t\t\t\t\tFalse\tהֵן\tהֵן\nמלמדות\tמְלַמְּדוֹת\tלמד\tלמד\tVERB\t\tFEMININE\tPLURAL\tPERSON_ANY\t\tPRESENT\tBINYAN_PIEL\t\t\t\t\tFalse\tמְלַמְּדוֹת\tמְלַמְּדוֹת\n.\t.\t\t\tPUNCTUATION\t\t\t\t\t\t\t\t\t\t\t\tFalse\t.\t.\n\n"
+  }
+}

@@ -5,6 +5,11 @@ test('live Dicta fixture verifies 71 Paal forms across five tenses and six roots
     assert.equal(items.length,71);
     await verifyWorksheet({lessons:[],questions:items},{},async()=>payload);
 });
+test('authenticated production Dicta response verifies all four standard Piel present forms',async()=>{
+    const recorded=require('./fixtures/binyan-dicta-piel-authenticated.json');
+    assert.equal(recorded.items.length,4);
+    await verifyWorksheet({lessons:[],questions:recorded.items},{},async()=>recorded.payload);
+});
 test('wrong root, binyan, tense, person, gender, number or pointing is rejected',()=>{
     const row=parseRows(payload).find(r=>r.POS==='VERB');
     assert.equal(matches(row,items[0]),true);

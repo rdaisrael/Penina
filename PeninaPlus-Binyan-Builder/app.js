@@ -6,6 +6,11 @@
     const mode=()=>document.querySelector('input[name="mode"]:checked').value;
     const pairLabel=pair=>{const [group,tense]=pair.split('|');return `${core.groupLabel(group)} · ${core.tenseNames[core.tenses.indexOf(tense)]} / ${tense}`;};
     function status(id,message,error=false){$(id).textContent=message;$(id).classList.toggle('error',error);}
+    function serviceError(response){
+        if([408,504].includes(response.status))return `The worksheet request timed out on the server (HTTP ${response.status}). Please try again.`;
+        if(response.status===502)return 'The worksheet server returned a gateway error (HTTP 502). Please try again; your workbook and selections are still available.';
+        return `The worksheet service returned an unreadable response (HTTP ${response.status}). Please try again.`;
+    }
     function dirty(){
         generationVersion++;controller?.abort();controller=null;busy=false;
         if(result)$('preview-label').textContent='Previous worksheet';
@@ -127,8 +132,8 @@
         const timeout=setTimeout(()=>active.abort(),110000);
         try{
             const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...input,action:'binyan-worksheet'}),signal:active.signal});
-            let data;try{data=await response.json();}catch{throw new Error('The worksheet service is unavailable or took too long. Please try again.');}
-            if(!response.ok)throw new Error(data.error||'The worksheet could not be built. Please try again.');
+            let data;try{data=await response.json();}catch(error){if(error.name==='AbortError')throw error;throw new Error(serviceError(response));}
+            if(!response.ok)throw new Error(typeof data?.error==='string'?data.error:serviceError(response));
             core.validateResult(data,input);
             if(version!==generationVersion)return;
             const prepared={...window.BinyanVocabulary.prepare(data,input),request:input};

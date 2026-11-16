@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const core=require('../PeninaPlus-Binyan-Builder/core');
 const {generateWorksheet}=require('../lib/binyan-worksheet');
+const partJSON=require('./helpers/binyan-part');
 const api=require('../api/generate');
 const input={mode:'learn',vocabulary:{verbs:['כָּתַב','למד'],binyanim:['פעל שלם|עבר']},pairs:['פעל שלם|עבר'],count:6};
 function fixture(request){return {lessons:request.mode==='learn'?request.pairs.map(pair=>({pair,root:'כתב',meaning:'write',explanation:'Use the past-tense endings.',forms:core.persons(pair).map(person=>({person,answer:'כָּתַב'}))})):[],questions:core.plan(request).map(q=>({...q,root:'כתב',meaning:'write',hint:'Look at the ending.',answer:'כָּתַב'}))};}
@@ -39,7 +40,7 @@ test('generator requests strict schema; practice has no teaching model',async()=
         assert.match(prompt,/Root lists and category rows.*independent/);
         assert.equal(options.textFormat.strict,true);
         assert.equal(options.maxAttempts,1);
-        return JSON.stringify(fixture(req));
+        return partJSON(prompt,fixture(req));
     },async()=>{});
     assert.deepEqual(result.lessons,[]);
     assert.equal(result.questions.length,6);
@@ -101,14 +102,14 @@ test('generation teaches all seven binyanim without marks and always verifies th
             assert.match(prompt,/All seven binyanim are supported/);
             assert.doesNotMatch(prompt,/Only Paal \/ Kal is supported|No other binyan is allowed/);
             assert.deepEqual(JSON.parse(prompt.match(/Eligible roots per pair: (.*)/)[1]),{[pair]:['כתב']});
-            return JSON.stringify(fixture(request));
+            return partJSON(prompt,fixture(request));
         },async result=>{verified=true;assert.equal(result.lessons[0].pair,pair);});
         assert.equal(verified,true);assert.equal(output.questions.length,6);
     }
 });
 test('generation always invokes verification and propagates failures',async()=>{
     let called=false;
-    await assert.rejects(generateWorksheet(input,async()=>JSON.stringify(fixture(core.validateRequest(input))),async()=>{called=true;throw new Error('unverified');}),/unverified/);
+    await assert.rejects(generateWorksheet(input,async prompt=>partJSON(prompt,fixture(core.validateRequest(input))),async()=>{called=true;throw new Error('unverified');}),/unverified/);
     assert.equal(called,true);
 });
 
@@ -146,7 +147,7 @@ test('infinitive generation filters roots, allows repetition, and still verifies
             const eligible=JSON.parse(prompt.match(/Eligible roots per pair: (.*)/)[1]);
             assert.deepEqual(eligible,{'פעל שלם|שם הפועל':['כתב']});
             assert.match(prompt,/לִכְתּוֹב/);assert.match(prompt,/reuse them/);
-            return JSON.stringify(result);
+            return partJSON(prompt,result);
         },async()=>{verified=true;});
         assert.equal(verified,true);assert.equal(output.questions.length,6);
         assert.ok(output.questions.every(q=>q.root==='כתב'));

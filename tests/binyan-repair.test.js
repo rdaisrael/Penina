@@ -1,6 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const core=require('../PeninaPlus-Binyan-Builder/core');
 const {generateWorksheet}=require('../lib/binyan-worksheet');
+const partJSON=require('./helpers/binyan-part');
 const {verifyWorksheet,parseRows}=require('../lib/binyan-dicta');
 const {planRepair,mergeRepair}=require('../lib/binyan-repair');
 const recorded=require('./fixtures/binyan-dicta-repair.json');
@@ -47,16 +48,17 @@ test('one correction replaces rejected models and exercises, preserves passing q
     const bad=mixedCandidate();let calls=0,checks=0;
     const result=await generateWorksheet(request,async(prompt,options)=>{
         assert.equal(options.maxAttempts,1);
-        if(++calls===1)return JSON.stringify(bad);
+        calls++;
+        if(!prompt.includes('CORRECTION PASS'))return partJSON(prompt,bad);
         assert.match(prompt,/CORRECTION PASS/);
         const targets=JSON.parse(prompt.match(/Repair targets: (.*)$/)[1]);
         assert.deepEqual(targets.questions.map(q=>q.number),[1,9]);
         assert.equal(targets.lessons[0].root,'לבש');
         assert.deepEqual(JSON.parse(prompt.match(/Replacement roots per pair: (.*)/)[1]),{[pair]:['למד']});
         assert.deepEqual(JSON.parse(prompt.match(/Preferred verified roots per pair: (.*)/)[1]),{[pair]:['למד']});
-        return JSON.stringify(replacement());
+        return partJSON(prompt,replacement());
     },async(...args)=>{checks++;return verify(...args);});
-    assert.equal(calls,2);assert.equal(checks,2);
+    assert.equal(calls,4);assert.equal(checks,2);
     assert.equal(result.lessons[0].root,'למד');assert.equal(result.questions.length,12);
     assert.equal(result.questions[0].meaning,'teach');assert.equal(result.questions[8].meaning,'teach');
     assert.equal(result.questions[8].sentenceWords.length,2,'sentence vocabulary is checked after replacement');
@@ -75,16 +77,17 @@ test('a wrong choice distractor causes its question to be repaired',async()=>{
     candidate.questions[0].alternative=form('לבש','masculine_plural');
     let calls=0;
     const result=await generateWorksheet(request,async prompt=>{
-        if(++calls===1)return JSON.stringify(candidate);
+        calls++;
+        if(!prompt.includes('CORRECTION PASS'))return partJSON(prompt,candidate);
         const targets=JSON.parse(prompt.match(/Repair targets: (.*)$/)[1]);
-        assert.equal(targets.lessons.length,1,'the shared root is replaced consistently in its model');
-        assert.equal(targets.questions.length,12);
+        assert.ok(targets.lessons.length<=1);
+        assert.equal(targets.questions.length,4);
         // The alternative is wrong for root למד. The other uploaded root is
         // eligible, but its correctly pointed Piel paradigm is not in this
         // fixture; report unavailable instead of fabricating a valid analysis.
         return JSON.stringify({unavailablePairs:[pair],lessons:[],questions:[]});
     },verify).catch(error=>error);
-    assert.equal(calls,2);assert.match(result.message,/replacement forms/);
+    assert.equal(calls,6);assert.match(result.message,/No suitable verbs/);
 });
 test('corrections cannot add questions, change target pairs, or reuse an excluded root',()=>{
     const bad=mixedCandidate(),plan=planRepair(bad,{[pair]:['לבש','למד']},recorded.items.slice(0,4));
@@ -104,24 +107,26 @@ test('corrections cannot add questions, change target pairs, or reuse an exclude
 test('one failed correction stops; provider outages do not trigger a correction',async()=>{
     const sole={...request,vocabulary:{...request.vocabulary,verbs:['לבש']}},bad=worksheet('לבש');
     let calls=0,checks=0;
-    await assert.rejects(generateWorksheet(sole,async()=>{calls++;return JSON.stringify(bad);},async(...args)=>{checks++;return verify(...args);}),{code:'DICTA_FORM_MISMATCH'});
-    assert.equal(calls,2);assert.equal(checks,2);
+    await assert.rejects(generateWorksheet(sole,async prompt=>{calls++;return partJSON(prompt,bad);},async(...args)=>{checks++;return verify(...args);}),{code:'DICTA_FORM_MISMATCH'});
+    assert.equal(calls,6);assert.equal(checks,2);
     calls=0;
-    await assert.rejects(generateWorksheet(request,async()=>{calls++;return JSON.stringify(worksheet());},async()=>{throw Object.assign(new Error('Dicta unavailable'),{code:'DICTA_UNAVAILABLE',status:503});}),/Dicta unavailable/);
-    assert.equal(calls,1);
+    await assert.rejects(generateWorksheet(request,async prompt=>{calls++;return partJSON(prompt,worksheet());},async()=>{throw Object.assign(new Error('Dicta unavailable'),{code:'DICTA_UNAVAILABLE',status:503});}),/Dicta unavailable/);
+    assert.equal(calls,3);
 });
 test('generation, correction and verification share one deadline',async()=>{
     let clock=0,calls=0,checks=0;const generationTimeouts=[],verificationTimeouts=[];
     await generateWorksheet(request,async(prompt,options)=>{
-        generationTimeouts.push(options.timeoutMs);clock+=++calls===1?65000:20000;
-        return JSON.stringify(calls===1?mixedCandidate():replacement());
+        generationTimeouts.push(options.timeoutMs);calls++;
+        await Promise.resolve(); // All sibling requests start before the clock advances.
+        const repairing=prompt.includes('CORRECTION PASS');clock=repairing?90000:65000;
+        return partJSON(prompt,repairing?replacement():mixedCandidate());
     },async(result,input,unused,options)=>{
         checks++;verificationTimeouts.push(options.timeoutMs);clock+=5000;
         return verify(result,input,unused,options);
     },{now:()=>clock});
-    assert.deepEqual(generationTimeouts,[70000,25000]);assert.deepEqual(verificationTimeouts,[25000,10000]);
+    assert.deepEqual(generationTimeouts,[70000,70000,70000,25000]);assert.deepEqual(verificationTimeouts,[25000,10000]);
     assert.equal(checks,2);assert.equal(clock,95000);
     clock=0;calls=0;
-    await assert.rejects(generateWorksheet(request,async()=>{calls++;clock=99000;return JSON.stringify(mixedCandidate());},async(...args)=>{clock=100000;return verify(...args);},{now:()=>clock}),/verified in time/);
-    assert.equal(calls,1,'no correction starts after the deadline');
+    await assert.rejects(generateWorksheet(request,async prompt=>{calls++;await Promise.resolve();clock=69000;return partJSON(prompt,mixedCandidate());},async(...args)=>{clock=100000;return verify(...args);},{now:()=>clock}),/verified in time/);
+    assert.equal(calls,3,'no correction starts after the deadline');
 });

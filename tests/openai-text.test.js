@@ -60,8 +60,19 @@ test('timeouts abort requests and exhaust only the configured attempts', async (
             calls++;
             signal.addEventListener('abort', () => reject(new Error('abort')));
         })
-    }), /temporarily unavailable/);
+    }), {code:'OPENAI_TIMEOUT',message:'AI generation took too long. Please try again.'});
     assert.equal(calls, 2);
+});
+
+test('connection failures and cancellation are distinct from timeouts and hide provider details',async()=>{
+    await assert.rejects(generateOpenAIText('story',{env,maxAttempts:1,fetchImpl:async()=>{throw new Error('SECRET connection detail');}}),
+        {code:'OPENAI_NETWORK',message:'The AI service is temporarily unavailable. Please try again.'});
+    const controller=new AbortController();let calls=0;
+    const pending=generateOpenAIText('story',{env,signal:controller.signal,fetchImpl:async(_,options)=>{
+        calls++;return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new Error('abort'))));
+    }});
+    controller.abort();await assert.rejects(pending,{code:'OPENAI_CANCELLED'});assert.equal(calls,1);
+    await assert.rejects(generateOpenAIText('story',{env,signal:controller.signal,fetchImpl:()=>assert.fail('cancelled request sent')}),{code:'OPENAI_CANCELLED'});
 });
 
 test('missing API key fails without making a request', async () => {

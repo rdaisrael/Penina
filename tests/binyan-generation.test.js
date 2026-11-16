@@ -1,88 +1,73 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {partsFor,generateParts,readPart}=require('../lib/binyan-generation');
-const {generateWorksheet}=require('../lib/binyan-worksheet');
 const core=require('../PeninaPlus-Binyan-Builder/core');
-const tick=()=>new Promise(resolve=>setImmediate(resolve));
-const response=part=>JSON.stringify({unavailablePairs:[],lessons:part.lessonPairs.map(pair=>({pair})),questions:part.questions});
-const input=count=>core.validateRequest({mode:'learn',pairs:['פיעל שלם|הווה'],count,exercises:['choice','conjugate','sentence'],vocabulary:{verbs:['למד'],binyanim:[]}});
+const {generateWorksheet}=require('../lib/binyan-worksheet');
+const {generateReaderAnalysis}=require('../lib/reader-response');
+const pair='פיעל שלם|הווה',forms=['מְלַמֵּד','מְלַמֶּדֶת','מְלַמְּדִים','מְלַמְּדוֹת'];
+const input=(count=12,exercises=['choice','conjugate','sentence'])=>core.validateRequest({mode:'learn',pairs:[pair],count,exercises,
+    vocabulary:{verbs:['למד'],binyanim:[],adverbs:['כאן']}});
+function fixture(request){
+    const answer=person=>forms[core.persons(pair).indexOf(person)];
+    return {unavailablePairs:[],lessons:[{pair,root:'למד',meaning:'teach',explanation:'Present-tense model.',forms:core.persons(pair).map(person=>({person,answer:answer(person)}))}],
+        questions:core.plan(request).map(q=>({...q,root:'למד',meaning:'teach',answer:answer(q.person),
+            alternative:q.exercise==='choice'?answer(core.alternativeTarget(q).person):'',
+            sentence:['sentence','writing'].includes(q.exercise)?`${core.subject(q.person)} ___ כָּאן.`:'',
+            words:['sentence','writing'].includes(q.exercise)?[
+                {word:core.subject(q.person),translation:'subject',match:'__pronoun__',mastered:true,form:'',prefix:'',isName:false},
+                {word:'כָּאן',translation:'here',match:'כאן',mastered:true,form:'',prefix:'',isName:false}
+            ]:[],phrases:[]}))};
+}
+const timeout=()=>Object.assign(new Error('AI generation took too long.'),{retryable:true,code:'OPENAI_TIMEOUT'});
 
-test('the reported twelve-question request is split into three independently generated parts',async()=>{
-    const request=input(12),plan=core.plan(request),parts=partsFor(plan,request.pairs);
-    let active=0,maxActive=0;const releases=[];
-    const pending=generateParts(parts,async part=>{
-        assert.ok(part.questions.length<=4);active++;maxActive=Math.max(maxActive,active);
-        return new Promise(resolve=>releases.push(()=>{active--;resolve(response(part));}));
-    });
-    assert.equal(releases.length,3,'all parts start before any response arrives');
-    releases.reverse().forEach(release=>release());
-    const result=await pending;
-    assert.equal(maxActive,3);assert.deepEqual(result.questions,plan);
-    assert.deepEqual(result.lessons,[{pair:request.pairs[0]}]);
-});
-test('large worksheets cap concurrent calls and preserve question order across queued parts',async()=>{
-    const request=input(30),plan=core.plan(request),parts=partsFor(plan,request.pairs);
-    let active=0,maxActive=0;const releases=[];
-    const pending=generateParts(parts,async part=>{
-        active++;maxActive=Math.max(maxActive,active);
-        return new Promise(resolve=>releases.push(()=>{active--;resolve(response(part));}));
-    });
-    assert.equal(releases.length,4);
-    releases[3]();await tick();assert.equal(releases.length,5,'one free slot starts one queued part');
-    for(const index of [2,1,0])releases[index]();await tick();
-    assert.equal(releases.length,8);
-    for(const index of [7,6,5,4])releases[index]();
-    const result=await pending;assert.equal(maxActive,4);assert.deepEqual(result.questions,plan);
-});
-test('queued parts share the initial generation deadline instead of restarting it',async()=>{
-    const request={...input(30),mode:'practice',exercises:['conjugate'],vocabulary:{verbs:['למד'],binyanim:['פיעל שלם|הווה']}};
-    for(const elapsed of [20000,70000]){
-        let clock=0;const timeouts=[],releases=[];
-        const pending=generateWorksheet(request,async(prompt,options)=>{
-            timeouts.push(options.timeoutMs);
-            const questions=JSON.parse(prompt.match(/^Question plan: (.*)$/m)[1]).map(q=>({...q,root:'למד',meaning:'teach',answer:'מְלַמֵּד'}));
-            return new Promise(resolve=>releases.push(()=>resolve(JSON.stringify({unavailablePairs:[],lessons:[],questions}))));
-        },async()=>{}, {now:()=>clock});
-        // Attach the rejection handler before advancing the simulated clock.
-        const settled=pending.then(result=>({result}),error=>({error}));
-        assert.deepEqual(timeouts,[70000,70000,70000,70000]);
-        clock=elapsed;releases.slice().forEach(release=>release());await tick();
-        if(elapsed===70000){
-            const {error}=await settled;
-            assert.equal(error.code,'OPENAI_TIMEOUT');assert.equal(error.worksheetStage,'generation');
-            assert.equal(timeouts.length,4,'no queued provider request starts after the deadline');
-        }else{
-            assert.deepEqual(timeouts.slice(4),[50000,50000,50000,50000]);
-            releases.slice(4).forEach(release=>release());
-            const {result,error}=await settled;assert.equal(error,undefined);assert.equal(result.questions.length,30);
-        }
+test('6, 12, 24 and 30 questions are generated together and fully checked, including sentence-only worksheets',async()=>{
+    for(const count of [6,12,24,30])for(const exercises of [['choice','conjugate','sentence'],['sentence'],['writing']]){
+        const request=input(count,exercises);let calls=0,checks=0,clock=0;
+        const result=await generateWorksheet(request,async(prompt,options)=>{
+            calls++;assert.equal(options.timeoutMs,110000);assert.equal(options.maxAttempts,1);
+            assert.equal(JSON.parse(prompt.match(/^Question plan: (.*)$/m)[1]).length,count);
+            clock=95000; // A successful response after the old 70-second cutoff.
+            return JSON.stringify(fixture(request));
+        },async(candidate,checkedRequest,unused,options)=>{
+            checks++;assert.equal(candidate.questions.length,count);assert.equal(checkedRequest.count,count);
+            assert.equal(options.timeoutMs,25000);
+        },{now:()=>clock});
+        assert.equal(calls,1);assert.equal(checks,1);assert.equal(result.questions.length,count);
+        assert.deepEqual(result.questions.map(q=>q.number),Array.from({length:count},(_,i)=>i+1));
+        for(const q of result.questions.filter(q=>['sentence','writing'].includes(q.exercise)))assert.equal(q.sentenceWords.length,2);
     }
 });
-test('mixed patterns allocate each model once, including parts containing models only',async()=>{
-    const pairs=[...core.binyanim.map(b=>`${b} שלם|עבר`),'פעל שלם|הווה'];
-    const request={...input(8),pairs},parts=partsFor(core.plan(request),pairs);
-    assert.ok(parts.some(part=>!part.questions.length&&part.lessonPairs.length));
-    assert.ok(parts.every(part=>part.lessonPairs.length<=2));
-    const result=await generateParts(parts,async part=>response(part));
-    assert.deepEqual(result.lessons.map(l=>l.pair),pairs);assert.deepEqual(result.questions,core.plan(request));
+test('Binyan uses the same per-call timeout and structured-output allowance as Penina Hebrew Reader',async()=>{
+    const stop=new Error('capture only');let readerOptions,binyanOptions;
+    await assert.rejects(generateReaderAnalysis('Analyze',{
+        mode:'upload',words:[],verbs:[],nouns:[],adjs:[],forms:[]
+    },'כותרת\nהוא כאן.',async(prompt,options)=>{readerOptions=options;throw stop;}),error=>error===stop);
+    await assert.rejects(generateWorksheet(input(),async(prompt,options)=>{binyanOptions=options;throw stop;},()=>assert.fail('no verification')),error=>error===stop);
+    for(const field of ['timeoutMs','maxOutputTokens','maxAttempts'])assert.equal(binyanOptions[field],readerOptions[field]);
 });
-test('one provider failure cancels in-flight siblings and never starts queued parts or returns partial work',async()=>{
-    const request=input(30),parts=partsFor(core.plan(request),request.pairs);
-    let calls=0,cancelled=0;const original=Object.assign(new Error('AI generation took too long.'),{code:'OPENAI_TIMEOUT'});
-    await assert.rejects(generateParts(parts,async(part,signal)=>{
-        calls++;if(part.questions[0].number===1)throw original;
-        return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{cancelled++;reject(new Error('cancelled sibling'));}));
-    }),error=>error===original);
-    assert.equal(calls,4);assert.equal(cancelled,3);
+test('one transient failure retries the complete request with a fresh Reader-length allowance',async()=>{
+    const request=input(24),prompts=[],reports=[];let clock=0,checks=0;
+    const result=await generateWorksheet(request,async(prompt,options)=>{
+        prompts.push(prompt);assert.equal(options.timeoutMs,110000);
+        if(prompts.length===1){clock=110000;throw timeout();}
+        clock=205000;return JSON.stringify(fixture(request));
+    },async(candidate,request,unused,options)=>{checks++;assert.equal(options.timeoutMs,25000);clock+=25000;},
+    {now:()=>clock,onGeneration:report=>reports.push(report)});
+    assert.equal(prompts.length,2);assert.equal(prompts[0],prompts[1]);assert.equal(checks,1);assert.equal(result.questions.length,24);
+    assert.deepEqual(reports.map(r=>[r.stage,r.status,r.durationMs]),[['generation','failed',110000],['generation-retry','completed',95000]]);
+    assert.doesNotMatch(JSON.stringify(reports),/למד|כאן|answer|root|vocabulary|prompt/);
 });
-test('a part cannot duplicate another part’s questions, omit a model or change a requested subject',()=>{
-    const request=input(12),parts=partsFor(core.plan(request),request.pairs);
-    for(const mutate of [
-        r=>r.questions[0].number=9,r=>r.questions[0].person='first_sg',
-        r=>r.questions.push(parts[1].questions[0]),r=>r.lessons=[]
-    ]){
-        const result=JSON.parse(response(parts[0]));mutate(result);
-        assert.throws(()=>readPart(JSON.stringify(result),parts[0]),/checks/);
+test('permanent failures do not retry; repeated transient failures stop after two calls',async()=>{
+    for(const retryable of [false,true]){
+        let calls=0;
+        await assert.rejects(generateWorksheet(input(),async()=>{calls++;throw Object.assign(timeout(),{retryable});},()=>assert.fail('no unverified output')),
+            error=>error.code==='OPENAI_TIMEOUT'&&error.worksheetStage===(retryable?'generation-retry':'generation')&&error.status===503);
+        assert.equal(calls,retryable?2:1);
     }
-    assert.throws(()=>readPart('{',parts[0]),/unreadable/);
-    assert.throws(()=>readPart(JSON.stringify({unavailablePairs:request.pairs,lessons:[],questions:[]}),parts[0]),/No suitable verbs/);
+});
+test('a service retry consumes the same second-call budget as a morphology correction',async()=>{
+    const request=input(),mismatch=Object.assign(new Error('Could not verify generated form'),{code:'DICTA_FORM_MISMATCH',rejectedForms:[{pair,root:'למד'}]});
+    let calls=0,checks=0;
+    await assert.rejects(generateWorksheet(request,async()=>{
+        if(++calls===1)throw timeout();return JSON.stringify(fixture(request));
+    },async()=>{checks++;throw mismatch;}),error=>error===mismatch&&error.status===422);
+    assert.equal(calls,2);assert.equal(checks,1);
 });

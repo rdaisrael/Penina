@@ -2,7 +2,6 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const core=require('../PeninaPlus-Binyan-Builder/core');
 const {generateWorksheet}=require('../lib/binyan-worksheet');
-const partJSON=require('./helpers/binyan-part');
 const {verifyWorksheet,parseRows}=require('../lib/binyan-dicta');
 const {items,payload}=require('./fixtures/binyan-dicta-paal.json');
 
@@ -11,20 +10,20 @@ const candidate={lessons:[],questions:core.plan(core.validateRequest(input)).map
     ...q,root:'כתב',meaning:'write',answer:items.find(item=>item.root==='כתב'&&item.pair===q.pair&&item.person===q.person).answer
 }))};
 function handler(generate,verify){
-    const messages=[],context={module:{exports:{}},console:{error:(...args)=>messages.push(args)},require(name){
+    const messages=[],generationMessages=[],context={module:{exports:{}},console:{error:(...args)=>messages.push(args),info:(...args)=>generationMessages.push(args)},require(name){
         if(name==='./openai-text')return {generateOpenAIText:generate};
-        if(name==='./binyan-worksheet')return {generateWorksheet:(input,generate)=>generateWorksheet(input,generate,verify)};
+        if(name==='./binyan-worksheet')return {generateWorksheet:(input,generate,unused,options)=>generateWorksheet(input,generate,verify,options)};
         if(name==='../PeninaPlus-Binyan-Builder/core')return core;
         throw new Error(`Unexpected dependency ${name}`);
     }};
     vm.runInNewContext(fs.readFileSync(require.resolve('../lib/binyan-handler'),'utf8'),context);
-    return {run:context.module.exports,messages};
+    return {run:context.module.exports,messages,generationMessages};
 }
 const response=()=>({setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}});
 
 test('rejected morphology remains a specific JSON application error, with a private server diagnostic',async()=>{
     const bad={BGU:payload.BGU.split(/\r?\n/).filter(Boolean).slice(0,19).join('\n').replaceAll('כָּתַבְתִּי','כִּתַּבְתִּי')};
-    const {run,messages}=handler(async prompt=>partJSON(prompt,{...candidate,unavailablePairs:[]}),(result,request)=>verifyWorksheet(result,request,async()=>bad));
+    const {run,messages}=handler(async prompt=>JSON.stringify({...candidate,unavailablePairs:[]}),(result,request)=>verifyWorksheet(result,request,async()=>bad));
     const res=response();await run({method:'POST',body:input},res);
     assert.equal(res.code,422);
     assert.match(res.body.error,/Could not verify/);
@@ -35,7 +34,7 @@ test('rejected morphology remains a specific JSON application error, with a priv
 });
 test('missing Dicta analysis and generation outages have separate diagnostic stages',async()=>{
     for(const [generate,verify,stage,code,message] of [
-        [async prompt=>partJSON(prompt,candidate),async()=>parseRows({data:[]}), 'dicta','DICTA_ANALYSIS_MISSING',/grammatical analysis/],
+        [async prompt=>JSON.stringify(candidate),async()=>parseRows({data:[]}), 'dicta','DICTA_ANALYSIS_MISSING',/grammatical analysis/],
         [async()=>{throw Object.assign(new Error('AI generation took too long.'),{code:'OPENAI_TIMEOUT'});},()=>assert.fail('must not verify'),'generation','OPENAI_TIMEOUT',/took too long/],
         [async()=>{throw new Error('Provider unavailable');},()=>assert.fail('must not verify'),'generation','WORKSHEET_FAILED',/Provider unavailable/]
     ]){
@@ -45,9 +44,11 @@ test('missing Dicta analysis and generation outages have separate diagnostic sta
     }
 });
 test('successful worksheet and invalid request handling remain unchanged',async()=>{
-    const {run,messages}=handler(async prompt=>partJSON(prompt,candidate),async()=>{});
+    const {run,messages,generationMessages}=handler(async prompt=>JSON.stringify(candidate),async()=>{});
     const res=response();await run({method:'POST',body:input},res);
     assert.equal(res.code,200);assert.equal(res.body.questions.length,6);assert.equal(messages.length,0);
+    assert.equal(generationMessages.length,1);assert.equal(generationMessages[0][1].stage,'generation');
+    assert.doesNotMatch(JSON.stringify(generationMessages),/כתב|כָּ|write|answer|root/);
     await run({method:'POST',body:{...input,pairs:['פיעל שלם|הווה']}},res);
     assert.equal(res.code,400);assert.match(res.body.error,/marked X/);assert.equal(messages.length,0);
 });

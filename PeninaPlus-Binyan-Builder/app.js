@@ -128,8 +128,8 @@
         let input;try{input=request();}catch(error){status('generation-status',error.message,true);return;}
         const version=++generationVersion;controller?.abort();const active=new AbortController();controller=active;busy=true;updateButton();
         const title=$('title').value.trim()||'Hebrew conjugation practice';
-        status('generation-status','Building and checking your worksheet. This may take about a minute.');
-        const timeout=setTimeout(()=>active.abort(),110000);
+        status('generation-status','Building and checking your worksheet. This may take a few minutes.');
+        const timeout=setTimeout(()=>active.abort(),285000);
         try{
             const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...input,action:'binyan-worksheet'}),signal:active.signal});
             let data;try{data=await response.json();}catch(error){if(error.name==='AbortError')throw error;throw new Error(serviceError(response));}
@@ -144,7 +144,7 @@
             renderWorksheet(result,title);$('preview-label').textContent='Ready to review';
             status('generation-status','Worksheet ready. Review the model forms and answer key, then print.');
             if(window.innerWidth<801)$('preview-heading').scrollIntoView({behavior:'smooth'});
-        }catch(error){if(version===generationVersion)status('generation-status',error.name==='AbortError'?'The request took too long. Please try fewer questions.':error.message,true);}
+        }catch(error){if(version===generationVersion)status('generation-status',error.name==='AbortError'?'The request took too long. Please try again.':error.message,true);}
         finally{clearTimeout(timeout);if(version===generationVersion){busy=false;controller=null;updateButton();}}
     });
     $('show-key').addEventListener('change',()=>{$('answer-sheet').hidden=!$('show-key').checked;window.BinyanPagination.scale($('answer-sheet'));});

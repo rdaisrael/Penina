@@ -4,7 +4,6 @@ const reader=require('../PeninaPlus-Reader/reader-core');
 const {prepare}=require('../PeninaPlus-Binyan-Builder/vocabulary');
 const {render}=require('../PeninaPlus-Binyan-Builder/exercises');
 const {generateWorksheet}=require('../lib/binyan-worksheet');
-const partJSON=require('./helpers/binyan-part');
 const input={mode:'practice',vocabulary:{verbs:['כתב'],binyanim:['פעל שלם|הווה']},pairs:['פעל שלם|הווה'],count:6,exercises:['sentence'],footnotes:'page'};
 const word=(word,match='',translation='supporting word',form='')=>({word,match,translation,form,mastered:true,prefix:'',isName:false});
 function question(sentence='הוּא ___ בַּמַּחְבֶּרֶת.',words=[word('הוּא','__pronoun__','he'),{...word('בַּמַּחְבֶּרֶת','מחברת','in the notebook'),prefix:'ב'}],phrases=[]){return {number:1,exercise:'sentence',pair:input.pairs[0],person:'masculine_singular',root:'כתב',meaning:'write',answer:'כּוֹתֵב',sentence,words,phrases};}
@@ -69,9 +68,9 @@ test('generation requests familiar vocabulary and checks every sentence before r
  const output=await generateWorksheet(request,async(prompt,options)=>{
   assert.match(prompt,/Familiar sentence vocabulary is a priority/);assert.match(prompt,/היום/);
   assert.ok(options.textFormat.schema.properties.questions.items.required.includes('words'));
-  return partJSON(prompt,result);
+  return JSON.stringify(result);
  },async()=>{});
  assert.equal(output.questions[0].notes[0].translation,'in the notebook');
  const bad=structuredClone(result);bad.questions[0].words=[];
- await assert.rejects(generateWorksheet(request,async prompt=>partJSON(prompt,bad),()=>assert.fail('must fail before Dicta')),/Word analysis/);
+ await assert.rejects(generateWorksheet(request,async()=>JSON.stringify(bad),()=>assert.fail('must fail before Dicta')),/Word analysis/);
 });

@@ -147,8 +147,8 @@ button.answer:active:not(:disabled){background:var(--wash);border-color:var(--pu
 .knowledge-question .question{font-size:clamp(22px,2.5vw,28px);font-weight:600;line-height:1.45;letter-spacing:normal;padding:12px 0 18px;white-space:pre-wrap}
 .knowledge-question .answer{font-size:clamp(18px,2vw,22px);line-height:1.5}
 
-/* The student game uses the available space without fixed-height text boxes or
-   per-question font shrinking. Longer content continues in the page scroll. */
+/* Reserve the same question, answer, and feedback spaces throughout a round.
+   Long text scrolls inside its space rather than pushing other controls away. */
 .question-body{display:grid;gap:12px;min-width:0}
 .question-content{min-width:0}
 body:has(.student-round){min-height:100svh}
@@ -182,10 +182,43 @@ body:has(.student-round){min-height:100svh}
  .student-round .streak-meter{padding:6px 8px}
  .student-round .streak-heading{font-size:12px}
  .student-round .answers{gap:6px}
- .student-round .knowledge-question .answers{grid-template-columns:minmax(0,1fr)}
+ .student-round .answers{grid-template-columns:minmax(0,1fr)}
  .student-round .answer{min-height:54px;padding:8px 12px;gap:10px;font-size:18px}
  .student-round .answer .letter{width:28px;height:28px;font-size:17px}
 }
+
+.live-round{--question-height:clamp(120px,18svh,180px);--answer-height:96px}
+.live-round .question-content{height:var(--question-height);overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable both-edges;display:flex;flex-direction:column;justify-content:safe center;outline-offset:2px}
+.live-round .question-content>*{flex:none}
+.live-round .question{font-size:clamp(22px,2.5vw,28px);font-weight:600;line-height:1.35;letter-spacing:normal;margin:0;padding:0;white-space:pre-wrap}
+.live-round .answer{height:var(--answer-height);min-height:var(--answer-height);font-size:clamp(18px,2vw,22px);line-height:1.25;padding:6px 12px}
+.live-round .answer .text{min-height:0;max-height:100%;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.live-round .answer .letter{width:32px;height:44px;display:grid;grid-template-rows:1fr 12px;font-size:18px}
+.live-round .answer .count{font-size:11px;line-height:12px;margin:0}
+.live-round .answers{grid-template-rows:repeat(2,var(--answer-height))}
+.round-feedback{height:64px;overflow:auto;overscroll-behavior:contain;margin-top:8px;font-size:13px}
+.round-feedback .notice,.round-feedback .answer-prompt{font-size:13px;line-height:1.3;margin:0;padding:4px 8px;text-align:center}
+.round-feedback .bonus-notice{margin:4px 0 0;gap:4px;justify-content:center;font-size:12px}
+.round-feedback .bonus-notice span{padding:2px 6px;border-radius:6px}
+.student-round .question-meta{height:20px;flex-wrap:nowrap;white-space:nowrap}
+.student-round .countdown{width:160px;font-size:14px;text-align:center}
+@media(max-width:600px){
+ .live-round{--question-height:124px;--answer-height:64px}
+ .student-round .countdown{width:136px;font-size:12px;padding:6px}
+ .live-round .answer .letter{width:28px;height:40px}
+ .live-round .answers{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(4,var(--answer-height))}
+ .student-round .question-meta{font-size:12px}
+}
+@media(min-width:601px) and (max-height:500px){
+ .live-round{--question-height:192px;--answer-height:92px}
+}
+/* The teacher's question column does not change width when standings appear. */
+@media(min-width:900px){
+ .live-shell:has(.teacher-round){max-width:1440px}
+ .teacher-round{grid-template-columns:minmax(0,1fr) 300px}
+}
+.teacher-round .actions{display:grid;grid-template-columns:2fr 1fr 1fr}
+.live-shell:has(.live-round) #error{position:fixed;top:8px;left:50%;transform:translateX(-50%);width:min(640px,calc(100vw - 24px));max-height:120px;overflow:auto;z-index:1200}
 /* A landscape phone has enough width to place the question beside the choices. */
 @media(min-width:601px) and (max-height:500px){
  .live-shell:has(.student-round){padding:8px 16px 12px}

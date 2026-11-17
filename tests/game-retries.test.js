@@ -83,3 +83,12 @@ test('Matching uses the weighted schedule for practice rounds',()=>{
  const line=source.split('\n').find(line=>line.includes('cardRound = 1; mode = value;'));
  vm.runInContext(line,ctx);assert.equal(ctx.rows.length,3);assert.equal(ctx.totalTerms,3);
 });
+
+test('Matching accepts canonical text and display whitespace without erasing meaningful distinctions',()=>{
+ for(const [left,right,equal] of [['café','cafe\u0301',true],['a  house','a\nhouse',true],['שָׁלוֹם','ש\u05c1\u05b8לוֹם',true],['שָׁם','שֵׁם',false],['Polish','polish',false],['1.5','15',false]]){
+  const make=(definition,side)=>({row:{id:1,definition},side,node:{disabled:false,classList:{add(){}},setAttribute(){}}});
+  const ctx={first:make(left,'term'),second:make(right,'definition'),locked:false,mode:'cards',matchingActive:true,matchingMistakes:0,attempts:0,matched:new Set(),matchingCount:2,clearSelection(){},updateProgress(){},later(){},message(){},mistake(){ctx.wrong=true}};
+  vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('        function match('),source.indexOf('        function choose('))+'match(first,second);',ctx);
+  assert.equal(ctx.first.node.disabled,equal,left+' / '+right);assert.equal(Boolean(ctx.wrong),!equal);assert.equal(ctx.attempts,1);
+ }
+});

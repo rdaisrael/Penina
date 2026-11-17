@@ -11,6 +11,7 @@ The app follows the Suite branding with four stages: Add & Edit Cards, Review Fl
 - Picture upload appears before Question. **Reuse a Picture** offers one thumbnail per distinct picture already used in the current set, including restored or opened drafts. Reusing copies its description and starts with no targets; each question can have its own description and targets without changing other cards.
 - Clicking or tapping a study picture opens a centered pop-out at 1.5× its displayed size; further clicks enlarge it to 2× and then 3×, always capped to fit the screen without scrolling. A “Click to enlarge further” hint appears while another enlargement is available. At the maximum, further picture clicks keep it open at the same size. Click the dimmed background, the close button, or press Escape to return; reopening starts at 1.5× and keyboard focus returns to the original picture without flipping the card. All target labels remain attached to their locations. There are no sliders or zoom toolbars.
 - The answer occupies the other face. Additional Information appears in the separate white area below the flashcard, only on the answer side and only when it contains non-whitespace text. Its text follows its detected reading direction: left-aligned for LTR text and right-aligned for RTL text, including practice and paper cards.
+- Combined vocabulary/Knowledge e-flashcards share the existing 323 px card and 160 px context/information frames. Long Knowledge questions, answers, pictures, and Additional Information scroll inside those frames, keeping navigation and rating buttons in place through card changes and flips. Knowledge text stays at 24 px, with 17 px Additional Information. Each new face starts at the top of its reading area. The vocabulary text-fitting behavior remains available within the same fixed frame.
 - Paper layouts offer 1 or 4 cards per landscape Letter page, or 2 cards per portrait Letter page. Four-up backs mirror each row for short-edge landscape duplex alignment, including empty cells on the last page. The preview and browser print page orientation change together; print instructions select short-edge flipping for landscape and long-edge flipping for portrait. Each layout fills the printable sheet inside quarter-inch outer margins. Text uses larger layout-specific sizes (up to 36/48/64 pt for 4/2/1 cards), with separate picture-question and additional-information sizes. Pictures fill their column without cropping. Long text scales down only as needed, preserving padding and the separation around additional information; the Print button is disabled if content still does not fit.
 - **New List** beside Save/Open Draft asks “Clear the current draft and start a new list?” with Cancel and Start New. Start New clears the title, cards, pictures, practice answers, and unfinished edits, saves the empty browser draft, and focuses the title. Published lists remain saved. Save Draft first to keep a copy of unfinished work.
 - Drafts, including unfinished edits and pictures, are saved in IndexedDB for this browser. Save/Open Draft provides portable JSON copies. Teacher-requested distractor generation and class-page publishing use the authenticated server APIs. Draft editing and flashcard review remain local.
@@ -24,6 +25,15 @@ The draft has `format: "penina-knowledge-cards"`, `version: 1`, `title`, and `ca
 Run `node --test tests/knowledge-cards.test.js tests/study-cards.test.js tests/asset-versioning.test.js` from the repository.
 
 Browser checks covered picture upload and target placement, picture enlargement that fits the screen, question-first navigation, conditional information outside the card, 1/2/4-up layouts, draft download/import, restoration after reload, desktop and mobile widths, and browser error logs. Physical printer alignment has not been tested.
+
+`tests/mixed-flashcards-layout.browser.cjs` loads the actual combined-card HTML
+with synthetic vocabulary and Knowledge cards and blocks external requests. It
+compares card, context, navigation, rating, and page positions at six phone,
+tablet, laptop, and landscape sizes across both faces and card orders. It also
+checks long-content scrolling without an accidental flip, readable Knowledge
+text, picture targets, ratings, and reset. The long-card layout assertion failed
+before the fixed-frame repair. `tests/study-cards-layout.browser.cjs` separately
+checks the existing vocabulary-only layout and text fitting.
 
 To preview locally, run `python3 -m http.server 4320 --bind 127.0.0.1` from the repository and open `http://127.0.0.1:4320/PeninaPlus-knowledge-builder/`.
 
@@ -66,24 +76,86 @@ it does not establish the cause of every classroom report or exercise production
 network/storage latency. Four older quiz/matching tests also now load the real
 shared question renderer, resolving their missing-function failures.
 
-Live's student layout now compacts the header, streak/countdown row, and answer
+The subsequent Live answer audit reproduced four more browser failures: a
+temporary refresh error disabled an otherwise open answer; correcting an early
+local countdown expiry did not re-enable buttons; a classmate joining could
+replace a button during a tap; and the preceding question's Incorrect overlay
+could remain over a quickly advanced question. The client now shares one answer
+eligibility check between drawing, clock updates, and submission. Temporary
+refresh failures leave eligible answers available while reconnection continues;
+paused, expired, answered, and unavailable games stay locked. Participant counts
+and late score/streak updates are patched without replacing active buttons.
+The previous Incorrect overlay is cleared on question changes, as Gamify clears
+its previous mistake overlay when changing games/rounds. An older snapshot also
+no longer stops the polling loop; that failure has a targeted client regression.
+
+`tests/live-answer-races.browser.cjs` reproduces these cases on phone/tablet
+viewports using the actual client and handler with in-memory storage, then checks
+that the submitted choice receives the correct score. It also verifies that
+expired access cannot submit. `tests/live-touch.test.js` and
+`tests/live-game.test.js` cover continuing after an older response and maintaining
+answer locks through clock corrections. Server answer ordering, first-choice
+immutability, and receipt-time cutoffs are unchanged. These checks do not verify
+classroom connectivity or the factual correctness of teacher-supplied choices.
+
+Live's student layout compacts the header, streak/countdown row, and answer
 padding. Repeated class/game details remain available to screen readers, while
-the decorative footer is omitted during a round. Vocabulary choices use two
-columns; Knowledge choices use full-width rows on narrow phones. Short landscape
-screens place the question beside the choices. Reading sizes stay consistent
-across questions and long content scrolls naturally. Only a new question resets
-the reading position; polls, selection, and save acknowledgements preserve it.
+the decorative footer is omitted during a round. Vocabulary and Knowledge use
+the same question, answer, and result spaces: full-width answer rows on narrow
+phones and two columns on wider screens. Short landscape screens place the
+question beside the choices. Reading sizes stay consistent across card types.
+Long questions, pictures, and answer text scroll inside their reserved spaces,
+so they do not move the answer buttons. Polls, selection, save acknowledgements,
+and reveals preserve those reading positions; a new question starts at the top.
+Results, vote counts, bonuses, and connection errors do not add space above the
+answers. On classroom screens, the teacher's responses/standings sidebar keeps
+the same column width before and after reveal.
 
 `tests/live-responsive.browser.cjs` checks normal English/Hebrew questions and
 long passages at ten viewport sizes, including small phones, both iPad
 orientations, laptops, and landscape phones. It verifies visible normal choices,
 readable text, tap sizes, scrolling, rotation, keyboard activation, enlarged
-content, and the teacher's iPad layout with its join QR. These are local Chromium
-viewport checks, not physical-device or production verification.
+content, and the teacher's iPad layout with its join QR. It also compares exact
+question/answer positions across mixed rounds, saves, reveals, bonuses, and
+connection errors, and checks that scrolling long answer text does not select
+it. These are local Chromium viewport checks, not physical-device or production
+verification.
+
+Gamify reserves reading areas within each of its seven games, with consistent
+question fonts and scrollable long content. Matching tiles keep their row sizes;
+Connect the Words retains dot dragging while allowing the text to scroll. The
+game dialog and progress area keep their heights, and Quick Quiz no longer
+scrolls back to its title when advancing. Existing flight, falling targets, and
+other gameplay motion remain. `tests/gamify-layout.browser.cjs` compares
+vocabulary, Knowledge, and long
+question/answer layouts for all seven games at phone, tablet, and laptop widths,
+checks longer progress counts and internal touch scrolling, and advances an
+actual mixed Quick Quiz while scrolled.
+
+Gamify input/grading audit: both matching games compare canonical Unicode and
+the whitespace actually displayed, while preserving case, punctuation and
+Hebrew vowel marks. Equivalent questions are kept out of the same matching
+batch. Connect the Words ties each drag to its initiating pointer, cancels on
+lost capture, and suppresses its trailing click without disabling keyboard
+selection. Flappy and Snowblaster use completed clicks/taps for their play-area
+actions so reading a long answer does not flap or spend a blast. Snowblaster
+labels have a bounded, scrollable height; Flappy's overflowing labels keep their
+beginning accessible. Arcade flight, aiming, collision and scoring rules remain.
+
+`tests/gamify-input.browser.cjs` reproduced incorrect grading for canonically
+identical answers, an unrelated pointer ending a drag, scrolling triggering a
+flap, and a 1,220px Snowblaster answer inside a 510px play area before the fixes.
+It checks all seven games at phone, tablet and laptop sizes, native answer taps,
+scroll/cancel gestures, keyboard selection, matching drags, mixed-card retries,
+and stale feedback after reopening. It uses local generated HTML and blocks
+external requests. Animations are stepped deterministically; test-only hooks
+reach Flappy collision and Snowblaster recharge/hit states without playing full
+rounds. These checks verify the reproduced code paths, not physical iOS/Android
+devices, live production behavior, or the correctness of teacher-authored answers.
 
 Class Teacher tools includes both vocabulary and knowledge lists in the Live selector and Student Exercises inclusion/emphasis controls. Normal, 2× and 3× weights apply to either type. Gamify combines eligible cards in the chosen answer language. Live validates every selected list and names any list without valid saved choices instead of silently omitting it. Replay settings can switch between or mix list types.
 
-All seven Gamify games and both Live screens retain knowledge pictures and their image-relative target. Questions use the original question and correct answer, with only the teacher's saved distractors. The source publication stays unchanged. A knowledge list needs four valid saved distractors in the chosen language to participate in games.
+All seven Gamify games and both Live screens retain knowledge pictures and their image-relative target. Questions use the original question and correct answer, with only the teacher's saved distractors. The source publication stays unchanged. Knowledge cards need one to five valid saved distractors in the chosen language; vocabulary cards need four.
 
 Quiz Builder's saved-list chooser includes both types. Select the knowledge distractor language before import; both saved language banks remain in the draft, and the review table can switch between them per question. Editing a knowledge question or answer clears its previously reviewed distractors. Source pictures, targets and original wording survive question generation, draft save/load, duplication and student preview. Import does not call AI.
 

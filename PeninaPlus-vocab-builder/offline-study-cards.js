@@ -559,7 +559,8 @@ async function submitScore(){
  finally{submitting=false;}
 }
 
-el('start').onclick=start;el('flap').onclick=flap;el('world').addEventListener('pointerdown',e=>{if(!e.target.closest('.overlay')){el('flap').focus({preventScroll:true});flap();}});// Capture Space throughout this preview, including when another game button has focus.
+// Native clicks distinguish a deliberate flap from scrolling a long answer.
+el('start').onclick=start;el('flap').onclick=flap;el('world').addEventListener('click',e=>{if(!e.target.closest('.overlay')){el('flap').focus({preventScroll:true});flap();}});// Capture Space throughout this preview, including when another game button has focus.
 let flightSpace=false;
 function isTyping(target){return target?.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(target?.tagName);}
 function onFlightKeyDown(e){if((e.code!=='Space'&&e.key!==' ')||isTyping(e.target)||state!=='flight')return;e.preventDefault();e.stopPropagation();flightSpace=true;if(!e.repeat)flap();}
@@ -686,7 +687,8 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         function localBoard(save){let entries=[];try{const stored=JSON.parse(localStorage.getItem('penina-snowblaster-local-v2')||'[]');if(Array.isArray(stored))entries=stored.filter(x=>/^[A-Z]{1,3}$/.test(x.initials)&&Number.isInteger(x.score)&&x.score>=0&&x.score<=7400);}catch(_){}if(save&&!submitted){entries.push({initials:board.dataset.initials,score});submitted=true;}entries.sort((a,b)=>b.score-a.score);entries=entries.slice(0,3);let persisted=true;try{if(save)localStorage.setItem('penina-snowblaster-local-v2',JSON.stringify(entries));}catch(_){persisted=false;}q('save').textContent='Local leaderboard · This browser only'+(persisted?'':' · Storage unavailable; scores last for this session');const list=document.createElement('ol');entries.forEach(entry=>{const li=document.createElement('li');li.textContent=entry.initials+' — '+entry.score+' points';list.append(li);});q('save').append(list);if(!entries.length){const p=document.createElement('p');p.textContent='No scores yet. Enter your initials and play!';q('save').append(p);}}
         for(let n=1;n<=3;n++)q('speed'+n).onclick=()=>setSpeed(n);
         for(const direction of ['left','right']){const button=q(direction);button.onpointerdown=e=>{if(state!=='falling')return;e.preventDefault();button.setPointerCapture(e.pointerId);held.add(direction);};button.onpointerup=button.onpointercancel=button.onlostpointercapture=()=>held.delete(direction);button.onclick=e=>{if(e.detail===0&&state==='falling')turn(direction==='left'?-1:1,.012);};}
-        q('world').onpointermove=e=>{if(state==='falling'&&e.pointerType==='mouse'&&!held.has('left')&&!held.has('right'))aimAt(e);};q('world').onpointerdown=e=>{if(state!=='falling'||e.target.closest('.sb-panel'))return;e.preventDefault();aimAt(e);fire();};q('fire').onclick=fire;q('pause').onclick=pause;document.addEventListener('keydown',key);document.addEventListener('keyup',keyup);window.addEventListener('blur',blur);hud();speedUI();q('pause').disabled=true;
+        // A label can scroll without spending a blast; a completed tap still aims and fires.
+        q('world').onpointermove=e=>{if(state==='falling'&&e.pointerType==='mouse'&&!held.has('left')&&!held.has('right'))aimAt(e);};q('world').onclick=e=>{if(state!=='falling'||e.target.closest('.sb-panel'))return;aimAt(e);fire();};q('fire').onclick=fire;q('pause').onclick=pause;document.addEventListener('keydown',key);document.addEventListener('keyup',keyup);window.addEventListener('blur',blur);hud();speedUI();q('pause').disabled=true;
         panel('Snowblaster!','Start with 2 blasts and 200 points. Each correct hit earns 1 blast. When you run out, answer the recharge card correctly to earn 1 blast and continue. Zero points means game over! Aim with ← / → or your mouse; hold Shift for fine aim. Fire with Space, click, or tap. Three rounds of eight words. Speed 1 / 2 / 3 earns 100 / 200 / 300 points per correct hit. Wrong hit −50; missed answer −25.','Start blasting',()=>{if(!/^[A-Z]{1,3}$/.test(board.dataset.initials||'')){if(!initials.reportValidity())return;board.dataset.initials=initials.value.trim().toUpperCase();}question();});
         let initials;if(!/^[A-Z]{1,3}$/.test(board.dataset.initials||'')){const label=document.createElement('label');label.textContent='Your initials (1–3 letters)';initials=document.createElement('input');initials.maxLength=3;initials.pattern='[A-Za-z]{1,3}';initials.required=true;initials.autocomplete='off';initials.setAttribute('aria-label','Your initials (1–3 letters)');label.append(initials);q('panel').append(label);initials.focus();}if(!scoreUrl)localBoard(false);
         return ()=>{dead=true;cancelAnimationFrame(raf);clearTimeout(timer);clearTimeout(shotTimer);clearProjectiles();held.clear();abort.abort();document.removeEventListener('keydown',key);document.removeEventListener('keyup',keyup);window.removeEventListener('blur',blur);};
@@ -793,8 +795,10 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         function match(first, second) {
             if (locked || (mode === 'cards' && !matchingActive) || first.node.disabled || second.node.disabled || first.side === second.side) return;
             attempts++;
-            // Identical definitions are interchangeable, including repeated vocabulary terms.
-            if (first.row.definition === second.row.definition) {
+            // Match what is displayed: canonical Unicode and collapsed whitespace
+            // are equivalent. Preserve case, punctuation, and Hebrew vowel marks.
+            const definitions = [first.row.definition, second.row.definition].map(text => text.normalize('NFC').replace(/\s+/gu, ' ').trim());
+            if (definitions[0] === definitions[1]) {
                 const term = first.side === 'term' ? first : second;
                 matched.add(term.row.id);
                 [first.node, second.node].forEach(node => { node.disabled = true; node.classList.add('matched'); node.setAttribute('aria-pressed', 'false'); });
@@ -844,7 +848,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         function matching() {
             let group = rows.slice(offset, offset + 6);
             const seenTerms = new Set();
-            const duplicate = group.findIndex(row => { if (seenTerms.has(row.term)) return true; seenTerms.add(row.term); return false; });
+            const duplicate = group.findIndex(row => { const text=row.term.normalize('NFC').replace(/\s+/gu, ' ').trim(); if (seenTerms.has(text)) return true; seenTerms.add(text); return false; });
             if (duplicate > 0) group = group.slice(0, duplicate);
             const items = [];
             const key = text => text.normalize('NFKC').toLowerCase().replace(/[\u0591-\u05c7]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
@@ -865,7 +869,9 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
                 item.node = button(side === 'term' ? row.term : row.definition, () => choose(item), `game-tile game-${side}`);
                 item.node.setAttribute('aria-label', `${side === 'term' ? 'Term' : 'Definition'}: ${item.node.textContent}`);
                 item.node.setAttribute('aria-pressed', 'false');
-                if(side==='term')renderStudyQuestion(item.node,row);
+                const copy=element('span',side==='term'?row.term:row.definition,'game-tile-copy');
+                if(side==='term')renderStudyQuestion(copy,row);
+                item.node.replaceChildren(copy);
                 if (mode === 'lines') {
                     const dot = element('span', undefined, 'game-dot');
                     dot.setAttribute('aria-hidden', 'true'); item.node.append(dot);
@@ -886,20 +892,29 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
                 });
                 board.append(element('div', undefined, 'game-lines'), columns);
                 items.forEach(item => {
+                    let suppressPointerClick = false, secondaryPointerId = null;
+                    item.node.onclick = (event = { detail: 0 }) => {
+                        if (secondaryPointerId !== null && event.pointerId === secondaryPointerId) return;
+                        if (event.detail !== 0 && suppressPointerClick) { suppressPointerClick = false; return; }
+                        choose(item);
+                    };
                     item.node.onpointerdown = event => {
-                        if (locked || item.node.disabled || event.button !== 0 || !event.target.closest('.game-dot')) return;
-                        drag = { item, start: { x: event.clientX, y: event.clientY }, moved: false, line: element('div', undefined, 'game-link dragging') };
+                        if (event.isPrimary === false) { secondaryPointerId = event.pointerId; return; }
+                        secondaryPointerId = null;
+                        suppressPointerClick = false;
+                        if (locked || drag || item.node.disabled || event.button !== 0 || !event.target.closest('.game-dot')) return;
+                        drag = { item, pointerId: event.pointerId, start: { x: event.clientX, y: event.clientY }, moved: false, line: element('div', undefined, 'game-link dragging') };
                         board.querySelector('.game-lines').append(drag.line);
                         item.node.setPointerCapture(event.pointerId);
                     };
                     item.node.onpointermove = event => {
-                        if (!drag || drag.item !== item) return;
+                        if (!drag || drag.item !== item || drag.pointerId !== event.pointerId) return;
                         const end = { x: event.clientX, y: event.clientY };
                         if (Math.hypot(end.x - drag.start.x, end.y - drag.start.y) > 6) { drag.moved = true; clearSelection(); }
                         drawLine(drag.line, center(item.node), end);
                     };
                     item.node.onpointerup = event => {
-                        if (!drag) return;
+                        if (!drag || drag.item !== item || drag.pointerId !== event.pointerId) return;
                         const moved = drag.moved;
                         drag.line.remove(); drag = null;
                         if (!moved) return;
@@ -907,11 +922,15 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
                         const other = items.find(candidate => candidate.node === target?.closest('.game-tile'));
                         if (other && !other.node.disabled && other.side !== item.side) match(item, other);
                         else message('Drag from the dot on a term to the dot on its definition in the other column.');
-                        // Suppress the click synthesized after a drag, but keep keyboard clicks.
-                        item.node.onclick = () => {};
-                        setTimeout(() => { item.node.onclick = () => choose(item); }, 0);
+                        // Keep suppression through a delayed synthesized click. The
+                        // next pointerdown resets it; keyboard activation stays native.
+                        suppressPointerClick = true;
                     };
-                    item.node.onpointercancel = () => { drag?.line.remove(); drag = null; };
+                    item.node.onpointercancel = item.node.onlostpointercapture = event => {
+                        if (!drag || drag.item !== item || drag.pointerId !== event.pointerId) return;
+                        suppressPointerClick = drag.moved;
+                        drag.line.remove(); drag = null;
+                    };
                 });
             }
             next.textContent = offset + group.length === rows.length ? 'See results' : 'Next round';
@@ -922,7 +941,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             board.replaceChildren(); message(''); next.hidden = true;
             if (offset >= rows.length) { summary(); return; }
             updateProgress(); mode === 'quiz' ? quiz() : matching();
-            title.focus();
+            title.focus({preventScroll:true});
         }
         async function prepare(value) {
             if (matchingActive) return;
@@ -1017,6 +1036,45 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
 .asteroids-question{max-height:100%;overflow:auto}.game-tile .study-picture{pointer-events:none}.study-picture img{border-radius:6px}.sb-prompt{max-height:250px;overflow:auto}
 .gamify-button{display:block;width:100%;margin-top:14px;padding:14px;border:0;border-radius:16px;background:#7024b5;color:#ffec55;font-size:25px;font-weight:950;letter-spacing:1px;text-shadow:1px 2px #421570;cursor:pointer}.gamify-button:hover{background:#591a93}.games-dialog{width:min(960px,95vw);max-height:92vh;overflow:auto;border:0;border-radius:24px;padding:24px;background:#faf7ff;color:#241632}.games-dialog::backdrop{background:#201030b8}.games-dialog button{min-height:44px;cursor:pointer}.games-dialog button:focus-visible,.games-dialog select:focus-visible{outline:3px solid #7024b5;outline-offset:3px}.games-dialog [hidden]{display:none!important}.games-heading,.game-footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.games-heading{align-items:flex-start}.games-brand{display:grid;justify-items:start;gap:10px}.games-heading h2{margin:0;color:#7024b5}.game-menu-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:24px}.game-menu-options button{padding:22px;font-size:20px;border-color:#cab5e0}.games-dialog select{padding:10px;max-width:100%;font:inherit}.game-board{position:relative;margin:20px 0}.game-term{text-align:center;font-size:32px}.game-options{display:grid;gap:12px}.game-tile{overflow-wrap:anywhere;white-space:normal;font-size:19px;padding:16px;border:2px solid #c9b6dd;background:white;color:#241632}.game-tile.selected{border-color:#7024b5;box-shadow:0 0 0 3px #dfc5f8}.game-tile.matched{background:#dcf6e3;border-color:#21823b;color:#164f26;opacity:1}.game-tile.incorrect{background:#ffe1dc;border-color:#b43d2b;opacity:1}.game-card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.game-card-grid .game-tile{min-height:115px}.game-term.game-tile{font-size:23px}.game-columns{display:grid;grid-template-columns:1fr 1fr;gap:60px;position:relative}.game-column{display:grid;gap:12px;align-content:start;min-width:0}.game-column h3{text-align:center}.game-column .game-tile{position:relative;touch-action:none;user-select:none;min-height:70px;border-radius:999px;padding:16px 38px}.game-dot{position:absolute;top:50%;transform:translateY(-50%);width:18px;height:18px;border-radius:50%;background:#7024b5;box-shadow:0 0 0 5px #7024b51a;cursor:crosshair}.game-term .game-dot{right:10px}.game-definition .game-dot{left:10px}.game-lines{position:absolute;inset:0;pointer-events:none}.game-link{z-index:1;position:absolute;height:4px;background:#21823b;transform-origin:0 50%;border-radius:4px}.game-link.dragging{background:#7024b5;z-index:2}.game-feedback{min-height:28px;font-weight:800}.game-footer{margin-top:20px}@media(max-width:540px){.games-dialog{padding:16px}.game-card-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.game-columns{gap:24px}.game-tile{padding:10px;font-size:16px}}@media print{.games-dialog,.gamify-button{display:none!important}}
 .game-lobby{max-width:480px;margin:24px auto;text-align:center}.game-lobby ol{padding:0;list-style-position:inside}.game-lobby li{padding:12px;border-bottom:1px solid #e2d7ed;font-size:20px;font-weight:750}.game-lobby p{color:#675772;line-height:1.5}.game-launch{display:block;width:100%;margin-top:22px;background:#7024b5;color:#fff;font-size:22px;font-weight:850}.game-mistake{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff3f0e8;color:#c52638;pointer-events:auto;text-align:center}.game-mistake span{font-size:min(55vh,300px);line-height:.9;font-weight:900}.game-mistake strong{font-size:clamp(24px,5vw,44px)}@keyframes card-pop{35%{transform:scale(1.12);background:#b0f2c9}100%{transform:scale(.1);opacity:0}}.game-tile.popping{animation:card-pop .32s ease-out forwards;pointer-events:none}.game-tile.popped{visibility:hidden;pointer-events:none}@media(prefers-reduced-motion:reduce){.game-tile.popping{animation:none;opacity:0}}.game-menu-intro{font-size:20px;color:#514169}.game-menu-options button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:10px;min-height:170px;padding:24px!important;background:linear-gradient(135deg,#f2e7ff,#e5f5ff);border:2px solid #cbb4ef;box-shadow:0 8px 20px #39225714}.game-menu-options button:nth-child(2){background:linear-gradient(135deg,#dcfaf1,#e5f5ff)}.game-menu-options button:nth-child(3){background:linear-gradient(135deg,#fff0d7,#ffe6ed)}.game-menu-options button:nth-child(4){background:linear-gradient(135deg,#291447,#243d79);color:white}.game-menu-options strong{font-size:22px}.game-menu-options small{font-size:14px;line-height:1.5}.game-icon{font-size:34px}.asteroids-hud{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;background:#26163e;color:#fff;border-radius:16px 16px 0 0}.asteroids-hud b{font-size:23px;color:#ffec55;margin-left:5px}.asteroids-hud button{background:#fff;color:#26163e}.asteroids-arena{position:relative;background:#0c1026;border-radius:0 0 16px 16px;overflow:hidden}.asteroids-arena canvas{display:block;width:100%;height:auto;min-height:250px;object-fit:contain;outline-offset:-4px}.asteroids-arena canvas:focus-visible{outline:3px solid #ffec55}.asteroids-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:#0c1026d9;overflow:auto}.asteroids-question{width:min(100%,600px);max-height:100%;overflow:auto;padding:20px;border:1px solid #a089d0;border-radius:18px;background:#faf7ff;color:#241632}.asteroids-question h3{margin:0;font-size:22px}.asteroids-question p{margin:12px 0}.asteroids-question .asteroids-term{font-size:30px;font-weight:850;text-align:center}.asteroids-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}.asteroids-options button{white-space:normal;overflow-wrap:anywhere;padding:10px;font-size:16px;min-height:44px}.asteroids-options button.correct{background:#dcf6e3;border-color:#21823b;color:#164f26;opacity:1}.asteroids-options button.wrong{background:#ffe1dc;border-color:#b43d2b;color:#792519;opacity:1}.asteroids-result{font-weight:800;overflow-wrap:anywhere}.asteroids-continue{background:#7024b5;color:#ffec55;width:100%;font-weight:850}.asteroids-controls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.asteroids-controls button{touch-action:none;user-select:none;background:#eee4fc;color:#351454;font-size:16px;padding:12px 4px}.asteroids-controls button[data-flight=fire]{background:#7024b5;color:#ffec55}.asteroids-rules{font-size:13px;line-height:1.7;color:#5e526f}@media(max-width:540px){.game-menu-options{grid-template-columns:1fr}.asteroids-arena canvas{min-height:240px}.asteroids-overlay{position:relative;padding:10px}.asteroids-overlay[hidden]{display:none!important}.asteroids-arena:has(.asteroids-overlay:not([hidden])) canvas{display:none}.asteroids-question{padding:16px}.asteroids-options{grid-template-columns:1fr}.asteroids-controls button{font-size:13px}.asteroids-hud{padding:10px;font-size:13px}.asteroids-hud b{font-size:20px}}
+
+/* Keep each game's reading panels and playing field anchored as content changes.
+   Long questions/answers scroll; their font does not shrink to fit a word box. */
+#gamesDialog{height:92svh;scrollbar-gutter:stable}
+#gamesDialog .game-board{min-width:0}
+#gamesDialog #gameProgress:not(:empty){height:3.9em;line-height:1.3;overflow:auto;overscroll-behavior:contain}
+#gamesDialog .game-feedback{height:54px;overflow:auto;overscroll-behavior:contain}
+#gamesDialog .game-board>h3.game-term{height:144px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;margin:8px 0 12px;font-size:24px;line-height:1.35}
+#gamesDialog .game-options{grid-template-rows:repeat(6,64px);align-content:start}
+#gamesDialog .game-options .game-tile{height:64px;min-height:64px;overflow:auto;overscroll-behavior:contain;padding:8px 12px;font-size:18px;line-height:1.3}
+#gamesDialog .game-card-grid{grid-auto-rows:160px}
+#gamesDialog .game-card-grid .game-tile{height:160px;min-height:0}
+#gamesDialog .game-column{grid-template-rows:32px;grid-auto-rows:128px}
+#gamesDialog .game-column h3{margin:0}
+#gamesDialog .game-column .game-tile{height:128px;min-height:0;padding:10px 28px;touch-action:pan-y}
+#gamesDialog .game-tile-copy{display:block;max-height:100%;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;font-size:18px;line-height:1.3;touch-action:pan-y}
+#gamesDialog .game-dot{touch-action:none}
+#gamesDialog .asteroids-question{box-sizing:border-box;height:680px;max-height:100%}
+#gamesDialog .asteroids-term{height:128px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;font-size:24px;line-height:1.35}
+#gamesDialog .asteroids-options{grid-template-rows:repeat(3,64px)}
+#gamesDialog .asteroids-options button{height:64px;overflow:auto;font-size:18px;line-height:1.3}
+#gamesDialog .asteroids-result{height:64px;overflow:auto}
+#gamesDialog #chomp-game .arena{height:520px;min-height:520px}
+#gamesDialog #chomp-game canvas{max-height:100%;object-fit:contain}
+#gamesDialog #chomp-game .shade{height:100%;overflow:auto;align-items:start}
+#gamesDialog #chomp-game .dialog{height:480px;overflow:auto}
+#gamesDialog #chomp-game .word{height:128px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;font-size:24px;line-height:1.35}
+#gamesDialog #chomp-game .choices{grid-template-rows:repeat(2,88px)}
+#gamesDialog #chomp-game .choices button{height:88px;overflow:auto;font-size:18px;line-height:1.3;padding:8px}
+#gamesDialog #chomp-game .feedback{height:64px;overflow:auto}
+#gamesDialog #fv-demo .clue{height:180px;min-height:180px}
+#gamesDialog #fv-clue{height:128px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;font-size:24px;line-height:1.35}
+#gamesDialog #fv-demo .answer{align-items:safe center;overscroll-behavior:contain;touch-action:pan-y}
+#gamesDialog .sb .sb-prompt{height:144px;max-height:144px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;font-size:24px;line-height:1.35;touch-action:pan-y}
+#gamesDialog .sb .sb-target span{max-height:120px;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;pointer-events:auto}
+#gamesDialog .sb .sb-status{height:54px;overflow:auto}
+@media(max-width:540px){
+ #gamesDialog .asteroids-options{grid-template-rows:repeat(6,64px)}
+}
 </style>
 <dialog id="gamesDialog" class="games-dialog" aria-labelledby="gamesTitle"><div class="games-heading"><div class="games-brand"><h2 id="gamesTitle">Gamify!</h2><button id="gameBack" type="button" hidden>Choose another game</button></div><button id="gameClose" type="button">Close</button></div><section id="gameMenu"><p class="game-menu-intro">Choose your challenge. Build your skills. Beat your best.</p><label>Answer language <select id="gameLanguage"></select></label><div class="game-menu-options"><button type="button" data-game="quiz"><span class="game-icon">⚡</span><strong>Quick Quiz</strong><small>Trust your knowledge. Find the right definition.</small></button><button type="button" data-game="lines"><span class="game-icon">🔗</span><strong>Connect the Words</strong><small>Draw the connections. Outsmart the distractors.</small></button><button type="button" data-game="cards"><span class="game-icon">🧩</span><strong>Match the Cards</strong><small>Find every pair. Leave the decoys behind.</small></button><button type="button" data-game="asteroids"><span class="game-icon">🚀</span><strong>Vocabulary Asteroids</strong><small>Fuel up. Survive three rounds. Become captain.</small></button><button type="button" data-game="flappy"><span class="game-icon">🐦</span><strong>Flappy Vocab</strong><small>Choose your bird. Fly through the answers. Beat your best.</small></button><button type="button" data-game="snowblaster"><span class="game-icon">❄️</span><strong>Snowblaster!</strong><small>Melt the right answers. Brave the blizzard. Survive three rounds.</small></button><button type="button" data-game="chomp"><span class="game-icon">👻</span><strong>Chomp &amp; Charge</strong><small>Chomp the dots. Chase the ghosts. Power up with words.</small></button></div></section><section id="gameLobby" class="game-lobby" hidden><h2 id="lobbyTitle" tabindex="-1"></h2><p id="lobbyHelp"></p><h3 id="lobbyRankingTitle">Top 3</h3><ol id="lobbyScores"></ol><p id="lobbyNote" role="status"></p><button id="gameLaunch" class="game-launch" type="button">Launch</button></section><section id="gamePlay" hidden><h2 id="gameTitle" tabindex="-1"></h2><p id="gameHelp"></p><p id="gameProgress" role="status"></p><div id="gameBoard" class="game-board"></div><p id="gameFeedback" class="game-feedback" role="status" aria-live="polite"></p><button id="gameNext" type="button" hidden>Next</button><div class="game-footer"><button id="gameAgain" type="button">Play again</button></div></section></dialog>
 <script>${arrowMarkup.toString()}
@@ -1082,7 +1140,16 @@ button{border:1px solid var(--line);background:#fff;color:var(--ink);border-radi
 .topbar{display:flex;align-items:center;gap:14px;margin-bottom:18px;color:var(--muted);font-weight:700}.progress{height:10px;background:#edf0f5;border-radius:999px;overflow:hidden;flex:1}.bar{height:100%;background:var(--accent);transition:width .2s}.card-area{display:grid;place-items:center;min-height:335px}.card{width:min(100%,570px);height:323px;min-height:323px;overflow:hidden;position:relative;border:1px solid var(--line);border-radius:24px;background:#fff;box-shadow:0 18px 52px rgba(21,28,43,.12);padding:32px;display:flex;flex-direction:column;justify-content:center;cursor:pointer;transition:transform .18s}.card.flipping{transform:rotateY(90deg)}.corner{position:absolute;top:18px;left:20px;color:var(--muted);font-weight:850;font-size:13px}.side{position:absolute;top:18px;right:20px;color:var(--accent);background:var(--accent2);border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900}.label{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.11em;font-weight:850;text-align:center;margin-bottom:12px}.main{font-size:clamp(28px,5vw,52px);line-height:1.15;text-align:center;font-weight:850}${classHomeButtonStyles()}.main>div+div{margin-top:calc(18px * var(--text-scale,1))}.card-content{display:flex;align-items:center;justify-content:center;flex:0 1 auto;max-height:185px;min-height:0;min-width:0;overflow:hidden}.card-content>.main{width:100%;min-width:0;overflow-wrap:anywhere}.card>.label{flex:none}#cardContext[hidden]{display:flex;visibility:hidden}.main.hebrew{font-size:clamp(34px,6vw,58px)}
 .context-slot{min-width:0;height:180px;padding-top:20px}.context{height:160px;min-width:0;overflow:hidden;display:flex;flex-direction:column;overflow-wrap:anywhere;border:1px solid var(--line);background:#fff;border-radius:18px;padding:18px 20px;text-align:center}.context .label{text-align:left;margin-bottom:12px;font-size:11px;flex:none}.context-body{flex:1;min-height:0;overflow:hidden}.context-text{font-size:19px}.context p{margin:0;line-height:1.5}.context p+p{margin-top:calc(16px * var(--text-scale,1))}.context p:empty{display:none}.context-he{font-size:1em}.context-he-translation{font-size:calc(15px * var(--text-scale,1));color:#384152}.context-en{font-size:calc(14px * var(--text-scale,1));color:#384152}.citation{display:flex;align-items:baseline;justify-content:space-between;gap:calc(14px * var(--text-scale,1));direction:ltr;color:var(--muted);font-size:calc(12px * var(--text-scale,1));margin-top:calc(16px * var(--text-scale,1))}.citation>span{min-width:0;overflow-wrap:anywhere}.citation .hebrew{text-align:right}.controls{margin-top:18px}.ratings{margin-top:10px}.know{background:#16824f;color:#fff}.almost{background:#c6a300;color:#fff}.learning{background:#c93737;color:#fff}.stats{margin-top:14px}.stat{border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center}.stat b{display:block;font-size:20px}.stat span,.note{color:var(--muted);font-size:12px}.note{line-height:1.45;font-size:13px}
 .print-options-dialog{width:min(92vw,560px);padding:0;border:1px solid var(--line);border-radius:22px;background:#fff;color:var(--ink);box-shadow:0 24px 80px rgba(21,28,43,.28)}.print-options-dialog::backdrop{background:rgba(21,28,43,.52);backdrop-filter:blur(3px)}.print-options-form{padding:24px}.print-options-form h2{margin:0 0 6px;font-size:26px}.print-options-intro{margin:0 0 20px;color:var(--muted);line-height:1.45}.print-option-group{display:grid;gap:10px;margin:0;padding:16px 0;border:0;border-top:1px solid var(--line)}.print-option-group legend{padding:16px 0 0;font-weight:850}.print-option-choice{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;cursor:pointer}.print-option-choice input{width:18px;height:18px;margin:0;accent-color:var(--accent);cursor:pointer}.print-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.print-dialog-actions .primary{background:var(--accent);border-color:var(--accent);color:#fff}.print-preview{display:none;min-height:100vh;padding:24px;background:#eceae5}.print-toolbar{position:sticky;z-index:5;top:0;display:flex;max-width:8.5in;align-items:center;gap:12px;margin:0 auto 22px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:var(--shadow)}.print-toolbar-copy{flex:1}.print-toolbar strong{display:block;margin-bottom:3px}.print-toolbar small{display:block;color:var(--muted);line-height:1.4}.print-toolbar button{white-space:nowrap}.print-toolbar .print-now{background:var(--accent);border-color:var(--accent);color:#fff}.sheet-caption{width:8.5in;margin:18px auto 7px;color:#555d69;font-size:13px;font-weight:850}.paper-sheet{display:grid;width:8.5in;height:11in;grid-template-columns:repeat(2,1fr);margin:0 auto 24px;padding:.25in;background:#fff;box-shadow:0 12px 38px rgba(21,28,43,.18)}.paper-sheet.four-up{grid-template-rows:repeat(2,1fr)}.paper-sheet.six-up{grid-template-rows:repeat(3,1fr)}.paper-sheet.eight-up{grid-template-rows:repeat(4,1fr)}.paper-card{position:relative;display:flex;min-width:0;min-height:0;align-items:flex-start;justify-content:center;overflow:hidden;border:.75pt dashed #7a7a7a;padding:.16in;text-align:center}.paper-card-content{display:flex;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:safe center;overflow:hidden}.paper-card-front{flex-direction:column;padding:.08in .1in .16in}.paper-card-header{display:flex;flex:none;width:100%;align-items:flex-start;justify-content:space-between;gap:.1in;direction:ltr;color:#858585;font-size:7pt;font-weight:800;line-height:1.2}.paper-card-title{min-width:0;text-align:left;overflow-wrap:anywhere}.paper-card-number{flex:none;direction:ltr;text-align:right;white-space:nowrap}.paper-card-front .paper-card-content{flex:1;min-height:0;height:auto}.paper-term{font-size:25pt;font-weight:850;line-height:1.15}.paper-translation{width:100%;font-size:17pt;font-weight:750;line-height:1.22}.paper-translation .hebrew{font-size:17pt}.paper-translation-block+.paper-translation-block{margin-top:10pt}.paper-context{width:100%;margin-top:10pt;padding-top:7pt;border-top:.5pt solid #bbb;font-size:8.5pt;font-weight:400;line-height:1.25}.paper-context p{margin:0}.paper-context p+p{margin-top:10pt}.paper-context .context-quote{font-size:10pt}.paper-context .context-citation{margin-top:4pt;color:#555;font-size:6.8pt}.paper-empty{background:#fff}
-.card.knowledge-card{height:auto;min-height:323px;overflow:visible;padding-top:64px}.knowledge-card .card-content{display:block;max-height:none;height:auto!important;overflow:visible}.knowledge-main{font-size:24px;white-space:pre-wrap;line-height:1.4}.knowledge-context-slot{height:auto;min-height:180px}.context.knowledge-context{height:auto;min-height:160px;overflow:visible}.knowledge-context .context-body{overflow:visible}.knowledge-context .context-text{font-size:17px;white-space:pre-wrap;text-align:start}.paper-card-knowledge .paper-term{font-size:16pt;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-translation{font-size:15pt;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-context{white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
+/* Combined decks keep the existing vocabulary card and context frame sizes. */
+.card.knowledge-card{padding-top:64px}
+.knowledge-card .card-content{flex:none;height:225px!important;max-height:225px;align-items:safe center;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;touch-action:pan-y}
+.knowledge-main{font-size:24px;white-space:pre-wrap;line-height:1.4}
+.knowledge-context .context-body{overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;touch-action:pan-y}
+.knowledge-context .context-text{font-size:17px;white-space:pre-wrap;text-align:start}
+.knowledge-context .context-en{font-size:inherit}
+.knowledge-context .citation{display:none}
+#cardContent:focus-visible,#contextBody:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.paper-card-knowledge .paper-term{font-size:16pt;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-translation{font-size:15pt;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-context{white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
 body.print-preview-open .app{display:none}body.print-preview-open .print-preview{display:block}
 @media(max-width:880px){header{grid-template-columns:1fr}.layout{grid-template-columns:1fr}.panel{position:static}.controls,.ratings{grid-template-columns:1fr}}
 @media(max-width:850px){.print-preview{overflow:auto}.print-toolbar{width:100%;flex-wrap:wrap}.print-toolbar-copy{flex-basis:100%}.paper-sheet,.sheet-caption{margin-left:0}}
@@ -1117,8 +1184,8 @@ ${studyStyles()}
 <p class="section-title" style="margin-top:16px">Paper Flashcards</p><button id="paperCards" style="width:100%">Print Paper Flashcards</button>
 ${Object.keys(groups).length ? '<button id="gamify" class="gamify-button" type="button">Gamify!</button>' : ''}
 </aside></div><section class="stage"><div class="topbar"><span id="position"></span><div class="progress"><div id="bar" class="bar"></div></div></div>
-<div class="card-area"><article id="card" class="card" tabindex="0"><div id="cardNumber" class="corner"></div><div id="sideNumber" class="side"></div><div id="sideLabel" class="label"></div><div class="card-content"><div id="mainText" class="main"></div></div></article></div>
-<div id="contextSlot" class="context-slot"><div id="cardContext" class="context" hidden><div id="contextLabel" class="label">Use in Context</div><div class="context-body"><div id="contextText" class="context-text"><p id="contextQuote" class="context-he hebrew"></p><p id="hebrewContext" class="context-he-translation hebrew"></p><p id="englishContext" class="context-en"></p><div class="citation"><span id="englishSource"></span><span id="hebrewSource" class="hebrew"></span></div></div></div></div></div>
+<div class="card-area"><article id="card" class="card" tabindex="0"><div id="cardNumber" class="corner"></div><div id="sideNumber" class="side"></div><div id="sideLabel" class="label"></div><div id="cardContent" class="card-content" aria-label="Flashcard content"><div id="mainText" class="main"></div></div></article></div>
+<div id="contextSlot" class="context-slot"><div id="cardContext" class="context" hidden><div id="contextLabel" class="label">Use in Context</div><div id="contextBody" class="context-body" aria-labelledby="contextLabel"><div id="contextText" class="context-text"><p id="contextQuote" class="context-he hebrew"></p><p id="hebrewContext" class="context-he-translation hebrew"></p><p id="englishContext" class="context-en"></p><div class="citation"><span id="englishSource"></span><span id="hebrewSource" class="hebrew"></span></div></div></div></div></div>
 <div class="controls"><button id="previous">← Previous</button><button id="flip" class="primary">Flip</button><button id="next">Next →</button></div><div class="ratings"><button class="know" data-rating="known">I know it</button><button class="almost" data-rating="almost">Almost</button><button class="learning" data-rating="learning">Still learning</button></div>
 </section></main></div>
 
@@ -1156,11 +1223,13 @@ function paperSheet(group,side,back,settings){const front=Array.from({length:set
 function buildPrintPreview(){if(!originalCards.length)return;const settings=getPrintSettings();let pages='';for(let start=0;start<originalCards.length;start+=settings.count){const group=originalCards.slice(start,start+settings.count);pages+=paperSheet(group,termFirst?'term':'translation',false,settings)+paperSheet(group,termFirst?'translation':'term',true,settings)}byId('printLayoutTitle').textContent=(settings.count===4?'Four':settings.count===6?'Six':'Eight')+' paper flashcards per sheet';byId('printPages').innerHTML=pages;document.body.classList.add('print-preview-open');window.scrollTo(0,0)}
 function render(){
     filterCards();renderStats();
+    byId('cardContent').scrollTop=0;byId('contextBody').scrollTop=0;
     if(!cards.length){setVisible('cardContext',false);byId('position').textContent='0 / 0';byId('bar').style.width='0%';byId('mainText').textContent='No cards remaining';byId('sideLabel').textContent='';byId('sideNumber').textContent='';fitStudyText();return;}
     const card=cards[index],sides=order(card),knowledge=card.kind==='knowledge';
     if(sideIndex>=sides.length)sideIndex=0;const side=sides[sideIndex];
     byId('position').textContent=(index+1)+' / '+cards.length;byId('bar').style.width=((index+1)/cards.length*100)+'%';byId('cardNumber').textContent='Card #'+card.n;byId('sideNumber').textContent=(sideIndex+1)+' / '+sides.length;
     byId('card').className='card'+(knowledge?' knowledge-card':'');
+    byId('cardContent').tabIndex=knowledge?0:-1;byId('contextBody').tabIndex=knowledge?0:-1;
     byId('mainText').className=knowledge?'main knowledge-main':'main';byId('mainText').dir='auto';
     byId('sideLabel').hidden=knowledge;
     byId('sideLabel').textContent=knowledge?'':(side==='term'?'Term':'Definition');

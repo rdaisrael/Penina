@@ -1,11 +1,11 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/flash-cards/live/live.js'),'utf8');
 function setup(respond,time){
- let renders=0,markup='';const count={textContent:''},clock={textContent:''},requests=[],listeners={},error={};
+ let renders=0,markup='';const count={textContent:''},clock={textContent:''},requests=[],listeners={},error={},scheduled=[];
  const stage={set innerHTML(value){markup=value;renders++;},get innerHTML(){return markup;},querySelector:selector=>selector==='[data-answered-count]'?count:selector==='[data-clock]'&&markup.includes('data-clock')?clock:null,querySelectorAll:()=>[],addEventListener:(event,handler)=>listeners[event]=handler};
- const ctx={Date:time?class extends Date{static now(){return time.now;}}:Date,URLSearchParams,location:{search:'?code=123456'},document:{createElement:()=>({}),head:{append(){}},getElementById:id=>id==='stage'?stage:id==='error'?error:{},addEventListener(){},hidden:true},window:{matchMedia:()=>({matches:true}),addEventListener(){}},setInterval(){},setTimeout(){},clearTimeout(){},AbortController,fetch:async(url,options)=>{const body=options.body?JSON.parse(options.body):{action:null};requests.push(body);return respond?respond(body):reply(body.action==='answer'?{saved:true,round:body.round,index:body.index,choice:body.choice}:question());}};
+ const ctx={Date:time?class extends Date{static now(){return time.now;}}:Date,URLSearchParams,location:{search:'?code=123456'},document:{createElement:()=>({}),head:{append(){}},getElementById:id=>id==='stage'?stage:id==='error'?error:{},querySelectorAll:()=>[],addEventListener(){},hidden:true},window:{matchMedia:()=>({matches:true}),addEventListener(){}},setInterval(){},setTimeout(fn,delay){const task={fn,delay,active:true};scheduled.push(task);return task;},clearTimeout(task){if(task)task.active=false;},AbortController,fetch:async(url,options)=>{const body=options.body?JSON.parse(options.body):{action:null};requests.push(body);return respond?respond(body):reply(body.action==='answer'?{saved:true,round:body.round,index:body.index,choice:body.choice}:question());}};
  vm.runInNewContext(source.slice(0,source.indexOf(" auth=stored(storageKey())"))+" globalThis.client={present,act,poll,syncClock,updateClock,connect:()=>{auth='test-student';document.hidden=false;},getSnapshot:()=>snapshot};})();",ctx);
- return {client:ctx.client,count,clock,requests,listeners,error,get renders(){return renders;},get markup(){return markup;}};
+ return {client:ctx.client,count,clock,requests,listeners,error,scheduled,get renders(){return renders;},get markup(){return markup;}};
 }
 const reply=(body,status=200)=>({ok:status<400,status,json:async()=>body});
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
@@ -162,4 +162,14 @@ test('a confirmed answer survives a lost submission response without an error',a
  const sending=deferred(),h=setup(()=>sending.promise),data=question();h.client.present(data);
  const pending=h.client.act('answer',{choice:0});h.client.present({...data,me:{...data.me,choice:0}});
  sending.reject(new Error('Response lost'));assert.equal(await pending,true);assertSelection(h,0);assert.equal(h.error.textContent,'');
+});
+
+test('ignoring an older snapshot still schedules the next refresh',async()=>{
+ let data={...question(),version:1};const h=setup(()=>reply(data));
+ h.client.present({...data,version:3});h.client.connect();await h.client.poll();
+ assert.equal(h.client.getSnapshot().version,3);
+ const retry=h.scheduled.find(task=>task.active&&task.fn===h.client.poll);
+ assert(retry,'a stale response must not stop polling');
+ data={...data,version:4,index:2};await retry.fn();
+ assert.equal(h.client.getSnapshot().index,2);
 });

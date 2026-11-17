@@ -68,11 +68,17 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  function clockText(data,remaining=Math.max(0,Math.ceil((data.deadline-Date.now()-clockOffset)/1000))){
   return (data.phase==='reveal'?'Next question in ':'Time left: ')+remaining+'s';
  }
+ function canAnswer(){
+  // A failed refresh need not mean the answer endpoint is unavailable. The
+  // server independently checks this question, its cutoff, and the first choice.
+  return !host&&!busy&&!stopped&&snapshot?.phase==='question'&&!snapshot.paused&&snapshot.me?.choice===null&&!answerSubmission&&(!snapshot.deadline||Date.now()+clockOffset<snapshot.deadline);
+ }
  function updateClock(){
-  const clock=stage.querySelector('[data-clock]');if(!clock||!snapshot)return;
-  const remaining=Math.max(0,Math.ceil((snapshot.deadline-Date.now()-clockOffset)/1000));
-  clock.textContent=clockText(snapshot,remaining);
-  if(!remaining&&snapshot.phase==='question')stage.querySelectorAll('[data-choice]').forEach(button=>button.disabled=true);
+  const clock=stage.querySelector('[data-clock]');
+  if(clock&&snapshot)clock.textContent=clockText(snapshot);
+  // Clock synchronization can restore time without changing the question data.
+  const disabled=!canAnswer();
+  stage.querySelectorAll('[data-choice]').forEach(button=>{if(button.disabled!==disabled)button.disabled=disabled;});
  }
  function startConfetti(data,finish=false){
   if(finish){
@@ -186,6 +192,8 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  }
  function draw(data){
   const newQuestion=data.phase==='question'&&(!snapshot||(snapshot.round||0)!==(data.round||0)||snapshot.index!==data.index||['lobby','ended'].includes(snapshot.phase));
+  if(newQuestion||['lobby','ended'].includes(data.phase))document.querySelectorAll('.wrong-answer-mark').forEach(node=>node.remove());
+  const scrollPositions=newQuestion?[]:['.question-content','.round-feedback',...letters.map((_,i)=>'[data-choice="'+i+'"] .text')].map(selector=>[selector,stage.querySelector(selector)?.scrollTop||0]);
   // Keep immediate tap feedback separate from the server's saved answer.
   // A confirmed answer must survive a refresh that started before the write.
   if(answerSubmission&&(!['question','reveal'].includes(data.phase)||answerSubmission.round!==(data.round||0)||answerSubmission.index!==data.index))answerSubmission=null;
@@ -196,15 +204,21 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   startConfetti(data);startConfetti(data,true);fireworks(data);wrongAnswer(data);
   // Poll timestamps (including lastReveal's) must not replace a button mid-tap.
   // Keep the latest version for submissions even when nothing visible changed.
-  snapshot=data;
-  const signature=JSON.stringify(data,(key,value)=>key==='serverNow'||key==='serverReceivedAt'||key==='lastReveal'||key==='version'||(!host&&key==='answeredCount')?undefined:value)+busy+online+JSON.stringify(answerSubmission);
+  const previous=snapshot;snapshot=data;
+  // Update the student HUD without replacing a button under a finger or keyboard
+  // focus when a classmate joins or a previous question's score arrives late.
+  const displayData=!host&&data.phase==='question'?{...data,playerCount:undefined,me:{...data.me,score:undefined,streak:undefined}}:data;
+  const signature=JSON.stringify(displayData,(key,value)=>key==='serverNow'||key==='serverReceivedAt'||key==='lastReveal'||key==='version'||(!host&&key==='answeredCount')?undefined:value)+busy+(host?online:stopped)+JSON.stringify(answerSubmission);
   if(signature===stamp){
    const count=stage.querySelector('[data-answered-count]');
    if(count)count.textContent=data.answeredCount;
+   stage.querySelectorAll('[data-player-count]').forEach(node=>node.textContent=data.playerCount);
+   const score=stage.querySelector('[data-player-score]');if(score)score.textContent=data.me.score;
+   const streak=stage.querySelector('.streak-meter');if(streak&&data.me?.streak!==previous?.me?.streak)streak.outerHTML=streakMeter(data);
    return;
   }
   stamp=signature;
-  const meta=`<div class="question-meta"><span>${esc(data.className)}</span>${host&&['question','reveal'].includes(data.phase)?activeJoinInfo(data):`<span>Game <b>${code}</b> · ${data.playerCount} joined</span>`}</div>`;
+  const meta=`<div class="question-meta"><span>${esc(data.className)}</span>${host&&['question','reveal'].includes(data.phase)?activeJoinInfo(data):`<span>Game <b>${code}</b> · <span data-player-count>${data.playerCount}</span> joined</span>`}</div>`;
   if(data.phase==='lobby'){
    if(host){const url=new URL('?code='+code,location.href);stage.innerHTML=meta+`<div class="lobby"><section class="panel"><p class="eyebrow">Project this screen</p><h1>Let’s play.</h1><div class="join-code">${code}</div><div class="qr-row"><div id="qr" aria-label="QR code to join this game"></div><div><p>Scan on your iPad or open:</p><a class="join-link" href="${esc(url.href)}" target="_blank" rel="noopener">Student join page ↗</a><p class="muted">${esc(url.host+url.pathname)}</p><button data-copy="${esc(url.href)}">Copy join link</button></div></div><div class="actions"><button class="primary" data-action="start" ${!data.playerCount||busy||!online?'disabled':''}>Start game →</button>${data.settings?`<button data-settings ${busy||!online?'disabled':''}>Game settings</button>`:''}<button class="danger" data-end>End game</button></div></section><section class="panel"><p class="eyebrow">The lobby</p><h2>${data.playerCount} student${data.playerCount===1?'':'s'} ready</h2><p class="muted">${data.total} questions · 100 points per correct answer.<br>+50 for every 5 correct in a row · +25 for the first correct answer.<br>${data.seconds?data.seconds+' seconds per question · '+(data.revealSeconds??2)+' seconds between questions.':'Manual pacing · you reveal answers and advance.'}</p><ul class="students">${data.players.map(p=>`<li>${avatarFigure(p.avatar)}<span>${esc(p.name)}</span></li>`).join('')}</ul>${!data.playerCount?'<p class="muted">Students appear here as they join.</p>':''}</section></div>`;
     if(window.qrcode){const qr=qrcode(0,'M');qr.addData(url.href);qr.make();document.getElementById('qr').innerHTML=qr.createSvgTag({cellSize:4,margin:4,scalable:true});}
@@ -217,13 +231,14 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   const knowledge=q.kind==='knowledge'||q.questionFormatting||q.picture||q.term.length>80;
   const answerMarkup=q.options.map((text,i)=>{
    const className='answer'+(revealed&&i===q.correct?' correct':'')+(!host&&choice===i?' selected':'')+(revealed&&!host&&choice===i&&i!==q.correct?' wrong':'');
-   const content=`<span class="letter">${letters[i]}</span><span class="text" dir="auto">${esc(text)}${revealed?`<span class="count">${i===q.correct?'✓ Correct · ':''}${data.distribution[i]} chose this</span>`:''}</span>`;
-   return host?`<div class="${className}">${content}</div>`:`<button class="${className}" data-choice="${i}" ${data.paused||revealed||choice!==null||busy||!online?'disabled':''} aria-pressed="${choice===i}">${content}</button>`;
+   const content=`<span class="letter"><span>${letters[i]}</span><span class="count" ${revealed?`aria-label="${i===q.correct?'Correct answer. ':''}${data.distribution[i]} chose this"`:'aria-hidden="true"'}>${revealed?(i===q.correct?'✓ ':'')+data.distribution[i]:'&nbsp;'}</span></span><span class="text" dir="auto">${esc(text)}</span>`;
+   return host?`<div class="${className}">${content}</div>`:`<button class="${className}" data-choice="${i}" ${canAnswer()?'':'disabled'} aria-pressed="${choice===i}">${content}</button>`;
   }).join('');
   // Keep the prompt's space after a choice and populate the clock before paint.
   // Collapsing either area can clamp scroll position while a student is tapping.
   const answerNotice=host||awaitingAnswer?'':revealed?`<p class="notice ${choice===q.correct?'success':''}" role="status">${choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'}</p>`:`<p class="notice answer-prompt" ${choice===null?'role="status"':'aria-hidden="true"'}>Choose the correct answer. Your first answer is final.</p>`;
-  stage.innerHTML=meta+`<div class="live-round${host?' teacher-round':' student-round'}${host&&revealed?' has-standings':''}"><section class="live-question${knowledge?' knowledge-question':''}"><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span${host?' class="host-answered-count" aria-hidden="true"':''}><span data-answered-count>${data.answeredCount}</span> / ${data.playerCount} answered${!host?' · '+data.me.score+' pts':''}</span></div><div class="round-status">${streakMeter(data)}${data.deadline?`<p class="countdown" data-clock role="timer">${clockText(data)}</p>`:''}</div>${data.paused?'<p class="notice">Paused by teacher</p>':''}${revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}<div class="question-body"><div class="question-content"><h1 class="question" dir="auto">${q.questionFormatting?window.PeninaKnowledgeCards.formattedTextHTML(q.term,q.questionFormatting):esc(q.term)}</h1>${pictureMarkup(q.picture)}</div><div class="answers">${answerMarkup}</div></div>${answerNotice}${bonusNotice(data)}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>${!revealed?`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${avatarFigure(p.avatar)}<span>${p.answered?'✓ ':''}${esc(p.name)}</span></li>`).join('')}</ul>`:''}`:''}</section>${host&&revealed?`<aside class="live-standings" aria-label="Class standings"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after '+(data.revealSeconds??2)+' seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></aside>`:''}</div>`;
+  stage.innerHTML=meta+`<div class="live-round${host?' teacher-round':' student-round'}${host&&revealed?' has-standings':''}"><section class="live-question${knowledge?' knowledge-question':''}"><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span${host?' class="host-answered-count" aria-hidden="true"':''}><span data-answered-count>${data.answeredCount}</span> / <span data-player-count>${data.playerCount}</span> answered${!host?' · <span data-player-score>'+data.me.score+'</span> pts':''}</span></div><div class="round-status">${streakMeter(data)}${data.deadline?`<p class="countdown" data-clock role="timer">${clockText(data)}</p>`:''}</div><div class="question-body"><div class="question-content" tabindex="0" aria-label="Question"><h1 class="question" dir="auto">${q.questionFormatting?window.PeninaKnowledgeCards.formattedTextHTML(q.term,q.questionFormatting):esc(q.term)}</h1>${pictureMarkup(q.picture)}</div><div class="answers">${answerMarkup}</div></div><div class="round-feedback">${data.paused?'<p class="notice">Paused by teacher</p>':''}${host&&revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}${answerNotice}${bonusNotice(data)}</div>${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>`:''}</section>${host?`<aside class="live-standings" aria-label="Class standings"><section class="panel"><h2>${revealed?'Class standings':'Student responses'}</h2>${revealed?leaderboard(data.scores):`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${avatarFigure(p.avatar)}<span>${p.answered?'✓ ':''}${esc(p.name)}</span></li>`).join('')}</ul>`}</section><section class="panel"><h2>${revealed?'Answer revealed':'Answering'}</h2><p>${!revealed?'Students can choose an answer on their screens.':data.seconds?'The next question starts automatically after '+(data.revealSeconds??2)+' seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></aside>`:''}</div>`;
+  for(const [selector,top] of scrollPositions){const node=stage.querySelector(selector);if(node)node.scrollTop=top;}
   // A new question starts at the top; polls, answer saves, and reveals keep the reading position.
   if(newQuestion&&!host)window.scrollTo?.(0,0);
  }
@@ -259,8 +274,8 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  }
  async function poll(){
   clearTimeout(timer);if(stopped||!auth||document.hidden)return;if(busy||inFlight){timer=setTimeout(poll,250);return;}inFlight=true;const currentPoll=++pollId;
-  try{const data=await request();if(currentPoll!==pollId||stopped)return;if(snapshot&&data.version<snapshot.version)return;failures=0;online=true;status.textContent=host?'Teacher screen · Connected':'Connected';showError('');connectRealtime(data);present(data);}
-  catch(e){if(currentPoll!==pollId||stopped)return;failures++;online=false;status.textContent='Reconnecting…';showError(e.message);if(snapshot)draw(snapshot);if([401,404,410].includes(e.status)){stopped=true;status.textContent='Game unavailable';return;}}
+  try{const data=await request();if(currentPoll!==pollId||stopped)return;failures=0;online=true;status.textContent=host?'Teacher screen · Connected':'Connected';showError('');connectRealtime(data);if(!snapshot||data.version>=snapshot.version)present(data);}
+  catch(e){if(currentPoll!==pollId||stopped)return;failures++;online=false;stopped=[401,404,410].includes(e.status);status.textContent=stopped?'Game unavailable':'Reconnecting…';showError(e.message);if(snapshot)draw(snapshot);if(stopped)return;}
   finally{inFlight=false;}
   if(!stopped&&!document.hidden){
    const delay=nextPollDelay();
@@ -268,8 +283,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   }
  }
  async function submitAnswer(choice){
-  if(host||busy||!snapshot||snapshot.phase!=='question'||snapshot.paused||snapshot.me?.choice!==null||answerSubmission||!Number.isInteger(choice)||choice<0||choice>3)return;
-  if(snapshot.deadline&&Date.now()+clockOffset>=snapshot.deadline)return;
+  if(!canAnswer()||!Number.isInteger(choice)||choice<0||choice>=snapshot.question.options.length)return;
   const data={version:snapshot.version,index:snapshot.index,round:snapshot.round||0,choice};
   const submission={round:data.round,index:data.index,choice,saved:false};
   answerSubmission=submission;draw(snapshot);showError('');

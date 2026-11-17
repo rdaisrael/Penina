@@ -1,10 +1,12 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/offline-study-cards.js'),'utf8');
+const {renderStudyQuestion}=require('../PeninaPlus-vocab-builder/offline-study-cards');
 function quiz(){
  const element=(tag,text)=>({tag,textContent:text,children:[],disabled:false,classes:new Set(),classList:{add(value){this.owner.classes.add(value)}},append(...nodes){this.children.push(...nodes)},querySelectorAll(){return this.children},focus(){}});
  const make=(tag,text)=>{const node=element(tag,text);node.classList.owner=node;return node;};
  const rows=[0,1,2,3].map(id=>({id,term:'term'+id,definition:'answer'+id,answers:['wrongA','wrongB','wrongC','wrongD']}));
  const callbacks=[],ctx={rows,offset:0,score:0,attempts:0,locked:false,mastered:new Set(),board:make('div'),next:make('button'),shuffle:values=>values,element:make,button:(text,onclick)=>Object.assign(make('button',text),{onclick}),message:text=>{ctx.feedback=text},updateProgress(){},mistake:text=>{ctx.mistakeText=text||'Try again'},later:(fn,ms)=>callbacks.push({fn,ms}),render(){ctx.rendered=true}};
+ ctx.renderStudyQuestion=renderStudyQuestion;
  vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('        function quiz()'),source.indexOf('        function match('))+'quiz();',ctx);
  return {ctx,choices:ctx.board.children[1].children,callbacks};
 }
@@ -61,6 +63,7 @@ test('Twenty matching words advance through four batches exactly once, with cont
  const callbacks=[],rounds=[],completed=[];
  const ctx={rows:words,groups:{english:words},language:{value:'english'},mode:'cards',matchingActive:true,matchingMistakes:0,cardRound:1,offset:0,score:0,attempts:0,matched:new Set(),selected:null,drag:null,locked:false,matchingCount:0,startedAt:0,finishedMs:0,performance:{now:()=>1000},board:make('div'),next:make('button'),title:make('h2'),element:make,button:(text,onclick,className)=>Object.assign(make('button',text,className),{onclick}),shuffle:values=>values.slice(),message(){},updateProgress(){},clearSelection(){ctx.selected=null},later:(fn,ms)=>callbacks.push({fn,ms}),summary(){ctx.summaries=(ctx.summaries||0)+1},mistake(){throw new Error('Unexpected mistake')}};
  vm.createContext(ctx);
+ ctx.renderStudyQuestion=renderStudyQuestion;
  const match=source.slice(source.indexOf('        function match('),source.indexOf('        function drawLine('));
  const matching=source.slice(source.indexOf('        function matching()'),source.indexOf('        async function prepare('));
  vm.runInContext(match+matching+'render();',ctx);

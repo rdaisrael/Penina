@@ -212,6 +212,8 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   }
   if(data.phase==='ended'){stage.innerHTML=meta+`<section class="panel waiting game-finale"><p class="eyebrow">Game complete</p><h1>Well played, everyone.</h1>${!host?`<p class="notice success player-identity">${avatarFigure(data.me.avatar)}${esc(data.me.name)} · ${data.me.score} points</p>`:''}${podium(data.scores)}${host&&data.scoreEmail?`<p role="status">${data.scoreEmail.status==='sent'?'Scores submitted for email delivery to your teacher address.':'The score email could not be sent. Please retry.'}</p>${data.scoreEmail.status==='failed'?'<button data-email-retry>Retry score email</button>':''}`:''}<div class="actions"><a class="button" href="${esc(data.classUrl||'../')}">Back to class</a>${host&&data.settings?`<button class="primary" data-action="restart" ${busy||!online?'disabled':''}>Play again →</button>`:''}${!host?'<p class="muted">Stay on this page to play again. Your teacher can return everyone to the lobby.</p>':''}</div></section>`;return;}
   const revealed=data.phase==='reveal',q=data.question,choice=data.me?.choice??answerSubmission?.choice??null,awaitingAnswer=revealed&&answerSubmission&&data.me?.choice===null;
+  // Older saved rooms have no kind; keep their long/formatted questions readable too.
+  const knowledge=q.kind==='knowledge'||q.questionFormatting||q.picture||q.term.length>80;
   const answerMarkup=q.options.map((text,i)=>{
    const className='answer'+(revealed&&i===q.correct?' correct':'')+(!host&&choice===i?' selected':'')+(revealed&&!host&&choice===i&&i!==q.correct?' wrong':'');
    const content=`<span class="letter">${letters[i]}</span><span class="text" dir="auto">${esc(text)}${revealed?`<span class="count">${i===q.correct?'✓ Correct · ':''}${data.distribution[i]} chose this</span>`:''}</span>`;
@@ -220,7 +222,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   // Keep the prompt's space after a choice and populate the clock before paint.
   // Collapsing either area can clamp scroll position while a student is tapping.
   const answerNotice=host||awaitingAnswer?'':revealed?`<p class="notice ${choice===q.correct?'success':''}" role="status">${choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'}</p>`:`<p class="notice answer-prompt" ${choice===null?'role="status"':'aria-hidden="true"'}>Choose the correct answer. Your first answer is final.</p>`;
-  stage.innerHTML=meta+`<div class="live-round${host&&revealed?' has-standings':''}"><section class="live-question"><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span${host?' class="host-answered-count" aria-hidden="true"':''}><span data-answered-count>${data.answeredCount}</span> / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div>${streakMeter(data)}${data.deadline?`<p class="countdown" data-clock role="timer">${clockText(data)}</p>`:''}${data.paused?'<p class="notice">Paused by teacher</p>':''}${revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}<h1 class="question" dir="auto">${q.questionFormatting?window.PeninaKnowledgeCards.formattedTextHTML(q.term,q.questionFormatting):esc(q.term)}</h1>${pictureMarkup(q.picture)}<div class="answers">${answerMarkup}</div>${answerNotice}${bonusNotice(data)}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>${!revealed?`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${avatarFigure(p.avatar)}<span>${p.answered?'✓ ':''}${esc(p.name)}</span></li>`).join('')}</ul>`:''}`:''}</section>${host&&revealed?`<aside class="live-standings" aria-label="Class standings"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after '+(data.revealSeconds??2)+' seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></aside>`:''}</div>`;
+  stage.innerHTML=meta+`<div class="live-round${host&&revealed?' has-standings':''}"><section class="live-question${knowledge?' knowledge-question':''}"><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span${host?' class="host-answered-count" aria-hidden="true"':''}><span data-answered-count>${data.answeredCount}</span> / ${data.playerCount} answered${!host?' · Your score: '+data.me.score:''}</span></div>${streakMeter(data)}${data.deadline?`<p class="countdown" data-clock role="timer">${clockText(data)}</p>`:''}${data.paused?'<p class="notice">Paused by teacher</p>':''}${revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}<h1 class="question" dir="auto">${q.questionFormatting?window.PeninaKnowledgeCards.formattedTextHTML(q.term,q.questionFormatting):esc(q.term)}</h1>${pictureMarkup(q.picture)}<div class="answers">${answerMarkup}</div>${answerNotice}${bonusNotice(data)}${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>${!revealed?`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${avatarFigure(p.avatar)}<span>${p.answered?'✓ ':''}${esc(p.name)}</span></li>`).join('')}</ul>`:''}`:''}</section>${host&&revealed?`<aside class="live-standings" aria-label="Class standings"><section class="panel"><h2>Class standings</h2>${leaderboard(data.scores)}</section><section class="panel"><h2>Answer revealed</h2><p>${data.seconds?'The next question starts automatically after '+(data.revealSeconds??2)+' seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></aside>`:''}</div>`;
  }
  function pictureMarkup(picture){
   if(!picture || !/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(picture.src||''))return '';
@@ -292,16 +294,9 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   }
   catch(e){busy=false;showError(e.message);draw(snapshot);timer=setTimeout(poll,1800);return false;}
  }
- // Submit touch answers before a poll can replace the button mid-tap.
- const touchAnswers=new WeakSet();
- stage.addEventListener('pointerdown',event=>{
-  if(host||event.pointerType!=='touch'||!event.isPrimary||event.button!==0)return;
-  const button=event.target.closest('button[data-choice]');
-  if(!button||button.disabled||busy)return;
-  touchAnswers.add(button);
-  event.preventDefault();
-  void act('answer',{choice:Number(button.dataset.choice)});
- });
+ // Native button clicks distinguish completed taps from scrolling or canceled
+ // touches. Routine polls preserve these buttons in draw(), including mid-tap.
+ // Submitting on pointerdown locks in an accidental answer during a scroll.
  stage.addEventListener('click',async event=>{
   const button=event.target.closest('button');if(!button||button.disabled)return;
   if(button.hasAttribute('data-email-retry')){button.disabled=true;stopped=false;await poll();return;}
@@ -312,7 +307,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
    const dialog=document.createElement('dialog');dialog.className='live-confirm';dialog.innerHTML='<h2>End this game?</h2><p>Students will see the final scores. An unrevealed question will not count.</p><div class="actions"><button data-cancel>Keep playing</button><button class="danger" data-confirm>End game</button></div>';document.body.append(dialog);dialog.showModal();dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();dialog.querySelector('[data-confirm]').onclick=()=>{dialog.close();act('end');};return;
   }
   if(button.dataset.action)await act(button.dataset.action);
-  if(button.dataset.choice!==undefined&&event.pointerType!=='touch'&&!touchAnswers.has(button))await act('answer',{choice:Number(button.dataset.choice)});
+  if(button.dataset.choice!==undefined)await act('answer',{choice:Number(button.dataset.choice)});
  });
  setInterval(updateClock,100);
  window.addEventListener('pagehide',()=>{stopped=true;clearTimeout(timer);disconnectRealtime();});

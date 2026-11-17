@@ -46,6 +46,26 @@ The combined regression run passes 67 tests. Local mock browser checks also cove
 
 ## Mixed study lists
 
+November 17 Live touch repair: a local browser reproduction showed that starting a
+scroll on an answer submitted that answer immediately through `pointerdown`.
+The first answer then locked, so a later intended tap could not change it. Live
+now uses native completed button clicks, as the study quiz does; routine polls
+already preserve answer buttons while a finger is down. Knowledge questions use
+22–28 px reading text and 18–22 px choices, following the existing Knowledge quiz
+scale instead of Live's large single-word vocabulary style. Saved question kind
+is passed to both roles; long/formatted questions in older rooms also get the
+reading style.
+
+`tests/live-knowledge.browser.cjs` exercises the actual Live client and handler
+with in-memory storage and external requests blocked. Phone and tablet checks
+cover text-only and pictured questions, formatting, scrolling without answering,
+refreshing during a tap, stable layout on selection/save, and correct answer
+mapping/scoring with 1–5 saved distractors. The scroll assertion failed before
+the repair and passes afterward. This confirms the local interaction defect;
+it does not establish the cause of every classroom report or exercise production
+network/storage latency. Four older quiz/matching tests also now load the real
+shared question renderer, resolving their missing-function failures.
+
 Class Teacher tools includes both vocabulary and knowledge lists in the Live selector and Student Exercises inclusion/emphasis controls. Normal, 2× and 3× weights apply to either type. Gamify combines eligible cards in the chosen answer language. Live validates every selected list and names any list without valid saved choices instead of silently omitting it. Replay settings can switch between or mix list types.
 
 All seven Gamify games and both Live screens retain knowledge pictures and their image-relative target. Questions use the original question and correct answer, with only the teacher's saved distractors. The source publication stays unchanged. A knowledge list needs four valid saved distractors in the chosen language to participate in games.

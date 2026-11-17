@@ -1113,12 +1113,73 @@
         document.getElementById('vocab-file-a').addEventListener('change', e => validateExcelUpload(e.target, 'A'));
         document.getElementById('vocab-file-b').addEventListener('change', e => validateExcelUpload(e.target, 'B'));
 
-        async function readApiResponse(response) {
-            let data;
-            try { data = await response.json(); }
-            catch (_) { throw new Error(response.status === 504 ? 'The story request took too long. Please try a shorter story.' : 'The server returned an unexpected response. Please try again.'); }
-            if (data.error) throw new Error(data.error);
-            if (!response.ok) throw new Error(`The request failed (${response.status}). Please try again.`);
+        function readerServiceError(response, requestName) {
+            if (response.status === 401) return 'Your sign-in has expired. Please return to Penina Home and sign in again.';
+            if (response.status === 403) return 'Your account cannot access this tool. Please return to Penina Home to check your access.';
+            if (response.status === 524) return `The ${requestName} connection timed out at the gateway (HTTP 524). Please try again.`;
+            if ([408, 504].includes(response.status)) return `The ${requestName} request timed out on the server (HTTP ${response.status}). Please try again.`;
+            if (response.status === 502) return `The ${requestName} server returned a gateway error (HTTP 502). Please try again; your text and vocabulary are still available.`;
+            if ([429, 503].includes(response.status)) return `The ${requestName} service is temporarily unavailable (HTTP ${response.status}). Please wait a moment and try again.`;
+            return `The ${requestName} service returned an unreadable response (HTTP ${response.status}). Please try again.`;
+        }
+
+        function readerProgressMessage(stage, requestName) {
+            if (stage === 'generation-retry') return `Retrying the ${requestName} service…`;
+            if (stage === 'analysis-repair') return 'Correcting the reading analysis…';
+            if (stage === 'analysis-validation') return 'Checking the reading and vocabulary…';
+            if (stage === 'dicta') return `Adding Hebrew vowels to your ${requestName}…`;
+            return `Generating and checking your ${requestName}…`;
+        }
+
+        async function readReaderStream(response, requestName, onProgress) {
+            const interrupted = () => new Error(`The ${requestName} connection ended before the result arrived. Please try again; your text and vocabulary are still available.`);
+            const reader = response.body?.getReader();
+            if (!reader) throw interrupted();
+            const decoder = new TextDecoder();
+            let buffer = '', dataLines = [];
+            try {
+                while (true) {
+                    let chunk;
+                    try {chunk = await reader.read();}
+                    catch (error) {if (error.name === 'AbortError') throw error; throw interrupted();}
+                    if (chunk.done) throw interrupted();
+                    buffer += decoder.decode(chunk.value, {stream:true});
+                    let newline;
+                    while ((newline = buffer.indexOf('\n')) !== -1) {
+                        const line = buffer.slice(0, newline).replace(/\r$/, '');
+                        buffer = buffer.slice(newline + 1);
+                        if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+                        else if (line === '' && dataLines.length) {
+                            let event;
+                            try {event = JSON.parse(dataLines.join('\n'));} catch {throw interrupted();}
+                            dataLines = [];
+                            if (event?.type === 'result' && Number.isInteger(event.status) && event.status >= 200 && event.status < 600) return event;
+                            if (event?.type !== 'progress' || typeof event.stage !== 'string') throw interrupted();
+                            onProgress(event.stage);
+                        }
+                    }
+                }
+            } finally {
+                await reader.cancel().catch(() => {});
+                reader.releaseLock();
+            }
+        }
+
+        async function readApiResponse(response, requestName = 'reading', onProgress = () => {}) {
+            let data, status = response.status;
+            if (response.ok && response.headers?.get('content-type')?.split(';')[0].trim() === 'text/event-stream') {
+                const result = await readReaderStream(response, requestName, onProgress);
+                data = result.data; status = result.status;
+            } else {
+                try {data = await response.json();}
+                catch (error) {
+                    if (error.name === 'AbortError') throw error;
+                    throw new Error(readerServiceError(response, requestName));
+                }
+            }
+            if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error(readerServiceError({status}, requestName));
+            if (typeof data.error === 'string' && data.error.trim()) throw new Error(data.error);
+            if (!response.ok || status >= 400 || data.error || typeof data.text !== 'string' || !data.text.trim()) throw new Error(readerServiceError({status}, requestName));
             return data;
         }
 
@@ -1253,6 +1314,7 @@
             document.getElementById('generate-questions-btn').innerText = 'Regenerate Questions';
             const status = document.getElementById('reader-status');
             status.textContent = 'Generating and checking your reading…';
+            const onProgress = stage => {if (requests.isStory(requestId)) status.textContent = readerProgressMessage(stage, 'reading');};
             const includeWorksheet = document.getElementById('include-worksheet').checked;
             let readingReady = false;
 
@@ -1280,7 +1342,7 @@
 
                     const response = await fetch('/api/generate', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
                         body: JSON.stringify({ 
                             prompt: prompt,
                             readerVocabulary: vocabData.profile,
@@ -1290,7 +1352,7 @@
                         })
                     });
                     
-                    const data = await readApiResponse(response);
+                    const data = await readApiResponse(response, 'reading', onProgress);
 
                     if (!requests.isStory(requestId)) return;
                     parseAndRenderOutput(data);
@@ -1321,7 +1383,7 @@
 
                     const response = await fetch('/api/generate', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
                         body: JSON.stringify({ 
                             prompt: prompt,
                             readerVocabulary: vocabData.profile,
@@ -1331,7 +1393,7 @@
                         })
                     });
 
-                    const data = await readApiResponse(response);
+                    const data = await readApiResponse(response, 'reading', onProgress);
 
                     if (!requests.isStory(requestId)) return;
                     parseAndRenderOutput(data);
@@ -1909,7 +1971,7 @@
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     signal: worksheetAbort.signal,
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
                     body: JSON.stringify({ 
                         prompt: prompt,
                         dictaOptions: readerDictaOptions,
@@ -1917,8 +1979,9 @@
                     })
                 });
                 
-                const data = await response.json();
-                if (data.error) throw new Error(data.error);
+                const data = await readApiResponse(response, 'worksheet', stage => {
+                    if (requests.isWorksheet(requestId) && !storyPending) status.textContent = readerProgressMessage(stage, 'worksheet');
+                });
                 
                 if (!requests.isWorksheet(requestId) || storyPending) return;
                 const worksheet = ReaderCore.validateWorksheet(data.text, questionCount, placement === 'sections' ? plan.targets : undefined);

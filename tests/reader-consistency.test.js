@@ -144,6 +144,7 @@ test('structured reader endpoint validates analysis before Dicta and sends only 
         const context=vm.createContext({AbortSignal,module:{exports:{}},process:{env:{DICTA_API_KEY:'test-only'}},
             require(name) {
                 if(name==='../lib/reader-response')return require('../lib/reader-response');
+                if(name==='../lib/reader-stream')return require('../lib/reader-stream');
                 if(name==='../lib/dicta-nikkud')return require('../lib/dicta-nikkud');
                 if(name==='../lib/openai-text')return {generateOpenAIText:async (prompt,options)=>{
                     assert.equal(options.textFormat.type,'json_schema');
@@ -188,11 +189,12 @@ test('late worksheet response cannot attach to a newly requested story', async (
         parseAndRenderOutput(){},
         fetch:async (url,options)=>{
             const body=JSON.parse(options.body);
-            if(!body.readerVocabulary)return new Promise(resolve=>{finishWorksheet=()=>resolve({json:async()=>({text:'Title\n1. Question?\n[LINE]\n[LINE]'})});});
+            if(!body.readerVocabulary)return new Promise(resolve=>{finishWorksheet=()=>resolve({ok:true,json:async()=>({text:'Title\n1. Question?\n[LINE]\n[LINE]'})});});
             assert.equal(body.dictaGenre,'modern');
             throw new Error('Simulated new story failure');
         }
     });
+    vm.runInContext(html.slice(html.indexOf('        function readerServiceError'),html.indexOf('        document.querySelectorAll(\'input[name="vocab-mode-a"]\')')),context);
     vm.runInContext(html.slice(html.indexOf("        document.getElementById('generate-btn').addEventListener"),html.indexOf('        function parseAndRenderOutput')),context);
     vm.runInContext(html.slice(html.indexOf("        document.getElementById('generate-questions-btn').addEventListener"),html.indexOf('        // Initialize the Verb Matrices')),context);
     const pending=listeners.get('generate-questions-btn:click')();

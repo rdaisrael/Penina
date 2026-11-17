@@ -90,8 +90,8 @@ test('upload handler clears old vocabulary on replacement and ignores an older u
 test('non-JSON gateway errors become readable messages instead of JSON syntax errors',async()=>{
     const html=fs.readFileSync(require.resolve('../PeninaPlus-Reader/index.html'),'utf8');
     const context=vm.createContext({});
-    vm.runInContext(html.slice(html.indexOf('        async function readApiResponse'),html.indexOf('        document.querySelectorAll(\'input[name="vocab-mode-a"]\')')),context);
-    await assert.rejects(context.readApiResponse({status:504,json:async()=>{throw new Error('Unexpected token');}}),/took too long/);
+    vm.runInContext(html.slice(html.indexOf('        function readerServiceError'),html.indexOf('        document.querySelectorAll(\'input[name="vocab-mode-a"]\')')),context);
+    await assert.rejects(context.readApiResponse({status:504,json:async()=>{throw new Error('Unexpected token');}}),/timed out.*HTTP 504/);
 });
 
 async function workbookWith(sheets) {

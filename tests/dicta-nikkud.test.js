@@ -118,6 +118,7 @@ test('API handler forwards the verified options and retains metadata in its resp
         require(name) {
             if (name === '../lib/openai-text') return { generateOpenAIText() { throw new Error('Supplied text must bypass OpenAI'); } };
             if (name === '../lib/reader-response') return require('../lib/reader-response');
+            if (name === '../lib/reader-stream') return require('../lib/reader-stream');
             if (name === '../lib/dicta-nikkud') return { createDictaRequest, readDictaResponse };
             throw new Error('Unexpected module: ' + name);
         },

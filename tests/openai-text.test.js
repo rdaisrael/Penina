@@ -87,6 +87,7 @@ test('reader passes generated text to Dicta and stops on generation failure', as
             module: { exports: {} }, process: { env: { DICTA_API_KEY: 'test-only' } },
             require(name) {
                 if (name === '../lib/reader-response') return require('../lib/reader-response');
+                if (name === '../lib/reader-stream') return require('../lib/reader-stream');
             if (name === '../lib/dicta-nikkud') return dicta;
                 if (name === '../lib/openai-text') return { generateOpenAIText: async prompt => {
                     assert.equal(prompt, 'write story');

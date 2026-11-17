@@ -66,6 +66,21 @@ it does not establish the cause of every classroom report or exercise production
 network/storage latency. Four older quiz/matching tests also now load the real
 shared question renderer, resolving their missing-function failures.
 
+Live's student layout now compacts the header, streak/countdown row, and answer
+padding. Repeated class/game details remain available to screen readers, while
+the decorative footer is omitted during a round. Vocabulary choices use two
+columns; Knowledge choices use full-width rows on narrow phones. Short landscape
+screens place the question beside the choices. Reading sizes stay consistent
+across questions and long content scrolls naturally. Only a new question resets
+the reading position; polls, selection, and save acknowledgements preserve it.
+
+`tests/live-responsive.browser.cjs` checks normal English/Hebrew questions and
+long passages at ten viewport sizes, including small phones, both iPad
+orientations, laptops, and landscape phones. It verifies visible normal choices,
+readable text, tap sizes, scrolling, rotation, keyboard activation, enlarged
+content, and the teacher's iPad layout with its join QR. These are local Chromium
+viewport checks, not physical-device or production verification.
+
 Class Teacher tools includes both vocabulary and knowledge lists in the Live selector and Student Exercises inclusion/emphasis controls. Normal, 2× and 3× weights apply to either type. Gamify combines eligible cards in the chosen answer language. Live validates every selected list and names any list without valid saved choices instead of silently omitting it. Replay settings can switch between or mix list types.
 
 All seven Gamify games and both Live screens retain knowledge pictures and their image-relative target. Questions use the original question and correct answer, with only the teacher's saved distractors. The source publication stays unchanged. A knowledge list needs four valid saved distractors in the chosen language to participate in games.

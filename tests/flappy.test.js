@@ -7,6 +7,7 @@ function harness(){
  const board=new Element(),config=new Element();board.dataset.initials='AB';config.textContent=JSON.stringify({leaderboardUrl:'/api/game-scores?game=asteroids&grade=sixth'});
  const ctx={setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),board,rows:app.practiceRows([card],'english'),AbortController,URL,crypto:{randomUUID:()=> 'flappy-test-run-123'},performance:{now:()=>0},localStorage:{getItem:()=>null,setItem(){}},document:{getElementById:()=>config,createElement:()=>new Element(),addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)},window:{location:{href:'https://example.com/class',protocol:'https:'},addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{cancelled=true},fetch:async(url,options)=>{payload={url,body:JSON.parse(options.body)};return {ok:true,json:async()=>({scores:[{initials:'AB',score:100}]})};}};
  let source=app.mountFlappy.toString().replace('return ()=>{destroyed=true;', 'globalThis.control={start,question,resolve,submitScore,flap,laneAt,get:()=>({score,lives,answers,index,y,vy,readTime,state}),setSpeed:v=>{speed=v;}};return ()=>{destroyed=true;');
+ ctx.renderStudyQuestion=app.renderStudyQuestion;
  vm.createContext(ctx);vm.runInContext('this.stop=('+source+')({board,rows});',ctx);
  return {advanceCountdown,timers,ctx,control:ctx.control,get:s=>board.querySelector(s),listeners,cancelled:()=>cancelled,payload:()=>payload};
 }

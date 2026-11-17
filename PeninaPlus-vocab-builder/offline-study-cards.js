@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    const {arrowMarkup} = typeof module !== 'undefined' && module.exports ? require('../PeninaPlus-knowledge-builder/cards') : window.PeninaKnowledgeCards;
+    const {arrowMarkup, normalizeTextFormat, formattedTextHTML} = typeof module !== 'undefined' && module.exports ? require('../PeninaPlus-knowledge-builder/cards') : window.PeninaKnowledgeCards;
 
     function escapeHtml(value) {
         return String(value || '').replace(/[&<>"']/g, character => ({
@@ -17,6 +17,12 @@
 .home-link:visited{color:#302c25}.home-link:hover{background:#f8f4e9;border-color:#b9a775}.home-link:focus-visible{outline:3px solid #4353ff;outline-offset:3px}.home-link svg{flex:none}`;
     }
 
+    function renderStudyQuestion(node, row) {
+        if (row.questionFormatting) node.innerHTML = formattedTextHTML(row.term, row.questionFormatting);
+        else node.textContent = row.term;
+        node.dir = 'auto';
+        if (row.picture) appendStudyPicture(node, row.picture);
+    }
     function appendStudyPicture(node, picture) {
         if (!picture || !/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(picture.src || '')) return;
         const doc=node.ownerDocument, outer=doc.createElement('span'),frame=doc.createElement('span'),img=doc.createElement('img');
@@ -101,7 +107,8 @@
             const answers = saved.answers.map(value), keys = answers.map(answer=>key(answer));
             if (new Set(keys).size !== answers.length || answers.some((answer, i) => !keys[i] || answer.length > 500
                 || (card.kind !== 'knowledge' && keys[i] === key(term)) || keys[i] === key(definition))) return [];
-            return [{ id, term, definition, answers, ...(card.kind==='knowledge'?{kind:'knowledge',sourceId:card.sourceId,picture:card.picture}:{}), ...(card.studySet ? { studySet: card.studySet, studyDate: card.studyDate, studyWeight: card.studyWeight } : {}) }];
+            const questionFormatting = card.kind === 'knowledge' ? normalizeTextFormat(term,card.questionFormatting || card.textFormatting?.question) : null;
+            return [{ id, term, definition, answers, ...(card.kind==='knowledge'?{kind:'knowledge',sourceId:card.sourceId,picture:card.picture,...(questionFormatting ? {questionFormatting} : {})}:{}), ...(card.studySet ? { studySet: card.studySet, studyDate: card.studyDate, studyWeight: card.studyWeight } : {}) }];
         });
     }
 
@@ -311,7 +318,7 @@
             const row = deck.shift(); lastRow = row;
             const heading = el('h3', state.correct || state.incorrect ? 'Refuel: 10 shots and 5 jet bursts' : 'Answer a word to launch');
             heading.id = 'asteroidQuestionTitle'; heading.tabIndex = -1;
-            const term = el('p', row.term, 'asteroids-term'); term.dir = 'auto'; if(row.picture)appendStudyPicture(term,row.picture);
+            const term = el('p', row.term, 'asteroids-term'); renderStudyQuestion(term,row);
             const instruction = el('p', 'Choose the correct definition.');
             const options = el('div', '', 'asteroids-options');
             const result = el('p', '', 'asteroids-result'); result.setAttribute('role', 'status');
@@ -454,7 +461,7 @@ const key=(x,y)=>x+','+y, walk=(x,y)=>rows[y]?.[x]!==undefined&&rows[y][x]!=='#'
 function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function reset(){reviewTime=0;score=0;ghostsEaten=0;bonusTime=0;$('#cc-bonus').textContent='';dots=new Map;rows.forEach((r,y)=>[...r].forEach((c,x)=>{if(c!== '#')dots.set(key(x,y),c==='o')}));player={x:9,y:11};dots.delete(key(9,11));initial=dots.size;ghosts=[{x:8,y:3,home:[8,3]},{x:10,y:7,home:[10,7]}];dir=[0,0];next=[0,0];energy=0;power=0;lives=3;queue=words.map((_,i)=>i);qCount=0;attempts=0;correct=0;missed=new Set;invulnerable=0;ask();draw()}
 function hud(){ $('#cc-score').textContent=score;$('.power-status').setAttribute('data-active',power>0);$('#cc-power').textContent=power>0?'⚡ CHASE GHOSTS · '+power.toFixed(1)+'s'+(mode==='play'?'':' · paused'):'⚡ Find a large dot to chase ghosts'; $('#cc-dots').textContent=(initial-dots.size)+' / '+initial;$('#cc-lives').textContent=lives;$('#cc-accuracy').textContent=attempts?correct+' / '+attempts:'—';$('#cc-seconds').textContent=Math.ceil(energy)+' / '+settings.charge+'s';$('.fill').style.width=(energy/settings.charge*100)+'%';$('.track').setAttribute('aria-valuenow',Math.round(energy/settings.charge*100));$('#cc-pause').disabled=!['play','pause'].includes(mode);$('#cc-pause').textContent=mode==='pause'?'Resume':'Pause';$('#cc-status').textContent=mode==='play'?(power>0?'Power pellet! Chase the ghosts':'Collect dots · next question when energy runs out'):mode==='pause'?'Game paused':mode==='end'?'Round complete':qCount===1?'Answer to Enter Maze':'Maze paused · take your time';}
-function ask(){$('.wrong-mark').hidden=true;$('.dialog').setAttribute('data-review','false');mode='question';energy=0;question=queue.shift();queue.push(question);qCount++;failed=false;$('.shade').hidden=false;$('.word').hidden=false;$('.choices').hidden=false;$('.recap').hidden=true;$('#cc-continue').hidden=true;$('#cc-tag').textContent=qCount===1?'Answer to Enter Maze':'CHARGE '+String(qCount).padStart(2,'0')+' · MAZE PAUSED';$('#cc-prompt').textContent='';$('#cc-prompt').hidden=true;$('.word').textContent=words[question][0];if(vocabulary[question].picture)appendStudyPicture($('.word'),vocabulary[question].picture);$('.feedback').textContent='';$('.choices').replaceChildren();const answers=shuffle([words[question][1],...shuffle(vocabulary[question].answers.slice()).slice(0,3)]);answers.forEach(answer=>{const b=document.createElement('button');b.textContent=answer;b.onclick=()=>{if(mode!=='question')return;if(!failed){attempts++;if(answer===words[question][1])correct++;}if(answer!==words[question][1]){if(!failed){missed.add(question);queue.splice(2,0,question)}failed=true;mode='review';reviewTime=2;$('.choices').hidden=true;$('.wrong-mark').hidden=false;$('.dialog').setAttribute('data-review','true');$('#cc-tag').textContent='';$('.feedback').textContent='Correct Answer is: '+words[question][1];hud();return;}else{energy=settings.charge;mode='play';$('.shade').hidden=true;moveClock=0;ghostClock=0;hud();$('#cc-pause').focus();}hud()};b.dir='auto';$('.choices').append(b)});hud()}
+function ask(){$('.wrong-mark').hidden=true;$('.dialog').setAttribute('data-review','false');mode='question';energy=0;question=queue.shift();queue.push(question);qCount++;failed=false;$('.shade').hidden=false;$('.word').hidden=false;$('.choices').hidden=false;$('.recap').hidden=true;$('#cc-continue').hidden=true;$('#cc-tag').textContent=qCount===1?'Answer to Enter Maze':'CHARGE '+String(qCount).padStart(2,'0')+' · MAZE PAUSED';$('#cc-prompt').textContent='';$('#cc-prompt').hidden=true;renderStudyQuestion($('.word'),vocabulary[question]);$('.feedback').textContent='';$('.choices').replaceChildren();const answers=shuffle([words[question][1],...shuffle(vocabulary[question].answers.slice()).slice(0,3)]);answers.forEach(answer=>{const b=document.createElement('button');b.textContent=answer;b.onclick=()=>{if(mode!=='question')return;if(!failed){attempts++;if(answer===words[question][1])correct++;}if(answer!==words[question][1]){if(!failed){missed.add(question);queue.splice(2,0,question)}failed=true;mode='review';reviewTime=2;$('.choices').hidden=true;$('.wrong-mark').hidden=false;$('.dialog').setAttribute('data-review','true');$('#cc-tag').textContent='';$('.feedback').textContent='Correct Answer is: '+words[question][1];hud();return;}else{energy=settings.charge;mode='play';$('.shade').hidden=true;moveClock=0;ghostClock=0;hud();$('#cc-pause').focus();}hud()};b.dir='auto';$('.choices').append(b)});hud()}
 $('#cc-continue').onclick=()=>{if(mode==='end'){reset();return}mode='play';$('.shade').hidden=true;moveClock=0;ghostClock=0;hud();$('#cc-pause').focus()};
 function pause(){if(mode==='play'){mode='pause';$('.shade').hidden=false;$('#cc-tag').textContent='TAKE A BREATHER';$('#cc-prompt').hidden=false;$('#cc-prompt').textContent='Maze paused';$('.word').hidden=true;$('.choices').hidden=true;$('.feedback').textContent='Your energy and ghosts are paused.';$('#cc-continue').textContent='Resume playing →';$('#cc-continue').hidden=false;}else if(mode==='pause'){mode='play';$('.shade').hidden=true}hud()}
 $('#cc-pause').onclick=pause;const onVisibility=()=>{if(document.hidden&&mode==='play')pause()};document.addEventListener('visibilitychange',onVisibility);
@@ -475,7 +482,7 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
 
 const root=board.querySelector('#fv-demo'),el=id=>root.querySelector('#fv-'+id);
 const ROUND_COUNT=3,WORDS_PER_ROUND=5;
-const words=Array.from({length:ROUND_COUNT*WORDS_PER_ROUND},(_,i)=>{const row=rows[i%rows.length];return {word:row.definition,clue:row.term,example:row.term+' — '+row.definition,answers:row.answers,picture:row.picture};});
+const words=Array.from({length:ROUND_COUNT*WORDS_PER_ROUND},(_,i)=>{const row=rows[i%rows.length];return {word:row.definition,clue:row.term,example:row.term+' — '+row.definition,answers:row.answers,picture:row.picture,questionFormatting:row.questionFormatting};});
 let destroyed=false,runId='',submitting=false,roundTimer=null;
 const abort=new AbortController();
 const config=document.getElementById('peninaClassConfig');
@@ -494,7 +501,7 @@ function speedUI(){root.querySelectorAll('[data-speed]').forEach(b=>b.setAttribu
 function stats(){el('score').textContent=score;el('lives').textContent='♥'.repeat(lives)+'♡'.repeat(3-lives);el('lives').setAttribute('aria-label',lives+' lives remaining');el('lives-label').textContent=lives+' '+(lives===1?'LIFE':'LIVES');el('progress').style.width=(index/words.length*100)+'%';el('round').textContent='ROUND '+Math.min(Math.floor(index/WORDS_PER_ROUND)+1,ROUND_COUNT)+' / '+ROUND_COUNT+' · WORD '+(Math.min(index,words.length-1)%WORDS_PER_ROUND+1)+' / '+WORDS_PER_ROUND;speedUI();}
 function stop(){clearTimeout(roundTimer);roundTimer=null;cancelAnimationFrame(raf);root.classList.remove('active');el('bird').classList.remove('flying');el('flap').disabled=true;el('pause').disabled=true;}
 function draw(){el('bird').style.top=y+'px';el('bird').style.transform='rotate('+Math.max(-13,Math.min(18,vy/14))+'deg) scale(.65)';el('gate').style.left=x+'px';}
-function question(keepFlying=false){cancelAnimationFrame(raf);state='flight';rewardSpeed=speed;const q=words[index];answers=[q.word,...q.answers.slice().sort(()=>Math.random()-.5).slice(0,2)].sort(()=>Math.random()-.5);['a','b','c'].forEach((id,i)=>{const node=el(id);node.hidden=i>=answers.length;node.textContent=answers[i]||'';node.dir='auto';node.classList.toggle('long',(answers[i]||'').length>40);node.classList.toggle('very-long',(answers[i]||'').length>100);});el('clue').textContent=q.clue;if(q.picture)appendStudyPicture(el('clue'),q.picture);el('clue').dir='auto';el('overlay').hidden=true;el('gate').hidden=false;if(!keepFlying){y=191;vy=0;}x=el('world').clientWidth-el('gate').offsetWidth-12;readTime=keepFlying?0:.7;el('flap').disabled=false;el('pause').disabled=false;el('pause').textContent='Pause';el('bird').classList.add('flying');stats();draw();el('flap').focus({preventScroll:true});last=performance.now();raf=requestAnimationFrame(tick);}
+function question(keepFlying=false){cancelAnimationFrame(raf);state='flight';rewardSpeed=speed;const q=words[index];answers=[q.word,...q.answers.slice().sort(()=>Math.random()-.5).slice(0,2)].sort(()=>Math.random()-.5);['a','b','c'].forEach((id,i)=>{const node=el(id);node.hidden=i>=answers.length;node.textContent=answers[i]||'';node.dir='auto';node.classList.toggle('long',(answers[i]||'').length>40);node.classList.toggle('very-long',(answers[i]||'').length>100);});renderStudyQuestion(el('clue'),{term:q.clue,picture:q.picture,questionFormatting:q.questionFormatting});el('clue').dir='auto';el('overlay').hidden=true;el('gate').hidden=false;if(!keepFlying){y=191;vy=0;}x=el('world').clientWidth-el('gate').offsetWidth-12;readTime=keepFlying?0:.7;el('flap').disabled=false;el('pause').disabled=false;el('pause').textContent='Pause';el('bird').classList.add('flying');stats();draw();el('flap').focus({preventScroll:true});last=performance.now();raf=requestAnimationFrame(tick);}
 // With gravity 270, a 140px/s flap rises about 36px for finer control.
 function flap(){if(state==='flight'){readTime=0;vy=-140;}}
 function tick(t){if(destroyed||state!=='flight')return;const dt=Math.min((t-last)/1000,.035);last=t;if(readTime>0){readTime-=dt;}else{vy=Math.min(170,vy+270*dt);y+=vy*dt;if(y<0){y=0;vy=0;}if(y>378){y=378;vy=0;}const bx=el('bird').offsetLeft,travel=Math.max(70,el('world').clientWidth-el('gate').offsetWidth-12-bx-40);x-=travel/7*speed*dt;draw();if(x<=bx+37){resolve(laneAt(y));return;}}raf=requestAnimationFrame(tick);}
@@ -609,7 +616,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         const held=new Set();
         function hud(){q('ammo').textContent=blasts+' blast'+(blasts===1?'':'s');q('fire').disabled=blasts===0;root.dataset.round=String(Math.floor(index/8)+1);q('round').textContent='Round '+Math.min(3,Math.floor(index/8)+1)+' / 3';q('score').textContent=score+' points';q('lives').textContent='Word '+(index%8+1)+' / 8';}
         function panel(title,text,action,callback){const box=q('panel');box.className='sb-panel';box.replaceChildren();const h=document.createElement('h3'),p=document.createElement('p'),b=document.createElement('button');h.textContent=title;p.textContent=text;b.textContent=action;b.type='button';b.onclick=callback;box.append(h,p,b);box.hidden=false;b.focus({preventScroll:true});}
-        function question(){if(dead)return;if(index>=24){finish();return;}hud();elapsed=0;clearProjectiles();rewardSpeed=speed;held.clear();state='falling';q('panel').hidden=true;q('pause').disabled=false;q('pause').textContent='Pause';q('targets').replaceChildren();q('barrage').replaceChildren();q('beam').hidden=true;q('drift').style.bottom='-100%';q('prompt').textContent=words[index].term;if(words[index].picture)appendStudyPicture(q('prompt'),words[index].picture);status('Aim with your mouse or ← / →. Hold Shift for fine aim. Space or a click/tap fires along the guide. Wrong hit: −50. Missed answer: −25.');speedUI();
+        function question(){if(dead)return;if(index>=24){finish();return;}hud();elapsed=0;clearProjectiles();rewardSpeed=speed;held.clear();state='falling';q('panel').hidden=true;q('pause').disabled=false;q('pause').textContent='Pause';q('targets').replaceChildren();q('barrage').replaceChildren();q('beam').hidden=true;q('drift').style.bottom='-100%';renderStudyQuestion(q('prompt'),words[index]);status('Aim with your mouse or ← / →. Hold Shift for fine aim. Space or a click/tap fires along the guide. Wrong hit: −50. Missed answer: −25.');speedUI();
             targets=shuffle([words[index].definition,...shuffle(words[index].answers).slice(0,4)]).map((text,i)=>{const b=document.createElement('div');b.className='sb-target';b.dataset.answer=text;b.dir='auto';b.style.left=(.5+i*20)+'%';b.flight={phase:Math.random()*Math.PI*2,start:35+((i*2)%5)*35+Math.random()*20,rate:.86+Math.random()*.28};b.innerHTML='<svg viewBox="0 0 120 140" aria-hidden="true"><g transform="translate(60 70)" fill="none" stroke="#eafbff" stroke-width="5" stroke-linecap="round">'+Array.from({length:6},(_,j)=>'<g transform="rotate('+j*60+')"><path d="M0 0V-61M0-26L-15-39M0-26L15-39M0-45L-12-54M0-45L12-54"/></g>').join('')+'<circle r="21" fill="#eafbff"/></g></svg>';const label=document.createElement('span');label.textContent=text;b.append(label);q('targets').append(b);return b;});positionTargets(0);aim();last=performance.now();if(blasts===0)recharge();else raf=requestAnimationFrame(tick);
         }
         function origin(){return{x:q('world').clientWidth/2+17,y:q('world').clientHeight-88};}
@@ -653,7 +660,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             const box=q('panel'),card=words[index];box.replaceChildren();box.className='sb-panel sb-recharge';
             const sheet=document.createElement('section'),instruction=document.createElement('p'),options=document.createElement('div');sheet.className='asteroids-question';sheet.setAttribute('aria-labelledby','sbRechargeTitle');options.className='asteroids-options';instruction.textContent='Choose the correct definition.';
             const title=document.createElement('h3'),term=document.createElement('p'),feedback=document.createElement('p');
-            title.textContent='Recharge: 1 blast';title.id='sbRechargeTitle';title.tabIndex=-1;term.className='asteroids-term';feedback.className='asteroids-result';term.textContent=card.term;term.dir='auto';if(card.picture)appendStudyPicture(term,card.picture);feedback.textContent='Out of blasts! Choose the correct answer to earn 1 blast.';feedback.setAttribute('role','status');sheet.append(title,term,instruction,options,feedback);box.append(sheet);
+            title.textContent='Recharge: 1 blast';title.id='sbRechargeTitle';title.tabIndex=-1;term.className='asteroids-term';feedback.className='asteroids-result';renderStudyQuestion(term,card);feedback.textContent='Out of blasts! Choose the correct answer to earn 1 blast.';feedback.setAttribute('role','status');sheet.append(title,term,instruction,options,feedback);box.append(sheet);
             const choices=shuffle([...new Set([card.definition,...card.answers])]);
             choices.forEach(answer=>{const button=document.createElement('button');button.type='button';button.dir='auto';button.textContent=answer;button.onclick=()=>{
                 if(dead||state!=='recharging')return;
@@ -757,7 +764,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         }
         function quiz() {
             const row = rows[offset];
-            const prompt=element('h3', row.term, 'game-term');if(row.picture)appendStudyPicture(prompt,row.picture);board.append(prompt);
+            const prompt=element('h3', row.term, 'game-term');renderStudyQuestion(prompt,row);board.append(prompt);
             const choices = element('div', undefined, 'game-options');
             let answered = false, tries=0;
             shuffle([row.definition, ...row.answers]).forEach(answer => {
@@ -858,7 +865,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
                 item.node = button(side === 'term' ? row.term : row.definition, () => choose(item), `game-tile game-${side}`);
                 item.node.setAttribute('aria-label', `${side === 'term' ? 'Term' : 'Definition'}: ${item.node.textContent}`);
                 item.node.setAttribute('aria-pressed', 'false');
-                if(side==='term' && row.picture)appendStudyPicture(item.node,row.picture);
+                if(side==='term')renderStudyQuestion(item.node,row);
                 if (mode === 'lines') {
                     const dot = element('span', undefined, 'game-dot');
                     dot.setAttribute('aria-hidden', 'true'); item.node.append(dot);
@@ -1014,6 +1021,9 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
 <dialog id="gamesDialog" class="games-dialog" aria-labelledby="gamesTitle"><div class="games-heading"><div class="games-brand"><h2 id="gamesTitle">Gamify!</h2><button id="gameBack" type="button" hidden>Choose another game</button></div><button id="gameClose" type="button">Close</button></div><section id="gameMenu"><p class="game-menu-intro">Choose your challenge. Build your skills. Beat your best.</p><label>Answer language <select id="gameLanguage"></select></label><div class="game-menu-options"><button type="button" data-game="quiz"><span class="game-icon">⚡</span><strong>Quick Quiz</strong><small>Trust your knowledge. Find the right definition.</small></button><button type="button" data-game="lines"><span class="game-icon">🔗</span><strong>Connect the Words</strong><small>Draw the connections. Outsmart the distractors.</small></button><button type="button" data-game="cards"><span class="game-icon">🧩</span><strong>Match the Cards</strong><small>Find every pair. Leave the decoys behind.</small></button><button type="button" data-game="asteroids"><span class="game-icon">🚀</span><strong>Vocabulary Asteroids</strong><small>Fuel up. Survive three rounds. Become captain.</small></button><button type="button" data-game="flappy"><span class="game-icon">🐦</span><strong>Flappy Vocab</strong><small>Choose your bird. Fly through the answers. Beat your best.</small></button><button type="button" data-game="snowblaster"><span class="game-icon">❄️</span><strong>Snowblaster!</strong><small>Melt the right answers. Brave the blizzard. Survive three rounds.</small></button><button type="button" data-game="chomp"><span class="game-icon">👻</span><strong>Chomp &amp; Charge</strong><small>Chomp the dots. Chase the ghosts. Power up with words.</small></button></div></section><section id="gameLobby" class="game-lobby" hidden><h2 id="lobbyTitle" tabindex="-1"></h2><p id="lobbyHelp"></p><h3 id="lobbyRankingTitle">Top 3</h3><ol id="lobbyScores"></ol><p id="lobbyNote" role="status"></p><button id="gameLaunch" class="game-launch" type="button">Launch</button></section><section id="gamePlay" hidden><h2 id="gameTitle" tabindex="-1"></h2><p id="gameHelp"></p><p id="gameProgress" role="status"></p><div id="gameBoard" class="game-board"></div><p id="gameFeedback" class="game-feedback" role="status" aria-live="polite"></p><button id="gameNext" type="button" hidden>Next</button><div class="game-footer"><button id="gameAgain" type="button">Play again</button></div></section></dialog>
 <script>${arrowMarkup.toString()}
 ${appendStudyPicture.toString()}
+${normalizeTextFormat.toString()}
+${formattedTextHTML.toString()}
+${renderStudyQuestion.toString()}
 (${mountGames.toString()})(${JSON.stringify(groups).replace(/</g, '\\u003c')}, ${mountAsteroids.toString()}, ${createAsteroids.toString()}, ${mountChomp.toString()}, ${scheduleClassTerms.toString()}, ${mountFlappy.toString()}, ${mountSnowblaster.toString()});</script>`.replace(/<button type="button" data-game="([a-z]+)">[\s\S]*?<\/button>/g,
             (button, id) => disabledGames.includes(id) ? '' : button);
     }
@@ -1117,6 +1127,8 @@ ${Object.keys(groups).length ? '<button id="gamify" class="gamify-button" type="
 <script id="peninaCardData" type="application/json">${cardData}</script>
 <script>
 ${arrowMarkup.toString()}
+${normalizeTextFormat.toString()}
+${formattedTextHTML.toString()}
 const pictureMarkup=${pictureMarkup.toString()};
 const originalCards=${cardData};let cards=[...originalCards],index=0,sideIndex=0,termFirst=true,ratings={},animating=false,flipVersion=0;
 const byId=id=>document.getElementById(id);const esc=value=>String(value||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -1135,9 +1147,9 @@ function order(card){return termFirst?['term','definition']:['definition','term'
 function filterCards(){cards=originalCards.filter(card=>ratings[card.n]!=='known');if(index>=cards.length)index=0;byId('count').textContent=cards.length}
 function renderStats(){const values=Object.values(ratings);byId('knownCount').textContent=values.filter(value=>value==='known').length;byId('almostCount').textContent=values.filter(value=>value==='almost').length;byId('learningCount').textContent=values.filter(value=>value==='learning').length}
 function setVisible(id,visible){byId(id).hidden=!visible}
-function printTerm(card,settings){return '<div class="paper-card-header"><span class="paper-card-title" dir="auto">'+esc(document.title)+'</span><span class="paper-card-number">#'+card.n+'</span></div><div class="paper-card-content"><div class="paper-term '+(card.kind==='knowledge'?'':'hebrew')+'" dir="auto">'+esc(card.term)+'</div>'+(card.kind==='knowledge'?pictureMarkup(card.picture,160):'')+(!termFirst?printContext(card,settings):'')+'</div>'}
+function printTerm(card,settings){return '<div class="paper-card-header"><span class="paper-card-title" dir="auto">'+esc(document.title)+'</span><span class="paper-card-number">#'+card.n+'</span></div><div class="paper-card-content"><div class="paper-term '+(card.kind==='knowledge'?'':'hebrew')+'" dir="auto">'+(card.kind==='knowledge'?formattedTextHTML(card.question,card.textFormatting?.question):esc(card.term))+'</div>'+(card.kind==='knowledge'?pictureMarkup(card.picture,160):'')+(!termFirst?printContext(card,settings):'')+'</div>'}
 function getPrintSettings(){return {count:originalCards.some(card=>card.kind==='knowledge')?4:8,translation:'both',originalQuote:true,hebrewContext:true,englishContext:true}}
-function printTranslations(card,settings){if(card.kind==='knowledge')return '<div class="paper-card-content"><div class="paper-translation" dir="auto">'+esc(card.answer)+'</div>'+(card.additionalInformation?'<div class="paper-context" dir="auto">'+esc(card.additionalInformation)+'</div>':'')+'</div>';let main=[];if(settings.translation!=='english'&&card.hebrew)main.push('<div class="paper-translation-block hebrew">'+esc(card.hebrew)+'</div>');if(settings.translation!=='hebrew'&&card.english)main.push('<div class="paper-translation-block">'+esc(card.english)+'</div>');return '<div class="paper-card-content"><div class="paper-translation">'+(main.join('')||'<div class="paper-translation-block">No translation available</div>')+'</div>'+(termFirst?printContext(card,settings):'')+'</div>'}
+function printTranslations(card,settings){if(card.kind==='knowledge')return '<div class="paper-card-content"><div class="paper-translation" dir="auto">'+formattedTextHTML(card.answer,card.textFormatting?.answer)+'</div>'+(card.additionalInformation?'<div class="paper-context" dir="auto">'+formattedTextHTML(card.additionalInformation,card.textFormatting?.additionalInformation)+'</div>':'')+'</div>';let main=[];if(settings.translation!=='english'&&card.hebrew)main.push('<div class="paper-translation-block hebrew">'+esc(card.hebrew)+'</div>');if(settings.translation!=='hebrew'&&card.english)main.push('<div class="paper-translation-block">'+esc(card.english)+'</div>');return '<div class="paper-card-content"><div class="paper-translation">'+(main.join('')||'<div class="paper-translation-block">No translation available</div>')+'</div>'+(termFirst?printContext(card,settings):'')+'</div>'}
 function printContext(card,settings){if(card.kind==='knowledge')return '';let context=[];if(settings.originalQuote&&card.contextQuote)context.push('<p class="context-quote hebrew">'+rich(card.contextQuote,card.contextQuoteRuns)+'</p>');if(settings.hebrewContext&&card.hebrewTranslation)context.push('<p class="hebrew">'+rich(card.hebrewTranslation,card.hebrewTranslationRuns)+'</p>');if(settings.englishContext&&card.englishTranslation)context.push('<p>'+rich(card.englishTranslation,card.englishTranslationRuns)+'</p>');const citations=[];if(settings.englishContext&&card.sourceEnglish)citations.push(card.sourceEnglish);if((settings.originalQuote||settings.hebrewContext)&&card.sourceHebrew&&!citations.includes(card.sourceHebrew))citations.push(card.sourceHebrew);if(context.length&&citations.length)context.push('<p class="context-citation">'+citations.map(esc).join(' · ')+'</p>');return context.length?'<div class="paper-context">'+context.join('')+'</div>':''}
 function paperCard(card,side,settings){if(!card)return '<article class="paper-card paper-empty" aria-hidden="true"></article>';return '<article class="paper-card'+(card.kind==='knowledge'?' paper-card-knowledge':'')+(side==='term'?' paper-card-front':'')+'">'+(side==='term'?printTerm(card,settings):printTranslations(card,settings))+'</article>'}
 function paperSheet(group,side,back,settings){const front=Array.from({length:settings.count},(_,position)=>position),positions=back?front.map(position=>position%2===0?position+1:position-1):front;return '<div class="sheet-caption">'+(side==='term'?'Term':'Definition')+' side</div><section class="paper-sheet '+(settings.count===4?'four-up':settings.count===6?'six-up':'eight-up')+'">'+positions.map(position=>paperCard(group[position],side,settings)).join('')+'</section>'}
@@ -1157,10 +1169,10 @@ function render(){
     byId('contextLabel').textContent=knowledge?'Additional Information':'Use in Context';
     if(knowledge){
         byId('mainText').style.fontSize='';byId('contextText').style.fontSize='';byId('contextText').style.setProperty('--text-scale',1);
-        byId('mainText').innerHTML=side==='term'?esc(card.question)+pictureMarkup(card.picture,320):esc(card.answer);
+        byId('mainText').innerHTML=side==='term'?formattedTextHTML(card.question,card.textFormatting?.question)+pictureMarkup(card.picture,320):formattedTextHTML(card.answer,card.textFormatting?.answer);
         setVisible('cardContext',side==='definition'&&!!card.additionalInformation);
         byId('contextQuote').textContent='';byId('hebrewContext').textContent='';
-        byId('englishContext').textContent=card.additionalInformation||'';byId('englishContext').dir='auto';
+        byId('englishContext').innerHTML=formattedTextHTML(card.additionalInformation,card.textFormatting?.additionalInformation);byId('englishContext').dir='auto';
         byId('hebrewSource').textContent='';byId('englishSource').textContent='';
         return;
     }
@@ -1191,7 +1203,7 @@ byId('termFirst').onclick=()=>{termFirst=true;resetSide();byId('termFirst').clas
         setTimeout(() => URL.revokeObjectURL(url), 0);
     }
 
-    const api = { studyStyles, fitText, classHomeButtonContent, pictureMarkup, fromKnowledgeDeck, appendStudyPicture, scheduleClassTerms, makeClassGames, download, makeApp, toCards, publicationCards, practiceRows, createAsteroids, mountChomp, mountFlappy, mountSnowblaster };
+    const api = { studyStyles, fitText, classHomeButtonContent, pictureMarkup, fromKnowledgeDeck, appendStudyPicture, renderStudyQuestion, scheduleClassTerms, makeClassGames, download, makeApp, toCards, publicationCards, practiceRows, createAsteroids, mountChomp, mountFlappy, mountSnowblaster };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     if (typeof window !== 'undefined') window.PeninaOfflineStudyCards = api;
 })();

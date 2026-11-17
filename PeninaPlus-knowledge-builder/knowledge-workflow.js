@@ -79,7 +79,7 @@
             }
             rows.forEach(row => {
                 const card = getDeck().cards.find(value => value.id === row.id);
-                if (card.answer !== row.answer.trim()) card.distractors = {};
+                if (card.answer !== row.answer.trim()) {card.distractors = {}; if(card.textFormatting)delete card.textFormatting.answer;}
                 card.answer = row.answer.trim(); card.distractors ||= {};
                 card.distractors[language] = row.answers.map(value => value.trim());
             });
@@ -201,6 +201,13 @@
                         ...['english','hebrew'].flatMap(language => Array.from({length:5}, (_, i) => card.distractors?.[language]?.[i] || '')),
                         ...Array.from({length:5}, (_, i) => {const target=pictureTargets(card.picture)[i]; return target ? [target.type === 'arrow' ? 'Arrow' : 'Target', ...(target.type === 'arrow' ? [Math.round(target.tail.x * 10000) / 100, Math.round(target.tail.y * 10000) / 100] : ['', ''])] : ['', '', ''];}).flat()]);
                     row.alignment = {vertical:'top',wrapText:true}; row.height = card.picture ? 120 : 75;
+                    ['question','answer','additionalInformation'].forEach((field, index) => {
+                        const format = window.PeninaKnowledgeCards.normalizeTextFormat(card[field],card.textFormatting?.[field]);
+                        if (!format) return;
+                        const cell = row.getCell(index + 1), first = format.paragraphs[0];
+                        cell.value = {richText:format.paragraphs.flatMap((paragraph,i) => [...(i ? [{text:'\n'}] : []), ...paragraph.runs.map(run => ({text:run.text,font:{bold:run.bold}}))])};
+                        cell.alignment = {vertical:'top',wrapText:true,...(first.align !== 'start' ? {horizontal:first.align} : {}),...(first.direction !== 'auto' ? {readingOrder:first.direction} : {})};
+                    });
                     if (card.picture) {
                         const image = new Image(); image.src = card.picture.src; await image.decode();
                         const canvas = document.createElement('canvas'); const ratio = Math.min(600 / image.naturalWidth, 400 / image.naturalHeight, 1);
@@ -246,7 +253,7 @@
                     if(answered)return;answered=true;const correct=value===card.answer;if(correct)score++;
                     byId('quiz-options').querySelectorAll('button').forEach(option=>{option.disabled=true;option.classList.toggle('correct-choice',option.textContent===card.answer);});
                     status('quiz-status',correct?'Correct!':`The correct answer is: ${card.answer}`);
-                    byId('quiz-information').hidden=!card.additionalInformation.trim();byId('quiz-information-text').textContent=card.additionalInformation;
+                    byId('quiz-information').hidden=!card.additionalInformation.trim();byId('quiz-information-text').innerHTML=window.PeninaKnowledgeCards.formattedTextHTML(card.additionalInformation,card.textFormatting?.additionalInformation);
                     byId('quiz-next').textContent=quizIndex===quiz.length-1?'See Results':'Next Question';byId('quiz-next').hidden=false;
                 }; byId('quiz-options').append(button);
             });

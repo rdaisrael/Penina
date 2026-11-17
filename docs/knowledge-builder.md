@@ -65,3 +65,13 @@ Picture reuse regression: `node tests/knowledge-picture-reuse.browser.cjs` (uses
 Multiple-target regression: `node --test tests/knowledge-targets.test.js` and `node tests/knowledge-picture-targets.browser.cjs` (same Playwright/Chrome overrides). Covers the five-target limit, A–E labeling, independent movement/removal, reversion to a single crosshair, draft round trips, reuse independence, student views, paper cards, sheets, and spreadsheet coordinates. `tests/mixed-study-lists.browser.cjs` also verifies all five labels across games, Live, and quiz import/save/student preview.
 
 Picture pop-out regression: `node tests/knowledge-picture-popup.browser.cjs` (same Playwright/Chrome overrides). Verifies the 1.5×/2×/3× steps, screen-size limits on desktop and phones in both orientations, hint visibility, wide/tall pictures, target positions, dismissal, reopening, keyboard activation/focus return, resizing, reduced motion, and author/student views. All requests stay local.
+
+
+## Card editing and formatting
+
+- Previous Card and Next Card sit between Save Card and Delete Card. They save valid pending edits before navigating, stop at the first/last card, and keep the current card open if required text or a picture upload is incomplete. From the empty Add Card form, Previous Card returns to the last saved card.
+- Question, Answer, and Additional Information support selected-text bold (also Ctrl/Cmd+B), automatic/LTR/RTL paragraph direction, and left/center/right paragraph alignment. Direction/alignment applies to the selected paragraphs or the paragraph containing the caret.
+- Drafts keep plain strings for matching and generation, with optional validated `textFormatting` paragraph/run metadata. Formatting-only edits preserve reviewed distractors. Pasted/dropped text is plain text; stored HTML is never accepted.
+- Formatting survives browser drafts, JSON downloads, study cards, paper cards, knowledge sheets/PDFs, and combined cards. XLSX exports preserve bold runs and use the first paragraph's direction/alignment for each cell.
+- Gamify and Penina Live carry question formatting through `questionFormatting`. Answer choices use consistent plain-text styling; answer formatting is not sent in Live question snapshots. Existing published lists must be updated with the edited cards before future games can use their formatting.
+- Local regression coverage: `tests/knowledge-formatting.test.js` and `tests/knowledge-editing.browser.cjs`, alongside the existing knowledge, study-card, and Live tests. Browser checks block external requests.

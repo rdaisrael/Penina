@@ -53,7 +53,7 @@ const server = http.createServer(async (req, res) => {
         }
         await upload(filled);
         assert.match(await page.locator('#spreadsheet-status').textContent(), /Imported 2 cards/);
-        assert.equal(await page.locator('#answer').inputValue(), 'Paris');
+        assert.equal(await page.locator('#answer').innerText(), 'Paris');
         await page.locator('#card-list button').nth(1).click();
         assert.equal(await page.locator('#target-surface img').getAttribute('src'), source);
         await page.locator('[data-stage="practice"]').click();
@@ -70,7 +70,7 @@ const server = http.createServer(async (req, res) => {
         const legacy = new ExcelJS.Workbook(); legacy.addWorksheet('Older format').addRows([LEGACY_HEADERS,['','Choose A–F','One','Two','Three','Four','Five','Six','f','Legacy information']]);
         const olderFile = {name:'Older.xlsx',mimeType:filled.mimeType,buffer:Buffer.from(await legacy.xlsx.writeBuffer())};
         await upload(olderFile,'confirm');
-        assert.equal(await page.locator('#answer').inputValue(),'Six');
+        assert.equal(await page.locator('#answer').innerText(),'Six');
         await page.locator('[data-stage="practice"]').click(); assert.equal(await page.locator('.distractor-choices textarea').count(),5);
         await page.locator('#preview-practice').click(); assert.equal(await page.locator('#quiz-options button').count(),6);
         await page.locator('[data-stage="share"]').click();
@@ -83,11 +83,11 @@ const server = http.createServer(async (req, res) => {
         await page.locator('[data-stage="edit"]').click();
         await upload({name:'broken.xlsx',mimeType:filled.mimeType,buffer:Buffer.from('broken')});
         assert.match(await page.locator('#spreadsheet-status').textContent(),/could not be opened/);
-        assert.equal(await page.locator('#card-count').textContent(),'1');assert.equal(await page.locator('#answer').inputValue(),'Six');
+        assert.equal(await page.locator('#card-count').textContent(),'1');assert.equal(await page.locator('#answer').innerText(),'Six');
         if (process.env.SOURCE_XLSX) {
             await upload(process.env.SOURCE_XLSX,'confirm');
             assert.match(await page.locator('#spreadsheet-status').textContent(),/Imported 237 cards/);
-            assert.equal(await page.locator('#answer').inputValue(),'12');
+            assert.equal(await page.locator('#answer').innerText(),'12');
             assert.equal(await page.locator('#target-surface img').count(),1);
             const data=await page.locator('#target-surface img').getAttribute('src');assert.match(data,/^data:image\/png;base64,/);
             await page.locator('[data-stage="practice"]').click();

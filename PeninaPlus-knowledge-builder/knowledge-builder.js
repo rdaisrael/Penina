@@ -3,6 +3,13 @@
     'use strict';
     const {FORMAT, normalizeDeck, hasInformation, printSheets, pictureTargets, validPictureTarget, arrowMarkup} = window.PeninaKnowledgeCards;
     const byId = id => document.getElementById(id);
+    const {formattedTextHTML} = window.PeninaKnowledgeCards;
+    const editors = Object.fromEntries(['question','answer','additionalInformation'].map(field =>
+        [field, window.PeninaRichText.mountEditor(byId(field === 'additionalInformation' ? 'additional-information' : field))]));
+    const readText = () => Object.fromEntries(Object.entries(editors).map(([field, editor]) => [field, editor.get()]));
+    function setText(source = {}) {
+        for (const [field, editor] of Object.entries(editors)) editor.set(source[field] || '', source.textFormatting?.[field]);
+    }
     const embedded = byId('peninaKnowledgeData');
     const studentMode = Boolean(embedded);
     let workflow;
@@ -27,8 +34,9 @@
         byId('save-status').classList.toggle('error', error);
     }
     function editorSnapshot() {
-        return {editingId, question: byId('question').value, answer: byId('answer').value,
-            additionalInformation: byId('additional-information').value,
+        const fields = readText();
+        return {editingId, ...Object.fromEntries(Object.entries(fields).map(([field, value]) => [field, value.text])),
+            textFormatting: Object.fromEntries(Object.entries(fields).filter(([,value]) => value.format).map(([field,value]) => [field,value.format])),
             picture: picture ? {...picture, alt: byId('picture-alt').value} : null, dirty};
     }
     function persist() {
@@ -153,9 +161,7 @@
         editingId = card?.id || null;
         picture = card?.picture ? structuredClone(card.picture) : null;
         activeTarget = 0;
-        byId('question').value = card?.question || '';
-        byId('answer').value = card?.answer || '';
-        byId('additional-information').value = card?.additionalInformation || '';
+        setText(card || {});
         byId('picture-alt').value = picture?.alt || '';
         byId('picture-file').value = '';
         byId('reuse-pictures').open = false;
@@ -167,7 +173,23 @@
         renderEditorPicture();
         renderList();
     }
+    function renderEditorNavigation() {
+        const position = editingId ? deck.cards.findIndex(card => card.id === editingId) : deck.cards.length;
+        byId('previous-card').disabled = position <= 0;
+        byId('next-card').disabled = position < 0 || position >= deck.cards.length - 1;
+    }
+    function moveEditor(amount) {
+        const position = editingId ? deck.cards.findIndex(card => card.id === editingId) : deck.cards.length;
+        const target = deck.cards[position + amount];
+        if (!target || !commitEditor()) return;
+        openEditor(deck.cards.find(card => card.id === target.id));
+        persist();
+        byId('question').focus({preventScroll:true});
+    }
+    byId('previous-card').addEventListener('click', () => moveEditor(-1));
+    byId('next-card').addEventListener('click', () => moveEditor(1));
     function renderList() {
+        renderEditorNavigation();
         renderReusablePictures();
         byId('card-count').textContent = deck.cards.length;
         byId('empty-list').hidden = deck.cards.length > 0;
@@ -192,13 +214,14 @@
         if (uploading) {message('Please wait for the picture to finish loading.', true); return false;}
         if (!dirty) return true;
         if (!byId('card-form').reportValidity()) return false;
-        const question = byId('question').value.trim(), answer = byId('answer').value.trim();
-        if (!question || !answer) {message('Enter both a question and an answer.', true); return false;}
+        const fields = readText(), question = fields.question.text, answer = fields.answer.text;
+        if (!question || !answer) {message('Enter both a question and an answer.', true); byId(!question ? 'question' : 'answer').focus(); return false;}
         if (!editingId && deck.cards.length >= 500) {message('A set can contain up to 500 cards.', true); return false;}
         const previous = deck.cards.find(value => value.id === editingId);
         const card = {id: editingId || crypto.randomUUID(), question, answer,
             distractors: previous?.question === question && previous?.answer === answer ? (previous.distractors || {}) : {},
-            additionalInformation: byId('additional-information').value.trim(),
+            additionalInformation: fields.additionalInformation.text,
+            textFormatting: Object.fromEntries(Object.entries(fields).filter(([,value]) => value.format).map(([field,value]) => [field,value.format])),
             picture: picture ? {...picture, alt: byId('picture-alt').value.trim()} : null};
         const existingIndex = deck.cards.findIndex(value => value.id === editingId);
         if (existingIndex >= 0) deck.cards[existingIndex] = card;
@@ -247,7 +270,8 @@
             }
             content.append(holder);
         }
-        const copy = make('p', 'card-text', back ? card.answer : card.question);
+        const copy = make('p', 'card-text'), field = back ? 'answer' : 'question';
+        copy.innerHTML = formattedTextHTML(card[field], card.textFormatting?.[field]);
         copy.dir = 'auto';
         content.append(copy);
         return content;
@@ -275,7 +299,7 @@
             byId('card-content').replaceChildren(...content.childNodes);
         }
         byId('additional-panel').hidden = !showingAnswer || !hasInformation(card);
-        byId('additional-text').textContent = card.additionalInformation;
+        byId('additional-text').innerHTML = formattedTextHTML(card.additionalInformation, card.textFormatting?.additionalInformation);
         if(studentMode)fitStudentStudy();
         for (const rating of ['known', 'almost', 'learning']) {
             byId(`${rating}-count`).textContent = deck.cards.filter(item => ratings[item.id] === rating).length;
@@ -406,7 +430,8 @@
                     content.append(cardContent(card, page.side === 'back', true));
                     if (page.side === 'back' && hasInformation(card)) {
                         const info = make('section', 'paper-information');
-                        const copy = make('p', '', card.additionalInformation); copy.dir = 'auto';
+                        const copy = make('p'); copy.dir = 'auto';
+                        copy.innerHTML = formattedTextHTML(card.additionalInformation, card.textFormatting?.additionalInformation);
                         info.append(make('h3', '', 'Additional Information'), copy);
                         content.append(info);
                     }
@@ -666,9 +691,10 @@
         for (const label of ['Question','Answer',...(includeInformation ? ['Additional Information'] : [])]) {const th=make('th','',label);th.scope='col';header.append(th);}
         head.append(header);
         for (const card of deck.cards) {
-            const row=make('tr'), question=make('td'), answer=make('td','',card.answer);answer.dir='auto';
+            const row=make('tr'), question=make('td'), answer=make('td');answer.dir='auto';
+            answer.innerHTML=formattedTextHTML(card.answer,card.textFormatting?.answer);
             question.append(cardContent(card,false,true));row.append(question,answer);
-            if(includeInformation){const info=make('td','',card.additionalInformation);info.dir='auto';row.append(info);}
+            if(includeInformation){const info=make('td');info.dir='auto';info.innerHTML=formattedTextHTML(card.additionalInformation,card.textFormatting?.additionalInformation);row.append(info);}
             body.append(row);
         }
         table.append(head,body);root.replaceChildren(title,table);
@@ -717,9 +743,7 @@
                 const editor = saved.editor;
                 openEditor(deck.cards.find(card => card.id === editor?.editingId) || null);
                 if (editor?.dirty) {
-                    byId('question').value = editor.question || '';
-                    byId('answer').value = editor.answer || '';
-                    byId('additional-information').value = editor.additionalInformation || '';
+                    setText(editor);
                     picture = editor.picture || null;
                     byId('picture-alt').value = picture?.alt || '';
                     dirty = true;

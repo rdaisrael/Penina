@@ -19,7 +19,8 @@ function harness() {
     board.querySelector('canvas').getContext = () => new Proxy({}, {get:()=>()=>{}});
     let frame,clock=0,cancelled=false;
     const context = {board,rows:app.practiceRows([card],'english'), document:{hidden:false,createElement:()=>new Element(),addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:name=>listeners.delete(name)},getComputedStyle:()=>({getPropertyValue:()=>'',color:'#123'}),requestAnimationFrame:fn=>{frame=fn;return 1},cancelAnimationFrame:()=>{cancelled=true}};
-    vm.createContext(context);
+    context.renderStudyQuestion=app.renderStudyQuestion;
+ vm.createContext(context);
     vm.runInContext('this.stop=('+app.mountChomp.toString()+')({board,rows});',context);
     const advance = seconds => {for(let i=0;i<Math.ceil(seconds*10);i++) {clock+=100;frame(clock);}};
     return {get:selector=>board.querySelector(selector),advance,context,listeners,isCancelled:()=>cancelled};

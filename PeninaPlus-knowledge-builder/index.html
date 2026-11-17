@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="knowledge-builder.css">
   <style id="print-page-style">@page{size:letter landscape;margin:0}</style>
   <script src="cards.js" defer></script>
+  <script src="rich-text.js" defer></script>
   <script src="knowledge-spreadsheet.js" defer></script>
   <script src="../PeninaPlus-vocab-builder/practice-exercises.js" defer></script>
   <script src="knowledge-workflow.js" defer></script>
@@ -60,11 +61,11 @@
               <p id="marker-help" class="help">Add up to 5 targets and arrows in total. Select a marker, then click the picture or use arrow keys to move it. For an arrow, choose its tip or tail to set where it points and where it starts. Two or more markers are labeled A–E.</p>
               <label for="picture-alt">Picture description <span class="optional">(for screen readers)</span></label><input id="picture-alt" type="text" placeholder="Describe the picture and what the markers indicate">
             </div>
-            <label for="question">Question</label><textarea id="question" dir="auto" rows="3" required placeholder="What would you like students to know?"></textarea>
-            <label for="answer">Answer</label><textarea id="answer" dir="auto" rows="3" required placeholder="The answer on the other side of the card"></textarea>
-            <label for="additional-information">Additional Information <span class="optional">(optional)</span></label><textarea id="additional-information" dir="auto" rows="3" placeholder="Appears in the white area below the card when the answer is showing."></textarea>
+            <label id="question-label" for="question">Question</label><div id="question" class="rich-text-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="question-label" aria-label="Question" aria-required="true" dir="auto"></div>
+            <label id="answer-label" for="answer">Answer</label><div id="answer" class="rich-text-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="answer-label" aria-label="Answer" aria-required="true" dir="auto"></div>
+            <label id="additional-information-label" for="additional-information">Additional Information <span class="optional">(optional)</span></label><div id="additional-information" class="rich-text-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="additional-information-label" aria-label="Additional Information" dir="auto"></div>
             <p id="editor-message" role="status" class="form-message"></p>
-            <div class="form-actions"><button id="save-card" class="primary" type="submit">Add Card</button><button id="delete-card" class="danger" type="button" hidden>Delete Card</button></div>
+            <div class="form-actions"><button id="save-card" class="primary" type="submit">Add Card</button><button id="previous-card" type="button" disabled>Previous Card</button><button id="next-card" type="button" disabled>Next Card</button><button id="delete-card" class="danger" type="button" hidden>Delete Card</button></div>
           </form>
         </section>
       </div>

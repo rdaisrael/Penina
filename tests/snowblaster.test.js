@@ -6,6 +6,7 @@ function game(){
  const board=new Node();board.dataset.initials='ABC';board.querySelector=()=>root;
  let frame,now=0,nextTimer=0;const timers=new Map();const listeners=new Map();const doc={createElement:()=>new Node(),getElementById:()=>null,addEventListener:(k,f)=>listeners.set(k,f),removeEventListener:k=>listeners.delete(k)};
  const context={document:doc,window:{location:{protocol:'file:'},addEventListener(){},removeEventListener(){}},performance:{now:()=>now},crypto:{randomUUID:()=> 'snow-test-run-123'},AbortController,requestAnimationFrame:f=>(frame=f,1),cancelAnimationFrame:()=>{frame=null},setTimeout:(f,ms)=>{const id=++nextTimer;timers.set(id,{f,ms});return id},clearTimeout:id=>timers.delete(id),board,rows:[{term:'סוס',definition:'horse',answers:['cat','dog','bird','fish']}]};
+ context.renderStudyQuestion=app.renderStudyQuestion;
  vm.createContext(context);const stop=vm.runInContext('('+app.mountSnowblaster.toString()+')({board,rows})',context);
  const q=n=>nodes.get('.sb-'+n);
  return{q,root,stop,listeners,start:()=>q('panel').children[2].onclick(),advance:()=>{const pending=[...timers.entries()].sort((a,b)=>a[1].ms-b[1].ms);for(const [id,t] of pending){timers.delete(id);t.f();}},hit:correct=>{const chosen=q('targets').children.find(b=>(b.dataset.answer==='horse')===correct);q('targets').children.forEach(b=>b.rect=b===chosen?{left:420,right:480,top:100,bottom:200}:{left:0,right:20,top:100,bottom:200});now+=300;q('fire').onclick();for(let j=0;j<12;j++){now+=100;frame?.(now);}},tick:()=>{now+=100;frame?.(now)}};

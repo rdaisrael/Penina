@@ -1,7 +1,7 @@
 (function () {
     'use strict';
     const {pictureMarkup} = require('./offline-study-cards');
-    const {drawPictureArrow} = require('../PeninaPlus-knowledge-builder/cards');
+    const {drawPictureArrow, normalizeTextFormat, formattedTextHTML} = require('../PeninaPlus-knowledge-builder/cards');
     const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const displayValue = value => String(value === undefined || value === null ? '' : value).trim().toLowerCase() === 'n' ? '' : String(value || '');
 
@@ -111,8 +111,11 @@
             return result;
         }
         function drawRich(item,x,top,available){
-            const rtl=/[\u0590-\u05ff]/.test(item.text);
-            let cursor=rtl?x+available:x;
+            const rtl=item.direction === 'rtl' || (item.direction !== 'ltr' && /[\u0590-\u05ff]/.test(item.text));
+            const width=item.runs.reduce((total,run)=>{font(item.size,run.bold);return total+ctx.measureText(run.text).width;},0);
+            const align=item.align === 'start' || !item.align ? (rtl?'right':'left') : item.align;
+            const left=align === 'right' ? x+available-width : align === 'center' ? x+(available-width)/2 : x;
+            let cursor=left+(rtl?width:0);
             ctx.fillStyle='#222';ctx.textBaseline='top';ctx.direction=rtl?'rtl':'ltr';ctx.textAlign=rtl?'right':'left';
             for(const run of item.runs){
                 font(item.size,run.bold);
@@ -131,19 +134,23 @@
             });
             return result;
         }
+        function knowledgeBlocks(card,field,fontSize,bold=false) {
+            const format=normalizeTextFormat(card[field],card.textFormatting?.[field]);
+            return format ? format.paragraphs.map(paragraph=>({...paragraph,text:paragraph.runs.map(run=>run.text).join('') || '\u00a0',runs:paragraph.runs.length?paragraph.runs:[{text:'\u00a0',bold:false}],size:fontSize})) : [{text:card[field],size:fontSize,bold}];
+        }
         newPage();
         cards.forEach(card => {
             let cells;
             if(knowledge) {
-                const question=cell([{text:card.question,size,bold:true}],columns[0]);
+                const question=cell(knowledgeBlocks(card,'question',size,true),columns[0]);
                 if(card.picture) {
                     const image=images.get(card.picture.src);
                     if(!image)throw new Error('A question picture could not be loaded. Please try again.');
                     const ratio=Math.min((columns[0]-16)/image.naturalWidth,200/image.naturalHeight);
                     question.push({image,picture:card.picture,width:image.naturalWidth*ratio,height:image.naturalHeight*ratio+10});
                 }
-                cells=[question,cell([{text:card.answer,size}],columns[1])];
-                if(columns.length===3)cells.push(cell([{text:card.additionalInformation,size:size*.9}],columns[2]));
+                cells=[question,cell(knowledgeBlocks(card,'answer',size),columns[1])];
+                if(columns.length===3)cells.push(cell(knowledgeBlocks(card,'additionalInformation',size*.9),columns[2]));
             } else {
                 const definitions=[];
                 if(options.hebrew!==false)definitions.push({text:card.hebrew,size,bold:false});
@@ -215,8 +222,8 @@
 
     function renderTable(cards, options = {}) {
         if(options.kind === 'knowledge') {
-            const text=value=>'<p dir="auto">'+escapeHtml(value)+'</p>';
-            const rows=cards.map(card=>'<tr><td>'+text(card.question)+pictureMarkup(card.picture,240)+'</td><td>'+text(card.answer)+'</td>'+(options.context!==false?'<td>'+text(card.additionalInformation)+'</td>':'')+'</tr>').join('');
+            const text=(card,field)=>'<p dir="auto">'+formattedTextHTML(card[field],card.textFormatting?.[field])+'</p>';
+            const rows=cards.map(card=>'<tr><td>'+text(card,'question')+pictureMarkup(card.picture,240)+'</td><td>'+text(card,'answer')+'</td>'+(options.context!==false?'<td>'+text(card,'additionalInformation')+'</td>':'')+'</tr>').join('');
             const columns=options.context===false?[46,54]:[38,28,34];
             return '<table><colgroup>'+columns.map(width=>'<col style="width:'+width+'%">').join('')+'</colgroup><thead><tr><th scope="col">Question</th><th scope="col">Answer</th>'+(options.context!==false?'<th scope="col">Additional Information</th>':'')+'</tr></thead><tbody>'+rows+'</tbody></table>';
         }
@@ -308,7 +315,7 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px so
 </style></head><body>
 <div class="toolbar"><button id="print" class="primary" type="button">Print Sheets</button><button id="download" type="button">Download Sheets (PDF)</button><p id="status" role="status">Use Print Sheets, then adjust Scale in your browser’s print dialog.</p></div>
 <main class="sheet"><h1>${escapeHtml(title)}</h1>${renderTable(cards, options)}<footer>Generated with Penina-Hebrew Suite</footer></main>
-<script id="peninaSheetData" type="application/json">${data}</script><script>(() => { ${drawPictureArrow.toString()} const displayValue = ${displayValue.toString()}; const textRuns = ${textRuns.toString()}; const sanitizeCards = ${sanitizeCards.toString()}; const renderPages = ${renderPages.toString()}; return (${start.toString()})(); })();</script></body></html>`;
+<script id="peninaSheetData" type="application/json">${data}</script><script>(() => { ${drawPictureArrow.toString()}; ${normalizeTextFormat.toString()} const displayValue = ${displayValue.toString()}; const textRuns = ${textRuns.toString()}; const sanitizeCards = ${sanitizeCards.toString()}; const renderPages = ${renderPages.toString()}; return (${start.toString()})(); })();</script></body></html>`;
     }
     if (typeof module !== 'undefined' && module.exports) module.exports = { makeSheet, renderTable, renderPages };
 })();

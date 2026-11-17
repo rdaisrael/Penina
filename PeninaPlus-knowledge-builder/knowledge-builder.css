@@ -47,3 +47,16 @@ dialog{border:1px solid var(--line);border-radius:14px;padding:20px;color:var(--
 .picture-zoom-hint{position:absolute;bottom:0;left:0;width:100%;margin:0;padding:4px 8px;border-radius:5px;background:#fff;color:#4a4238;font:13px/20px Arial,sans-serif;text-align:center;pointer-events:none}
 
 .spreadsheet-panel{margin-bottom:20px}.spreadsheet-panel h2{font-size:18px;margin-bottom:10px}.spreadsheet-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.spreadsheet-actions label{font-size:13px;margin:0;max-width:220px}.spreadsheet-actions select{margin-top:6px}.template-download{display:inline-block;padding:11px 14px;border:1px solid var(--line);border-radius:5px;color:var(--accent);font-size:14px;font-weight:bold;text-decoration:none}.template-download:hover{background:var(--paper)}.spreadsheet-panel .form-message:empty{display:none}
+
+/* Card text controls share the vocabulary editor's plain text + bold-run model. */
+.text-format-toolbar{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
+.text-format-toolbar button{min-height:36px;padding:5px 9px;font-size:13px;border-radius:7px}
+.text-format-toolbar button[data-format="bold"]{font-weight:800}
+.text-format-toolbar button[aria-pressed="true"]{background:#e4eeff;border-color:#0056b3;color:#003e82}
+.rich-text-editor{box-sizing:border-box;min-height:105px;width:100%;margin-bottom:16px;padding:12px;border:1px solid #b8c5d4;border-radius:8px;background:#fff;color:var(--text);font-family:inherit;font-size:16px;font-weight:400;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;cursor:text}
+.rich-text-editor:focus{outline:2px solid #0056b3;outline-offset:2px}
+.rich-text-editor div,.rich-text-editor p{margin:0;min-height:1.5em}
+.rich-text-editor strong,.rich-text-editor b{font-weight:700}
+.form-actions{display:flex;flex-wrap:wrap;gap:8px}
+.form-actions button{flex:1 1 auto}
+@media(max-width:600px){.form-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.form-actions button{padding:10px 5px}}

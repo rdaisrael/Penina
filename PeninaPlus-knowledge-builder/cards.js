@@ -4,6 +4,46 @@
     else root.PeninaKnowledgeCards = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
+    // Plain text remains authoritative for answer matching and generation. Formatting
+    // is a small allowlisted paragraph/run model, never saved or trusted HTML.
+    function normalizeTextFormat(text, format) {
+        if (!format || !Array.isArray(format.paragraphs) || !format.paragraphs.length || format.paragraphs.length > 5000) return null;
+        const paragraphs = [];
+        for (const paragraph of format.paragraphs) {
+            if (!paragraph || !Array.isArray(paragraph.runs) || paragraph.runs.length > 10000) return null;
+            const runs = [];
+            for (const run of paragraph.runs) {
+                if (!run || typeof run.text !== 'string' || /[\r\n]/.test(run.text)) return null;
+                if (!run.text) continue;
+                const bold = run.bold === true, previous = runs[runs.length - 1];
+                if (previous?.bold === bold) previous.text += run.text;
+                else runs.push({text:run.text, bold});
+            }
+            paragraphs.push({runs, direction:['ltr','rtl'].includes(paragraph.direction) ? paragraph.direction : 'auto',
+                align:['left','right','center'].includes(paragraph.align) ? paragraph.align : 'start'});
+        }
+        // Card normalization trims surrounding whitespace; trim its matching runs too.
+        while (paragraphs.length) {
+            const runs = paragraphs[0].runs;
+            while (runs.length && !runs[0].text.trimStart()) runs.shift();
+            if (runs.length) {runs[0].text = runs[0].text.trimStart(); break;}
+            paragraphs.shift();
+        }
+        while (paragraphs.length) {
+            const runs = paragraphs[paragraphs.length - 1].runs;
+            while (runs.length && !runs[runs.length - 1].text.trimEnd()) runs.pop();
+            if (runs.length) {runs[runs.length - 1].text = runs[runs.length - 1].text.trimEnd(); break;}
+            paragraphs.pop();
+        }
+        if (!paragraphs.length || paragraphs.map(p => p.runs.map(run => run.text).join('')).join('\n') !== String(text || '').trim()) return null;
+        return {paragraphs};
+    }
+    function formattedTextHTML(text, format) {
+        const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        const normalized = normalizeTextFormat(text, format);
+        if (!normalized) return escape(text);
+        return normalized.paragraphs.map(paragraph => `<span data-rich-paragraph dir="${paragraph.direction}" style="display:block;min-height:1em;white-space:pre-wrap;font-weight:400;text-align:${paragraph.align}">${paragraph.runs.map(run => run.bold ? '<strong style="font-weight:700">'+escape(run.text)+'</strong>' : escape(run.text)).join('') || '<br>'}</span>`).join('');
+    }
     const FORMAT = 'penina-knowledge-cards';
     const text = value => typeof value === 'string' ? value.trim() : '';
     const hasInformation = card => Boolean(text(card.additionalInformation));
@@ -88,7 +128,12 @@
                     distractors[language] = values.map(text);
                 }
             }
-            return {id, question: text(card.question), answer: text(card.answer), additionalInformation: text(card.additionalInformation), picture, distractors};
+            const textFormatting = {};
+            for (const field of ['question','answer','additionalInformation']) {
+                const format = normalizeTextFormat(text(card[field]), card.textFormatting?.[field]);
+                if (format) textFormatting[field] = format;
+            }
+            return {...(Object.keys(textFormatting).length ? {textFormatting} : {}), id, question: text(card.question), answer: text(card.answer), additionalInformation: text(card.additionalInformation), picture, distractors};
         });
         return {format: FORMAT, version: 1, title: text(input.title) || 'Untitled knowledge set', cards};
     }
@@ -103,5 +148,5 @@
         }
         return pages;
     }
-    return {FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
+    return {normalizeTextFormat, formattedTextHTML, FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
 });

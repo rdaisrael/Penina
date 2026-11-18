@@ -10,7 +10,7 @@
 #card-content .student-card-main{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);align-items:center;width:100%;height:100%;gap:0}
 #card-content .student-card-main.has-picture{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:16px;direction:ltr}
 .student-question-copy{display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;height:100%}
-.student-question-copy .card-text{width:100%;margin:0;font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
+.student-question-copy .card-text{width:100%;margin:0;font:inherit;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere}
 .picture-button{background:transparent;border:0;padding:0;min-width:0;max-width:100%;justify-self:center;position:relative;cursor:zoom-in;line-height:0;border-radius:4px}
 .picture-button img{display:block;max-width:100%;width:auto;height:auto;max-height:160px;border-radius:4px}
 #card-content .picture-button img{max-height:220px}
@@ -24,7 +24,7 @@ dialog{border:1px solid var(--line);border-radius:14px;padding:20px;color:var(--
 /* Keep paper and practice content independent of the fixed electronic card box. */
 #print-pages .card-content,#quiz-prompt .card-content{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;width:100%;gap:22px;max-height:none;overflow:visible}
 #print-pages .card-content.has-picture,#quiz-prompt .card-content.has-picture{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-#print-pages .card-text,#quiz-prompt .card-text{margin:0;text-align:center;font-weight:700;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+#print-pages .card-text,#quiz-prompt .card-text{margin:0;text-align:center;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
 #print-pages .paper-card{overflow:visible}
 
 .print-settings select,.quiz-toolbar select{font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}

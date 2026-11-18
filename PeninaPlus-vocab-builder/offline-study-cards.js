@@ -1143,13 +1143,13 @@ button{border:1px solid var(--line);background:#fff;color:var(--ink);border-radi
 /* Combined decks keep the existing vocabulary card and context frame sizes. */
 .card.knowledge-card{padding-top:64px}
 .knowledge-card .card-content{flex:none;height:225px!important;max-height:225px;align-items:safe center;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;touch-action:pan-y}
-.knowledge-main{font-size:24px;white-space:pre-wrap;line-height:1.4}
+.knowledge-main{font-size:24px;font-weight:400;white-space:pre-wrap;line-height:1.4}
 .knowledge-context .context-body{overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;touch-action:pan-y}
 .knowledge-context .context-text{font-size:17px;white-space:pre-wrap;text-align:start}
 .knowledge-context .context-en{font-size:inherit}
 .knowledge-context .citation{display:none}
 #cardContent:focus-visible,#contextBody:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.paper-card-knowledge .paper-term{font-size:16pt;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-translation{font-size:15pt;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-context{white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
+.paper-card-knowledge .paper-term{font-size:16pt;font-weight:400;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-translation{font-size:15pt;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-context{white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
 body.print-preview-open .app{display:none}body.print-preview-open .print-preview{display:block}
 @media(max-width:880px){header{grid-template-columns:1fr}.layout{grid-template-columns:1fr}.panel{position:static}.controls,.ratings{grid-template-columns:1fr}}
 @media(max-width:850px){.print-preview{overflow:auto}.print-toolbar{width:100%;flex-wrap:wrap}.print-toolbar-copy{flex-basis:100%}.paper-sheet,.sheet-caption{margin-left:0}}

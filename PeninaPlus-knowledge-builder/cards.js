@@ -42,7 +42,9 @@
         const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
         const normalized = normalizeTextFormat(text, format);
         if (!normalized) return escape(text);
-        return normalized.paragraphs.map(paragraph => `<span data-rich-paragraph dir="${paragraph.direction}" style="display:block;min-height:1em;white-space:pre-wrap;font-weight:400;text-align:${paragraph.align}">${paragraph.runs.map(run => run.bold ? '<strong style="font-weight:700">'+escape(run.text)+'</strong>' : escape(run.text)).join('') || '<br>'}</span>`).join('');
+        // Default alignment follows the view (centered cards, start-aligned notes).
+        // Changing paragraph direction alone must not replace that alignment.
+        return normalized.paragraphs.map(paragraph => `<span data-rich-paragraph dir="${paragraph.direction}" style="display:block;min-height:1em;white-space:pre-wrap;font-weight:400;text-align:${paragraph.align === 'start' ? 'inherit' : paragraph.align}">${paragraph.runs.map(run => run.bold ? '<strong style="font-weight:700">'+escape(run.text)+'</strong>' : escape(run.text)).join('') || '<br>'}</span>`).join('');
     }
     const FORMAT = 'penina-knowledge-cards';
     const text = value => typeof value === 'string' ? value.trim() : '';

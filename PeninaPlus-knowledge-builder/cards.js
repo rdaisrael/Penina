@@ -50,6 +50,53 @@
     const text = value => typeof value === 'string' ? value.trim() : '';
     const hasInformation = card => Boolean(text(card.additionalInformation));
     const choiceKey = value => text(value).normalize('NFKC').toLowerCase().replace(/[\u0591-\u05c7]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
+    const binaryPairs = [
+        [['yes', 'כֵּן'], ['no', 'לֹא']],
+        [['true', 'אֱמֶת'], ['false', 'שֶׁקֶר']],
+        [['correct', 'נָכוֹן'], ['incorrect', 'לֹא נָכוֹן']],
+    ];
+    const unpoint = value => value.normalize('NFKD').replace(/[\u0591-\u05bd\u05bf\u05c1\u05c2\u05c4\u05c5\u05c7]/gu, '');
+    function binaryDistractor(answer, mode = 'mixed') {
+        const original = text(answer);
+        const label = original.replace(/[.!?…׃]+$/u, '').trim();
+        const punctuation = original.slice(label.length).trim().slice(0, 3);
+        const key = unpoint(label).toLowerCase().replace(/[\s־-]+/gu, ' ');
+        for (const pair of binaryPairs) {
+            const index = pair.findIndex(([english, hebrew]) => key === english || key === unpoint(hebrew));
+            if (index < 0) continue;
+            const [english, hebrew] = pair[1 - index];
+            if (mode === 'hebrew' || (mode === 'mixed' && /[א-ת]/u.test(label))) {
+                return (/\p{M}/u.test(label.normalize('NFKD')) ? hebrew : unpoint(hebrew)) + punctuation;
+            }
+            if (/[a-z]/i.test(label) && label === label.toUpperCase()) return english.toUpperCase() + punctuation;
+            return (/^[a-z]/.test(label) ? english : english[0].toUpperCase() + english.slice(1)) + punctuation;
+        }
+        return null;
+    }
+    function distractorSlots(answer, choices) {
+        if (!binaryDistractor(answer)) return choices ? [...choices] : ['', '', ''];
+        const filled = (choices || []).filter(value => value.trim());
+        return filled.length ? filled : [''];
+    }
+    // Known opposites need no model call. Keep multi-choice banks explicitly supplied by a teacher.
+    function planDistractors(requests, mode) {
+        const paired = [], aiRows = [];
+        for (const row of requests) {
+            const opposite = binaryDistractor(row.definition, mode);
+            if (!opposite) {
+                aiRows.push(row);
+                continue;
+            }
+            let slot = row.slots[0];
+            if (row.answers.some(value => value.trim())) {
+                // Leave filled manual choices alone unless the teacher selects one for regeneration.
+                const existing = row.answers.findIndex(value => choiceKey(value) === choiceKey(opposite));
+                slot = row.slots.find(i => existing >= 0 ? i === existing : row.answers[i].trim());
+            }
+            paired.push({id: row.id, cells: slot === undefined ? [] : [{slot, answer: opposite}]});
+        }
+        return {paired, aiRows};
+    }
     function validChoices(answer, choices) {
         return Array.isArray(choices) && choices.length >= 1 && choices.length <= 5 && choices.every(value => typeof value === 'string' && value.length <= 500 && choiceKey(value) && choiceKey(value) !== choiceKey(answer))
             && new Set(choices.map(choiceKey)).size === choices.length;
@@ -57,13 +104,19 @@
     function practiceCards(deck, language) {
         return deck.cards.filter(card => validChoices(card.answer, card.distractors?.[language]));
     }
+    function answerLanguage(value) {
+        const text = value.normalize('NFKD');
+        const english = /\p{Script=Latin}/u.test(text);
+        if (/[א-ת]/u.test(text)) return english ? 'mixed' : 'hebrew';
+        return english ? 'english' : 'other';
+    }
     function matchesAnswerWording(choice, correctAnswer) {
+        const language = answerLanguage(correctAnswer);
+        if (answerLanguage(choice) !== language) return false;
+        if (language !== 'hebrew' && language !== 'mixed') return true;
         // Normalize only for comparison. Keep the teacher's spelling and marks in the saved text.
         const hebrewWords = value => value.normalize('NFKD').match(/[א-ת][א-ת\p{M}]*(?:[׳״'"][א-ת][א-ת\p{M}]*)*/gu) || [];
         const correct = hebrewWords(correctAnswer), proposed = hebrewWords(choice);
-        const hasEnglish = value => /\p{Script=Latin}/u.test(value);
-        if (hasEnglish(choice) !== hasEnglish(correctAnswer) || Boolean(correct.length) !== Boolean(proposed.length)) return false;
-        if (!correct.length) return true;
 
         const pointed = word => /[\u05b0-\u05bd\u05bf\u05c1\u05c2\u05c7]/u.test(word);
         if (correct.some(pointed) !== proposed.some(pointed)) return false;
@@ -145,7 +198,7 @@
                 const values = card.distractors?.[language];
                 if (values !== undefined) {
                     if (!Array.isArray(values) || (values.length < 1 || values.length > 5) || values.some(value => typeof value !== 'string' || value.length > 500)) throw new Error(`Card ${i + 1} has invalid distractors.`);
-                    distractors[language] = values.map(text);
+                    distractors[language] = distractorSlots(card.answer, values.map(text));
                 }
             }
             const textFormatting = {};
@@ -168,5 +221,5 @@
         }
         return pages;
     }
-    return {normalizeTextFormat, formattedTextHTML, FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, matchesAnswerWording, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
+    return {normalizeTextFormat, formattedTextHTML, FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, binaryDistractor, distractorSlots, planDistractors, answerLanguage, matchesAnswerWording, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
 });

@@ -1,7 +1,7 @@
 /* Teacher practice/share tools and the student practice view. */
 (() => {
     'use strict';
-    const {validChoices, practiceCards, pictureTargets, drawPictureArrow} = window.PeninaKnowledgeCards;
+    const {validChoices, practiceCards, choiceKey, binaryDistractor, distractorSlots, planDistractors, formattedTextHTML, pictureTargets, drawPictureArrow} = window.PeninaKnowledgeCards;
     const byId = id => document.getElementById(id);
     const make = (tag, className, text) => {
         const node = document.createElement(tag); if (className) node.className = className;
@@ -17,13 +17,17 @@
         return data;
     }
     function mount({getDeck, changed, setStage, renderQuestion, studentMode}) {
-        let language = 'english', rows = [], sourceKey = '', dirty = false, busy = false, controller, generation = 0;
+        let mode = 'english', rows = [], sourceKey = '', dirty = false, busy = false, controller, generation = 0;
+        const choiceBank = mode => mode === 'mixed' ? 'english' : mode;
         let pages = [], loadingPages = false, pagesLoaded = false, publishing = false;
         let quiz = [], quizIndex = 0, score = 0, answered = false;
         const status = (id, text, error = false) => {byId(id).textContent = text; byId(id).classList.toggle('error', error);};
-        const signature = () => JSON.stringify(getDeck().cards.map(card => [card.id, card.question, card.answer, card.distractors]));
+        const signature = () => JSON.stringify(getDeck().cards.map(card => [card.id, card.question, card.textFormatting?.question, card.answer, card.distractors]));
         function resetRows() {
-            rows = getDeck().cards.map(card => ({id: card.id, question: card.question, answer: card.answer, answers: [...(card.distractors?.[language] || ['', '', ''])]}));
+            rows = getDeck().cards.map(card => ({
+                id: card.id, question: card.question, questionFormatting: card.textFormatting?.question,
+                answer: card.answer, answers: distractorSlots(card.answer, card.distractors?.[choiceBank(mode)]),
+            }));
             sourceKey = signature(); dirty = false;
         }
         function refreshPractice() {
@@ -31,31 +35,50 @@
             byId('practice-editor').querySelectorAll('input, textarea, button, select').forEach(node => {node.disabled = busy;});
             byId('practice-cancel').disabled = false;
             byId('practice-cancel').hidden = !dirty && !busy;
-            byId('preview-practice').disabled = !practiceCards(getDeck(), language).length || busy;
-            byId('practice-language').value = language;
+            byId('preview-practice').disabled = !practiceCards(getDeck(), choiceBank(mode)).length || busy;
+            byId('practice-language').value = mode;
+            byId('mixed-language-help').hidden = mode !== 'mixed';
+        }
+        function renderChoices(row, i) {
+            const choices = make('div', 'distractor-choices');
+            row.answers.forEach((value, slot) => {
+                const cell = make('div');
+                const label = make('label', '', `Incorrect answer ${slot + 1}`);
+                const input = make('textarea'); input.rows = 2; input.dir = 'auto'; input.maxLength = 500; input.value = value;
+                input.id = `distractor-${i}-${slot}`; label.htmlFor = input.id;
+                input.addEventListener('input', () => {row.answers[slot] = input.value; dirty = true; refreshPractice();});
+                const regenerate = make('label', 'regenerate-choice');
+                const checkbox = make('input'); checkbox.type = 'checkbox'; checkbox.dataset.row = i; checkbox.dataset.slot = slot;
+                regenerate.append(checkbox, document.createTextNode('Regenerate this answer'));
+                cell.append(label, input, regenerate); choices.append(cell);
+            });
+            return choices;
         }
         function renderRows() {
             byId('practice-rows').replaceChildren(...rows.map((row, i) => {
                 const section = make('section', 'distractor-card');
-                const title = make('h3', '', `${i + 1}. ${row.question}`); title.dir = 'auto'; section.append(title);
+                const title = make('h3');
+                const question = make('span', 'card-text');
+                question.dir = 'auto';
+                question.innerHTML = formattedTextHTML(row.question, row.questionFormatting);
+                title.append(make('span', '', `${i + 1}.`), question);
+                section.append(title);
                 const answerLabel = make('label', '', 'Correct answer');
                 const answer = make('textarea'); answer.rows = 2; answer.dir = 'auto'; answer.value = row.answer;
                 answer.id = `correct-${i}`; answerLabel.htmlFor = answer.id; answer.maxLength = 2000;
                 answer.addEventListener('input', () => {row.answer = answer.value; dirty = true; refreshPractice();});
-                section.append(answerLabel, answer);
-                const choices = make('div', 'distractor-choices');
-                row.answers.forEach((value, slot) => {
-                    const cell = make('div');
-                    const label = make('label', '', `Incorrect answer ${slot + 1}`);
-                    const input = make('textarea'); input.rows = 2; input.dir = 'auto'; input.maxLength = 500; input.value = value;
-                    input.id = `distractor-${i}-${slot}`; label.htmlFor = input.id;
-                    input.addEventListener('input', () => {row.answers[slot] = input.value; dirty = true; refreshPractice();});
-                    const regenerate = make('label', 'regenerate-choice');
-                    const checkbox = make('input'); checkbox.type = 'checkbox'; checkbox.dataset.row = i; checkbox.dataset.slot = slot;
-                    regenerate.append(checkbox, document.createTextNode('Regenerate this answer'));
-                    cell.append(label, input, regenerate); choices.append(cell);
+                let previousAnswer = row.answer, choices = renderChoices(row, i);
+                answer.addEventListener('change', () => {
+                    // A revised binary answer may need a different opposite or a full set of choices.
+                    const oldOpposite = binaryDistractor(previousAnswer, mode);
+                    const opposite = binaryDistractor(row.answer, mode);
+                    previousAnswer = row.answer;
+                    if (choiceKey(oldOpposite) === choiceKey(opposite)) return;
+                    const existing = opposite && row.answers.find(value => choiceKey(value) === choiceKey(opposite));
+                    row.answers = existing ? [existing] : distractorSlots(row.answer);
+                    const next = renderChoices(row, i); choices.replaceWith(next); choices = next;
                 });
-                section.append(choices); return section;
+                section.append(answerLabel, answer, choices); return section;
             }));
             refreshPractice();
         }
@@ -66,10 +89,10 @@
         function saveAnswers() {
             if (busy) {status('practice-status', 'Wait for generation to finish, or discard the pending changes.', true); return false;}
             if (!dirty) return true;
-            for (const row of rows) {
+            const savedChoices = rows.map(row => distractorSlots(row.answer, row.answers).map(value => value.trim()));
+            for (const [i, row] of rows.entries()) {
                 if (!row.answer.trim()) {status('practice-status', 'Enter a correct answer for every question.', true); return false;}
-                const filled = row.answers.some(value => value.trim());
-                if (filled && !validChoices(row.answer, row.answers)) {
+                if (savedChoices[i].some(Boolean) && !validChoices(row.answer, savedChoices[i])) {
                     status('practice-status', 'Fill each incorrect-answer cell with a different answer. None may match its correct answer. Leave every cell empty to skip a question.', true); return false;
                 }
             }
@@ -77,28 +100,31 @@
                 const card = getDeck().cards.find(value => value.id === row.id);
                 if (!card || card.question !== row.question) {status('practice-status', 'A question changed. Discard these changes and reopen practice.', true); return false;}
             }
-            rows.forEach(row => {
+            rows.forEach((row, i) => {
                 const card = getDeck().cards.find(value => value.id === row.id);
                 if (card.answer !== row.answer.trim()) {card.distractors = {}; if(card.textFormatting)delete card.textFormatting.answer;}
                 card.answer = row.answer.trim(); card.distractors ||= {};
-                card.distractors[language] = row.answers.map(value => value.trim());
+                card.distractors[choiceBank(mode)] = savedChoices[i];
             });
-            dirty = false; sourceKey = signature(); changed(); refreshPractice();
+            const resized = rows.some((row, i) => row.answers.length !== savedChoices[i].length);
+            dirty = false; sourceKey = signature(); changed();
+            if (resized) {resetRows(); renderRows();} else {refreshPractice();}
             status('practice-status', 'Answers saved. You can preview practice or continue to Share.'); return true;
         }
-        async function generate(selected, requestedLanguage = language) {
+        async function generate(selected) {
             if (busy) return;
-            if (requestedLanguage !== language) {
-                if (!saveAnswers()) return;
-                language = requestedLanguage; resetRows(); renderRows();
-            }
-            const useTeacherHebrew = language === 'english' && byId('use-teacher-hebrew').checked;
+            const language = choiceBank(mode);
+            const useTeacherHebrew = mode === 'mixed';
             const selectedSlots = [...byId('practice-rows').querySelectorAll('input:checked')];
-            const requests = rows.map((row, i) => ({id: i, term: row.question, definition: row.answer,
+            const pending = rows.map((row, i) => ({id: i, term: row.question, definition: row.answer,
                 answers: [...row.answers], slots: row.answers.map((_, slot) => slot).filter(slot => selected
                     ? selectedSlots.some(input => +input.dataset.row === i && +input.dataset.slot === slot)
                     : !row.answers[slot].trim())})).filter(row => row.slots.length);
-            if (!requests.length) {status('practice-status', selected ? 'Check the answers you want to regenerate.' : 'All cells are filled. Select answers to regenerate, or edit them directly.'); return;}
+            if (!pending.length) {status('practice-status', selected ? 'Check the answers you want to regenerate.' : 'All cells are filled. Select answers to regenerate, or edit them directly.'); return;}
+            const {paired, aiRows: requests} = planDistractors(pending, mode);
+            if (!requests.length && !paired.some(row => row.cells.length)) {
+                status('practice-status', 'These questions already have distractors. You can edit or clear extra choices, then save.'); return;
+            }
             if (requests.some(row => !row.definition.trim() || row.definition.length > 2000 || row.term.length > 4000)) {
                 status('practice-status', 'Generation supports questions up to 4,000 characters and correct answers up to 2,000 characters. You can enter distractors manually for longer cards.', true); return;
             }
@@ -106,7 +132,8 @@
             const results = [];
             try {
                 for (let start = 0; start < requests.length; start += 8) {
-                    status('practice-status', `Generating ${requestedLanguage === 'hebrew' ? 'Hebrew' : 'English'} distractors for questions ${start + 1}–${Math.min(start + 8, requests.length)} of ${requests.length}…`);
+                    const description = useTeacherHebrew ? 'distractors in each correct answer’s language and style' : `${language === 'hebrew' ? 'Hebrew' : 'English'} distractors`;
+                    status('practice-status', `Generating ${description} for questions ${start + 1}–${Math.min(start + 8, requests.length)} of ${requests.length}…`);
                     const timer = setTimeout(() => controller.abort(), 100000);
                     let data;
                     try {data = await request('/api/flashcard-sets', {kind: 'knowledge', action: 'generate-distractors', language, useTeacherHebrew, rows: requests.slice(start, start + 8)}, controller.signal);}
@@ -117,22 +144,28 @@
                 const source = rows.map((row, id) => ({id, term: row.question, definition: row.answer, answers: row.answers}));
                 const merged = window.PeninaPracticeExercises.mergeGeneration(source, requests, results, language,
                     useTeacherHebrew ? window.PeninaKnowledgeCards.matchesAnswerWording : undefined);
-                rows.forEach((row, i) => {row.answers = merged[i].answers;}); dirty = true; renderRows();
+                for (const {id, cells} of paired) {
+                    for (const {slot, answer} of cells) merged[id].answers[slot] = answer;
+                }
+                rows.forEach((row, i) => {row.answers = distractorSlots(row.answer, merged[i].answers);}); dirty = true; renderRows();
                 status('practice-status', 'Distractors generated. Review them, make any edits, then Save Answers.');
             } catch (error) {
                 if (run === generation) status('practice-status', error.name === 'AbortError' ? 'Generation timed out. Your existing answers are unchanged; you can retry or enter them manually.' : error.message, true);
             } finally {if (run === generation) {busy = false; refreshPractice();}}
         }
-        byId('generate-english').onclick = () => generate(false, 'english');
-        byId('generate-hebrew').onclick = () => generate(false, 'hebrew');
+        byId('generate-distractors').onclick = () => generate(false);
         byId('regenerate-selected').onclick = () => generate(true);
         byId('save-answers').onclick = saveAnswers;
         byId('practice-language').onchange = event => {
-            if (!saveAnswers()) {event.target.value = language; return;}
-            language = event.target.value; resetRows(); renderRows(); status('practice-status', 'Enter incorrect answers for each question, or use Generate to fill empty cells.');
+            const next = event.target.value;
+            const switchBank = choiceBank(next) !== choiceBank(mode);
+            if (busy || (switchBank && !saveAnswers())) {event.target.value = mode; return;}
+            mode = next;
+            if (switchBank) {resetRows(); renderRows();} else {refreshPractice();}
+            status('practice-status', 'Use Generate Distractors to fill empty cells, or select answers to regenerate.');
         };
         byId('practice-cancel').onclick = () => {generation++; controller?.abort(); busy = false; resetRows(); renderRows(); status('practice-status', 'Unsaved changes discarded.');};
-        byId('preview-practice').onclick = () => {if (saveAnswers()) {byId('quiz-language').value = language; setStage('quiz');}};
+        byId('preview-practice').onclick = () => {if (saveAnswers()) {byId('quiz-language').value = choiceBank(mode); setStage('quiz');}};
         byId('continue-share').onclick = () => setStage('share');
 
         function updatePageLinks() {

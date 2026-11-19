@@ -117,3 +117,27 @@ test('three-distractor imports create four-choice Quiz and Live questions throug
     assert.equal(active.question.options.length, 4);
     assert.deepEqual([...active.question.options].sort(), ['Paris','London','Rome','Madrid'].sort());
 });
+
+test('a binary spreadsheet card with one filled cell reaches practice, Quiz and Live with exactly two choices', async () => {
+    const deck = parseWorkbook(workbook([
+        ['', 'Did they arrive?', 'Yes', '', 'No', '', ''],
+        ['', 'Is it correct?', 'Correct', '', '', '', ''],
+    ]));
+    assert.deepEqual(deck.cards[0].distractors.english, ['No']);
+    assert.deepEqual(practiceCards(normalizeDeck(deck), 'english').map(card => card.id), [deck.cards[0].id]);
+    const pathname = 'knowledge-cards/sixth/binary.json';
+    const cards = fromKnowledgeDeck(deck, pathname);
+    assert.deepEqual(practiceRows(cards, 'english').map(row => row.answers), [['No']]);
+    const {rows} = require('../lib/quiz-vocabulary-library').mergeCards([{title: deck.title, cards: [cards[0]]}]);
+    const [question] = await require('../lib/quiz-vocabulary').questions({rows, types: ['choice'], autoCount: true});
+    assert.deepEqual(question.choices.slice().sort(), ['No', 'Yes']);
+    const h = require('./helpers/live-harness')();
+    h.storage.set(pathname, {body: JSON.stringify(deck)});
+    const created = await h.create({pathnames: [pathname]});
+    assert.equal(created.code, 201, JSON.stringify(created.body));
+    const {code, hostToken} = created.body;
+    await h.join(code);
+    assert.equal((await h.request('start', {code, version: 0}, hostToken)).code, 200);
+    const live = (await h.request(null, {code}, hostToken)).body;
+    assert.deepEqual(live.question.options.slice().sort(), ['No', 'Yes']);
+});

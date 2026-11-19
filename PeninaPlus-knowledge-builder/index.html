@@ -94,16 +94,19 @@
     <section id="practice-stage" aria-labelledby="practice-heading" hidden>
       <div class="panel workflow-panel">
         <h2 id="practice-heading">Create Distractors for Practice Activities</h2>
-        <p>Prepare incorrect answers for each question. New questions start with three distractors, for four choices in Penina Live and Quiz. Imported questions keep their supplied choices, up to five distractors. Generate answers in English or Hebrew, then review, edit, or regenerate them.</p>
+        <p>Yes/no, true/false, and correct/incorrect answers use one distractor, including their Hebrew equivalents. Other new questions start with three distractors. Imported questions keep their supplied choices, up to five distractors.</p>
         <div id="practice-editor">
           <div class="workflow-actions generate-actions">
-            <div class="english-generation">
-              <button id="generate-english" class="primary" type="button">Generate English Distractors</button>
-              <label><input id="use-teacher-hebrew" type="checkbox"> Use Hebrew terms the way I wrote them</label>
-            </div>
-            <button id="generate-hebrew" class="primary" type="button">Generate Hebrew Distractors</button>
+            <label class="language-select" for="practice-language">Distractor language
+              <select id="practice-language">
+                <option value="english">English</option>
+                <option value="hebrew">Hebrew</option>
+                <option value="mixed">Mixed</option>
+              </select>
+            </label>
+            <button id="generate-distractors" class="primary" type="button">Generate Distractors</button>
           </div>
-          <label class="language-select" for="practice-language">Edit distractors in<select id="practice-language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label>
+          <p id="mixed-language-help" class="help" hidden>Mixed follows each correct answer’s language, Hebrew keywords, and nekudot. These choices are saved under English.</p>
           <p class="help">The correct answer stays in the language you entered. Editing it here updates the flashcard. Leave all distractors empty to include a question only in flashcards and the knowledge sheet.</p>
           <div id="practice-rows"></div>
           <div class="workflow-actions"><button id="regenerate-selected" type="button">Regenerate Selected Answers</button><button id="save-answers" class="primary" type="button">Save Answers</button><button id="practice-cancel" type="button" hidden>Discard Unsaved Changes</button></div>

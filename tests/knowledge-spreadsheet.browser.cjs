@@ -44,6 +44,8 @@ const server = http.createServer(async (req, res) => {
         const sheet = book.worksheets[0];
         sheet.getRow(2).values = ['', 'Capital of France?', 'Paris', 'London', '', '', 'A city.'];
         sheet.getRow(3).values = ['', 'What color?', 'Green', 'Red', 'Blue', 'Gold', 'A picture question.'];
+        sheet.getRow(4).values = ['', 'Did they arrive?', 'Yes', '', '', '', ''];
+        sheet.getRow(5).values = ['', 'Is this true?', 'אֱמֶת', '', '', '', ''];
         const imageId = book.addImage({base64:source,extension:'png'}); sheet.addImage(imageId,{tl:{col:0,row:2},ext:{width:100,height:50}});
         const filled = {name:'Filled template.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(await book.xlsx.writeBuffer())};
         async function upload(file, confirm) {
@@ -52,19 +54,47 @@ const server = http.createServer(async (req, res) => {
             await page.waitForFunction(()=>!document.querySelector('.app').inert);
         }
         await upload(filled);
-        assert.match(await page.locator('#spreadsheet-status').textContent(), /Imported 2 cards/);
+        assert.match(await page.locator('#spreadsheet-status').textContent(), /Imported 4 cards/);
         assert.equal(await page.locator('#answer').innerText(), 'Paris');
         await page.locator('#card-list button').nth(1).click();
         assert.equal(await page.locator('#target-surface img').getAttribute('src'), source);
         await page.locator('[data-stage="practice"]').click();
-        assert.equal(await page.locator('.distractor-choices textarea').count(),6);
-        await page.locator('#generate-english').click();
+        assert.equal(await page.locator('.distractor-choices textarea').count(),8);
+        await page.locator('#practice-language').selectOption('mixed');
+        await page.locator('#generate-distractors').click();
         await page.waitForFunction(()=>document.querySelector('#practice-status').textContent.startsWith('Distractors generated.'));
         assert.equal(generation.length,1);assert.deepEqual(generation[0].rows[0].slots,[1,2]);
         assert.equal(generation[0].rows[0].answers.length,3);assert.equal(generation[0].rows.length,1);
         assert.equal(await page.locator('.distractor-choices textarea').first().inputValue(),'London');
+        assert.equal(await page.locator('#distractor-2-0').inputValue(), 'No');
+        assert.equal(await page.locator('#distractor-3-0').inputValue(), 'שֶׁקֶר');
+        await page.locator('.distractor-card').nth(2).locator('input[type=checkbox]').check();
+        await page.locator('#regenerate-selected').click();
+        assert.equal(generation.length, 1);
+        assert.equal(await page.locator('#distractor-2-0').inputValue(), 'No');
         await page.locator('#save-answers').click(); await page.locator('#preview-practice').click();
         assert.equal(await page.locator('#quiz-options button').count(),4);
+        for (const answer of ['Paris', 'Green']) {
+            await page.locator('#quiz-options').getByRole('button', {name:answer,exact:true}).click();
+            await page.locator('#quiz-next').click();
+        }
+        assert.deepEqual((await page.locator('#quiz-options button').allTextContents()).sort(), ['No','Yes']);
+        await page.locator('#quiz-options').getByRole('button', {name:'Yes',exact:true}).click();
+        await page.locator('#quiz-next').click();
+        assert.deepEqual((await page.locator('#quiz-options button').allTextContents()).sort(), ['אֱמֶת','שֶׁקֶר'].sort());
+        await page.locator('[data-stage="practice"]').click();
+        const binaryCard = page.locator('.distractor-card').nth(2);
+        await page.locator('#correct-2').fill('They arrived at night');
+        await page.locator('#correct-2').press('Tab');
+        assert.equal(await binaryCard.locator('.distractor-choices textarea').count(),3);
+        await page.locator('#correct-2').fill('Incorrect');
+        await page.locator('#correct-2').press('Tab');
+        assert.equal(await binaryCard.locator('.distractor-choices textarea').count(),1);
+        await page.locator('#distractor-2-0').fill('Correct');
+        await page.locator('#continue-share').click();
+        assert.equal(await page.locator('#share-stage').isVisible(),true);
+        await page.locator('[data-stage="practice"]').click();
+        assert.equal(await page.locator('#distractor-2-0').inputValue(), 'Correct');
         await page.locator('[data-stage="edit"]').click();
         await upload(filled,'cancel'); assert.match(await page.locator('#spreadsheet-status').textContent(), /canceled/);
         const legacy = new ExcelJS.Workbook(); legacy.addWorksheet('Older format').addRows([LEGACY_HEADERS,['','Choose A–F','One','Two','Three','Four','Five','Six','f','Legacy information']]);

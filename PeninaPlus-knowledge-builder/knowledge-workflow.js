@@ -34,17 +34,21 @@
             const targets = id === 'practice-status' ? [id, 'practice-review-status'] : [id];
             for (const target of targets) {byId(target).textContent = text; byId(target).classList.toggle('error', error);}
         };
-        const signature = () => JSON.stringify(getDeck().cards.map(card => [card.id, card.question, card.textFormatting?.question, card.answer, card.distractors]));
+        const signature = () => JSON.stringify(getDeck().cards.map(card => [
+            card.id, card.question, card.textFormatting?.question, card.answer, card.textFormatting?.answer, card.distractors,
+        ]));
         function resetRows() {
             rows = getDeck().cards.map(card => ({
                 id: card.id, question: card.question, questionFormatting: card.textFormatting?.question,
-                answer: card.answer, answers: distractorSlots(card.answer, card.distractors?.[choiceBank(mode)]),
+                answer: card.answer, answerFormatting: card.textFormatting?.answer,
+                answers: distractorSlots(card.answer, card.distractors?.[choiceBank(mode)]),
             }));
             sourceKey = signature(); dirty = false;
         }
         function refreshPractice() {
             byId('practice-rows').setAttribute('aria-busy', busy);
             byId('practice-editor').querySelectorAll('input, textarea, button, select').forEach(node => {node.disabled = busy;});
+            byId('practice-rows').querySelectorAll('.rich-text-editor').forEach(node => {node.inert = busy;});
             byId('practice-cancel').disabled = false;
             byId('practice-cancel').hidden = !dirty && !busy;
             byId('preview-practice').disabled = !practiceCards(getDeck(), choiceBank(mode)).length || busy;
@@ -53,10 +57,10 @@
         }
         function fitPractice(stage) {
             if (stage === 'quiz') fitCardLines(byId('quiz-stage').querySelectorAll('#quiz-prompt .card-text, #quiz-options button'));
-            else fitCardLines(byId('practice-rows').querySelectorAll('.card-text, textarea'), 14);
+            else fitCardLines(byId('practice-rows').querySelectorAll('.card-text, .rich-text-editor, textarea'), 14);
         }
         byId('practice-rows').addEventListener('input', event => {
-            if (event.target.tagName === 'TEXTAREA') fitCardLines([event.target], 14);
+            if (event.target.matches('textarea, .rich-text-editor')) fitCardLines([event.target], 14);
         });
         function renderChoices(row, i) {
             const choices = make('div', 'distractor-choices');
@@ -83,11 +87,25 @@
                 title.append(make('span', '', `${i + 1}.`), question);
                 section.append(title);
                 const answerLabel = make('label', '', 'Correct answer');
-                const answer = make('textarea'); answer.rows = 2; answer.dir = 'auto'; answer.value = row.answer;
-                answer.id = `correct-${i}`; answerLabel.htmlFor = answer.id; answer.maxLength = 2000;
-                answer.addEventListener('input', () => {row.answer = answer.value; dirty = true; refreshPractice();});
+                const answer = make('div', 'rich-text-editor');
+                answer.id = `correct-${i}`; answer.dir = 'auto'; answer.contentEditable = 'true';
+                answerLabel.id = `${answer.id}-label`; answerLabel.onclick = () => answer.focus();
+                answer.setAttribute('role', 'textbox'); answer.setAttribute('aria-multiline', 'true');
+                answer.setAttribute('aria-labelledby', answerLabel.id);
+                const field = window.PeninaRichText.mountTextField(answer);
+                field.set(row.answer, row.answerFormatting);
+                answer.addEventListener('input', () => {
+                    const {text, format} = field.get();
+                    if (text.length > Math.max(2000, row.answer.length)) {
+                        field.set(row.answer, row.answerFormatting);
+                        status('practice-status', 'Correct answers on this page are limited to 2,000 characters.', true);
+                        return;
+                    }
+                    row.answer = text; row.answerFormatting = format;
+                    dirty = true; refreshPractice();
+                });
                 let previousAnswer = row.answer;
-                answer.addEventListener('change', () => {
+                answer.addEventListener('blur', () => {
                     // A revised binary answer may need a different opposite or a full set of choices.
                     const oldOpposite = binaryDistractor(previousAnswer, mode);
                     const opposite = binaryDistractor(row.answer, mode);
@@ -125,7 +143,11 @@
             }
             rows.forEach((row, i) => {
                 const card = getDeck().cards.find(value => value.id === row.id);
-                if (card.answer !== row.answer.trim()) {card.distractors = {}; if(card.textFormatting)delete card.textFormatting.answer;}
+                if (card.answer !== row.answer.trim()) card.distractors = {};
+                if (row.answerFormatting) {
+                    card.textFormatting ||= {};
+                    card.textFormatting.answer = row.answerFormatting;
+                } else if (card.textFormatting) delete card.textFormatting.answer;
                 card.answer = row.answer.trim(); card.distractors ||= {};
                 card.distractors[choiceBank(mode)] = savedChoices[i];
             });

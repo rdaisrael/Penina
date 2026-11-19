@@ -29,6 +29,8 @@ const server=http.createServer((req,res)=>{
  await page.goto(origin+'/PeninaPlus-knowledge-builder/');await page.waitForFunction(()=>!document.querySelector('.app').inert);
  assert(await page.locator('#previous-card').isDisabled());assert(await page.locator('#next-card').isDisabled());
  const deck={format:'penina-knowledge-cards',version:1,title:'Formatting test',cards:[1,2,3].map(i=>({id:'c'+i,question:'Question '+i,answer:'Answer '+i,additionalInformation:'Information '+i,distractors:{english:['Wrong a','Wrong b','Wrong c','Wrong d','Wrong e']}}))};
+ const hebrewFirst='וַיֵּצֵא — he left.', englishFirst='Translation: הוּא יָצָא';
+ deck.cards[1].answer=hebrewFirst+'\n'+englishFirst;
  await page.locator('#draft-file').setInputFiles({name:'cards.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(deck))});
  await page.waitForFunction(()=>document.querySelector('#card-count').textContent==='3');
  assert.deepEqual(await page.locator('#card-form .form-actions button').evaluateAll(nodes=>nodes.map(n=>n.id)),['save-card','previous-card','next-card','delete-card']);
@@ -47,6 +49,25 @@ const server=http.createServer((req,res)=>{
  assert.equal(await page.locator('#question strong,#question b').innerText(),'Question');
  await page.locator('#save-card').click();
  assert.equal(await page.evaluate(()=>new Promise(resolve=>{const req=indexedDB.open('penina-knowledge-builder',1);req.onsuccess=()=>{const get=req.result.transaction('drafts').objectStore('drafts').get('current');get.onsuccess=()=>resolve(get.result.deck.cards[1].distractors.english.length);};})),5,'formatting alone preserves reviewed choices');
+ const go=stage=>page.locator('.workflow-nav [data-stage="'+stage+'"]').click();
+ const layout=selector=>page.locator(selector+' [data-rich-paragraph]').evaluateAll(nodes=>nodes.map(node=>[
+  node.textContent,getComputedStyle(node).direction,getComputedStyle(node).textAlign,node.querySelector('strong,b')?.textContent
+ ]));
+ await go('practice');await go('edit');
+ await select('answer',0,'וַיֵּצֵא'.length);
+ for(const action of ['bold','ltr','left'])await toolbar('answer').locator('[data-format="'+action+'"]').click();
+ await select('answer',hebrewFirst.length+1,hebrewFirst.length+englishFirst.length);
+ for(const action of ['rtl','right'])await toolbar('answer').locator('[data-format="'+action+'"]').click();
+ await go('study');await page.locator('#flip').click();
+ const expected=[[hebrewFirst,'ltr','left','וַיֵּצֵא'],[englishFirst,'rtl','right',undefined]];
+ assert.deepEqual(await layout('#card-content'),expected);
+ await go('practice');
+ assert.deepEqual(await layout('#correct-1'),expected,'a formatting-only edit refreshes the previously visited distractor page');
+ assert.equal(await page.locator('#distractor-1-0').inputValue(),'Wrong a');
+ await select('correct-1',1000,1000);await page.keyboard.insertText('!');
+ await page.locator('#save-answers').click();await go('study');await page.locator('#flip').click();
+ assert.deepEqual(await layout('#card-content'),[expected[0],[englishFirst+'!','rtl','right',undefined]],'edits on the distractor page keep paragraph formatting');
+ await go('edit');
  await page.locator('#answer').fill('תשובה\nSecond paragraph');await select('answer',0,50);await toolbar('answer').getByRole('button',{name:'Right-to-left paragraph',exact:true}).click();await toolbar('answer').getByRole('button',{name:'Align right',exact:true}).click();
  // Use real paragraph breaks so direction/alignment can differ within one card.
  await page.locator('#additional-information').fill('First paragraph');await page.locator('#additional-information').press('End');await page.locator('#additional-information').press('Enter');await page.keyboard.insertText('פסקה שנייה');

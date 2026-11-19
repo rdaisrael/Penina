@@ -63,4 +63,5 @@ dialog{border:1px solid var(--line);border-radius:14px;padding:20px;color:var(--
 .generate-actions .language-select{margin:0}
 .distractor-card h3{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.5em}
 .distractor-card h3 .card-text{font-size:inherit;unicode-bidi:plaintext}
+.distractor-card .rich-text-editor{min-height:calc(3em + 24px);margin-bottom:20px;padding:11px;border-color:var(--line);border-radius:5px;color:var(--ink)}
 @media(max-width:600px){.form-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.form-actions button{padding:10px 5px}}

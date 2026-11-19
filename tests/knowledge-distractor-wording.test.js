@@ -115,10 +115,18 @@ test('choices cannot borrow Hebrew or vowel points from the question or neighbor
 // Run the real control handlers against an in-memory form.
 function practiceForm(fetch) {
     const controls = new Map();
-    const element = () => ({
+    const textNode = text => ({nodeType: 3, textContent: text});
+    const element = (tag = 'div') => ({
+        nodeType: 1, tagName: tag.toUpperCase(),
         children: [], dataset: {}, style: {}, classList: {toggle() {}},
+        get ownerDocument() { return document; },
+        get textContent() { return this.children.map(node => node.textContent).join(''); },
+        set textContent(value) { this.replaceChildren(textNode(value)); },
         get childNodes() { return this.children; },
+        get parentNode() { return this.parent; },
         get lastElementChild() { return this.children.at(-1); },
+        hasAttribute(name) { return name === 'data-rich-paragraph' && 'richParagraph' in this.dataset; },
+        getAttribute(name) { return this[name] ?? null; },
         append(...children) {
             this.children.push(...children);
             children.forEach(child => {if (typeof child === 'object') child.parent = this;});
@@ -136,10 +144,15 @@ function practiceForm(fetch) {
     assert.deepEqual([...options.matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g)].map(match => match.slice(1)),
         [['english', 'English'], ['hebrew', 'Hebrew'], ['mixed', 'Mixed']]);
     const byId = id => controls.get(id);
-    const document = {getElementById: byId, createElement: element, createTextNode: text => text};
+    const document = {getElementById: byId, createElement: element, createTextNode: textNode};
+    const cardEditor = node => ({
+        get: () => ({text: node.value || '', format: node.format}),
+        set: (value, format) => {node.value = value; node.format = format;},
+    });
     const window = {
         PeninaKnowledgeCards: require('../PeninaPlus-knowledge-builder/cards'),
         PeninaPracticeExercises: require('../PeninaPlus-vocab-builder/practice-exercises'),
+        PeninaRichText: {...require('../PeninaPlus-knowledge-builder/rich-text'), mountEditor: cardEditor},
     };
     vm.runInNewContext(fs.readFileSync(require.resolve('../PeninaPlus-knowledge-builder/knowledge-workflow'), 'utf8'),
         {window, document, fetch, AbortController, setTimeout, clearTimeout});
@@ -152,10 +165,6 @@ test('edits after visiting Review and Practice reach both screens through the st
     document.querySelectorAll = selector => selector === '[data-stage]' ? stages : [];
     document.querySelector = () => document.createElement('div');
     document.addEventListener = window.addEventListener = () => {};
-    window.PeninaRichText = {mountEditor: node => ({
-        get: () => ({text: node.value || '', format: node.format}),
-        set: (value, format) => {node.value = value; node.format = format;},
-    })};
     vm.runInNewContext(fs.readFileSync(require.resolve('../PeninaPlus-knowledge-builder/knowledge-builder'), 'utf8'),
         {window, document, setTimeout, clearTimeout});
     const go = stage => stages.find(button => button.dataset.stage === stage).onclick();
@@ -191,7 +200,7 @@ test('edits after visiting Review and Practice reach both screens through the st
     assert.equal(byId('card-content').children[0].innerHTML, 'They came בָּעֶרֶב');
     assert.equal(byId('additional-text').innerHTML, 'See the second card.');
     go('practice');
-    assert.equal(rows()[1].children[2].value, 'They came בָּעֶרֶב');
+    assert.equal(rows()[1].children[2].textContent, 'They came בָּעֶרֶב');
     assert.deepEqual(choices(1), ['', '', '']);
     assert.deepEqual(choices(0), ['No']);
     go('edit');
@@ -222,7 +231,39 @@ test('an older practice form cannot overwrite a revised correct answer', () => {
     assert.equal(card.answer, 'Evening');
     assert.deepEqual(card.distractors, {});
     byId('practice-cancel').onclick();
-    assert.equal(byId('practice-rows').children[0].children[2].value, 'Evening');
+    assert.equal(byId('practice-rows').children[0].children[2].textContent, 'Evening');
+});
+
+test('a previously opened distractor answer picks up paragraph edits and retains them when edited in place', () => {
+    const {byId, window} = practiceForm();
+    const first = 'וַיֵּצֵא — he left.', last = 'Meaning: הוּא יָצָא';
+    const card = {id: 'one', question: 'Translate the verb.', answer: [first, '', last].join('\n'),
+        distractors: {english: ['He stayed'], hebrew: ['נִשְׁאַר']}};
+    const workflow = window.PeninaKnowledgeWorkflow.mount({getDeck: () => ({cards: [card]}), changed() {}});
+    const field = () => byId('practice-rows').children[0].children[2];
+    workflow.enter('practice');
+    assert.equal(field().children[0].dir, 'auto');
+    card.textFormatting = {answer: {paragraphs: [
+        {direction: 'ltr', align: 'left', runs: [{text: 'וַיֵּצֵא', bold: true}, {text: ' — he left.', bold: false}]},
+        {direction: 'auto', align: 'start', runs: []},
+        {direction: 'rtl', align: 'right', runs: [{text: last, bold: false}]},
+    ]}};
+    workflow.enter('practice');
+    assert.deepEqual(field().children.map(p => [p.textContent, p.dir, p.style.textAlign]), [
+        [first, 'ltr', 'left'], ['', 'auto', 'start'], [last, 'rtl', 'right'],
+    ]);
+    assert.equal(field().children[0].children[0].tagName, 'STRONG');
+    const choice = byId('practice-rows').children[0].lastElementChild.children[0].children[1];
+    choice.value = 'He arrived'; choice.oninput();
+    assert.equal(byId('save-answers').onclick(), true);
+    assert.deepEqual(Array.from(card.distractors.hebrew), ['נִשְׁאַר']);
+    const expected = structuredClone(card.textFormatting.answer);
+    expected.paragraphs[2].runs[0].text += '!';
+    field().children[2].children[0].textContent += '!';
+    field().oninput(); field().onblur();
+    assert.equal(byId('save-answers').onclick(), true);
+    assert.equal(card.answer, [first, '', last + '!'].join('\n'));
+    assert.deepEqual(card.textFormatting.answer, expected);
 });
 
 test('distractor questions keep card line breaks and paragraph formatting after edits and generation', async () => {
@@ -360,7 +401,7 @@ test('the editor generates and saves a binary card alongside a regular card, and
 
     workflow.enter('practice');
     const correct = form.children[0].children[2];
-    const editCorrect = value => {correct.value = value; correct.oninput(); correct.onchange();};
+    const editCorrect = value => {correct.textContent = value; correct.oninput(); correct.onblur();};
     editCorrect('They did');
     assert.equal(choices(0).length, 3);
     editCorrect('False');

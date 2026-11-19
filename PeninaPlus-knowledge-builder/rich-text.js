@@ -5,14 +5,11 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (cards) {
     'use strict';
     const {normalizeTextFormat} = cards;
-    function mountEditor(element) {
-        const document = element.ownerDocument, toolbar = document.createElement('div');
-        toolbar.className = 'text-format-toolbar'; toolbar.setAttribute('role','toolbar');
-        toolbar.setAttribute('aria-label', `${element.getAttribute('aria-label') || element.id} formatting`);
-        let savedRange = null;
-        const block = node => node?.nodeType === 1 && (node.hasAttribute('data-rich-paragraph') || /^(DIV|P|LI|H[1-6])$/.test(node.tagName));
-        const direction = node => ['rtl','ltr'].includes(node?.getAttribute?.('dir')) ? node.getAttribute('dir') : 'auto';
-        const alignment = node => ['left','right','center'].includes(node?.style?.textAlign) ? node.style.textAlign : 'start';
+    const block = node => node?.nodeType === 1 && (node.hasAttribute('data-rich-paragraph') || /^(DIV|P|LI|H[1-6])$/.test(node.tagName));
+    const direction = node => ['rtl','ltr'].includes(node?.getAttribute?.('dir')) ? node.getAttribute('dir') : 'auto';
+    const alignment = node => ['left','right','center'].includes(node?.style?.textAlign) ? node.style.textAlign : 'start';
+    function mountTextField(element) {
+        const document = element.ownerDocument;
         function get() {
             const paragraphs = []; let current = null;
             const start = style => current ||= {runs:[],direction:style.direction,align:style.align};
@@ -58,6 +55,20 @@
                 if (!node.textContent) node.append(document.createElement('br'));
                 return node;
             }));
+        }
+        // Accept only plain text from the clipboard or a drag source.
+        element.addEventListener('paste',event=>{event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'));});
+        element.addEventListener('drop',event=>{event.preventDefault();document.execCommand('insertText',false,event.dataTransfer.getData('text/plain'));});
+        return {get,set};
+    }
+    function mountEditor(element) {
+        const field = mountTextField(element);
+        const document = element.ownerDocument, toolbar = document.createElement('div');
+        toolbar.className = 'text-format-toolbar'; toolbar.setAttribute('role','toolbar');
+        toolbar.setAttribute('aria-label', `${element.getAttribute('aria-label') || element.id} formatting`);
+        let savedRange = null;
+        function set(value, format) {
+            field.set(value, format);
             savedRange = null; update();
         }
         function remember() {
@@ -136,12 +147,8 @@
         element.addEventListener('keydown',event=>{
             if ((event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='b') {event.preventDefault();remember();apply('bold');}
         });
-        // Only plain text is accepted from the clipboard/drag source; the toolbar
-        // creates the allowlisted formatting. Pasted HTML never runs or persists.
-        element.addEventListener('paste',event=>{event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'));});
-        element.addEventListener('drop',event=>{event.preventDefault();document.execCommand('insertText',false,event.dataTransfer.getData('text/plain'));});
         set('');
-        return {get,set};
+        return {get:field.get,set};
     }
-    return {mountEditor};
+    return {mountEditor,mountTextField};
 });

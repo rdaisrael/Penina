@@ -38,7 +38,8 @@
     }
 
     // Validate the entire response before changing anything, including across client batches.
-    function mergeGeneration(rows, requests, result, language) {
+    function mergeGeneration(rows, requests, result, language, matchesLanguage = answer =>
+        language === 'hebrew' ? /[א-ת]/.test(answer) : /[a-z]/i.test(answer) && !/[א-ת]/.test(answer)) {
         if (!Array.isArray(result) || result.length !== requests.length) throw new Error('AI returned an incomplete set. Please try again.');
         const output = rows.map(row => ({ ...row, answers: row.answers.slice() }));
         const seen = new Set();
@@ -66,7 +67,7 @@
                 if (!normalize(answer) || answer.length > 500 || normalize(answer) === normalize(row.definition)
                     || normalize(answer) === normalize(row.term)
                     || row.answers.filter(other => normalize(other) === normalize(answer)).length > 1
-                    || (language === 'hebrew' ? !/[א-ת]/.test(answer) : (!/[a-z]/i.test(answer) || /[א-ת]/.test(answer)))) {
+                    || !matchesLanguage(answer, row.definition)) {
                     throw new Error('AI returned duplicate, correct, or wrong-language answers. Please try again.');
                 }
             });

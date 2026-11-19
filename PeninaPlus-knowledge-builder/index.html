@@ -96,7 +96,13 @@
         <h2 id="practice-heading">Create Distractors for Practice Activities</h2>
         <p>Prepare incorrect answers for each question. New questions start with three distractors, for four choices in Penina Live and Quiz. Imported questions keep their supplied choices, up to five distractors. Generate answers in English or Hebrew, then review, edit, or regenerate them.</p>
         <div id="practice-editor">
-          <div class="workflow-actions"><button id="generate-english" class="primary" type="button">Generate English Distractors</button><button id="generate-hebrew" class="primary" type="button">Generate Hebrew Distractors</button></div>
+          <div class="workflow-actions generate-actions">
+            <div class="english-generation">
+              <button id="generate-english" class="primary" type="button">Generate English Distractors</button>
+              <label><input id="use-teacher-hebrew" type="checkbox"> Use Hebrew terms the way I wrote them</label>
+            </div>
+            <button id="generate-hebrew" class="primary" type="button">Generate Hebrew Distractors</button>
+          </div>
           <label class="language-select" for="practice-language">Edit distractors in<select id="practice-language"><option value="english">English</option><option value="hebrew">Hebrew</option></select></label>
           <p class="help">The correct answer stays in the language you entered. Editing it here updates the flashcard. Leave all distractors empty to include a question only in flashcards and the knowledge sheet.</p>
           <div id="practice-rows"></div>

@@ -92,6 +92,7 @@
                 if (!saveAnswers()) return;
                 language = requestedLanguage; resetRows(); renderRows();
             }
+            const useTeacherHebrew = language === 'english' && byId('use-teacher-hebrew').checked;
             const selectedSlots = [...byId('practice-rows').querySelectorAll('input:checked')];
             const requests = rows.map((row, i) => ({id: i, term: row.question, definition: row.answer,
                 answers: [...row.answers], slots: row.answers.map((_, slot) => slot).filter(slot => selected
@@ -108,13 +109,14 @@
                     status('practice-status', `Generating ${requestedLanguage === 'hebrew' ? 'Hebrew' : 'English'} distractors for questions ${start + 1}–${Math.min(start + 8, requests.length)} of ${requests.length}…`);
                     const timer = setTimeout(() => controller.abort(), 100000);
                     let data;
-                    try {data = await request('/api/flashcard-sets', {kind: 'knowledge', action: 'generate-distractors', language, rows: requests.slice(start, start + 8)}, controller.signal);}
+                    try {data = await request('/api/flashcard-sets', {kind: 'knowledge', action: 'generate-distractors', language, useTeacherHebrew, rows: requests.slice(start, start + 8)}, controller.signal);}
                     finally {clearTimeout(timer);}
                     if (run !== generation) return;
                     results.push(...data.rows);
                 }
                 const source = rows.map((row, id) => ({id, term: row.question, definition: row.answer, answers: row.answers}));
-                const merged = window.PeninaPracticeExercises.mergeGeneration(source, requests, results, language);
+                const merged = window.PeninaPracticeExercises.mergeGeneration(source, requests, results, language,
+                    useTeacherHebrew ? window.PeninaKnowledgeCards.matchesAnswerWording : undefined);
                 rows.forEach((row, i) => {row.answers = merged[i].answers;}); dirty = true; renderRows();
                 status('practice-status', 'Distractors generated. Review them, make any edits, then Save Answers.');
             } catch (error) {

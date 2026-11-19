@@ -57,6 +57,24 @@
     function practiceCards(deck, language) {
         return deck.cards.filter(card => validChoices(card.answer, card.distractors?.[language]));
     }
+    function matchesAnswerWording(choice, correctAnswer) {
+        // Normalize only for comparison. Keep the teacher's spelling and marks in the saved text.
+        const hebrewWords = value => value.normalize('NFKD').match(/[א-ת][א-ת\p{M}]*(?:[׳״'"][א-ת][א-ת\p{M}]*)*/gu) || [];
+        const correct = hebrewWords(correctAnswer), proposed = hebrewWords(choice);
+        const hasEnglish = value => /\p{Script=Latin}/u.test(value);
+        if (hasEnglish(choice) !== hasEnglish(correctAnswer) || Boolean(correct.length) !== Boolean(proposed.length)) return false;
+        if (!correct.length) return true;
+
+        const pointed = word => /[\u05b0-\u05bd\u05bf\u05c1\u05c2\u05c7]/u.test(word);
+        if (correct.some(pointed) !== proposed.some(pointed)) return false;
+        if (correct.every(pointed) && !proposed.every(pointed)) return false;
+        // A card can point one name and leave another bare. Check repeated words individually.
+        const letters = word => word.replace(/\p{M}/gu, '');
+        return proposed.every(word => {
+            const variants = correct.filter(original => letters(original) === letters(word));
+            return !variants.length || variants.includes(word);
+        });
+    }
     const pictureTargets = picture => Array.isArray(picture?.targets) ? picture.targets : picture?.target ? [picture.target] : [];
     function validPictureTarget(target) {
         const point = value => value && [value.x, value.y].every(n => Number.isFinite(n) && n >= 0 && n <= 1);
@@ -150,5 +168,5 @@
         }
         return pages;
     }
-    return {normalizeTextFormat, formattedTextHTML, FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
+    return {normalizeTextFormat, formattedTextHTML, FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, matchesAnswerWording, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
 });

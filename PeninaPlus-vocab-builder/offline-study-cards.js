@@ -712,11 +712,11 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         let matchingRunId='',totalTerms=0, mastered=new Set(), pending=new Set(), locked=false, timer=null, startedAt=0, finishedMs=0, runToken=0;
         function later(callback,ms){const token=runToken;const id=setTimeout(()=>{pending.delete(id);if(token===runToken)callback();},ms);pending.add(id);}
         function stopPending(){runToken++;pending.forEach(clearTimeout);pending.clear();clearInterval(timer);timer=null;locked=false;doc.getElementById('gameMistake')?.remove();}
-        function mistake(text='Try again'){
+        function mistake(text='Try again', onDismiss){
             doc.getElementById('gameMistake')?.remove();
             const overlay=element('div',undefined,'game-mistake');overlay.id='gameMistake';overlay.setAttribute('role','alert');
             overlay.append(element('span','×'),element('strong',text));dialog.append(overlay);locked=true;
-            later(()=>{overlay.remove();locked=false;},800);
+            later(()=>{overlay.remove();locked=false;onDismiss?.();},800);
         }
 
         const labels = { quiz: 'Multiple Choice', lines: 'Connect the Words', cards: 'Match the Cards', asteroids: 'Vocabulary Asteroids', chomp: 'Chomp & Charge', flappy: 'Flappy Vocab', snowblaster: 'Snowblaster!' };
@@ -769,6 +769,17 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             const prompt=element('h3', row.term, 'game-term');renderStudyQuestion(prompt,row);board.append(prompt);
             const choices = element('div', undefined, 'game-options');
             let answered = false, tries=0;
+            function showCorrectAnswer(feedbackText) {
+                choices.querySelectorAll('button').forEach(choice => {
+                    choice.disabled = true;
+                    if (choice.textContent === row.definition) choice.classList.add('matched');
+                });
+                message(feedbackText);
+                later(() => {
+                    offset++;
+                    render();
+                }, 3000);
+            }
             shuffle([row.definition, ...row.answers]).forEach(answer => {
                 const node = button(answer, () => {
                     if (answered || locked || node.disabled) return;
@@ -778,13 +789,14 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
                         node.disabled=true;node.classList.add('incorrect');
                         if(tries===1){mistake();message('Try again — one more chance.');updateProgress();return;}
                         answered=true;rows.splice(Math.min(rows.length,offset+3),0,row);
-                        choices.querySelectorAll('button').forEach(choice=>{choice.disabled=true;if(choice.textContent===row.definition)choice.classList.add('matched');});
-                        mistake('We’ll practice this one again');message('The correct definition is: '+row.definition+'. This term will return later.');
-                        updateProgress();later(()=>{offset++;render();},1400);return;
+                        mistake('We’ll practice this one again', () => {
+                            showCorrectAnswer('The correct definition is: '+row.definition+'. This term will return later.');
+                        });
+                        updateProgress();return;
                     }
                     answered=true;mastered.add(row.id);score++;
-                    choices.querySelectorAll('button').forEach(choice=>{choice.disabled=true;if(choice.textContent===row.definition)choice.classList.add('matched');});
-                    message('Correct! Great work.');updateProgress();later(()=>{offset++;render();},800);
+                    showCorrectAnswer('Correct! Great work.');
+                    updateProgress();
                 }, 'game-tile');
                 choices.append(node);
             });

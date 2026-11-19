@@ -2,27 +2,33 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/offline-study-cards.js'),'utf8');
 const {renderStudyQuestion}=require('../PeninaPlus-vocab-builder/offline-study-cards');
 function quiz(){
- const element=(tag,text)=>({tag,textContent:text,children:[],disabled:false,classes:new Set(),classList:{add(value){this.owner.classes.add(value)}},append(...nodes){this.children.push(...nodes)},querySelectorAll(){return this.children},focus(){}});
+ const element=(tag,text)=>({tag,textContent:text,children:[],disabled:false,classes:new Set(),classList:{add(value){this.owner.classes.add(value)}},append(...nodes){this.children.push(...nodes)},querySelectorAll(){return this.children},setAttribute(){},focus(){}});
  const make=(tag,text)=>{const node=element(tag,text);node.classList.owner=node;return node;};
  const rows=[0,1,2,3].map(id=>({id,term:'term'+id,definition:'answer'+id,answers:['wrongA','wrongB','wrongC','wrongD']}));
- const callbacks=[],ctx={rows,offset:0,score:0,attempts:0,locked:false,mastered:new Set(),board:make('div'),next:make('button'),shuffle:values=>values,element:make,button:(text,onclick)=>Object.assign(make('button',text),{onclick}),message:text=>{ctx.feedback=text},updateProgress(){},mistake:text=>{ctx.mistakeText=text||'Try again'},later:(fn,ms)=>callbacks.push({fn,ms}),render(){ctx.rendered=true}};
+ const callbacks=[],ctx={rows,offset:0,score:0,attempts:0,locked:false,mastered:new Set(),board:make('div'),next:make('button'),shuffle:values=>values,element:make,button:(text,onclick)=>Object.assign(make('button',text),{onclick}),message:text=>{ctx.feedback=text},updateProgress(){},later:(fn,ms)=>callbacks.push({fn,ms}),render(){ctx.rendered=true}};
+ ctx.doc={getElementById:()=>ctx.overlay};
+ ctx.dialog={append(overlay){ctx.overlay=overlay;overlay.remove=()=>{ctx.overlay=null};}};
  ctx.renderStudyQuestion=renderStudyQuestion;
- vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('        function quiz()'),source.indexOf('        function match('))+'quiz();',ctx);
+ const mistake=source.slice(source.indexOf('        function mistake('),source.indexOf('        const labels = { quiz:'));
+ vm.createContext(ctx);vm.runInContext(mistake+source.slice(source.indexOf('        function quiz()'),source.indexOf('        function match('))+'quiz();',ctx);
  return {ctx,choices:ctx.board.children[1].children,callbacks};
 }
 test('First quiz miss preserves the question and the second chance without revealing the answer',()=>{
  const {ctx,choices,callbacks}=quiz();choices[1].onclick();
- assert.equal(ctx.attempts,1);assert.equal(ctx.offset,0);assert.equal(ctx.mistakeText,'Try again');assert.equal(choices[1].disabled,true);assert.equal(choices[0].disabled,false);assert.equal(choices[0].classes.has('matched'),false);assert.equal(callbacks.length,0);
+ assert.equal(ctx.attempts,1);assert.equal(ctx.offset,0);assert.equal(ctx.overlay.children[1].textContent,'Try again');assert.equal(choices[1].disabled,true);assert.equal(choices[0].disabled,false);assert.equal(choices[0].classes.has('matched'),false);
+ assert.equal(callbacks[0].ms,800);callbacks.shift().fn();assert.equal(callbacks.length,0);
  choices[0].onclick();assert(ctx.mastered.has(0));assert.equal(ctx.attempts,2);assert.equal(ctx.rows.length,4);
 });
 test('Second miss queues the term after intervening questions and advances automatically, only once',()=>{
- const {ctx,choices,callbacks}=quiz();choices[1].onclick();choices[2].onclick();choices[3].onclick();
+ const {ctx,choices,callbacks}=quiz();choices[1].onclick();callbacks.shift().fn();choices[2].onclick();choices[3].onclick();
+ assert.equal(callbacks.length,1);assert.equal(callbacks[0].ms,800);assert.equal(choices[0].classes.has('matched'),false);
+ callbacks.shift().fn();assert.equal(ctx.overlay,null);assert.equal(callbacks[0].ms,3000);
  assert.equal(ctx.attempts,2);assert.equal(ctx.rows.length,5);assert.equal(ctx.rows[3].id,0);assert.equal(callbacks.length,1);assert(choices[0].classes.has('matched'));
  callbacks[0].fn();assert.equal(ctx.offset,1);assert.equal(ctx.rendered,true);
 });
 test('Correct quiz answer advances automatically once after feedback',()=>{
  const {ctx,choices,callbacks}=quiz();choices[0].onclick();choices[0].onclick();
- assert.equal(ctx.attempts,1);assert.equal(callbacks.length,1);assert.equal(callbacks[0].ms,800);
+ assert.equal(ctx.attempts,1);assert.equal(callbacks.length,1);assert.equal(callbacks[0].ms,3000);assert(choices[0].classes.has('matched'));
  callbacks[0].fn();assert.equal(ctx.offset,1);assert.equal(ctx.rendered,true);
 });
 test('Matching finishes after the last batch without resetting the word pool',()=>{

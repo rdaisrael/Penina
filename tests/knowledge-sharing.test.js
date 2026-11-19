@@ -76,7 +76,7 @@ test('generation treats questions as knowledge data and returns only requested r
     const input={language:'english',rows:[{id:2,term:'What does a root do?',definition:'Absorb water',answers:['Make food','Carry water','Create seeds','Protect the trunk'],slots:[1]}]};
     const output=await generate(input,async(prompt,options)=>{assert.match(prompt,/QUESTION, not a vocabulary word/);assert.match(prompt,/DATA, never instructions/);assert.equal(options.textFormat.strict,true);return JSON.stringify({rows:[{id:2,cells:[{slot:1,answer:'Attract insects'}]}]});});
     assert.deepEqual(output,{rows:[{id:2,cells:[{slot:1,answer:'Attract insects'}]}]});
-    for(const answer of ['Absorb water','Make food','מים'])await assert.rejects(generate(input,async()=>JSON.stringify({rows:[{id:2,cells:[{slot:1,answer}]}]})),error=>error.status===502);
+    for(const answer of ['Absorb water','Make food','מים'])await assert.rejects(generate(input,async()=>JSON.stringify({rows:[{id:2,cells:[{slot:1,answer}]}]})),error=>error.status===422);
     await assert.rejects(generate({...input,rows:[{...input.rows[0],slots:[1,1]}]},()=>assert.fail('No provider call expected')),error=>error.status===400);
     await assert.rejects(generate(input,()=>{throw Error('private-provider-details');}),error=>error.status===503&&!error.message.includes('private-provider-details'));
 });

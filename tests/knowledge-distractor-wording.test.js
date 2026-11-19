@@ -82,10 +82,10 @@ test('wording checks apply to regenerated cells and leave the other choices alon
         'מֶשֶׁה returned from מצרים', 'מֹשֶׁה returned from מִצְרַיִם',
         rows[0].definition, ...rows[0].answers,
     ]) {
-        await assert.rejects(regenerate(invalid), {status: 502}, invalid);
+        await assert.rejects(regenerate(invalid), {status: 422}, invalid);
     }
     for (const options of [{}, {useTeacherHebrew: false}]) {
-        await assert.rejects(regenerate(answer, options), {status: 502});
+        await assert.rejects(regenerate(answer, options), {status: 422});
         assert.equal((await regenerate('Moses returned from Egypt', options)).rows[0].cells[0].slot, 1);
     }
     const hebrew = await regenerate('הם חזרו', {language: 'hebrew', useTeacherHebrew: true});
@@ -108,7 +108,7 @@ test('choices cannot borrow Hebrew or vowel points from the question or neighbor
             JSON.stringify({rows: [
                 {id: 1, cells: [{slot: 0, answer: 'They came בַּבֹּקֶר'}, {slot: 1, answer: 'They came בַּלַּיְלָה'}]},
                 {id: 0, cells: [{slot: 0, answer: invalid}]},
-            ]})), {status: 502});
+            ]})), {status: 422});
     }
 });
 
@@ -117,6 +117,7 @@ function practiceForm(fetch) {
     const controls = new Map();
     const element = () => ({
         children: [], dataset: {}, classList: {toggle() {}},
+        get lastElementChild() { return this.children.at(-1); },
         append(...children) {
             this.children.push(...children);
             children.forEach(child => {if (typeof child === 'object') child.parent = this;});
@@ -301,4 +302,101 @@ test('the editor generates and saves a binary card alongside a regular card, and
     assert.equal(byId('save-answers').onclick(), true);
     assert.deepEqual(Array.from(cards[0].distractors.english), ['True']);
     assert.equal(choices(0).length, 1);
+});
+
+for (const mode of ['english', 'hebrew', 'mixed']) {
+    test(`${mode} fills a 39-card set and retries only the card with an unsuitable choice`, async () => {
+        const cards = Array.from({length: 39}, (_, id) => ({
+            id: String(id), question: `Question ${id + 1}?`, answer: id === 0 ? '7' : 'They came בָּעֶרֶב',
+        }));
+        cards[0].distractors = {english: ['8', '', ''], hebrew: ['8', '', '']};
+        const calls = [];
+        const suggestions = {
+            english: ['They came at dawn', 'They came at noon', 'They came at midnight'],
+            hebrew: ['בַּבֹּקֶר', 'בַּצָּהֳרַיִם', 'בַּלַּיְלָה'],
+            mixed: ['They came בַּבֹּקֶר', 'They came בַּצָּהֳרַיִם', 'They came בַּלַּיְלָה'],
+        };
+        const handle = require('../lib/knowledge-sets').createHandler({
+            requireApps: async () => {},
+            generate: body => generate(body, async prompt => {
+                const rows = JSON.parse(prompt.split('\n').at(-1));
+                calls.push(rows.map(row => row.id));
+                return JSON.stringify({rows: rows.map(row => ({id: row.id, cells: row.slots.map(slot => {
+                    let answer = row.id === 0 ? ['5', '6', '9'][slot] : suggestions[mode][slot];
+                    if (row.id === 2 && calls.length === 1) answer = row.definition;
+                    return {slot, answer};
+                })}))});
+            }),
+        });
+        const {byId, window} = practiceForm(async (_, options) => {
+            let result;
+            await handle({method:'POST', headers:{origin:'https://www.penina-hebrew.org'}, body:JSON.parse(options.body)},
+                {setHeader() {}, status(code) {return {json(body) {result = Response.json(body, {status: code});}};}});
+            return result;
+        });
+        const workflow = window.PeninaKnowledgeWorkflow.mount({getDeck: () => ({cards}), changed() {}});
+        workflow.enter('practice');
+        const select = byId('practice-language'); select.value = mode; select.onchange({target: select});
+        await byId('generate-distractors').onclick();
+        assert.deepEqual(calls.slice(0, 2), [[0, 1, 2, 3], [2]]);
+        assert.equal(calls.flat().length, 40);
+        assert.match(byId('practice-status').textContent, /^Distractors generated/);
+        assert.equal(byId('save-answers').onclick(), true);
+        const bank = mode === 'mixed' ? 'english' : mode;
+        assert.deepEqual(Array.from(cards[0].distractors[bank]), ['8', '6', '9']);
+        for (const card of cards.slice(1)) assert.deepEqual(Array.from(card.distractors[bank]), suggestions[mode]);
+    });
+}
+
+test('an HTML gateway failure retries in a smaller group and retains earlier choices on a persistent failure', async () => {
+    const cards = Array.from({length: 7}, (_, id) => ({id: String(id), question: `When ${id}?`, answer: 'Evening'}));
+    const calls = [];
+    const {byId, window} = practiceForm(async (_, options) => {
+        const {rows} = JSON.parse(options.body);
+        calls.push(rows.map(row => row.id));
+        if (calls.length > 1) return new Response('<html>Gateway timeout</html>', {status: 504});
+        return Response.json({rows: rows.map(row => ({id: row.id, cells: row.slots.map(slot => ({slot, answer: ['Morning','Noon','Night'][slot]}))}))});
+    });
+    window.PeninaKnowledgeWorkflow.mount({getDeck: () => ({cards}), changed() {}}).enter('practice');
+    await byId('generate-distractors').onclick();
+    assert.deepEqual(calls, [[0, 1, 2, 3], [4, 5, 6], [4, 5]]);
+    const status = byId('practice-status').textContent;
+    assert.match(status, /HTTP 504/); assert.match(status, /4 of 7/);
+    assert.equal(byId('practice-review-status').textContent, status);
+    assert.equal(byId('save-answers').onclick(), true);
+    assert.deepEqual(Array.from(cards[0].distractors.english), ['Morning','Noon','Night']);
+    assert.deepEqual(Array.from(cards[4].distractors.english), ['', '', '']);
+});
+
+test('a transient HTML 502 recovers and completes the original generation action', async () => {
+    const cards = [0,1,2,3].map(id => ({id: String(id), question: `Where ${id}?`, answer: 'Paris'}));
+    const calls = [];
+    const {byId, window} = practiceForm(async (_, options) => {
+        const {rows} = JSON.parse(options.body);
+        calls.push(rows.map(row => row.id));
+        if (calls.length === 1) return new Response('<html>Bad gateway</html>', {status: 502});
+        return Response.json({rows: rows.map(({id,slots}) => ({id, cells: slots.map(slot => ({slot, answer: ['Lyon','Rome','Lille'][slot]}))}))});
+    });
+    window.PeninaKnowledgeWorkflow.mount({getDeck: () => ({cards}), changed() {}}).enter('practice');
+    await byId('generate-distractors').onclick();
+    assert.deepEqual(calls, [[0,1,2,3], [0,1], [2,3]]);
+    assert.match(byId('practice-status').textContent, /^Distractors generated/);
+    assert.equal(byId('save-answers').onclick(), true);
+    assert(cards.every(card => card.distractors.english.length === 3 && card.distractors.english[2] === 'Lille'));
+});
+
+test('discarding generation clears partial results and ignores a late response', async () => {
+    const cards = [{id:'one', question:'Did they come?', answer:'Yes'}, {id:'two', question:'Where?', answer:'Paris'}];
+    let release;
+    const {byId, window} = practiceForm(() => new Promise(resolve => {release = resolve;}));
+    window.PeninaKnowledgeWorkflow.mount({getDeck: () => ({cards}), changed() {}}).enter('practice');
+    const pending = byId('generate-distractors').onclick();
+    const firstChoice = () => byId('practice-rows').children[0].lastElementChild.children[0].children[1].value;
+    assert.equal(firstChoice(), 'No');
+    byId('practice-cancel').onclick();
+    release(Response.json({rows: [{id:1, cells:['Rome','London','Athens'].map((answer,slot) => ({slot,answer}))}]}));
+    await pending;
+    assert.equal(firstChoice(), '');
+    assert.match(byId('practice-status').textContent, /discarded/);
+    assert(cards.every(card => !card.distractors));
 });

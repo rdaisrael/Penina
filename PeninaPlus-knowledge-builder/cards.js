@@ -128,6 +128,13 @@
             return !variants.length || variants.includes(word);
         });
     }
+    function matchesDistractorLanguage(choice, correctAnswer, mode) {
+        if (mode === 'mixed') return matchesAnswerWording(choice, correctAnswer);
+        // A number or numeric date can be written the same way in either language.
+        const numeric = value => /\p{N}/u.test(value) && !/\p{L}/u.test(value);
+        if (numeric(correctAnswer) && numeric(choice)) return true;
+        return mode === 'hebrew' ? /[א-ת]/u.test(choice) : /[a-z]/i.test(choice) && !/[א-ת]/u.test(choice);
+    }
     const pictureTargets = picture => Array.isArray(picture?.targets) ? picture.targets : picture?.target ? [picture.target] : [];
     function validPictureTarget(target) {
         const point = value => value && [value.x, value.y].every(n => Number.isFinite(n) && n >= 0 && n <= 1);
@@ -221,5 +228,5 @@
         }
         return pages;
     }
-    return {normalizeTextFormat, formattedTextHTML, FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, binaryDistractor, distractorSlots, planDistractors, answerLanguage, matchesAnswerWording, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
+    return {normalizeTextFormat, formattedTextHTML, FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, binaryDistractor, distractorSlots, planDistractors, answerLanguage, matchesAnswerWording, matchesDistractorLanguage, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
 });

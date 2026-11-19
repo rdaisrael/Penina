@@ -12,8 +12,17 @@
     async function request(url, body, signal) {
         const response = await fetch(url, {method: body ? 'POST' : 'GET', cache: 'no-store', credentials: 'same-origin',
             ...(body ? {headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {}), signal});
-        let data; try {data = await response.json();} catch (_) {throw Error('The service could not be reached. Please try again.');}
-        if (!response.ok) throw Error(data.error || 'The request could not be completed.');
+        let data;
+        try {data = await response.json();} catch (error) {
+            if (error.name === 'AbortError') throw error;
+            const code = response.status;
+            let message = `Penina returned an unreadable response (HTTP ${code}).`;
+            if ([408, 504, 524].includes(code)) message = `The server timed out (HTTP ${code}).`;
+            else if ([502, 503].includes(code)) message = `The server is temporarily unavailable (HTTP ${code}).`;
+            else if (code === 401 || code === 403 || response.redirected) message = `Check your sign-in on Penina Home (HTTP ${code}).`;
+            throw Object.assign(Error(message), {retryableGateway: [408, 502, 503, 504, 524].includes(code)});
+        }
+        if (!response.ok) throw Error(data?.error || `The request could not be completed (HTTP ${response.status}).`);
         return data;
     }
     function mount({getDeck, changed, setStage, renderQuestion, studentMode}) {
@@ -21,7 +30,10 @@
         const choiceBank = mode => mode === 'mixed' ? 'english' : mode;
         let pages = [], loadingPages = false, pagesLoaded = false, publishing = false;
         let quiz = [], quizIndex = 0, score = 0, answered = false;
-        const status = (id, text, error = false) => {byId(id).textContent = text; byId(id).classList.toggle('error', error);};
+        const status = (id, text, error = false) => {
+            const targets = id === 'practice-status' ? [id, 'practice-review-status'] : [id];
+            for (const target of targets) {byId(target).textContent = text; byId(target).classList.toggle('error', error);}
+        };
         const signature = () => JSON.stringify(getDeck().cards.map(card => [card.id, card.question, card.textFormatting?.question, card.answer, card.distractors]));
         function resetRows() {
             rows = getDeck().cards.map(card => ({
@@ -31,7 +43,7 @@
             sourceKey = signature(); dirty = false;
         }
         function refreshPractice() {
-            byId('practice-editor').setAttribute('aria-busy', busy);
+            byId('practice-rows').setAttribute('aria-busy', busy);
             byId('practice-editor').querySelectorAll('input, textarea, button, select').forEach(node => {node.disabled = busy;});
             byId('practice-cancel').disabled = false;
             byId('practice-cancel').hidden = !dirty && !busy;
@@ -45,10 +57,10 @@
                 const cell = make('div');
                 const label = make('label', '', `Incorrect answer ${slot + 1}`);
                 const input = make('textarea'); input.rows = 2; input.dir = 'auto'; input.maxLength = 500; input.value = value;
-                input.id = `distractor-${i}-${slot}`; label.htmlFor = input.id;
+                input.id = `distractor-${i}-${slot}`; input.disabled = busy; label.htmlFor = input.id;
                 input.addEventListener('input', () => {row.answers[slot] = input.value; dirty = true; refreshPractice();});
                 const regenerate = make('label', 'regenerate-choice');
-                const checkbox = make('input'); checkbox.type = 'checkbox'; checkbox.dataset.row = i; checkbox.dataset.slot = slot;
+                const checkbox = make('input'); checkbox.type = 'checkbox'; checkbox.disabled = busy; checkbox.dataset.row = i; checkbox.dataset.slot = slot;
                 regenerate.append(checkbox, document.createTextNode('Regenerate this answer'));
                 cell.append(label, input, regenerate); choices.append(cell);
             });
@@ -67,7 +79,7 @@
                 const answer = make('textarea'); answer.rows = 2; answer.dir = 'auto'; answer.value = row.answer;
                 answer.id = `correct-${i}`; answerLabel.htmlFor = answer.id; answer.maxLength = 2000;
                 answer.addEventListener('input', () => {row.answer = answer.value; dirty = true; refreshPractice();});
-                let previousAnswer = row.answer, choices = renderChoices(row, i);
+                let previousAnswer = row.answer;
                 answer.addEventListener('change', () => {
                     // A revised binary answer may need a different opposite or a full set of choices.
                     const oldOpposite = binaryDistractor(previousAnswer, mode);
@@ -76,9 +88,9 @@
                     if (choiceKey(oldOpposite) === choiceKey(opposite)) return;
                     const existing = opposite && row.answers.find(value => choiceKey(value) === choiceKey(opposite));
                     row.answers = existing ? [existing] : distractorSlots(row.answer);
-                    const next = renderChoices(row, i); choices.replaceWith(next); choices = next;
+                    section.lastElementChild.replaceWith(renderChoices(row, i));
                 });
-                section.append(answerLabel, answer, choices); return section;
+                section.append(answerLabel, answer, renderChoices(row, i)); return section;
             }));
             refreshPractice();
         }
@@ -129,28 +141,61 @@
                 status('practice-status', 'Generation supports questions up to 4,000 characters and correct answers up to 2,000 characters. You can enter distractors manually for longer cards.', true); return;
             }
             busy = true; controller = new AbortController(); const run = ++generation; refreshPractice();
-            const results = [];
-            try {
-                for (let start = 0; start < requests.length; start += 8) {
-                    const description = useTeacherHebrew ? 'distractors in each correct answer’s language and style' : `${language === 'hebrew' ? 'Hebrew' : 'English'} distractors`;
-                    status('practice-status', `Generating ${description} for questions ${start + 1}–${Math.min(start + 8, requests.length)} of ${requests.length}…`);
-                    const timer = setTimeout(() => controller.abort(), 100000);
-                    let data;
-                    try {data = await request('/api/flashcard-sets', {kind: 'knowledge', action: 'generate-distractors', language, useTeacherHebrew, rows: requests.slice(start, start + 8)}, controller.signal);}
-                    finally {clearTimeout(timer);}
+            let completed = 0;
+            const failed = [];
+            const numbers = batch => batch.map(row => row.id + 1).join(', ');
+            function applyChoices(result) {
+                for (const {id, cells} of result) {
+                    if (!cells.length) continue;
+                    const row = rows[id];
+                    for (const {slot, answer} of cells) row.answers[slot] = answer.trim();
+                    row.answers = distractorSlots(row.answer, row.answers);
+                    const section = byId('practice-rows').children[id];
+                    section.lastElementChild.replaceWith(renderChoices(row, id));
+                    dirty = true;
+                    completed++;
+                }
+            }
+            async function generateBatch(batch, retry = false) {
+                if (run !== generation) return;
+                status('practice-status', `${retry ? 'Retrying' : 'Generating distractors for'} questions ${numbers(batch)}… (${completed} of ${pending.length} ready)`);
+                const timer = setTimeout(() => controller.abort(), 100000);
+                let retryRows;
+                try {
+                    const data = await request('/api/flashcard-sets', {kind: 'knowledge', action: 'generate-distractors',
+                        language, useTeacherHebrew, rows: batch, allowPartial: true}, controller.signal);
                     if (run !== generation) return;
-                    results.push(...data.rows);
+                    if (!Array.isArray(data?.rows)) throw Error('Penina returned no distractor results. Please try again.');
+                    const ids = data.failedIds ?? [];
+                    if (!Array.isArray(ids) || ids.some(id => !batch.some(row => row.id === id))) throw Error('Penina returned unexpected question numbers.');
+                    retryRows = batch.filter(row => ids.includes(row.id));
+                    const accepted = batch.filter(row => !ids.includes(row.id));
+                    window.PeninaPracticeExercises.mergeGeneration(accepted, accepted, data.rows, language,
+                        (choice, correct) => window.PeninaKnowledgeCards.matchesDistractorLanguage(choice, correct, mode));
+                    applyChoices(data.rows);
+                } catch (error) {
+                    if (run !== generation) return;
+                    if (retry || !error.retryableGateway) throw error;
+                    retryRows = batch;
+                } finally {clearTimeout(timer);}
+                if (retry) {failed.push(...retryRows); return;}
+                // Retry only unfinished questions, with at most two per request.
+                for (let i = 0; i < retryRows.length; i += 2) await generateBatch(retryRows.slice(i, i + 2), true);
+            }
+            try {
+                applyChoices(paired);
+                for (let i = 0; i < requests.length && run === generation; i += 4) await generateBatch(requests.slice(i, i + 4));
+                if (run !== generation) return;
+                if (failed.length) {
+                    status('practice-status', `Review questions ${numbers(failed)}. Their suggestions still did not match after retrying. You can enter those choices manually. ${completed} of ${pending.length} questions ready.`, true);
+                } else {
+                    status('practice-status', 'Distractors generated. Review them, make any edits, then Save Answers.');
                 }
-                const source = rows.map((row, id) => ({id, term: row.question, definition: row.answer, answers: row.answers}));
-                const merged = window.PeninaPracticeExercises.mergeGeneration(source, requests, results, language,
-                    useTeacherHebrew ? window.PeninaKnowledgeCards.matchesAnswerWording : undefined);
-                for (const {id, cells} of paired) {
-                    for (const {slot, answer} of cells) merged[id].answers[slot] = answer;
-                }
-                rows.forEach((row, i) => {row.answers = distractorSlots(row.answer, merged[i].answers);}); dirty = true; renderRows();
-                status('practice-status', 'Distractors generated. Review them, make any edits, then Save Answers.');
             } catch (error) {
-                if (run === generation) status('practice-status', error.name === 'AbortError' ? 'Generation timed out. Your existing answers are unchanged; you can retry or enter them manually.' : error.message, true);
+                if (run !== generation) return;
+                const reason = error.name === 'AbortError' ? 'Generation timed out.' : error.message;
+                const progress = completed ? ` Choices for ${completed} of ${pending.length} questions are ready to review.` : '';
+                status('practice-status', reason + progress, true);
             } finally {if (run === generation) {busy = false; refreshPractice();}}
         }
         byId('generate-distractors').onclick = () => generate(false);

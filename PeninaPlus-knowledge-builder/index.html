@@ -106,12 +106,13 @@
             </label>
             <button id="generate-distractors" class="primary" type="button">Generate Distractors</button>
           </div>
+          <p id="practice-status" class="form-message" role="status" aria-live="polite"></p>
           <p id="mixed-language-help" class="help" hidden>Mixed follows each correct answer’s language, Hebrew keywords, and nekudot. These choices are saved under English.</p>
           <p class="help">The correct answer stays in the language you entered. Editing it here updates the flashcard. Leave all distractors empty to include a question only in flashcards and the knowledge sheet.</p>
           <div id="practice-rows"></div>
           <div class="workflow-actions"><button id="regenerate-selected" type="button">Regenerate Selected Answers</button><button id="save-answers" class="primary" type="button">Save Answers</button><button id="practice-cancel" type="button" hidden>Discard Unsaved Changes</button></div>
         </div>
-        <p id="practice-status" class="form-message" role="status" aria-live="polite"></p>
+        <p id="practice-review-status" class="form-message"></p>
         <div class="workflow-actions"><button id="preview-practice" type="button" disabled>Preview Practice</button><button id="continue-share" class="primary" type="button">Continue to Share</button></div>
       </div>
     </section>

@@ -116,7 +116,8 @@ test('choices cannot borrow Hebrew or vowel points from the question or neighbor
 function practiceForm(fetch) {
     const controls = new Map();
     const element = () => ({
-        children: [], dataset: {}, classList: {toggle() {}},
+        children: [], dataset: {}, style: {}, classList: {toggle() {}},
+        get childNodes() { return this.children; },
         get lastElementChild() { return this.children.at(-1); },
         append(...children) {
             this.children.push(...children);
@@ -127,7 +128,7 @@ function practiceForm(fetch) {
             this.parent.children[this.parent.children.indexOf(this)] = next;
             next.parent = this.parent;
         },
-        querySelectorAll() { return []; }, setAttribute() {}, addEventListener(event, fn) { this['on' + event] = fn; },
+        querySelectorAll() { return []; }, setAttribute() {}, removeAttribute() {}, addEventListener(event, fn) { this['on' + event] = fn; },
     });
     const html = fs.readFileSync(require.resolve('../PeninaPlus-knowledge-builder/index.html'), 'utf8');
     for (const [, id] of html.matchAll(/\bid="([^"]+)"/g)) controls.set(id, element());
@@ -142,8 +143,87 @@ function practiceForm(fetch) {
     };
     vm.runInNewContext(fs.readFileSync(require.resolve('../PeninaPlus-knowledge-builder/knowledge-workflow'), 'utf8'),
         {window, document, fetch, AbortController, setTimeout, clearTimeout});
-    return {byId, window};
+    return {byId, window, document};
 }
+
+test('edits after visiting Review and Practice reach both screens through the stage buttons', async () => {
+    const {byId, window, document} = practiceForm();
+    const stages = ['edit', 'study', 'practice'].map(stage => Object.assign(document.createElement('button'), {dataset: {stage}}));
+    document.querySelectorAll = selector => selector === '[data-stage]' ? stages : [];
+    document.querySelector = () => document.createElement('div');
+    document.addEventListener = window.addEventListener = () => {};
+    window.PeninaRichText = {mountEditor: node => ({
+        get: () => ({text: node.value || '', format: node.format}),
+        set: (value, format) => {node.value = value; node.format = format;},
+    })};
+    vm.runInNewContext(fs.readFileSync(require.resolve('../PeninaPlus-knowledge-builder/knowledge-builder'), 'utf8'),
+        {window, document, setTimeout, clearTimeout});
+    const go = stage => stages.find(button => button.dataset.stage === stage).onclick();
+    const form = byId('card-form');
+    form.reportValidity = () => true;
+    const original = 'Who came to סְדוֹם?';
+    const deck = {format: 'penina-knowledge-cards', version: 1, title: 'Review', cards: [
+        {id: 'first', question: 'First?', answer: 'Yes', distractors: {english: ['No']}},
+        {id: 'second', question: original, answer: 'מַלְאָכִים', distractors: {english: ['אֲנָשִׁים']}},
+    ]};
+    await byId('draft-file').onchange({target: {files: [{size: 100, text: async () => JSON.stringify(deck)}]}});
+    go('practice');
+    const rows = () => byId('practice-rows').children;
+    const choices = index => rows()[index].lastElementChild.children.map(cell => cell.children[1].value);
+    go('study');
+    byId('next').onclick();
+    go('edit');
+    assert.equal(byId('question').value, original);
+    const multiline = 'Who came\nto סְדוֹם?';
+    byId('question').value = multiline;
+    form.oninput();
+    go('practice');
+    assert.equal(rows()[1].children[0].children[1].innerHTML, multiline);
+    assert.deepEqual(choices(1), ['אֲנָשִׁים']);
+    go('edit');
+    byId('answer').value = 'They came בָּעֶרֶב';
+    byId('additional-information').value = 'See the second card.';
+    form.oninput();
+    go('study');
+    assert.equal(byId('card-number').textContent, 'Card #2');
+    assert.equal(byId('card-content').children[0].innerHTML, multiline);
+    byId('flip').onclick();
+    assert.equal(byId('card-content').children[0].innerHTML, 'They came בָּעֶרֶב');
+    assert.equal(byId('additional-text').innerHTML, 'See the second card.');
+    go('practice');
+    assert.equal(rows()[1].children[2].value, 'They came בָּעֶרֶב');
+    assert.deepEqual(choices(1), ['', '', '']);
+    assert.deepEqual(choices(0), ['No']);
+    go('edit');
+    byId('answer').value = 'נכון';
+    form.oninput();
+    form.onsubmit({preventDefault() {}});
+    go('practice');
+    byId('practice-language').onchange({target: {value: 'mixed'}});
+    await byId('generate-distractors').onclick();
+    assert.deepEqual(choices(1), ['לא נכון']);
+    assert.equal(byId('save-answers').onclick(), true);
+    go('study');
+    byId('flip').onclick();
+    assert.equal(byId('card-content').children[0].innerHTML, 'נכון');
+});
+
+test('an older practice form cannot overwrite a revised correct answer', () => {
+    const {byId, window} = practiceForm();
+    const card = {id: 'one', question: 'When?', answer: 'Morning', distractors: {english: ['Night']}};
+    const workflow = window.PeninaKnowledgeWorkflow.mount({getDeck: () => ({cards: [card]}), changed() {}});
+    workflow.enter('practice');
+    const choice = byId('practice-rows').children[0].lastElementChild.children[0].children[1];
+    choice.value = 'Afternoon';
+    choice.oninput();
+    card.answer = 'Evening';
+    card.distractors = {};
+    assert.equal(byId('save-answers').onclick(), false);
+    assert.equal(card.answer, 'Evening');
+    assert.deepEqual(card.distractors, {});
+    byId('practice-cancel').onclick();
+    assert.equal(byId('practice-rows').children[0].children[2].value, 'Evening');
+});
 
 test('distractor questions keep card line breaks and paragraph formatting after edits and generation', async () => {
     const {byId, window} = practiceForm();

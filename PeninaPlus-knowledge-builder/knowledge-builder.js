@@ -3,19 +3,20 @@
     'use strict';
     const {FORMAT, normalizeDeck, hasInformation, printSheets, pictureTargets, validPictureTarget, arrowMarkup} = window.PeninaKnowledgeCards;
     const byId = id => document.getElementById(id);
-    const {formattedTextHTML} = window.PeninaKnowledgeCards;
+    const {formattedTextHTML, fitCardLines} = window.PeninaKnowledgeCards;
     const editors = Object.fromEntries(['question','answer','additionalInformation'].map(field =>
         [field, window.PeninaRichText.mountEditor(byId(field === 'additionalInformation' ? 'additional-information' : field))]));
     const readText = () => Object.fromEntries(Object.entries(editors).map(([field, editor]) => [field, editor.get()]));
     function setText(source = {}) {
         for (const [field, editor] of Object.entries(editors)) editor.set(source[field] || '', source.textFormatting?.[field]);
+        fitCardLines([byId('question'), byId('answer')], 14);
     }
     const embedded = byId('peninaKnowledgeData');
     const studentMode = Boolean(embedded);
     let workflow;
     let deck = {format: FORMAT, version: 1, title: '', cards: []};
     let editingId = null, picture = null, activeTarget = 0, dirty = false, stage = 'edit';
-    let order = [], index = 0, showingAnswer = false, ratings = {};
+    let order = [], index = 0, reviewCardId = null, showingAnswer = false, ratings = {};
     let db = null, saveTimer, uploadVersion = 0, uploading = false, pictureDisplayWidth = 0, pictureAspectRatio = 1, pictureTrigger = null, pictureZoomStep = 0;
     const pictureZoomSteps = [1.5, 2, 3];
     const app = document.querySelector('.app');
@@ -218,8 +219,10 @@
         if (!question || !answer) {message('Enter both a question and an answer.', true); byId(!question ? 'question' : 'answer').focus(); return false;}
         if (!editingId && deck.cards.length >= 500) {message('A set can contain up to 500 cards.', true); return false;}
         const previous = deck.cards.find(value => value.id === editingId);
+        const sameWording = (before, after) => before.replace(/\s+/gu, ' ') === after.replace(/\s+/gu, ' ');
+        const keepChoices = previous && sameWording(previous.question, question) && sameWording(previous.answer, answer);
         const card = {id: editingId || crypto.randomUUID(), question, answer,
-            distractors: previous?.question === question && previous?.answer === answer ? (previous.distractors || {}) : {},
+            distractors: keepChoices ? (previous.distractors || {}) : {},
             additionalInformation: fields.additionalInformation.text,
             textFormatting: Object.fromEntries(Object.entries(fields).filter(([,value]) => value.format).map(([field,value]) => [field,value.format])),
             picture: picture ? {...picture, alt: byId('picture-alt').value.trim()} : null};
@@ -227,6 +230,7 @@
         if (existingIndex >= 0) deck.cards[existingIndex] = card;
         else deck.cards.push(card);
         editingId = card.id;
+        if (reviewCardId) reviewCardId = card.id;
         dirty = false;
         byId('save-card').textContent = 'Save Card';
         byId('editor-title').textContent = `Edit Card ${deck.cards.indexOf(card) + 1}`;
@@ -240,6 +244,8 @@
         if (workflow && !workflow.leave(stage)) return;
         if (stage === 'edit' && !commitEditor()) return;
         if (nextStage !== 'edit' && !deck.cards.length) return;
+        if (stage === 'study' && nextStage === 'edit') openEditor(studyCard());
+        if (nextStage !== 'edit') reviewCardId ||= deck.cards[0].id;
         stage = nextStage;
         for (const name of ['edit', 'study', 'print', 'practice', 'share', 'sheet', 'quiz']) byId(`${name}-stage`).hidden = name !== stage;
         document.querySelectorAll('[data-stage]').forEach(button => {
@@ -248,12 +254,13 @@
         });
         if (stage === 'study') {
             order = deck.cards.map(card => card.id);
-            index = 0;
+            index = Math.max(0, order.indexOf(reviewCardId));
             showingAnswer = false;
             renderStudy();
         }
         if (stage === 'print') renderPrint();
         if (stage === 'sheet') renderSheet();
+        if (stage === 'edit') fitCardLines([byId('question'), byId('answer')], 14);
         workflow?.enter(stage);
     }
     function studyCard() {return deck.cards.find(card => card.id === order[index]);}
@@ -279,6 +286,7 @@
     function renderStudy() {
         const card = studyCard();
         if (!card) return;
+        reviewCardId = card.id;
         byId('study-title').textContent = deck.title || 'Untitled knowledge set';
         byId('study-count').textContent = `${deck.cards.length} card${deck.cards.length === 1 ? '' : 's'}`;
         byId('position').textContent = `${index + 1} / ${order.length}`;
@@ -300,21 +308,27 @@
         }
         byId('additional-panel').hidden = !showingAnswer || !hasInformation(card);
         byId('additional-text').innerHTML = formattedTextHTML(card.additionalInformation, card.textFormatting?.additionalInformation);
-        if(studentMode)fitStudentStudy();
+        fitStudy();
         for (const rating of ['known', 'almost', 'learning']) {
             byId(`${rating}-count`).textContent = deck.cards.filter(item => ratings[item.id] === rating).length;
         }
     }
-    function fitStudentStudy() {
-        if(!studentMode || stage!=='study')return;
-        const text=byId('card-content').querySelector('.card-text');
-        if(text)window.PeninaStudyLayout.fitText(text);
-        window.PeninaStudyLayout.fitText(byId('additional-text'));
+    function fitStudy() {
+        fitCardLines(document.querySelectorAll('#card-content .card-text'));
+        if (studentMode) {
+            const text = byId('card-content').querySelector('.card-text');
+            if (text && text.scrollHeight > text.parentElement.clientHeight) window.PeninaStudyLayout.fitText(text, 16);
+            window.PeninaStudyLayout.fitText(byId('additional-text'));
+        }
     }
-    if(studentMode) {
-        window.addEventListener('resize',fitStudentStudy);
-        if(document.fonts)document.fonts.ready.then(fitStudentStudy);
+    function refitVisibleStage() {
+        if (stage === 'study') fitStudy();
+        if (stage === 'edit') fitCardLines([byId('question'), byId('answer')], 14);
+        if (stage === 'quiz' || stage === 'practice') workflow.fitPractice(stage);
+        if (stage === 'print') fitPrint();
     }
+    window.addEventListener('resize', refitVisibleStage);
+    document.fonts?.ready.then(refitVisibleStage);
     function move(amount) {
         if (!order.length) return;
         index = (index + amount + order.length) % order.length;
@@ -360,6 +374,7 @@
     }
     function fitPrint() {
         let overflow = false;
+        fitCardLines(document.querySelectorAll('.paper-card .card-text'), 12);
         document.querySelectorAll('.paper-card:not(.paper-empty)').forEach(card => {
             const content = card.querySelector('.paper-content');
             const text = card.querySelector('.card-text');
@@ -377,7 +392,7 @@
                 image.style.width = `${Math.min(columnWidth, availableHeight * .94 * aspect)}px`;
             }
             const elements = [text, info, heading].filter(Boolean);
-            elements.forEach(element => {element.style.fontSize = '';});
+            for (const element of [info, heading]) if (element) element.style.fontSize = '';
             const sizes = elements.map(element => parseFloat(getComputedStyle(element).fontSize));
             const scaleTo = scale => elements.forEach((element, i) => {
                 element.style.fontSize = `${Math.max(12, sizes[i] * scale)}px`;
@@ -444,7 +459,11 @@
         for (const image of byId('print-pages').querySelectorAll('img')) image.addEventListener('load', fitPrint, {once: true});
         requestAnimationFrame(fitPrint);
     }
-    byId('card-form').addEventListener('input', () => {dirty = true; scheduleSave();});
+    byId('card-form').addEventListener('input', event => {
+        const field = event?.target?.closest('#question, #answer');
+        if (field) fitCardLines([field], 14);
+        dirty = true; scheduleSave();
+    });
     byId('card-form').addEventListener('submit', event => {
         event.preventDefault();
         if (!dirty && !editingId) dirty = true;
@@ -454,7 +473,7 @@
     byId('new-list').addEventListener('click', async () => {
         if (studentMode || !await confirmAction('Clear the current draft and start a new list?', 'Start New')) return;
         deck = {format: FORMAT, version: 1, title: '', cards: []};
-        ratings = {}; order = []; index = 0; showingAnswer = false;
+        ratings = {}; order = []; index = 0; reviewCardId = null; showingAnswer = false;
         workflow.reset();
         byId('set-title').value = '';
         openEditor();
@@ -591,7 +610,7 @@
                 if (image.naturalWidth * image.naturalHeight > 40000000) throw new Error('A picture in this draft is too large.');
             }
             if ((deck.cards.length || dirty) && !await confirmAction('Open this draft in place of the current set? Save the current draft first if you want to keep both.')) return;
-            deck = next; ratings = {}; workflow.reset();
+            deck = next; ratings = {}; reviewCardId = null; workflow.reset();
             byId('set-title').value = deck.title;
             openEditor(deck.cards[0] || null); persist();
             message(`Opened ${deck.cards.length} cards.`);
@@ -624,7 +643,7 @@
             if ((deck.cards.length || dirty) && !await confirmAction(`Replace the current set with ${next.cards.length} imported cards? Save the current draft first if you want to keep both.`, 'Import Cards')) {
                 status('Import canceled. Your current set is unchanged.'); return;
             }
-            deck = next; ratings = {}; workflow.reset();
+            deck = next; ratings = {}; reviewCardId = null; workflow.reset();
             byId('set-title').value = deck.title;
             openEditor(deck.cards[0]); persist();
             status(`Imported ${deck.cards.length} cards. Correct answers, supplied practice choices, pictures, and additional information are ready to review.`);
@@ -643,7 +662,7 @@
         index = 0; showingAnswer = false; renderStudy();
     });
     byId('reset-study').addEventListener('click', () => {ratings = {}; order = deck.cards.map(card => card.id); index = 0; showingAnswer = false; renderStudy();});
-    byId('edit-current').addEventListener('click', () => {openEditor(studyCard()); setStage('edit');});
+    byId('edit-current').addEventListener('click', () => setStage('edit'));
     document.querySelectorAll('[data-rating]').forEach(button => button.addEventListener('click', () => {
         if (studyCard()) {ratings[studyCard().id] = button.dataset.rating; move(1);}
     }));

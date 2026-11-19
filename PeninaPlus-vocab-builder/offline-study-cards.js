@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    const {arrowMarkup, normalizeTextFormat, formattedTextHTML} = typeof module !== 'undefined' && module.exports ? require('../PeninaPlus-knowledge-builder/cards') : window.PeninaKnowledgeCards;
+    const {arrowMarkup, normalizeTextFormat, formattedTextHTML, fitCardLines} = typeof module !== 'undefined' && module.exports ? require('../PeninaPlus-knowledge-builder/cards') : window.PeninaKnowledgeCards;
 
     function escapeHtml(value) {
         return String(value || '').replace(/[&<>"']/g, character => ({
@@ -1109,7 +1109,7 @@ ${renderStudyQuestion.toString()}
         });
     }
 
-    function fitText(element){
+    function fitText(element, minimum=0){
         const box=element.parentElement;
         if(!box||!box.clientHeight||!box.clientWidth)return;
         element.style.fontSize='';
@@ -1120,7 +1120,7 @@ ${renderStudyQuestion.toString()}
         const apply=size=>{element.style.fontSize=size+'px';element.style.setProperty('--text-scale',size/maximum)};
         const sizeBox=()=>{if(box.classList.contains('card-content'))box.style.height=Math.min(height,element.scrollHeight)+'px'};
         if(fits()){sizeBox();return;}
-        let low=0,high=maximum;
+        let low=Math.min(minimum,maximum),high=maximum;
         for(let step=0;step<18;step++){
             const size=(low+high)/2;apply(size);
             if(fits())low=size;else high=size;
@@ -1144,12 +1144,13 @@ button{border:1px solid var(--line);background:#fff;color:var(--ink);border-radi
 .card.knowledge-card{padding-top:64px}
 .knowledge-card .card-content{flex:none;height:225px!important;max-height:225px;align-items:safe center;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;touch-action:pan-y}
 .knowledge-main{font-size:24px;font-weight:400;white-space:pre-wrap;line-height:1.4}
+.knowledge-main .knowledge-wording{display:block}
 .knowledge-context .context-body{overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;touch-action:pan-y}
 .knowledge-context .context-text{font-size:17px;white-space:pre-wrap;text-align:start}
 .knowledge-context .context-en{font-size:inherit}
 .knowledge-context .citation{display:none}
 #cardContent:focus-visible,#contextBody:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.paper-card-knowledge .paper-term{font-size:16pt;font-weight:400;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-translation{font-size:15pt;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-context{white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
+.paper-card-knowledge .paper-term{width:100%;font-size:16pt;font-weight:400;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-translation{font-size:15pt;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere}.paper-card-knowledge .paper-context{white-space:pre-wrap;overflow-wrap:anywhere;text-align:start}
 body.print-preview-open .app{display:none}body.print-preview-open .print-preview{display:block}
 @media(max-width:880px){header{grid-template-columns:1fr}.layout{grid-template-columns:1fr}.panel{position:static}.controls,.ratings{grid-template-columns:1fr}}
 @media(max-width:850px){.print-preview{overflow:auto}.print-toolbar{width:100%;flex-wrap:wrap}.print-toolbar-copy{flex-basis:100%}.paper-sheet,.sheet-caption{margin-left:0}}
@@ -1203,7 +1204,11 @@ const escapeHtml=esc;
 function rich(value,runs){const text=String(value||''),valid=Array.isArray(runs)&&runs.map(run=>String(run&&run.text||'')).join('')===text;if(!valid)return esc(text);return runs.map(run=>(run&&run.bold?'<strong>':'')+esc(run&&run.text||'')+(run&&run.bold?'</strong>':'')).join('')}
 // Fit text inside fixed boxes; content never determines the card or context height.
 ${fitText.toString()}
-function fitStudyText(){if(cards[index]?.kind==='knowledge')return;fitText(byId('mainText'));fitText(byId('contextText'))}
+${fitCardLines.toString()}
+function fitStudyText(){
+    if(cards[index]?.kind==='knowledge'){fitCardLines(byId('mainText').querySelectorAll('.knowledge-wording'));return}
+    fitText(byId('mainText'));fitText(byId('contextText'))
+}
 if(window.addEventListener)window.addEventListener('resize',fitStudyText);
 if(typeof ResizeObserver!=='undefined'){
     const textResizeObserver=new ResizeObserver(fitStudyText);
@@ -1220,7 +1225,9 @@ function printTranslations(card,settings){if(card.kind==='knowledge')return '<di
 function printContext(card,settings){if(card.kind==='knowledge')return '';let context=[];if(settings.originalQuote&&card.contextQuote)context.push('<p class="context-quote hebrew">'+rich(card.contextQuote,card.contextQuoteRuns)+'</p>');if(settings.hebrewContext&&card.hebrewTranslation)context.push('<p class="hebrew">'+rich(card.hebrewTranslation,card.hebrewTranslationRuns)+'</p>');if(settings.englishContext&&card.englishTranslation)context.push('<p>'+rich(card.englishTranslation,card.englishTranslationRuns)+'</p>');const citations=[];if(settings.englishContext&&card.sourceEnglish)citations.push(card.sourceEnglish);if((settings.originalQuote||settings.hebrewContext)&&card.sourceHebrew&&!citations.includes(card.sourceHebrew))citations.push(card.sourceHebrew);if(context.length&&citations.length)context.push('<p class="context-citation">'+citations.map(esc).join(' · ')+'</p>');return context.length?'<div class="paper-context">'+context.join('')+'</div>':''}
 function paperCard(card,side,settings){if(!card)return '<article class="paper-card paper-empty" aria-hidden="true"></article>';return '<article class="paper-card'+(card.kind==='knowledge'?' paper-card-knowledge':'')+(side==='term'?' paper-card-front':'')+'">'+(side==='term'?printTerm(card,settings):printTranslations(card,settings))+'</article>'}
 function paperSheet(group,side,back,settings){const front=Array.from({length:settings.count},(_,position)=>position),positions=back?front.map(position=>position%2===0?position+1:position-1):front;return '<div class="sheet-caption">'+(side==='term'?'Term':'Definition')+' side</div><section class="paper-sheet '+(settings.count===4?'four-up':settings.count===6?'six-up':'eight-up')+'">'+positions.map(position=>paperCard(group[position],side,settings)).join('')+'</section>'}
-function buildPrintPreview(){if(!originalCards.length)return;const settings=getPrintSettings();let pages='';for(let start=0;start<originalCards.length;start+=settings.count){const group=originalCards.slice(start,start+settings.count);pages+=paperSheet(group,termFirst?'term':'translation',false,settings)+paperSheet(group,termFirst?'translation':'term',true,settings)}byId('printLayoutTitle').textContent=(settings.count===4?'Four':settings.count===6?'Six':'Eight')+' paper flashcards per sheet';byId('printPages').innerHTML=pages;document.body.classList.add('print-preview-open');window.scrollTo(0,0)}
+function buildPrintPreview(){if(!originalCards.length)return;const settings=getPrintSettings();let pages='';for(let start=0;start<originalCards.length;start+=settings.count){const group=originalCards.slice(start,start+settings.count);pages+=paperSheet(group,termFirst?'term':'translation',false,settings)+paperSheet(group,termFirst?'translation':'term',true,settings)}byId('printLayoutTitle').textContent=(settings.count===4?'Four':settings.count===6?'Six':'Eight')+' paper flashcards per sheet';byId('printPages').innerHTML=pages;document.body.classList.add('print-preview-open');
+    fitCardLines(document.querySelectorAll('.paper-card-knowledge .paper-term, .paper-card-knowledge .paper-translation'),12);
+    window.scrollTo(0,0)}
 function render(){
     filterCards();renderStats();
     byId('cardContent').scrollTop=0;byId('contextBody').scrollTop=0;
@@ -1238,11 +1245,13 @@ function render(){
     byId('contextLabel').textContent=knowledge?'Additional Information':'Use in Context';
     if(knowledge){
         byId('mainText').style.fontSize='';byId('contextText').style.fontSize='';byId('contextText').style.setProperty('--text-scale',1);
-        byId('mainText').innerHTML=side==='term'?formattedTextHTML(card.question,card.textFormatting?.question)+pictureMarkup(card.picture,320):formattedTextHTML(card.answer,card.textFormatting?.answer);
+        const field=side==='term'?'question':'answer';
+        byId('mainText').innerHTML='<span class="knowledge-wording">'+formattedTextHTML(card[field],card.textFormatting?.[field])+'</span>'+(side==='term'?pictureMarkup(card.picture,320):'');
         setVisible('cardContext',side==='definition'&&!!card.additionalInformation);
         byId('contextQuote').textContent='';byId('hebrewContext').textContent='';
         byId('englishContext').innerHTML=formattedTextHTML(card.additionalInformation,card.textFormatting?.additionalInformation);byId('englishContext').dir='auto';
         byId('hebrewSource').textContent='';byId('englishSource').textContent='';
+        fitStudyText();
         return;
     }
     if(side==='term'){byId('mainText').textContent=card.term||'No term available';byId('mainText').className='main hebrew';}

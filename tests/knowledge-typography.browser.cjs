@@ -22,6 +22,34 @@ async function style(locator){return locator.evaluate(node=>{const s=getComputed
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE});
  try{
+  const sizingPage=await browser.newPage({viewport:{width:1100,height:900}});
+  try {
+   const lines=['When did they come to סְדוֹם?', 'מָתַי הֵם בָּאוּ?'];
+   const question=lines.join('\n');
+   const sized={id:'sizing',question,answer:lines[0],textFormatting:{question:{paragraphs:
+    lines.map((text,i)=>({direction:i?'rtl':'ltr',align:'start',runs:[{text,bold:!i}]}))}}};
+   await sizingPage.setContent(makeStudentApp({...deck,cards:[sized]}));
+   const text=sizingPage.locator('#card-content .card-text');
+   // Choose a column that fits each authored line at about 75% of the usual size.
+   async function fitAt(widthRatio) {
+    return text.evaluate((el,ratio)=>{
+     el.parentElement.style.width='';el.style.fontSize='';el.style.minWidth='max-content';
+     const base=parseFloat(getComputedStyle(el).fontSize), natural=el.scrollWidth;
+     el.style.minWidth='';el.parentElement.style.width=Math.floor(natural*ratio)+'px';
+     window.dispatchEvent(new Event('resize'));
+     const css=getComputedStyle(el);
+     return {base,size:parseFloat(css.fontSize),lines:Math.round(el.getBoundingClientRect().height/parseFloat(css.lineHeight))};
+    },widthRatio);
+   }
+   const front=await fitAt(.75);
+   assert(front.size<front.base && front.size>=16);assert.equal(front.lines,2);
+   assert.deepEqual(await text.locator('[data-rich-paragraph]').allTextContents(),lines);
+   await sizingPage.locator('#flip').click();
+   const back=await fitAt(.75);
+   assert(back.size<back.base && back.size>=16);assert.equal(back.lines,1);
+   const narrow=await fitAt(.15);assert.equal(narrow.size,16);assert(narrow.lines>1);
+   const wide=await fitAt(1.1);assert.equal(wide.size,wide.base);assert.equal(wide.lines,1);
+  } finally {await sizingPage.close();}
   for(const width of [1250,390])for(const combined of [false,true]){
    const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];
    await page.route('**/*',route=>route.abort());page.on('pageerror',error=>errors.push(error.message));

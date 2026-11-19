@@ -46,6 +46,35 @@
         // Changing paragraph direction alone must not replace that alignment.
         return normalized.paragraphs.map(paragraph => `<span data-rich-paragraph dir="${paragraph.direction}" style="display:block;min-height:1em;white-space:pre-wrap;font-weight:400;text-align:${paragraph.align === 'start' ? 'inherit' : paragraph.align}">${paragraph.runs.map(run => run.bold ? '<strong style="font-weight:700">'+escape(run.text)+'</strong>' : escape(run.text)).join('') || '<br>'}</span>`).join('');
     }
+    // Measure each authored line at its natural width. Separate reads and writes so
+    // a whole practice set or printed deck can share the same layout passes.
+    function fitCardLines(elements, minimum = 16) {
+        const visible = Array.from(elements).filter(element => element.clientWidth > 0);
+        for (const element of visible) element.style.fontSize = '';
+        const boxes = visible.map(element => {
+            const css = getComputedStyle(element);
+            const padding = parseFloat(css.paddingLeft) + parseFloat(css.paddingRight);
+            return {element, size: parseFloat(css.fontSize), padding, available: element.clientWidth - padding,
+                width: element.style.width, minWidth: element.style.minWidth, wrap: element.getAttribute('wrap')};
+        });
+        for (const {element} of boxes) {
+            if (element.tagName === 'TEXTAREA') element.wrap = 'off';
+            else element.style.width = element.style.minWidth = 'max-content';
+        }
+        const natural = boxes.map(({element, padding}) => element.scrollWidth - padding);
+        boxes.forEach(({element, size, available, width, minWidth, wrap}, i) => {
+            if (element.tagName === 'TEXTAREA') {
+                if (wrap === null) element.removeAttribute('wrap');
+                else element.wrap = wrap;
+            } else {
+                element.style.width = width;
+                element.style.minWidth = minWidth;
+            }
+            if (available > 0 && natural[i] > available && size > minimum) {
+                element.style.fontSize = Math.max(minimum, Math.floor(size * (available - 1) / natural[i])) + 'px';
+            }
+        });
+    }
     const FORMAT = 'penina-knowledge-cards';
     const text = value => typeof value === 'string' ? value.trim() : '';
     const hasInformation = card => Boolean(text(card.additionalInformation));
@@ -228,5 +257,5 @@
         }
         return pages;
     }
-    return {normalizeTextFormat, formattedTextHTML, FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, binaryDistractor, distractorSlots, planDistractors, answerLanguage, matchesAnswerWording, matchesDistractorLanguage, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
+    return {normalizeTextFormat, formattedTextHTML, fitCardLines, FORMAT, normalizeDeck, hasInformation, printSheets, choiceKey, validChoices, practiceCards, binaryDistractor, distractorSlots, planDistractors, answerLanguage, matchesAnswerWording, matchesDistractorLanguage, pictureTargets, validPictureTarget, copyPictureTarget, arrowMarkup, drawPictureArrow};
 });

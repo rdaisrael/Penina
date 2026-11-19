@@ -1,7 +1,7 @@
 /* Teacher practice/share tools and the student practice view. */
 (() => {
     'use strict';
-    const {validChoices, practiceCards, choiceKey, binaryDistractor, distractorSlots, planDistractors, formattedTextHTML, pictureTargets, drawPictureArrow} = window.PeninaKnowledgeCards;
+    const {validChoices, practiceCards, choiceKey, binaryDistractor, distractorSlots, planDistractors, formattedTextHTML, fitCardLines, pictureTargets, drawPictureArrow} = window.PeninaKnowledgeCards;
     const byId = id => document.getElementById(id);
     const make = (tag, className, text) => {
         const node = document.createElement(tag); if (className) node.className = className;
@@ -51,6 +51,13 @@
             byId('practice-language').value = mode;
             byId('mixed-language-help').hidden = mode !== 'mixed';
         }
+        function fitPractice(stage) {
+            if (stage === 'quiz') fitCardLines(byId('quiz-stage').querySelectorAll('#quiz-prompt .card-text, #quiz-options button'));
+            else fitCardLines(byId('practice-rows').querySelectorAll('.card-text, textarea'), 14);
+        }
+        byId('practice-rows').addEventListener('input', event => {
+            if (event.target.tagName === 'TEXTAREA') fitCardLines([event.target], 14);
+        });
         function renderChoices(row, i) {
             const choices = make('div', 'distractor-choices');
             row.answers.forEach((value, slot) => {
@@ -89,18 +96,26 @@
                     const existing = opposite && row.answers.find(value => choiceKey(value) === choiceKey(opposite));
                     row.answers = existing ? [existing] : distractorSlots(row.answer);
                     section.lastElementChild.replaceWith(renderChoices(row, i));
+                    fitCardLines(section.lastElementChild.querySelectorAll('textarea'), 14);
                 });
                 section.append(answerLabel, answer, renderChoices(row, i)); return section;
             }));
+            fitPractice('practice');
             refreshPractice();
         }
         function enterPractice() {
-            if (!dirty && sourceKey !== signature()) {resetRows(); renderRows();}
-            if (!rows.length) {resetRows(); renderRows();}
+            if (busy || dirty || sourceKey === signature()) {fitPractice('practice'); return;}
+            resetRows();
+            renderRows();
+            status('practice-status', '');
         }
         function saveAnswers() {
             if (busy) {status('practice-status', 'Wait for generation to finish, or discard the pending changes.', true); return false;}
             if (!dirty) return true;
+            if (sourceKey !== signature()) {
+                status('practice-status', 'The cards have changed. Discard these practice edits to load the updated cards.', true);
+                return false;
+            }
             const savedChoices = rows.map(row => distractorSlots(row.answer, row.answers).map(value => value.trim()));
             for (const [i, row] of rows.entries()) {
                 if (!row.answer.trim()) {status('practice-status', 'Enter a correct answer for every question.', true); return false;}
@@ -108,19 +123,18 @@
                     status('practice-status', 'Fill each incorrect-answer cell with a different answer. None may match its correct answer. Leave every cell empty to skip a question.', true); return false;
                 }
             }
-            for (const row of rows) {
-                const card = getDeck().cards.find(value => value.id === row.id);
-                if (!card || card.question !== row.question) {status('practice-status', 'A question changed. Discard these changes and reopen practice.', true); return false;}
-            }
             rows.forEach((row, i) => {
                 const card = getDeck().cards.find(value => value.id === row.id);
                 if (card.answer !== row.answer.trim()) {card.distractors = {}; if(card.textFormatting)delete card.textFormatting.answer;}
                 card.answer = row.answer.trim(); card.distractors ||= {};
                 card.distractors[choiceBank(mode)] = savedChoices[i];
             });
-            const resized = rows.some((row, i) => row.answers.length !== savedChoices[i].length);
-            dirty = false; sourceKey = signature(); changed();
-            if (resized) {resetRows(); renderRows();} else {refreshPractice();}
+            const normalized = rows.some((row, i) => row.answer !== row.answer.trim()
+                || row.answers.length !== savedChoices[i].length
+                || row.answers.some((answer, slot) => answer !== savedChoices[i][slot]));
+            if (normalized) {resetRows(); renderRows();}
+            else {dirty = false; sourceKey = signature(); refreshPractice();}
+            changed();
             status('practice-status', 'Answers saved. You can preview practice or continue to Share.'); return true;
         }
         async function generate(selected) {
@@ -145,6 +159,7 @@
             const failed = [];
             const numbers = batch => batch.map(row => row.id + 1).join(', ');
             function applyChoices(result) {
+                const fields = [];
                 for (const {id, cells} of result) {
                     if (!cells.length) continue;
                     const row = rows[id];
@@ -152,9 +167,11 @@
                     row.answers = distractorSlots(row.answer, row.answers);
                     const section = byId('practice-rows').children[id];
                     section.lastElementChild.replaceWith(renderChoices(row, id));
+                    fields.push(...section.lastElementChild.querySelectorAll('textarea'));
                     dirty = true;
                     completed++;
                 }
+                fitCardLines(fields, 14);
             }
             async function generateBatch(batch, retry = false) {
                 if (run !== generation) return;
@@ -337,11 +354,13 @@
                     byId('quiz-next').textContent=quizIndex===quiz.length-1?'See Results':'Next Question';byId('quiz-next').hidden=false;
                 }; byId('quiz-options').append(button);
             });
+            fitPractice('quiz');
         }
         function startQuiz() {quiz=practiceCards(getDeck(),byId('quiz-language').value);quizIndex=0;score=0;renderQuiz();}
         byId('quiz-language').onchange=startQuiz;
         byId('quiz-next').onclick=()=>{if(quizIndex>=quiz.length)startQuiz();else{quizIndex++;renderQuiz();}};
         return {
+            fitPractice,
             enter(stage) {
                 if(stage==='practice')enterPractice();
                 if(stage==='share' && !pagesLoaded)loadPages();

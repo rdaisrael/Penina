@@ -33,7 +33,7 @@
     <section id="edit-stage" aria-label="Add and edit cards">
       <div class="panel set-panel">
         <label for="set-title">Set title</label><input id="set-title" type="text" placeholder="Name your knowledge set" maxlength="200">
-        <div class="set-actions"><button id="new-list" type="button">New List</button><button id="download-draft" type="button">Save Draft</button><button id="upload-draft" type="button">Open Draft</button><input id="draft-file" type="file" accept=".json,application/json" hidden></div>
+        <div class="set-actions"><button id="new-list" type="button">New List</button><button id="download-draft" type="button">Save Draft</button><button id="upload-draft" type="button">Open Draft</button><input id="draft-file" type="file" accept=".json,application/json" hidden><button id="open-published" type="button" aria-haspopup="dialog">Open Published Set</button></div>
       </div>
       <div class="panel spreadsheet-panel">
         <h2>Import a Spreadsheet</h2>
@@ -144,6 +144,15 @@
     <button id="close-picture" class="picture-close" type="button" aria-label="Close enlarged picture">✕</button>
     <button id="enlarged-picture" class="enlarged-picture" type="button" aria-label="Enlarge picture further" aria-describedby="picture-zoom-hint" autofocus></button>
     <p id="picture-zoom-hint" class="picture-zoom-hint">Click to enlarge further</p>
+  </dialog>
+  <dialog id="published-picker" class="published-picker" aria-labelledby="published-heading">
+    <h2 id="published-heading" tabindex="-1" autofocus>Open Published Set</h2>
+    <p>Choose a class page and open one of its sets. You can edit the cards or go straight to Share to publish a copy.</p>
+    <label for="published-source">Class page where you published the set</label>
+    <select id="published-source"></select>
+    <p id="published-picker-status" class="form-message" role="status"></p>
+    <ul id="published-sets" aria-label="Published sets"></ul>
+    <div class="form-actions"><button id="close-published" type="button">Cancel</button><button id="retry-published" type="button" hidden>Try Again</button></div>
   </dialog>
   <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-message"><form method="dialog"><p id="confirm-message"></p><div class="form-actions"><button value="cancel">Cancel</button><button value="confirm" class="primary">Continue</button></div></form></dialog>
 </body>

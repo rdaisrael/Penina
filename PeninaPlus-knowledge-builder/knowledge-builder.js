@@ -470,14 +470,24 @@
         if (commitEditor()) message('Card saved. Add another card or open Electronic Flashcards.');
     });
     byId('set-title').addEventListener('input', () => {deck.title = byId('set-title').value; scheduleSave();});
-    byId('new-list').addEventListener('click', async () => {
-        if (studentMode || !await confirmAction('Clear the current draft and start a new list?', 'Start New')) return;
-        deck = {format: FORMAT, version: 1, title: '', cards: []};
+    function replaceDeck(next) {
+        deck = next;
         ratings = {}; order = []; index = 0; reviewCardId = null; showingAnswer = false;
         workflow.reset();
-        byId('set-title').value = '';
-        openEditor();
-        persist();
+        byId('set-title').value = deck.title;
+        openEditor(deck.cards[0]); persist();
+    }
+    async function openPublishedDeck(data) {
+        const next = normalizeDeck(data);
+        if ((deck.title.trim() || deck.cards.length || dirty || uploading) &&
+            !await confirmAction(`Open “${next.title}” in place of your current draft? Save Draft first if you want to keep both.`, 'Open Set')) return false;
+        replaceDeck(next);
+        message(`Opened “${deck.title}”. Choose Share to publish a copy to a class page.`);
+        return true;
+    }
+    byId('new-list').addEventListener('click', async () => {
+        if (studentMode || !await confirmAction('Clear the current draft and start a new list?', 'Start New')) return;
+        replaceDeck({format: FORMAT, version: 1, title: '', cards: []});
         byId('set-title').focus();
     });
     byId('new-card').addEventListener('click', () => {if (commitEditor()) {openEditor(); persist(); byId('picture-file').focus();}});
@@ -610,9 +620,7 @@
                 if (image.naturalWidth * image.naturalHeight > 40000000) throw new Error('A picture in this draft is too large.');
             }
             if ((deck.cards.length || dirty) && !await confirmAction('Open this draft in place of the current set? Save the current draft first if you want to keep both.')) return;
-            deck = next; ratings = {}; reviewCardId = null; workflow.reset();
-            byId('set-title').value = deck.title;
-            openEditor(deck.cards[0] || null); persist();
+            replaceDeck(next);
             message(`Opened ${deck.cards.length} cards.`);
         } catch (error) {message(error.message || 'This draft could not be opened.', true);}
         finally {event.target.value = '';}
@@ -643,9 +651,7 @@
             if ((deck.cards.length || dirty) && !await confirmAction(`Replace the current set with ${next.cards.length} imported cards? Save the current draft first if you want to keep both.`, 'Import Cards')) {
                 status('Import canceled. Your current set is unchanged.'); return;
             }
-            deck = next; ratings = {}; reviewCardId = null; workflow.reset();
-            byId('set-title').value = deck.title;
-            openEditor(deck.cards[0]); persist();
+            replaceDeck(next);
             status(`Imported ${deck.cards.length} cards. Correct answers, supplied practice choices, pictures, and additional information are ready to review.`);
         } catch (error) {status(error.message || 'This spreadsheet could not be opened.', true);}
         finally {event.target.value = ''; app.inert = false;}
@@ -719,7 +725,7 @@
         table.append(head,body);root.replaceChildren(title,table);
     }
     workflow = window.PeninaKnowledgeWorkflow.mount({
-        getDeck: () => deck, studentMode, setStage, renderQuestion: card => cardContent(card,false),
+        getDeck: () => deck, studentMode, setStage, openPublishedDeck, renderQuestion: card => cardContent(card,false),
         changed: () => {if(editingId)openEditor(deck.cards.find(card=>card.id===editingId));persist();}
     });
     async function initialize() {

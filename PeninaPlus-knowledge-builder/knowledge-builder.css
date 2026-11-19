@@ -59,6 +59,11 @@ dialog{border:1px solid var(--line);border-radius:14px;padding:20px;color:var(--
 .rich-text-editor strong,.rich-text-editor b{font-weight:700}
 .form-actions{display:flex;flex-wrap:wrap;gap:8px}
 .form-actions button{flex:1 1 auto}
+.published-picker{width:min(30rem,calc(100% - 2rem));max-height:85vh;overflow:auto}
+.published-picker>p{line-height:1.5}
+.published-picker ul{list-style:none;padding:0;display:grid;gap:8px;max-height:40vh;overflow:auto}
+.published-picker li button{width:100%;display:grid;gap:4px;text-align:start;overflow-wrap:anywhere}
+.published-picker li small{font-weight:normal;color:var(--muted)}
 .generate-actions{align-items:flex-end}
 .generate-actions .language-select{margin:0}
 .distractor-card h3{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.5em}

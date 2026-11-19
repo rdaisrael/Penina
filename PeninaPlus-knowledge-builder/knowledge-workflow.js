@@ -25,7 +25,77 @@
         if (!response.ok) throw Error(data?.error || `The request could not be completed (HTTP ${response.status}).`);
         return data;
     }
-    function mount({getDeck, changed, setStage, renderQuestion, studentMode}) {
+    async function ownedPages(signal) {
+        const data = await request('/api/vocabulary-pages', undefined, signal);
+        return data.pages.filter(page => safePageUrl(page.url)).sort((a,b) => a.name.localeCompare(b.name));
+    }
+    function mountPublishedPicker(openSet) {
+        const dialog = byId('published-picker'), source = byId('published-source'), list = byId('published-sets');
+        const note = byId('published-picker-status'), retry = byId('retry-published');
+        let pending;
+        async function load(message, action) {
+            pending?.abort();
+            pending = new AbortController();
+            const {signal} = pending;
+            note.textContent = message; note.classList.remove('error');
+            source.disabled = true; list.inert = true; retry.hidden = true;
+            try {
+                await action(signal);
+            } catch (error) {
+                if (signal.aborted) return;
+                note.textContent = error.message; note.classList.add('error');
+                retry.hidden = false;
+                retry.onclick = () => source.value ? loadSets() : loadPages();
+            } finally {
+                if (!signal.aborted) {source.disabled = source.options.length < 2; list.inert = false;}
+            }
+        }
+        function openPublished(grade, set) {
+            load('Opening the set…', async signal => {
+                const {deck} = await request('/api/flashcard-sets', {kind:'knowledge', action:'open-published', grade, pathname:set.pathname}, signal);
+                signal.throwIfAborted();
+                if (!dialog.open) return;
+                if (await openSet(deck)) dialog.close();
+                else note.textContent = 'Choose a set to open.';
+            });
+        }
+        async function showSets(signal) {
+            const grade = source.value;
+            list.replaceChildren();
+            if (!grade) {note.textContent = ''; return;}
+            note.textContent = 'Loading published sets…';
+            const {sets} = await request('/api/flashcard-sets', {kind:'knowledge', action:'list-published', grade}, signal);
+            signal.throwIfAborted();
+            for (const set of sets) {
+                const item = make('li'), button = make('button');
+                button.type = 'button';
+                const title = make('span', '', set.title); title.dir = 'auto';
+                const date = new Date(set.publishedAt);
+                const details = [`${set.cardCount} ${set.cardCount === 1 ? 'card' : 'cards'}`];
+                if (Number.isFinite(date.getTime())) details.push(date.toLocaleString());
+                button.append(title, make('small', '', details.join(' · ')));
+                button.onclick = () => openPublished(grade, set);
+                item.append(button); list.append(item);
+            }
+            note.textContent = sets.length ? 'Choose a set to open.' : 'This page has no published Knowledge Builder sets.';
+        }
+        function loadSets() {return load('Loading published sets…', showSets);}
+        function loadPages() {
+            source.replaceChildren(new Option('Choose a class page', '')); list.replaceChildren();
+            return load('Loading your class pages…', async signal => {
+                const pages = await ownedPages(signal);
+                signal.throwIfAborted();
+                source.append(...pages.map(page => new Option(page.name, page.id)));
+                if (pages.length === 1) {source.value = pages[0].id; await showSets(signal);}
+                else note.textContent = pages.length ? '' : 'Your account has no class pages yet.';
+            });
+        }
+        byId('open-published').onclick = () => {dialog.showModal(); loadPages();};
+        byId('close-published').onclick = () => dialog.close();
+        dialog.addEventListener('close', () => {if (!dialog.open) pending?.abort();});
+        source.onchange = loadSets;
+    }
+    function mount({getDeck, changed, setStage, renderQuestion, studentMode, openPublishedDeck}) {
         let mode = 'english', rows = [], sourceKey = '', dirty = false, busy = false, controller, generation = 0;
         const choiceBank = mode => mode === 'mixed' ? 'english' : mode;
         let pages = [], loadingPages = false, pagesLoaded = false, publishing = false;
@@ -259,20 +329,26 @@
             byId('selected-page-link').hidden = !url;
             byId('selected-page-link').href = url || '#';
             byId('selected-page-link').textContent = page ? `Open ${page.name} ↗` : '';
+            select.disabled = publishing || loadingPages || !pages.length;
             byId('publish-knowledge').disabled = !page || publishing || loadingPages;
         }
+        if (!studentMode) mountPublishedPicker(async deck => {
+            if (!await openPublishedDeck(deck)) return false;
+            byId('publish-card-grade').value = '';
+            pagesLoaded = false;
+            updatePageLinks();
+            return true;
+        });
         async function loadPages() {
             if (studentMode || loadingPages) return;
             loadingPages = true; updatePageLinks(); byId('retry-pages').hidden = true;
             status('pages-status', 'Loading your class pages…');
             try {
-                const data = await request('/api/vocabulary-pages');
+                pages = await ownedPages();
                 const selected = byId('publish-card-grade').value;
-                pages = data.pages.filter(page => safePageUrl(page.url)).sort((a,b) => a.name.localeCompare(b.name));
-                byId('publish-card-grade').replaceChildren(...pages.map(page => {
-                    const option = make('option', '', page.name); option.value = page.id; return option;
-                }));
+                byId('publish-card-grade').replaceChildren(new Option('Choose a class page', ''), ...pages.map(page => new Option(page.name, page.id)));
                 if (pages.some(page => page.id === selected)) byId('publish-card-grade').value = selected;
+                else if (pages.length === 1) byId('publish-card-grade').value = pages[0].id;
                 byId('published-page-links').replaceChildren(...pages.map(page => {
                     const link = make('a', '', page.name); link.href = page.url; link.target = '_blank'; link.rel = 'noopener'; return link;
                 }));
@@ -295,13 +371,14 @@
             if (publishing) return;
             const deck = copy(getDeck());
             if (!deck.title.trim()) {status('publish-status', 'Enter a set title in Add & Edit Cards before publishing.', true); return;}
-            if (!byId('publish-card-grade').value) return;
+            const page = pages.find(page => page.id === byId('publish-card-grade').value);
+            if (!page) return;
             publishing = true; updatePageLinks(); status('publish-status', 'Publishing flashcards, the knowledge sheet, and saved practice activities…');
             try {
-                const body = {kind: 'knowledge', action: 'publish', grade: byId('publish-card-grade').value, deck};
+                const body = {kind: 'knowledge', action: 'publish', grade: page.id, deck};
                 if (new Blob([JSON.stringify(body)]).size > 3500000) throw Error('This set is too large to publish. Use smaller picture files or split it into smaller sets. You can still save your full draft.');
                 const data = await request('/api/flashcard-sets', body);
-                status('publish-status', `“${deck.title}” was published successfully. `);
+                status('publish-status', `“${deck.title}” was published to “${page.name}”. `);
                 if (safePageUrl(data.page?.url)) {const link = make('a', '', 'Open the class webpage →'); link.href = data.page.url; link.target = '_blank'; link.rel = 'noopener'; byId('publish-status').append(link);}
             } catch (error) {status('publish-status', error.message, true);} finally {publishing = false; updatePageLinks();}
         };

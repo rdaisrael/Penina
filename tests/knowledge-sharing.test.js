@@ -40,6 +40,33 @@ test('unauthenticated, wrong-owner, and cross-origin writes cannot reach storage
     assert.equal(h.generationCalls,0);
     const denied=harness({access:false});assert.equal((await denied.call('POST',{action:'generate-distractors'})).code,401);assert.equal(denied.generationCalls,0);
 });
+test('a teacher can reopen a published set and publish an independent copy to another class page',async()=>{
+    const h=harness(),source=deck();
+    source.cards[0].distractors.hebrew=['שורש','גבעול','זרע','פרח'];
+    source.cards[0].textFormatting={answer:{paragraphs:[{direction:'ltr',align:'right',runs:[{text:source.cards[0].answer,bold:true}]}]}};
+    const original=(await h.call('POST',{action:'publish',grade:'class-a',deck:source})).body.set;
+    const listing=await h.call('POST',{action:'list-published',grade:'class-a'});
+    assert.deepEqual(listing.body.sets,[{pathname:original.pathname,title:source.title,cardCount:1,publishedAt:original.publishedAt}]);
+    const open={action:'open-published',grade:'class-a',pathname:original.pathname};
+    assert.equal((await h.call('POST',{...open,grade:'class-b'})).code,404);
+    const reopened=(await h.call('POST',open)).body.deck;
+    assert.deepEqual(reopened,normalizeDeck(source));
+    assert.equal(h.operations.length,1);
+    reopened.title='Plants for Class B';
+    const copy=await h.call('POST',{action:'publish',grade:'class-b',deck:reopened});
+    assert.equal(copy.code,201);
+    assert.notEqual(copy.body.set.pathname,original.pathname);
+    assert.deepEqual((await h.call('POST',{...open,grade:'class-b',pathname:copy.body.set.pathname})).body.deck,reopened);
+    assert.deepEqual((await h.call('POST',open)).body.deck,normalizeDeck(source));
+});
+test('the published-set picker requires teacher access, the source page owner and the Penina origin',async()=>{
+    for(const action of ['list-published','open-published']) {
+        const body={action,grade:'class-a',pathname:'knowledge-cards/class-a/old-set.json'};
+        assert.equal((await harness({access:false}).call('POST',body)).code,401);
+        assert.equal((await harness({owner:false}).call('POST',body)).code,403);
+        assert.equal((await harness().call('POST',body,{}, {origin:'https://other.invalid'})).code,403);
+    }
+});
 test('publication rejects unsafe, empty, and oversized drafts without storing them',async()=>{
     const h=harness();
     const bad=deck();bad.cards[0].picture.src='javascript:alert(1)';

@@ -147,9 +147,10 @@ test('Correct-answer fireworks run only after reveal, only once, and honor reduc
 });
 test('Countdown closes expired answers, recovers corrected time, and respects other answer locks',()=>{
  const clock={textContent:''},button={disabled:false};
- const context={host:false,busy:false,stopped:false,answerSubmission:null,snapshot:{deadline:10000,phase:'question',paused:false,me:{choice:null}},clockOffset:0,Date:{now:()=>5100},stage:{querySelector:()=>clock,querySelectorAll:()=>[button]}};
+ let readerClock='';
+ const context={studentDisplay:{updateClock:text=>{readerClock=text;}},host:false,busy:false,stopped:false,answerSubmission:null,snapshot:{deadline:10000,phase:'question',paused:false,me:{choice:null}},clockOffset:0,Date:{now:()=>5100},stage:{querySelector:()=>clock,querySelectorAll:()=>[button]}};
  vm.createContext(context);vm.runInContext(client.slice(client.indexOf(' function clockText('),client.indexOf(' function fireworks(data){')),context);
- context.updateClock();assert.equal(clock.textContent,'Time left: 5s');assert.equal(button.disabled,false);
+ context.updateClock();assert.equal(readerClock,'Time left: 5s');assert.equal(clock.textContent,readerClock);assert.equal(button.disabled,false);
  context.Date.now=()=>10000;context.updateClock();assert.equal(clock.textContent,'Time left: 0s');assert.equal(button.disabled,true);
  context.clockOffset=-1000;context.updateClock();assert.equal(clock.textContent,'Time left: 1s');assert.equal(button.disabled,false);
  for(const lock of ['busy','stopped','answerSubmission']){

@@ -44,7 +44,7 @@ async function check(browser,viewport){
    }
    if(url.pathname.endsWith('/live.js'))return route.fulfill({contentType:'text/javascript',body:source.replace(' auth=stored(storageKey())'," window.liveTest={poll,getSnapshot:()=>snapshot}; auth=stored(storageKey())")});
    const file=path.join(root,url.pathname,url.pathname.endsWith('/')?'index.html':'');
-   if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live\.js|\/PeninaPlus-knowledge-builder\/cards\.js))[^"]+"><\/script>/g,'')});
+   if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live\.js|student-display\.js|\.\.\/\.\.\/game-fullscreen\.js|\/PeninaPlus-knowledge-builder\/cards\.js))[^"]+"><\/script>/g,'')});
    if(fs.existsSync(file))return route.fulfill({path:file});
    return route.abort();
   });

@@ -23,7 +23,7 @@ async function check(browser,viewport,timed){
    }
    if(url.pathname.endsWith('/live.js'))return route.fulfill({contentType:'text/javascript',body:source.slice(0,source.indexOf(' auth=stored(storageKey())'))+' window.liveTest={present,getSnapshot:()=>snapshot};})();'});
    const file=path.join(root,url.pathname,url.pathname.endsWith('/')?'index.html':'');
-   if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live|shofar).js)[^"]+"><\/script>/g,'')});
+   if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:(?:live|shofar|student-display)\.js|\.\.\/\.\.\/game-fullscreen\.js))[^"]+"><\/script>/g,'')});
    if(fs.existsSync(file))return route.fulfill({path:file});
    return route.abort();
   });

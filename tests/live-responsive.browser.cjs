@@ -15,7 +15,7 @@ const questions=[
 ];
 const base={phase:'question',round:1,index:1,version:2,className:'Sixth Grade Knowledge',playerCount:24,answeredCount:0,total:20,paused:false,
  me:{name:'AB',avatar:1,score:500,streak:4,choice:null},players:[]};
-async function open(browser,viewport,host=false){
+async function open(browser,viewport,host=false,denyFullscreen=false){
  const page=await browser.newPage({viewport,hasTouch:true,reducedMotion:'reduce'}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',async route=>{
@@ -25,12 +25,13 @@ async function open(browser,viewport,host=false){
    const answer=route.request().postDataJSON();
    return route.fulfill({json:{saved:true,round:answer.round,index:answer.index,choice:answer.choice}});
   }
-  if(url.pathname.endsWith('/live.js'))return route.fulfill({contentType:'text/javascript',body:source.slice(0,source.indexOf(' auth=stored(storageKey())'))+' window.liveTest={present,getSnapshot:()=>snapshot};})();'});
+  if(url.pathname.endsWith('/live.js'))return route.fulfill({contentType:'text/javascript',body:source.slice(0,source.indexOf(' auth=stored(storageKey())'))+' window.liveTest={present,joinForm,getSnapshot:()=>snapshot};})();'});
   const file=path.join(root,url.pathname,url.pathname.endsWith('/')?'index.html':'');
-  if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live\.js|\/PeninaPlus-knowledge-builder\/cards\.js|qrcode\.js|\.\.\/\.\.\/game-fullscreen\.js))[^"]+"><\/script>/g,'')});
+  if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live\.js|\/PeninaPlus-knowledge-builder\/cards\.js|qrcode\.js|student-display\.js|\.\.\/\.\.\/game-fullscreen\.js))[^"]+"><\/script>/g,'')});
   if(fs.existsSync(file))return route.fulfill({path:file});
   return route.abort();
  });
+ if(denyFullscreen)await page.addInitScript(()=>{Element.prototype.requestFullscreen=()=>Promise.reject(Error('Unavailable'));});
  const now=Date.now();
  await page.addInitScript(now=>{Date.now=()=>now;window.setInterval=()=>0;},now);
  await page.goto('http://live.test/PeninaPlus-vocab-builder/flash-cards/live/?code=123456'+(host?'&host=1':''));
@@ -42,12 +43,23 @@ const measure=page=>page.evaluate(()=>({
 }));
 // Scroll offsets can round by one pixel when fractional text lines receive focus.
 const sameScroll=(actual,expected,message)=>assert(actual.every((value,i)=>Math.abs(value-expected[i])<=1),message+': '+JSON.stringify({actual,expected}));
+async function checkFrame(page){
+ const frame=await page.evaluate(()=>{
+  const shell=document.querySelector('.student-view').getBoundingClientRect();
+  const toggle=document.getElementById('live-fullscreen').getBoundingClientRect();
+  return {height:innerHeight,width:innerWidth,docHeight:document.documentElement.scrollHeight,
+   docWidth:document.documentElement.scrollWidth,gapRight:shell.right-toggle.right,gapBottom:shell.bottom-toggle.bottom};
+ });
+ assert(frame.docHeight<=frame.height+1&&frame.docWidth<=frame.width+1,'the student screen fits the viewport '+JSON.stringify(frame));
+ assert(frame.gapRight>=0&&frame.gapRight<=24&&frame.gapBottom>=0&&frame.gapBottom<=24,'fullscreen is at the bottom right');
+}
 async function check(browser,viewport){
  const {page,errors,now}=await open(browser,viewport);let index=1,anchors;
  try{
   for(const question of questions)for(const timed of [false,true]){
    const state={...base,index:index++,question,deadline:timed?now+10000:null};
    await page.evaluate(data=>window.liveTest.present(data),state);
+   await checkFrame(page);
    const layout=await measure(page),label=`${viewport.width}×${viewport.height} ${question.kind||'vocabulary'} ${timed?'timed':'manual'}`;
    assert.equal(layout.scroll,0,label+': a new question starts at the top');
    assert(layout.pageWidth<=layout.width,label+': no horizontal scrolling');
@@ -70,12 +82,20 @@ async function check(browser,viewport){
    assert.deepEqual(await measure(page),layout,label+': connection errors do not push the game down');
    await page.evaluate(()=>document.getElementById('error').hidden=true);
   }
-  const long={...base,index:index++,deadline:now+10000,question:{kind:'knowledge',term:Array(12).fill('Read the passage carefully and explain how the events support the conclusion.').join('\n\n'),options:questions[1].options.map(text=>text+'. '+Array(3).fill('Consider the evidence given in the passage.').join(' '))}};
+  const long={...base,index:index++,deadline:now+10000,question:{kind:'knowledge',term:Array(12).fill('Read the passage carefully and explain how the events support the conclusion.').join('\n\n'),options:questions[1].options.map(text=>text+'. '+Array(30).fill('Consider the evidence given in the passage.').join(' '))}};
   await page.evaluate(data=>window.liveTest.present(data),long);
   const longLayout=await measure(page);
   assert.deepEqual(longLayout,anchors,'long material keeps the same frame and answer positions');
   assert(longLayout.boxes.every(b=>b.font>=18),'long material is not shrunk to fit');
   assert(longLayout.pageWidth<=viewport.width,'long material wraps within the screen');
+  await page.getByRole('button',{name:'Read full card'}).click();
+  const reader=page.locator('#card-reader[open]');
+  await reader.getByRole('button',{name:'Next',exact:true}).click();
+  assert(await reader.locator('.reader-pages').evaluate(node=>node.scrollLeft>0),'long text can be read a page at a time');
+  await page.evaluate(data=>window.liveTest.present({...data,answeredCount:5}),long);
+  assert(await reader.isVisible(),'routine refresh leaves the reader open');
+  assert.equal(await page.evaluate(()=>window.liveTest.getSnapshot().me.choice),null,'reading does not submit an answer');
+  await reader.getByRole('button',{name:'Back to game'}).click();
   const questionPane=page.locator('.question-content'),answerText=page.locator('[data-choice="3"] .text');
   assert(await questionPane.evaluate(node=>node.scrollHeight>node.clientHeight),'long question scrolls inside its frame');
   await questionPane.evaluate(node=>node.scrollTop=node.scrollHeight);
@@ -112,7 +132,8 @@ async function check(browser,viewport){
   await page.getByRole('button',{name:'Full screen',exact:true}).click();
   await page.waitForFunction(()=>document.fullscreenElement===document.documentElement);
   assert.equal(await page.evaluate(()=>window.liveTest.getSnapshot().me.choice),0);
-  await page.getByRole('button',{name:'Exit full screen'}).click();
+  await checkFrame(page);
+  await page.getByRole('button',{name:'Exit',exact:true}).click();
   await page.waitForFunction(()=>!document.fullscreenElement);
   assert.deepEqual(errors,[]);
   console.log(`Passed normal/long vocabulary and Knowledge layouts at ${viewport.width}×${viewport.height}`);
@@ -122,6 +143,30 @@ async function check(browser,viewport){
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE});
  try{
   for(const viewport of viewports)await check(browser,viewport);
+  for(const viewport of [{width:320,height:568},{width:568,height:320},{width:768,height:1024}]){
+   const {page}=await open(browser,viewport,false,true);
+   try{
+    await page.evaluate(()=>window.liveTest.joinForm());
+    await checkFrame(page);
+    await page.locator('input[name=name]').fill('AB');
+    await page.locator('input[name=schoolEmail]').fill('ab@school.example');
+    await page.getByRole('button',{name:'Choose character'}).click();
+    await checkFrame(page);
+    await page.locator('label').filter({has:page.locator('[value="14"]')}).click();
+    assert(await page.locator('[name=avatar][value="14"]').isChecked());
+    await page.getByRole('button',{name:'Back',exact:true}).click();
+    assert.equal(await page.locator('input[name=name]').inputValue(),'AB');
+    await page.getByRole('button',{name:'Full screen',exact:true}).click();
+    await page.getByRole('button',{name:'Exit',exact:true}).waitFor();
+    const state={...base,question:questions[0]};
+    for(const phase of ['lobby','question','reveal','ended','lobby']){
+     await page.evaluate(data=>window.liveTest.present(data),{...state,phase,question:{...state.question,correct:0},
+      scores:[{name:'AB',score:500,avatar:14}],distribution:[1,0,0,0]});
+     await checkFrame(page);
+     assert(await page.getByRole('button',{name:'Exit',exact:true}).isVisible());
+    }
+   }finally{await page.close();}
+  }
   const {page,errors,now}=await open(browser,{width:1024,height:768},true);
   try{
    await page.evaluate(data=>window.liveTest.present(data),{...base,question:questions[1],deadline:now+10000});

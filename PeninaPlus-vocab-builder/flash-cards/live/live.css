@@ -246,12 +246,104 @@ body:has(.student-round){min-height:100svh}
 
 .live-picture-target.lettered{display:grid;place-items:center;width:28px;height:28px;font-size:20px}
 
-.topbar #connection{margin-left:auto}
-#live-fullscreen{flex:none;min-height:36px;padding:5px 9px;font-size:13px}
-#live-fullscreen[hidden]{display:none}
-html.game-fullscreen .live-shell{max-width:none;padding-inline:clamp(8px,2vw,24px)}
-html.game-fullscreen .student-round .live-question{max-width:none}
-html.game-fullscreen .live-shell footer,html.game-fullscreen .topbar .brand{display:none}
-html.game-fullscreen .topbar{padding-bottom:4px;margin-bottom:6px}
-html.game-fullscreen .topbar #connection{margin-left:0}
-@media(max-width:420px){.topbar:has(#live-fullscreen:not([hidden])){gap:6px}.topbar .brand{white-space:nowrap}}
+/* Student controls live outside the stage so a room refresh cannot move them mid-tap. */
+.live-shell.student-view{
+ display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:6px;
+ height:100vh;height:100dvh;min-width:0;margin:auto;
+ padding:max(6px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))
+}
+.live-shell.student-view .topbar{margin:0;padding:0 0 4px}
+.student-view footer{display:none}
+.student-view #error{position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:1200;width:min(640px,96vw);padding:6px 12px}
+.student-view #stage{min-width:0;min-height:0;display:flex;flex-direction:column}
+#student-controls{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+#student-controls button,.reader-controls button{min-height:36px;padding:5px 10px;font-size:14px}
+#live-fullscreen{background:var(--purple);border-color:var(--purple);color:white}
+html.game-fullscreen .student-view{max-width:none;grid-template-rows:minmax(0,1fr) auto}
+html.game-fullscreen .student-view .topbar{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}
+html.game-fullscreen .student-view .brand{display:none}
+.student-view .student-round{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);align-items:stretch}
+.student-view .live-question{
+ max-width:none;display:grid;grid-template-columns:minmax(0,1fr);
+ grid-template-rows:20px 44px minmax(0,1fr) 56px;gap:4px;min-height:0
+}
+.student-view .question-meta,.student-view .round-status,.student-view .round-feedback{margin:0}
+.student-view .round-feedback{height:auto;line-height:1.2}
+.student-view .question-body{grid-template-rows:minmax(0,1fr) minmax(0,1.6fr);min-height:0;gap:6px}
+.student-view .question-content,.student-view .answer{height:auto;min-height:0}
+.student-view .answers{min-height:0;grid-template-rows:none;grid-auto-rows:minmax(0,1fr);align-content:stretch}
+.student-view .answer{min-width:0}
+.student-view .round-feedback .bonus-notice{margin-top:2px;gap:2px}
+.student-view .round-feedback .bonus-notice span{padding:1px 4px}
+
+.student-view .panel{width:100%;margin:auto;min-width:0;padding:clamp(8px,2vmin,20px)}
+.student-view #stage>.question-meta{font-size:13px;gap:2px}
+.student-view .waiting h1,.student-view .join-panel h1{font-size:clamp(22px,4vmin,38px);margin:0 0 6px}
+.student-view .waiting p{margin-bottom:6px}
+.student-view .chosen-avatar .avatar-figure{width:clamp(42px,12vmin,100px)}
+.student-view .winner-podium{margin:6px 0}
+.student-view .podium-step{height:clamp(28px,calc(var(--step-height) * .65),18dvh);padding:3px}
+.student-view .podium-contestant{flex-basis:clamp(30px,8vmin,80px)}
+.student-view .game-finale .actions{margin-top:6px;justify-content:center}
+.student-view .game-finale .actions p{margin:0;font-size:14px}
+.student-view .join-panel{max-height:100%;display:flex;flex-direction:column}
+.student-view #join-form,.join-characters,.student-view .avatar-picker{min-height:0;min-width:0}
+.student-view .join-details{margin:0;padding:0;border:0}
+.join-details legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.join-details label{margin:5px 0;gap:2px;font-size:15px}
+.join-details input{font-size:16px;padding:7px 10px;min-width:0}
+.join-details .muted{font-size:13px;line-height:1.3;margin:6px 0}
+.student-view .join-panel:has(.join-characters:not([hidden])){height:min(100%,610px)}
+.student-view #join-form:has(.join-characters:not([hidden])){flex:1;display:flex}
+.join-characters{flex:1;display:flex;flex-direction:column}
+.student-view .avatar-picker{flex:1;margin:0;padding:0;display:flex;flex-direction:column}
+.student-view .avatar-picker legend{font-size:17px}
+.student-view .avatar-picker p{margin:2px 0;font-size:13px}
+.student-view .avatar-options{flex:1;min-height:0;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr));gap:4px}
+.student-view .avatar-option{margin:0;min-height:0}
+.student-view .avatar-card{height:100%;justify-content:center;padding:2px}
+.student-view .avatar-card .avatar-figure{width:auto;height:calc(100% - 17px);max-width:100%;min-height:0}
+.join-actions{display:flex;justify-content:space-between;gap:8px;margin-top:6px}
+.join-actions button,.join-details button{min-height:40px;padding:6px 12px}
+
+#card-reader{width:min(94vw,760px);height:min(88dvh,650px);margin:auto;padding:12px;border:1px solid var(--line);border-radius:14px;color:var(--ink);background:white}
+#card-reader[open]{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:8px}
+#card-reader::backdrop{background:#201030aa}
+#card-reader header,.reader-controls{display:flex;align-items:center;justify-content:space-between;gap:5px;flex-wrap:wrap}
+#reader-title{font-size:18px;margin:0}
+.reader-pages{column-count:1;column-fill:auto;column-gap:0;overflow:hidden;overflow-wrap:anywhere;white-space:pre-wrap;font-size:18px;line-height:1.4}
+.reader-pages .question,.reader-pages p{margin:0 0 8px;font-size:inherit;padding:0}
+.reader-pages .live-picture{break-inside:avoid}
+.reader-pages .live-picture img{max-height:min(34dvh,260px)}
+
+@media(max-width:600px){
+ .student-view .live-question{grid-template-rows:18px 35px minmax(0,1fr) 52px}
+ .student-view .question-body{grid-template-rows:minmax(0,1fr) minmax(0,2.15fr)}
+ .student-view .question{font-size:19px;line-height:1.2}
+ .student-view .answer{padding:2px 6px;gap:5px}
+ .student-view .streak-meter{padding:3px 6px}
+ .student-view .round-feedback .notice,.student-view .round-feedback .bonus-notice{font-size:12px}
+}
+@media(orientation:landscape) and (max-height:520px){
+ .student-view .live-question{grid-template-rows:17px 30px minmax(0,1fr) 40px;gap:2px}
+ .student-view .question-body{grid-template-columns:minmax(0,1fr) minmax(0,1.65fr);grid-template-rows:minmax(0,1fr);align-items:stretch}
+ .student-view .answers{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+ .student-view .round-status{margin:0}
+ .student-view .streak-meter{padding:2px 6px}.student-view .streak-track{margin-top:1px}
+ .student-view .round-feedback{display:flex;align-items:center;justify-content:center;gap:4px}
+ .student-view .answer{padding:2px 5px;gap:4px}
+ .student-view .answer .letter{width:23px;height:32px}
+ .student-view .question,.student-view .answer{font-size:18px}
+ .student-view .join-panel{max-width:740px}
+ .join-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px;align-items:center}
+ .join-details button{grid-column:1 / -1}
+ .student-view .avatar-options{grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+ .student-view .waiting{font-size:14px;line-height:1.18}
+ .student-view .chosen-avatar{float:left;margin-inline:12px}
+ .student-view .game-finale .notice{justify-content:center;padding:2px;margin:0}
+ .student-view .game-finale .notice .avatar-figure{width:22px}
+ .student-view .podium-person{padding-top:0}
+ .student-view .podium-contestant{flex-basis:min(7dvh,40px)}
+ .student-view .podium-step{height:clamp(24px,calc(var(--step-height) * .33),15dvh);flex-direction:row;align-items:center;justify-content:center;gap:4px}
+ .student-view .game-finale .button{min-height:32px;padding:3px 8px}
+}

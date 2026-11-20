@@ -1,9 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/flash-cards/live/live.js'),'utf8');
-function setup(respond,time){
+function setup(respond,time,studentDisplay){
  let renders=0,markup='';const count={textContent:''},clock={textContent:''},requests=[],listeners={},error={},scheduled=[];
  const stage={set innerHTML(value){markup=value;renders++;},get innerHTML(){return markup;},querySelector:selector=>selector==='[data-answered-count]'?count:selector==='[data-clock]'&&markup.includes('data-clock')?clock:null,querySelectorAll:()=>[],addEventListener:(event,handler)=>listeners[event]=handler};
- const ctx={Date:time?class extends Date{static now(){return time.now;}}:Date,URLSearchParams,location:{search:'?code=123456'},document:{createElement:()=>({}),head:{append(){}},getElementById:id=>id==='stage'?stage:id==='error'?error:{},querySelectorAll:()=>[],addEventListener(){},hidden:true},window:{matchMedia:()=>({matches:true}),addEventListener(){}},setInterval(){},setTimeout(fn,delay){const task={fn,delay,active:true};scheduled.push(task);return task;},clearTimeout(task){if(task)task.active=false;},AbortController,fetch:async(url,options)=>{const body=options.body?JSON.parse(options.body):{action:null};requests.push(body);return respond?respond(body):reply(body.action==='answer'?{saved:true,round:body.round,index:body.index,choice:body.choice}:question());}};
+ const ctx={Date:time?class extends Date{static now(){return time.now;}}:Date,URLSearchParams,location:{search:'?code=123456'},document:{createElement:()=>({}),head:{append(){}},getElementById:id=>id==='stage'?stage:id==='error'?error:{},querySelectorAll:()=>[],addEventListener(){},hidden:true},window:{mountLiveStudentDisplay:()=>studentDisplay,matchMedia:()=>({matches:true}),addEventListener(){}},setInterval(){},setTimeout(fn,delay){const task={fn,delay,active:true};scheduled.push(task);return task;},clearTimeout(task){if(task)task.active=false;},AbortController,fetch:async(url,options)=>{const body=options.body?JSON.parse(options.body):{action:null};requests.push(body);return respond?respond(body):reply(body.action==='answer'?{saved:true,round:body.round,index:body.index,choice:body.choice}:question());}};
  vm.runInNewContext(source.slice(0,source.indexOf(" auth=stored(storageKey())"))+" globalThis.client={present,act,poll,syncClock,updateClock,connect:()=>{auth='test-student';document.hidden=false;},getSnapshot:()=>snapshot};})();",ctx);
  return {client:ctx.client,count,clock,requests,listeners,error,scheduled,get renders(){return renders;},get markup(){return markup;}};
 }
@@ -172,4 +172,19 @@ test('ignoring an older snapshot still schedules the next refresh',async()=>{
  assert(retry,'a stale response must not stop polling');
  data={...data,version:4,index:2};await retry.fn();
  assert.equal(h.client.getSnapshot().index,2);
+});
+
+test('the student reader survives polls and closes on pause, reveal, advance, and restart',()=>{
+ const display={resets:0,resetReader(){this.resets++;},measureCard(){}};
+ const h=setup(undefined,undefined,display),q=question();
+ h.client.present(q);
+ h.client.present({...q,version:2,answeredCount:5});
+ assert.equal(display.resets,1);
+ h.client.present({...q,paused:true});
+ assert.equal(display.resets,2);
+ h.client.present({...q,phase:'reveal',distribution:[1,0,0,0],question:{...q.question,correct:0},scores:[]});
+ assert.equal(display.resets,3);
+ h.client.present({...q,index:2});
+ h.client.present({...q,round:2,index:2});
+ assert.equal(display.resets,5);
 });

@@ -3,7 +3,7 @@
 const returnHomeScript=document.createElement('script');returnHomeScript.src='/return-to-penina.js';document.head.append(returnHomeScript);
  const params=new URLSearchParams(location.search),stage=document.getElementById('stage'),status=document.getElementById('connection'),error=document.getElementById('error');
  const host=params.get('host')==='1';let code=params.get('code')||'',auth='',snapshot=null,stamp='',timer=null,busy=false,stopped=false,online=true,pollId=0,failures=0;
- if (!host) window.mountGameFullscreen?.(document.getElementById('live-fullscreen'), document.documentElement);
+ const studentDisplay = !host ? window.mountLiveStudentDisplay?.(stage) : null;
  let answerSubmission=null;
  const storageKey=()=>`penina-live-${host?'host':'student'}-${code}`;
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -45,15 +45,35 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   return `<fieldset class="avatar-picker"><legend>Choose your character</legend><p class="muted">Your character appears beside your initials.</p><div class="avatar-options">${Array.from({length:avatarCount},(_,i)=>`<label class="avatar-option"><input type="radio" name="avatar" value="${i+1}" required aria-label="Character ${i+1}"><span class="avatar-card">${avatarFigure(i+1)}<span class="avatar-number">${i+1}</span></span></label>`).join('')}</div></fieldset>`;
  }
  function joinForm(){
-  stage.innerHTML=`<section class="panel join-panel"><p class="eyebrow">A whole class. One challenge.</p><h1>Join the live game</h1><p class="muted">Enter the code on your classroom board.</p><form id="join-form"><label>Game code<input name="code" inputmode="numeric" autocomplete="off" pattern="[0-9]{6}" maxlength="6" value="${esc(/^\d{6}$/.test(code)?code:'')}" required></label><label>Your initials (1–3 letters)<input name="name" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" required></label><label>School email address<input type="email" name="schoolEmail" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" required></label><p class="muted">Your school email is included in the teacher’s score report. Only your initials and character appear on the leaderboard.</p>${avatarPicker()}<button class="primary full" type="submit">Join game →</button></form></section>`;
-  stage.querySelector('form').onsubmit=async event=>{
-   event.preventDefault();if(busy)return;const form=event.currentTarget;code=form.elements.code.value.trim();const name=form.elements.name.value.normalize('NFKC').trim().toUpperCase();if(!/^\d{6}$/.test(code))return;if(!/^\p{L}{1,3}$/u.test(name)){showError('Enter 1–3 letters for your initials.');return;}
+  stage.innerHTML=`<section class="panel join-panel"><h1>Join the live game</h1><form id="join-form">
+   <fieldset class="join-details"><legend>Player details</legend><label>Game code<input name="code" inputmode="numeric" autocomplete="off" pattern="[0-9]{6}" maxlength="6" value="${esc(/^\d{6}$/.test(code)?code:'')}" required></label><label>Your initials (1–3 letters)<input name="name" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" required></label><label>School email address<input type="email" name="schoolEmail" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" required></label><p class="muted">Your school email goes to your teacher. Only your initials and character appear on the leaderboard.</p><button class="primary full" type="submit">Choose character →</button></fieldset>
+   <div class="join-characters" hidden>${avatarPicker()}<div class="join-actions"><button type="button" data-back>Back</button><button class="primary" type="submit">Join game →</button></div></div>
+  </form></section>`;
+  const form=stage.querySelector('form');
+  const details=form.querySelector('.join-details'), characters=form.querySelector('.join-characters');
+  const picker=form.querySelector('.avatar-picker');
+  picker.disabled=true;
+  function showCharacters(active){
+   details.hidden=active;
+   details.disabled=active;
+   characters.hidden=!active;
+   picker.disabled=!active;
+   showError('');
+   const nextInput=active?(form.querySelector('[name=avatar]:checked')||form.elements.avatar[0]):form.elements.code;
+   nextInput.focus({preventScroll:true});
+  }
+  form.querySelector('[data-back]').onclick=()=>{if(!busy)showCharacters(false);};
+  form.onsubmit=async event=>{
+   event.preventDefault();if(busy)return;
+   code=form.elements.code.value.trim();const name=form.elements.name.value.normalize('NFKC').trim().toUpperCase();if(!/^\d{6}$/.test(code))return;if(!/^\p{L}{1,3}$/u.test(name)){showError('Enter 1–3 letters for your initials.');return;}
    const schoolEmail=form.elements.schoolEmail.value.trim();if(!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(schoolEmail)){showError('Enter a valid school email address.');return;}
+   if(characters.hidden){showCharacters(true);return;}
    const avatar=Number(form.elements.avatar.value);if(!Number.isInteger(avatar)||avatar<1||avatar>avatarCount){showError('Choose your character.');return;}
-   busy=true;form.querySelector('button').disabled=true;showError('');
+   const submit=characters.querySelector('[type=submit]');
+   busy=true;submit.disabled=true;showError('');
    let joinKey=stored('penina-live-join-key-'+code);if(!joinKey){joinKey=crypto.randomUUID();stored('penina-live-join-key-'+code,joinKey);}
    try{const result=await request('join',{name,joinKey,schoolEmail,avatar});auth=result.studentToken;stored(storageKey(),auth);history.replaceState(null,'','?code='+code);busy=false;if(inFlight)timer=setTimeout(poll,300);else await poll();}
-   catch(e){showError(e.message);busy=false;form.querySelector('button').disabled=false;}
+   catch(e){showError(e.message);busy=false;submit.disabled=false;}
   };
  }
  function leaderboard(scores){return `<ol class="scores">${scores.slice(0,3).map((p,i)=>`<li><span class="player-identity"><span>${i+1}.</span>${avatarFigure(p.avatar)}<span>${esc(p.name)}</span></span><strong>${p.score} pts</strong></li>`).join('')}</ol>`;}
@@ -76,7 +96,11 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  }
  function updateClock(){
   const clock=stage.querySelector('[data-clock]');
-  if(clock&&snapshot)clock.textContent=clockText(snapshot);
+  if(clock&&snapshot){
+   const text=clockText(snapshot);
+   if(clock.textContent!==text)clock.textContent=text;
+   studentDisplay?.updateClock(text);
+  }
   // Clock synchronization can restore time without changing the question data.
   const disabled=!canAnswer();
   stage.querySelectorAll('[data-choice]').forEach(button=>{if(button.disabled!==disabled)button.disabled=disabled;});
@@ -193,6 +217,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
  }
  function draw(data){
   const newQuestion=data.phase==='question'&&(!snapshot||(snapshot.round||0)!==(data.round||0)||snapshot.index!==data.index||['lobby','ended'].includes(snapshot.phase));
+  if(data.round!==snapshot?.round||data.index!==snapshot?.index||data.phase!==snapshot?.phase||data.paused!==snapshot?.paused)studentDisplay?.resetReader();
   if(newQuestion||['lobby','ended'].includes(data.phase))document.querySelectorAll('.wrong-answer-mark').forEach(node=>node.remove());
   const scrollPositions=newQuestion?[]:['.question-content','.round-feedback',...letters.map((_,i)=>'[data-choice="'+i+'"] .text')].map(selector=>[selector,stage.querySelector(selector)?.scrollTop||0]);
   // Keep immediate tap feedback separate from the server's saved answer.
@@ -240,6 +265,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
   const answerNotice=host||awaitingAnswer?'':revealed?`<p class="notice ${choice===q.correct?'success':''}" role="status">${choice===q.correct?'Correct! +100 points':choice===null?'No answer submitted this time.':'The correct answer is '+letters[q.correct]+'.'}</p>`:`<p class="notice answer-prompt" ${choice===null?'role="status"':'aria-hidden="true"'}>Choose the correct answer. Your first answer is final.</p>`;
   stage.innerHTML=meta+`<div class="live-round${host?' teacher-round':' student-round'}${host&&revealed?' has-standings':''}"><section class="live-question${knowledge?' knowledge-question':''}"><div class="question-meta"><span class="eyebrow">Question ${data.index+1} of ${data.total}</span><span${host?' class="host-answered-count" aria-hidden="true"':''}><span data-answered-count>${data.answeredCount}</span> / <span data-player-count>${data.playerCount}</span> answered${!host?' · <span data-player-score>'+data.me.score+'</span> pts':''}</span></div><div class="round-status">${streakMeter(data)}${data.deadline?`<p class="countdown" data-clock role="timer">${clockText(data)}</p>`:''}</div><div class="question-body"><div class="question-content" tabindex="0" aria-label="Question"><h1 class="question" dir="auto">${q.questionFormatting?window.PeninaKnowledgeCards.formattedTextHTML(q.term,q.questionFormatting):esc(q.term)}</h1>${pictureMarkup(q.picture)}</div><div class="answers">${answerMarkup}</div></div><div class="round-feedback">${data.paused?'<p class="notice">Paused by teacher</p>':''}${host&&revealed?`<p class="notice success"><strong>Correct answer: ${esc(q.options[q.correct])}</strong></p>`:''}${answerNotice}${bonusNotice(data)}</div>${host?`<div class="actions"><button class="primary" data-action="${revealed?'next':'reveal'}" ${data.paused||busy||!online?'disabled':''}>${revealed?(data.index+1===data.total?'Finish game →':'Next question →'):'Reveal answer'}</button><button data-action="${data.paused?'resume':'pause'}" ${busy||!online?'disabled':''}>${data.paused?'Resume':'Pause'}</button><button class="danger" data-end>End game</button></div>`:''}</section>${host?`<aside class="live-standings" aria-label="Class standings"><section class="panel"><h2>${revealed?'Class standings':'Student responses'}</h2>${revealed?leaderboard(data.scores):`<ul class="students" aria-label="Student responses">${data.players.map(p=>`<li class="${p.answered?'answered':''}">${avatarFigure(p.avatar)}<span>${p.answered?'✓ ':''}${esc(p.name)}</span></li>`).join('')}</ul>`}</section><section class="panel"><h2>${revealed?'Answer revealed':'Answering'}</h2><p>${!revealed?'Students can choose an answer on their screens.':data.seconds?'The next question starts automatically after '+(data.revealSeconds??2)+' seconds.':'Discuss the correct definition, then move on when the class is ready.'}</p></section></aside>`:''}</div>`;
   for(const [selector,top] of scrollPositions){const node=stage.querySelector(selector);if(node)node.scrollTop=top;}
+  studentDisplay?.measureCard();
   // A new question starts at the top; polls, answer saves, and reveals keep the reading position.
   if(newQuestion&&!host)window.scrollTo?.(0,0);
  }

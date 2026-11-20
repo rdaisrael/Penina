@@ -23,7 +23,7 @@ async function open(browser,viewport,seconds=0){
   }
   if(url.pathname.endsWith('/live.js'))return route.fulfill({contentType:'text/javascript',body:source.slice(0,source.indexOf(' auth=stored(storageKey())'))+' window.liveTest={present,poll,act,syncClock,updateClock,connect:value=>{auth=value;},getSnapshot:()=>snapshot};})();'});
   const file=path.join(root,url.pathname,url.pathname.endsWith('/')?'index.html':'');
-  if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live\.js|\/PeninaPlus-knowledge-builder\/cards\.js))[^"]+"><\/script>/g,'')});
+  if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live\.js|student-display\.js|\.\.\/\.\.\/game-fullscreen\.js|\/PeninaPlus-knowledge-builder\/cards\.js))[^"]+"><\/script>/g,'')});
   return fs.existsSync(file)?route.fulfill({path:file}):route.abort();
  });
  await page.goto('http://live.test/PeninaPlus-vocab-builder/flash-cards/live/?code='+code);

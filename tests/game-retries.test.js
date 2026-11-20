@@ -7,7 +7,8 @@ function quiz(){
  const rows=[0,1,2,3].map(id=>({id,term:'term'+id,definition:'answer'+id,answers:['wrongA','wrongB','wrongC','wrongD']}));
  const callbacks=[],ctx={rows,offset:0,score:0,attempts:0,locked:false,mastered:new Set(),board:make('div'),next:make('button'),shuffle:values=>values,element:make,button:(text,onclick)=>Object.assign(make('button',text),{onclick}),message:text=>{ctx.feedback=text},updateProgress(){},later:(fn,ms)=>callbacks.push({fn,ms}),render(){ctx.rendered=true}};
  ctx.doc={getElementById:()=>ctx.overlay};
- ctx.surface={append(overlay){ctx.overlay=overlay;overlay.remove=()=>{ctx.overlay=null};}};
+ const append=ctx.board.append.bind(ctx.board);
+ ctx.board.append=(...nodes)=>{append(...nodes);const overlay=nodes.find(node=>node.id==='gameMistake');if(overlay){ctx.overlay=overlay;overlay.remove=()=>{ctx.overlay=null};}};
  ctx.renderStudyQuestion=renderStudyQuestion;
  const mistake=source.slice(source.indexOf('        function mistake('),source.indexOf('        const labels = { quiz:'));
  vm.createContext(ctx);vm.runInContext(mistake+source.slice(source.indexOf('        function quiz()'),source.indexOf('        function match('))+'quiz();',ctx);

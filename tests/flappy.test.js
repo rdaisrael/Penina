@@ -3,13 +3,14 @@ const app=require('../PeninaPlus-vocab-builder/offline-study-cards');
 const card={term:'סוס',english:'horse',alternativeAnswers:{english:{term:'סוס',definition:'horse',answers:['donkey','camel','goat','sheep']}}};
 function harness(){
  const nodes=new Map(),listeners=new Map();let cancelled=false,payload;const timers=new Map();let timerId=0;const advanceCountdown=()=>{const batch=[...timers.values()];timers.clear();batch.forEach(fn=>fn());};
- class Element{constructor(){this.children=[];this.style={};this.dataset={};this.classList={add(){},remove(){},toggle(){}};this.offsetLeft=60;this.offsetWidth=145;this.clientWidth=736;}querySelector(s){if(!nodes.has(s))nodes.set(s,new Element());return nodes.get(s);}querySelectorAll(){return [];}append(...c){this.children.push(...c);}replaceChildren(...c){this.children=c;}setAttribute(){}addEventListener(){}focus(){}remove(){}}
+ class Element{constructor(){this.children=[];this.style={};this.dataset={};this.classList={add(){},remove(){},toggle(){}};this.offsetLeft=60;this.offsetWidth=145;this.clientWidth=736;this.clientHeight=436;}querySelector(s){if(!nodes.has(s))nodes.set(s,new Element());return nodes.get(s);}querySelectorAll(){return [];}append(...c){this.children.push(...c);}replaceChildren(...c){this.children=c;}setAttribute(){}addEventListener(){}focus(){}remove(){}}
  const board=new Element(),config=new Element();board.dataset.initials='AB';config.textContent=JSON.stringify({leaderboardUrl:'/api/game-scores?game=asteroids&grade=sixth'});
- const ctx={setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),board,rows:app.practiceRows([card],'english'),AbortController,URL,crypto:{randomUUID:()=> 'flappy-test-run-123'},performance:{now:()=>0},localStorage:{getItem:()=>null,setItem(){}},document:{getElementById:()=>config,createElement:()=>new Element(),addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)},window:{location:{href:'https://example.com/class',protocol:'https:'},addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{cancelled=true},fetch:async(url,options)=>{payload={url,body:JSON.parse(options.body)};return {ok:true,json:async()=>({scores:[{initials:'AB',score:100}]})};}};
+ let redraw;
+ const ctx={ResizeObserver:class{constructor(callback){redraw=callback;}observe(){}disconnect(){}},setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),board,rows:app.practiceRows([card],'english'),AbortController,URL,crypto:{randomUUID:()=> 'flappy-test-run-123'},performance:{now:()=>0},localStorage:{getItem:()=>null,setItem(){}},document:{getElementById:()=>config,createElement:()=>new Element(),addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)},window:{location:{href:'https://example.com/class',protocol:'https:'},addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{cancelled=true},fetch:async(url,options)=>{payload={url,body:JSON.parse(options.body)};return {ok:true,json:async()=>({scores:[{initials:'AB',score:100}]})};}};
  let source=app.mountFlappy.toString().replace('return ()=>{destroyed=true;', 'globalThis.control={start,question,resolve,submitScore,flap,laneAt,get:()=>({score,lives,answers,index,y,vy,readTime,state}),setSpeed:v=>{speed=v;}};return ()=>{destroyed=true;');
  ctx.renderStudyQuestion=app.renderStudyQuestion;
  vm.createContext(ctx);vm.runInContext('this.stop=('+source+')({board,rows});',ctx);
- return {advanceCountdown,timers,ctx,control:ctx.control,get:s=>board.querySelector(s),listeners,cancelled:()=>cancelled,payload:()=>payload};
+ return {advanceCountdown,timers,ctx,resize:()=>redraw(),control:ctx.control,get:s=>board.querySelector(s),listeners,cancelled:()=>cancelled,payload:()=>payload};
 }
 test('Flappy is included in class and standalone games with valid scripts and no sample words',()=>{for(const html of [app.makeApp('Test',[card]),app.makeClassGames('Class',[card])]){assert(html.includes('data-game="flappy"'));assert(!html.includes('waver'));for(const [,script]of html.matchAll(/<script>([\s\S]*?)<\/script>/g))new vm.Script(script);}});
 test('Flappy uses approved definitions, speed rewards, penalties and three-life restart',()=>{const h=harness(),c=h.control;for(const speed of [1,2,3]){c.setSpeed(speed);c.start();assert.equal(h.get('#fv-clue').textContent,'סוס');assert.equal(c.get().answers.length,3);assert(c.get().answers.every(a=>['horse',...card.alternativeAnswers.english.answers].includes(a)));c.resolve(c.get().answers.indexOf('horse'));assert.equal(c.get().score,100*speed);}c.start();c.resolve(-1);assert.equal(c.get().score,-50);c.question();c.resolve(c.get().answers.findIndex(a=>a!=='horse'));c.question();c.resolve(-1);assert.equal(c.get().lives,0);assert.equal(c.get().score,-200);c.start();assert.equal(c.get().lives,3);assert.equal(c.get().score,0);});
@@ -61,4 +62,20 @@ test('Restarting or leaving cancels a pending round countdown',()=>{
   assert.equal(h.timers.size,0);h.advanceCountdown();
   if(action==='restart')assert.equal(c.get().index,0);
  }
+});
+
+test('resizing the flight area keeps the bird in its lane and the gate on course',()=>{
+ const h=harness(),world=h.get('#fv-world'),gate=h.get('#fv-gate'),bird=h.get('#fv-bird');
+ h.control.start();
+ const before=h.control.get(),lane=h.control.laneAt(before.y),position=bird.style.top;
+ for(const [width,height] of [[320,190],[768,810],[1240,560],[568,215]]){
+  world.clientWidth=width;world.clientHeight=height;h.resize();
+  assert.equal(h.control.get().state,'flight');
+  assert.equal(h.control.laneAt(h.control.get().y),lane);
+  assert.equal(bird.style.top,position);
+  assert.equal(parseFloat(gate.style.left),width-gate.offsetWidth-12);
+  const scale=Number(bird.style.transform.match(/scale\(([^)]+)/)[1]);
+  assert(Math.abs(scale-.65*height/436)<1e-12);
+ }
+ h.ctx.stop();
 });

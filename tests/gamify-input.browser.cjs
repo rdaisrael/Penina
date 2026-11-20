@@ -137,7 +137,7 @@ async function swipe(page,node){
     else await options.getByRole('button',{name:row.definition,exact:true}).tap();
     if(i<7)await page.waitForFunction(t=>document.querySelector('#gameBoard>h3').innerText!==t,text,{polling:30});
    }
-   assert.equal(misses,2);await page.locator('#gameClose').click();await page.locator('#gamify').click();await launch(page,'quiz');
+   assert.equal(misses,2);await page.locator('#gameBack').click();await page.locator('#gameClose').click();await page.locator('#gamify').click();await launch(page,'quiz');
    const fresh=await prompt.innerText();await page.waitForTimeout(1500);assert.equal(await prompt.innerText(),fresh);assert.match(await page.locator('#gameProgress').innerText(),/0 attempts/);
   });
  }finally{await browser.close();}

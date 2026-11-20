@@ -285,7 +285,33 @@
         return { state, answer, nextQuestion, launch, pause, shoot, tick, resize };
     }
 
-    function mountAsteroids({ board, rows, createEngine, setFeedback, setProgress }) {
+    function mountGameReader(reader) {
+        const pages = reader.querySelector('.asteroids-pages');
+        const prev = reader.querySelector('[data-prev]'), next = reader.querySelector('[data-next]');
+        let page = 0;
+        function turnPage(index) {
+            if (!reader.open || !pages.clientWidth) return;
+            const count = Math.max(1, Math.ceil((pages.scrollWidth - 1) / pages.clientWidth));
+            page = Math.max(0, Math.min(index, count - 1));
+            pages.scrollLeft = page * pages.clientWidth;
+            prev.disabled = page === 0;
+            next.disabled = page === count - 1;
+            reader.querySelector('[role=status]').textContent = (page + 1) + ' / ' + count;
+        }
+        prev.onclick = () => turnPage(page - 1);
+        next.onclick = () => turnPage(page + 1);
+        reader.querySelector('[data-return]').onclick = () => reader.close();
+        pages.addEventListener('load', () => turnPage(page), true);
+        new ResizeObserver(() => turnPage(page)).observe(pages);
+        return function showPages(title, content) {
+            reader.querySelector('h3').textContent = title;
+            pages.replaceChildren(...content);
+            reader.showModal();
+            turnPage(0);
+        };
+    }
+
+    function mountAsteroids({ board, rows, createEngine, setFeedback, setProgress, showReader }) {
         const doc = board.ownerDocument, game = createEngine(), state = game.state;
         board.innerHTML = `
 <div class="asteroids-hud">
@@ -303,10 +329,7 @@
     <button type="button" data-flight="right" aria-label="Turn right">Right ↷</button><button type="button" data-flight="fire" aria-label="Fire">● Fire</button>
 </div>
 <div class="asteroids-navigation"><p class="asteroids-rules">You can also hold the buttons above.</p><div class="asteroids-actions"></div></div>
-<dialog class="asteroids-reader" aria-labelledby="asteroidReaderTitle">
-    <h3 id="asteroidReaderTitle"></h3><div class="asteroids-pages"></div>
-    <div class="asteroids-page-tools"><button type="button" data-prev>Previous</button><span role="status"></span><button type="button" data-next>Next</button><button type="button" data-return>Back to game</button></div>
-</dialog>`;
+`;
         const find = id => board.querySelector('#' + id);
         const canvas = find('asteroidCanvas'), ctx = canvas.getContext('2d');
         const overlay = find('asteroidOverlay'), question = find('asteroidQuestion'), pause = find('asteroidPause');
@@ -315,29 +338,11 @@
         let frame, stopped = false, previous = 0, deck = [], lastRow = null, seenPhase = '', damageSeen = 0;
         const stars = Array.from({ length: 80 }, (_, i) => ({ x: (i * 137.7 % 900) / 900, y: (i * 71.3 % 500) / 500 }));
         const arena = board.querySelector('.asteroids-arena'), read = find('asteroidRead');
-        const reader = board.querySelector('.asteroids-reader'), pages = reader.querySelector('.asteroids-pages');
-        const prev = reader.querySelector('[data-prev]'), next = reader.querySelector('[data-next]');
-        let page = 0;
-        function turnPage(index) {
-            if (!reader.open || !pages.clientWidth) return;
-            const count = Math.max(1, Math.ceil((pages.scrollWidth - 1) / pages.clientWidth));
-            page = Math.max(0, Math.min(index, count - 1));
-            pages.scrollLeft = page * pages.clientWidth;
-            prev.disabled = page === 0;
-            next.disabled = page === count - 1;
-            reader.querySelector('[role=status]').textContent = (page + 1) + ' / ' + count;
-        }
+        const reader = doc.getElementById('gameReader');
         function showPages(title, content) {
             if (state.phase === 'flying') showPause();
-            find('asteroidReaderTitle').textContent = title;
-            pages.replaceChildren(...content);
-            reader.showModal();
-            turnPage(0);
+            showReader(title, content);
         }
-        prev.onclick = () => turnPage(page - 1);
-        next.onclick = () => turnPage(page + 1);
-        reader.querySelector('[data-return]').onclick = () => reader.close();
-        pages.addEventListener('load', () => turnPage(page), {capture:true, signal:aborter.signal});
         question.addEventListener('load', updateReadButton, {capture:true, signal:aborter.signal});
         read.onclick = () => {
             const term = question.querySelector('.asteroids-term').cloneNode(true);
@@ -553,30 +558,21 @@
             return () => aborter.abort();
         }
         const surface = doc.getElementById('gameSurface');
-        const fullscreen = doc.getElementById('gameFullscreen'), back = doc.getElementById('gameBack'), again = doc.getElementById('gameAgain');
-        const windowActions = fullscreen.parentElement, brand = back.parentElement, footer = again.parentElement;
-        board.querySelector('.asteroids-corner').append(fullscreen);
-        board.querySelector('.asteroids-actions').append(again, back);
         surface.classList.add('asteroids-active');
-        fullscreen.dataset.exitLabel = 'Exit';
-        if (surface.classList.contains('game-fullscreen')) fullscreen.textContent = 'Exit';
         function syncFlightFocus() {
             if (state.phase === 'flying' && !reader.open) canvas.focus({preventScroll:true});
         }
         // Includes the in-page fullscreen fallback.
         const viewChange = new MutationObserver(syncFlightFocus);
         viewChange.observe(surface, {attributes:true, attributeFilter:['class']});
-        const resize = new ResizeObserver(() => { fitArena(); updateReadButton(); turnPage(page); });
-        resize.observe(arena); resize.observe(question); resize.observe(pages);
+        const resize = new ResizeObserver(() => { fitArena(); updateReadButton(); });
+        resize.observe(arena); resize.observe(question);
         fitArena();
         ask(); seenPhase = state.phase; frame = requestAnimationFrame(animate);
         return () => {
             viewChange.disconnect(); resize.disconnect();
             if (reader.open) reader.close();
             surface.classList.remove('asteroids-active');
-            delete fullscreen.dataset.exitLabel;
-            fullscreen.textContent = surface.classList.contains('game-fullscreen') ? 'Exit full screen' : 'Full screen';
-            windowActions.prepend(fullscreen); brand.append(back); footer.append(again);
             stopped = true;
             cancelAnimationFrame(frame);
             clearControls();
@@ -594,7 +590,7 @@ const words=vocabulary.map(row=>[row.term,row.definition]);
 const settings={charge:8};let reviewTime=0,score=0,ghostsEaten=0,bonusTime=0,dots,initial,player,ghosts,dir,next,energy,power,lives,mode,queue,question,qCount,attempts,correct,missed,failed,frameTime=0,moveClock=0,ghostClock=0,invulnerable=0;
 const key=(x,y)=>x+','+y, walk=(x,y)=>rows[y]?.[x]!==undefined&&rows[y][x]!=='#';
 function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function reset(){reviewTime=0;score=0;ghostsEaten=0;bonusTime=0;$('#cc-bonus').textContent='';dots=new Map;rows.forEach((r,y)=>[...r].forEach((c,x)=>{if(c!== '#')dots.set(key(x,y),c==='o')}));player={x:9,y:11};dots.delete(key(9,11));initial=dots.size;ghosts=[{x:8,y:3,home:[8,3]},{x:10,y:7,home:[10,7]}];dir=[0,0];next=[0,0];energy=0;power=0;lives=3;queue=words.map((_,i)=>i);qCount=0;attempts=0;correct=0;missed=new Set;invulnerable=0;ask();draw()}
+function reset(){delete root.dataset.finished;reviewTime=0;score=0;ghostsEaten=0;bonusTime=0;$('#cc-bonus').textContent='';dots=new Map;rows.forEach((r,y)=>[...r].forEach((c,x)=>{if(c!== '#')dots.set(key(x,y),c==='o')}));player={x:9,y:11};dots.delete(key(9,11));initial=dots.size;ghosts=[{x:8,y:3,home:[8,3]},{x:10,y:7,home:[10,7]}];dir=[0,0];next=[0,0];energy=0;power=0;lives=3;queue=words.map((_,i)=>i);qCount=0;attempts=0;correct=0;missed=new Set;invulnerable=0;ask();draw()}
 function hud(){ $('#cc-score').textContent=score;$('.power-status').setAttribute('data-active',power>0);$('#cc-power').textContent=power>0?'⚡ CHASE GHOSTS · '+power.toFixed(1)+'s'+(mode==='play'?'':' · paused'):'⚡ Find a large dot to chase ghosts'; $('#cc-dots').textContent=(initial-dots.size)+' / '+initial;$('#cc-lives').textContent=lives;$('#cc-accuracy').textContent=attempts?correct+' / '+attempts:'—';$('#cc-seconds').textContent=Math.ceil(energy)+' / '+settings.charge+'s';$('.fill').style.width=(energy/settings.charge*100)+'%';$('.track').setAttribute('aria-valuenow',Math.round(energy/settings.charge*100));$('#cc-pause').disabled=!['play','pause'].includes(mode);$('#cc-pause').textContent=mode==='pause'?'Resume':'Pause';$('#cc-status').textContent=mode==='play'?(power>0?'Power pellet! Chase the ghosts':'Collect dots · next question when energy runs out'):mode==='pause'?'Game paused':mode==='end'?'Round complete':qCount===1?'Answer to Enter Maze':'Maze paused · take your time';}
 function ask(){$('.wrong-mark').hidden=true;$('.dialog').setAttribute('data-review','false');mode='question';energy=0;question=queue.shift();queue.push(question);qCount++;failed=false;$('.shade').hidden=false;$('.word').hidden=false;$('.choices').hidden=false;$('.recap').hidden=true;$('#cc-continue').hidden=true;$('#cc-tag').textContent=qCount===1?'Answer to Enter Maze':'CHARGE '+String(qCount).padStart(2,'0')+' · MAZE PAUSED';$('#cc-prompt').textContent='';$('#cc-prompt').hidden=true;renderStudyQuestion($('.word'),vocabulary[question]);$('.feedback').textContent='';$('.choices').replaceChildren();const answers=shuffle([words[question][1],...shuffle(vocabulary[question].answers.slice()).slice(0,3)]);answers.forEach(answer=>{const b=document.createElement('button');b.textContent=answer;b.onclick=()=>{if(mode!=='question')return;if(!failed){attempts++;if(answer===words[question][1])correct++;}if(answer!==words[question][1]){if(!failed){missed.add(question);queue.splice(2,0,question)}failed=true;mode='review';reviewTime=2;$('.choices').hidden=true;$('.wrong-mark').hidden=false;$('.dialog').setAttribute('data-review','true');$('#cc-tag').textContent='';$('.feedback').textContent='Correct Answer is: '+words[question][1];hud();return;}else{energy=settings.charge;mode='play';$('.shade').hidden=true;moveClock=0;ghostClock=0;hud();$('#cc-pause').focus();}hud()};b.dir='auto';$('.choices').append(b)});hud()}
 $('#cc-continue').onclick=()=>{if(mode==='end'){reset();return}mode='play';$('.shade').hidden=true;moveClock=0;ghostClock=0;hud();$('#cc-pause').focus()};
@@ -602,7 +598,7 @@ function pause(){if(mode==='play'){mode='pause';$('.shade').hidden=false;$('#cc-
 $('#cc-pause').onclick=pause;const onVisibility=()=>{if(document.hidden&&mode==='play')pause()};document.addEventListener('visibilitychange',onVisibility);
 const directions={ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0],ArrowUp:[0,-1],w:[0,-1],ArrowDown:[0,1],s:[0,1]};
 root.addEventListener('keydown',e=>{if(mode==='play'&&directions[e.key]){e.preventDefault();next=directions[e.key]}});root.querySelectorAll('[data-dir]').forEach(b=>b.onclick=()=>{next=b.dataset.dir.split(',').map(Number)});
-function end(won){mode='end';$('.shade').hidden=false;$('#cc-tag').textContent=won?'MAZE COMPLETE':'ROUND COMPLETE';$('#cc-prompt').hidden=false;$('#cc-prompt').textContent=won?'🎉 Every dot collected!':'🌟 Ready for another run?';$('.word').hidden=true;$('.choices').hidden=true;$('.feedback').textContent='Vocabulary · '+correct+' of '+attempts+' correct on the first try';$('.recap').hidden=false;$('.recap').textContent='Score: '+score+' · Ghosts eaten: '+ghostsEaten+'\nDots collected: '+(initial-dots.size)+' / '+initial+(missed.size?'\nWords to revisit: '+[...missed].map(i=>words[i][0]+' = '+words[i][1]).join(' · '):'\nNo missed words this round.');$('#cc-continue').textContent='Play again';$('#cc-continue').hidden=false;hud()}
+function end(won){mode='end';root.dataset.finished='true';$('.shade').hidden=false;$('#cc-tag').textContent=won?'MAZE COMPLETE':'ROUND COMPLETE';$('#cc-prompt').hidden=false;$('#cc-prompt').textContent=won?'🎉 Every dot collected!':'🌟 Ready for another run?';$('.word').hidden=true;$('.choices').hidden=true;$('.feedback').textContent='Vocabulary · '+correct+' of '+attempts+' correct on the first try';$('.recap').hidden=false;$('.recap').textContent='Score: '+score+' · Ghosts eaten: '+ghostsEaten+'\nDots collected: '+(initial-dots.size)+' / '+initial+(missed.size?'\nWords to revisit: '+[...missed].map(i=>words[i][0]+' = '+words[i][1]).join(' · '):'\nNo missed words this round.');$('#cc-continue').textContent='Play again';$('#cc-continue').hidden=false;hud()}
 function collision(){if(invulnerable>0)return;for(const g of ghosts){if(g.x===player.x&&g.y===player.y){if(power>0){score+=200;ghostsEaten++;bonusTime=1.8;$('#cc-bonus').textContent='👻 +200!';[g.x,g.y]=g.home;invulnerable=.4;hud()}else{lives--;if(!lives){end(false);return}player={x:9,y:11};dir=[0,0];next=[0,0];ghosts.forEach(g=>[g.x,g.y]=g.home);invulnerable=2;ask();$('.feedback').textContent='A ghost caught you. Your dots are safe! Answer to recharge.';return}}}}
 function step(dt){if(mode==='review'){if(document.hidden)return;reviewTime=Math.max(0,reviewTime-dt);if(reviewTime<=0){energy=settings.charge;mode='play';$('.shade').hidden=true;$('.wrong-mark').hidden=true;$('.dialog').setAttribute('data-review','false');moveClock=0;ghostClock=0;hud();$('#cc-pause').focus()}return}if(mode!=='play')return;bonusTime=Math.max(0,bonusTime-dt);if(!bonusTime)$('#cc-bonus').textContent='';energy=Math.max(0,energy-dt);power=Math.max(0,power-dt);invulnerable=Math.max(0,invulnerable-dt);if(energy===0){ask();return}moveClock+=dt;ghostClock+=dt;if(moveClock>=.26){moveClock%=.26;if(walk(player.x+next[0],player.y+next[1]))dir=next;if(walk(player.x+dir[0],player.y+dir[1])){player.x+=dir[0];player.y+=dir[1]}let k=key(player.x,player.y);if(dots.has(k)){if(dots.get(k)){power=5;score+=50}else{score+=10}dots.delete(k)}if(!dots.size){end(true);return}collision();if(mode!=='play')return}if(ghostClock>=.52){ghostClock%=.52;ghosts.forEach(g=>{let options=shuffle([[1,0],[-1,0],[0,1],[0,-1]].filter(([x,y])=>walk(g.x+x,g.y+y)));if(Math.random()<.65)options.sort((a,b)=>{const dist=d=>Math.abs(g.x+d[0]-player.x)+Math.abs(g.y+d[1]-player.y);return (dist(a)-dist(b))*(power>0?-1:1)});g.x+=options[0][0];g.y+=options[0][1]});collision()}hud()}
 function draw(){const cs=getComputedStyle(root),color=n=>cs.getPropertyValue(n).trim();/* Resolve light-dark colors through an element before canvas use. */const probe=document.createElement('span');root.append(probe);const resolve=n=>{probe.style.color=color(n);return getComputedStyle(probe).color};const wall=resolve('--cc-wall'),dot=resolve('--cc-dot'),yellow=resolve('--cc-yellow'),blue=resolve('--cc-blue'),bg=resolve('--cc-panel'),pink=resolve('--cc-pink'),teal=resolve('--cc-teal'),orange=resolve('--cc-orange');probe.remove();ctx.clearRect(0,0,570,390);rows.forEach((r,y)=>[...r].forEach((c,x)=>{if(c==='#'){ctx.fillStyle=[wall,teal,blue][Math.floor(y/4)%3];ctx.beginPath();ctx.roundRect(x*30+3,y*30+3,24,24,6);ctx.fill()}}));dots.forEach((big,k)=>{const[x,y]=k.split(',').map(Number);ctx.fillStyle=big?yellow:[pink,orange,teal][(x+y)%3];ctx.beginPath();ctx.arc(x*30+15,y*30+15,big?6:2.4,0,Math.PI*2);ctx.fill()});const angle=dir[0]<0?Math.PI:dir[1]<0?-Math.PI/2:dir[1]>0?Math.PI/2:0;ctx.save();if(power>0){ctx.shadowColor=yellow;ctx.shadowBlur=20;ctx.strokeStyle=yellow;ctx.lineWidth=3;ctx.beginPath();ctx.arc(player.x*30+15,player.y*30+15,14,0,Math.PI*2);ctx.stroke()}ctx.fillStyle=yellow;ctx.beginPath();ctx.moveTo(player.x*30+15,player.y*30+15);ctx.arc(player.x*30+15,player.y*30+15,11,angle+.35,angle+Math.PI*2-.35);ctx.closePath();ctx.fill();ctx.restore();if(invulnerable>0){ctx.strokeStyle=blue;ctx.lineWidth=2;ctx.beginPath();ctx.arc(player.x*30+15,player.y*30+15,14,0,Math.PI*2);ctx.stroke()}ghosts.forEach((g,i)=>{let x=g.x*30+15,y=g.y*30+15;ctx.fillStyle=power>0?blue:[pink,teal][i%2];ctx.beginPath();ctx.arc(x,y-2,10,Math.PI,0);ctx.lineTo(x+10,y+10);ctx.lineTo(x+5,y+6);ctx.lineTo(x,y+10);ctx.lineTo(x-5,y+6);ctx.lineTo(x-10,y+10);ctx.closePath();ctx.fill();ctx.fillStyle=bg;ctx.beginPath();ctx.arc(x-4,y-2,3,0,7);ctx.arc(x+4,y-2,3,0,7);ctx.fill();ctx.fillStyle=wall;ctx.fillRect(x-4,y-3,2,3);ctx.fillRect(x+4,y-3,2,3)})}
@@ -613,7 +609,7 @@ return ()=>{stopped=true;cancelAnimationFrame(frame);document.removeEventListene
 
     // Serialized into downloaded HTML so all games also work offline.
     function mountFlappy({ board, rows }) {
-        board.innerHTML = "<div id=\"fv-demo\">\n<style>\n#fv-demo{--paper:light-dark(#fffdf7,#202922);--ink:light-dark(#173b30,#eff8ee);--soft:light-dark(#e8efe3,#34473b);--sky:light-dark(#d9f2f3,#173d45);--green:light-dark(#398451,#65a578);--gate:light-dark(#fffef9,#263f35);--accent:light-dark(#205b42,#bce5bd);--on:light-dark(#ffffff,#163b2b);--yellow:light-dark(#ffd447,#f2c544);--wing:light-dark(#edab22,#c99524);--beak:light-dark(#ed792a,#f5a04c);--eye:light-dark(#1a322a,#182e26);--red:light-dark(#ac2e35,#ffadb0);font:16px/1.4 ui-rounded,system-ui,sans-serif;color:var(--ink)}\n#fv-demo *{box-sizing:border-box}#fv-demo .game{background:var(--paper);border:1px solid var(--soft);border-radius:20px;overflow:hidden}#fv-demo h2,#fv-demo p{margin:0}#fv-demo .header,#fv-demo .hud,#fv-demo .toolbar,#fv-demo .actions{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}#fv-demo .header{border-bottom:1px solid var(--soft)}#fv-demo .kicker{font-size:12px;letter-spacing:.1em;font-weight:700}#fv-demo h2{font-size:24px;font-weight:800}#fv-demo .preview{font-size:12px;padding:6px 10px;background:var(--soft);border-radius:20px}#fv-demo .hud{align-items:flex-start}#fv-demo .score{font-size:44px;line-height:1.1;font-weight:850;font-variant-numeric:tabular-nums}#fv-demo .lives{text-align:right}#fv-demo .hearts{color:var(--red);font-size:30px;font-weight:800;letter-spacing:4px}#fv-demo .clue{padding:8px 20px 18px;min-height:116px}#fv-demo .definition{font-size:clamp(25px,4.2vw,34px);font-weight:800;line-height:1.2;margin-top:5px}#fv-demo button{font:inherit;font-weight:700;color:var(--ink);background:var(--soft);border:0;border-radius:11px;padding:11px 16px;min-height:44px;cursor:pointer}#fv-demo button.primary,#fv-demo button[aria-pressed=\"true\"]{background:var(--accent);color:var(--on)}#fv-demo button:disabled{opacity:.45;cursor:default}#fv-demo .speeds{display:flex;align-items:center;gap:6px}#fv-demo .bonus{font-weight:700}#fv-demo .toolbar{padding-top:0}#fv-demo .world{height:436px;position:relative;background:var(--sky);overflow:hidden;touch-action:manipulation;user-select:none}#fv-demo .cloud{position:absolute;font-size:72px;color:var(--gate);opacity:.65;pointer-events:none}#fv-demo .hill{position:absolute;bottom:-95px;width:75%;height:140px;border-radius:50%;background:var(--green);opacity:.2}#fv-demo .bird{position:absolute;left:17%;top:187px;width:74px;height:58px;z-index:4;pointer-events:none;transform-origin:center}#fv-demo .bird-body{position:absolute;inset:4px 8px 3px 0;border-radius:50% 52% 48% 45%;background:var(--yellow);box-shadow:inset 0 -6px 0 var(--wing)}#fv-demo .eye{position:absolute;right:15px;top:13px;width:10px;height:13px;border-radius:50%;background:var(--eye)}#fv-demo .beak{position:absolute;right:0;top:29px;width:19px;height:13px;background:var(--beak);border-radius:0 80% 70% 0}#fv-demo .wing{position:absolute;left:7px;top:27px;width:37px;height:24px;background:var(--wing);border-radius:65% 25% 70% 40%;transform-origin:85% 25%;transform:rotate(-25deg)}#fv-demo .flying .wing{animation:fv-flap .24s ease-in-out infinite alternate}#fv-demo .tail{position:absolute;left:-6px;top:25px;width:16px;height:20px;background:var(--wing);transform:rotate(-25deg);border-radius:3px 2px 3px 15px}@keyframes fv-flap{from{transform:rotate(-65deg) scaleY(.7)}to{transform:rotate(45deg) scaleY(1)}}#fv-demo .gate{position:absolute;left:72%;top:0;bottom:0;width:145px}#fv-demo .pipe{position:absolute;width:100%;background:var(--green);border-left:8px solid color-mix(in srgb,var(--gate) 20%,transparent);border-right:8px solid color-mix(in srgb,var(--ink) 12%,transparent);border-radius:7px}#fv-demo .p1{top:0;height:28px;border-radius:0 0 7px 7px}#fv-demo .p2{top:140px;height:24px}#fv-demo .p3{top:276px;height:24px}#fv-demo .p4{top:412px;bottom:0;border-radius:7px 7px 0 0}#fv-demo .answer{position:absolute;width:100%;height:112px;display:flex;align-items:center;justify-content:center;background:var(--gate);color:var(--ink);font-size:25px;font-weight:800;border:2px dashed var(--green);border-radius:9px}#fv-demo .a{top:28px}#fv-demo .b{top:164px}#fv-demo .c{top:300px}#fv-demo .overlay{position:absolute;inset:0;z-index:6;background:var(--paper);padding:24px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:16px;text-align:center}#fv-demo .overlay h2{font-size:30px}#fv-demo .overlay .big{font-size:46px;font-weight:850}#fv-demo .words{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}#fv-demo .word{padding:7px 10px;background:var(--soft);border-radius:9px}#fv-demo .feedback{padding:12px 20px;background:var(--soft);min-height:64px}#fv-demo .rules,#fv-demo .submitted{padding:0 20px 15px;font-size:14px}#fv-demo .submitted{font-weight:700}#fv-demo .meter{height:5px;background:var(--soft)}#fv-demo .meter span{height:100%;display:block;background:var(--accent);width:0;transition:width .2s}#fv-demo .recall{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}#fv-demo input{font:inherit;min-width:0;width:180px;padding:11px;border:1px solid var(--green);border-radius:9px;background:var(--paper);color:var(--ink)}#fv-demo [hidden]{display:none!important}@media(max-width:450px){#fv-demo .header,#fv-demo .hud,#fv-demo .toolbar,#fv-demo .actions{padding-left:12px;padding-right:12px}#fv-demo .gate{width:114px}#fv-demo .answer{font-size:22px}#fv-demo .bird{left:7%}#fv-demo .clue{padding-left:12px;padding-right:12px}#fv-demo .actions{gap:7px}#fv-demo .actions button{padding:11px 12px}}@media(prefers-reduced-motion:reduce){#fv-demo .flying .wing{animation-duration:.6s}}\n#fv-demo{--hawk:light-dark(#946345,#c5966d);--feather:light-dark(#66432f,#91674a);--chest:light-dark(#e9c99d,#e4be8e)}\n#fv-demo .bird-body{inset:12px 7px 9px 0;background:var(--hawk);border-radius:55% 55% 45% 45%;box-shadow:inset 0 -12px 0 var(--chest)}\n#fv-demo .eye{top:18px;right:16px;width:9px;height:10px}\n#fv-demo .beak{top:27px;height:17px;clip-path:polygon(0 0,100% 15%,80% 100%,63% 54%,0 55%)}\n#fv-demo .tail{left:-13px;top:21px;width:27px;height:24px;background:var(--feather);clip-path:polygon(0 0,100% 35%,100% 65%,0 100%,15% 50%)}\n#fv-demo .wing{left:-27px;top:10px;width:91px;height:49px;background:var(--feather);border-radius:0;transform-origin:80% 65%;clip-path:polygon(83% 66%,100% 47%,73% 28%,14% 0,18% 18%,0 11%,10% 31%,0 32%,16% 49%,6% 52%,28% 71%,15% 74%,44% 89%,62% 92%);transform:rotate(35deg)}\n#fv-demo .wing-back{left:-16px;top:3px;background:var(--hawk);transform:rotate(65deg) scale(.92);opacity:.85}\n#fv-demo .flying .wing{animation:fv-hawk-flap .34s ease-in-out infinite alternate}\n#fv-demo .flying .wing-back{animation:fv-hawk-back .34s ease-in-out infinite alternate}\n@keyframes fv-hawk-flap{from{transform:rotate(58deg) scaleY(1)}to{transform:rotate(-52deg) scaleY(.8)}}\n@keyframes fv-hawk-back{from{transform:rotate(77deg) scale(.92)}to{transform:rotate(-35deg) scale(.92,.7)}}\n#fv-demo .pipe{left:20%;width:60%;border-left-width:4px;border-right-width:4px;border-radius:4px}\n#fv-demo .p2{top:124px;height:32px}#fv-demo .p3{top:280px;height:32px}\n#fv-demo .answer{height:124px}#fv-demo .a{top:0}#fv-demo .b{top:156px}#fv-demo .c{top:312px;height:124px}\n@media(prefers-reduced-motion:reduce){#fv-demo .flying .wing{animation-duration:.65s}}\n#fv-demo .bird-picker{padding:16px 20px 4px}\n#fv-demo .bird-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:9px}\n#fv-demo .bird-choice{padding:8px 4px 10px;background:var(--soft);color:var(--ink);border:2px solid transparent}\n#fv-demo .bird-choice[aria-pressed=\"true\"]{background:var(--soft);color:var(--ink);border-color:var(--accent)}\n#fv-demo .bird-preview{display:block;position:relative;height:100px;overflow:hidden}\n#fv-demo .bird-preview .bird{left:calc(50% - 33px);top:27px;transform:scale(.70)}\n#fv-demo .bird-name{display:block;font-size:15px;font-weight:800}\n#fv-demo .bird-choice .selection{display:block;font-size:12px;font-weight:400;min-height:17px}\n#fv-demo .bird{--plume:light-dark(#3587d6,#5ba4e9);--plume-dark:light-dark(#175392,#2d6eac);--belly:light-dark(#e5f4ff,#dfedfa);--face:light-dark(#f8fcff,#eef6fc)}\n#fv-demo .bird .bird-body{inset:8px 8px 3px 0;background:var(--plume);border-radius:55% 58% 45% 46%;box-shadow:inset 0 -15px 0 var(--belly)}\n#fv-demo .bird .bird-body:before{content:'';position:absolute;right:1px;top:-17px;width:32px;height:27px;background:var(--plume);clip-path:polygon(0 100%,22% 32%,36% 61%,59% 0,100% 100%)}\n#fv-demo .bird .bird-body:after{content:'';position:absolute;right:0;top:10px;width:23px;height:24px;border-radius:55% 45% 55% 50%;background:var(--face)}\n#fv-demo .bird .eye{top:20px;right:17px;width:9px;height:10px;background:var(--eye);box-shadow:inset 2px 2px 0 var(--face)}\n#fv-demo .bird .beak{top:30px;background:var(--eye);height:12px;clip-path:polygon(0 0,100% 50%,0 100%)}\n#fv-demo .bird .wing{left:3px;top:23px;width:50px;height:26px;background:repeating-linear-gradient(12deg,var(--plume-dark) 0 9px,var(--plume) 9px 15px);clip-path:polygon(85% 80%,100% 52%,75% 29%,10% 0,18% 24%,0 15%,16% 42%,2% 40%,22% 67%,13% 69%,49% 94%,70% 95%)}\n#fv-demo .bird .wing-back{left:8px;top:16px;opacity:.7}\n#fv-demo .bird .tail{left:-22px;top:33px;width:35px;height:23px;background:var(--plume-dark);clip-path:polygon(0 0,100% 25%,100% 70%,8% 100%,22% 50%)}\n#fv-demo .bird[data-bird=\"cardinal\"]{--plume:light-dark(#e14644,#ec6761);--plume-dark:light-dark(#a62b3e,#bd3a49);--belly:light-dark(#ef7770,#f39283);--face:light-dark(#3b3037,#3a3036)}\n#fv-demo .bird[data-bird=\"cardinal\"] .bird-body{inset:10px 7px 5px 0;border-radius:65% 60% 42% 45%;box-shadow:inset 0 -10px 0 var(--belly)}\n#fv-demo .bird[data-bird=\"cardinal\"] .bird-body:before{top:-22px;right:5px;height:33px;width:30px;clip-path:polygon(0 100%,37% 0,100% 100%)}\n#fv-demo .bird[data-bird=\"cardinal\"] .eye{background:var(--gate);box-shadow:none;width:7px;height:7px;top:21px}\n#fv-demo .bird[data-bird=\"cardinal\"] .beak{background:var(--beak);width:20px;height:17px;top:27px}\n#fv-demo .bird[data-bird=\"cardinal\"] .wing{width:53px;height:23px;clip-path:polygon(85% 86%,100% 54%,73% 30%,0 0,12% 35%,3% 32%,26% 66%,18% 63%,46% 90%,67% 100%)}\n#fv-demo .bird[data-bird=\"cardinal\"] .tail{width:43px;height:17px;left:-29px;top:32px;clip-path:polygon(0 0,100% 20%,100% 80%,0 100%)}\n#fv-demo .bird[data-bird=\"owl\"]{--plume:light-dark(#e4e9ec,#d7e1e8);--plume-dark:light-dark(#96a6b6,#91a3b5);--belly:light-dark(#ffffff,#f1f4f6);--face:light-dark(#ffffff,#f1f4f6)}\n#fv-demo .bird[data-bird=\"owl\"] .bird-body{inset:0 7px 0 0;border-radius:46% 46% 44% 44%;box-shadow:inset 0 -12px 0 var(--belly)}\n#fv-demo .bird[data-bird=\"owl\"] .bird-body:before{top:5px;left:7px;width:46px;height:32px;border-radius:50%;clip-path:none;background:var(--face)}\n#fv-demo .bird[data-bird=\"owl\"] .bird-body:after{top:12px;right:12px;width:17px;height:17px;border-radius:50%;background:var(--yellow);box-shadow:-23px 0 0 var(--yellow)}\n#fv-demo .bird[data-bird=\"owl\"] .eye{top:16px;right:24px;width:7px;height:10px;box-shadow:-23px 0 0 var(--eye);background:var(--eye)}\n#fv-demo .bird[data-bird=\"owl\"] .beak{top:30px;right:32px;width:10px;height:13px;background:var(--beak);clip-path:polygon(0 0,100% 0,50% 100%)}\n#fv-demo .bird[data-bird=\"owl\"] .wing{width:50px;height:32px;left:3px;top:24px;border-radius:75% 15% 65% 25%;clip-path:polygon(100% 30%,75% 10%,20% 0,0 10%,12% 25%,1% 32%,16% 44%,4% 52%,23% 66%,17% 75%,48% 95%,72% 100%);background:repeating-linear-gradient(15deg,var(--plume) 0 12px,var(--plume-dark) 12px 16px)}\n#fv-demo .bird[data-bird=\"owl\"] .wing-back{left:10px;top:17px}\n#fv-demo .bird[data-bird=\"owl\"] .tail{width:23px;height:18px;left:7px;top:44px;background:var(--plume-dark)}\n@media(max-width:450px){#fv-demo .bird-picker{padding:12px 10px 0}#fv-demo .bird-options{gap:5px}#fv-demo .bird-preview .bird{transform:scale(.65)}#fv-demo .bird-name{font-size:13px}}\n#fv-demo .world .bird{transform:scale(.65)}\n#fv-demo .answer{font-size:18px;padding:6px;overflow-wrap:anywhere;text-align:center;line-height:1.2}#fv-demo .overlay{overflow:auto;justify-content:safe center}#fv-demo .definition{overflow-wrap:anywhere}#fv-demo .answer.long{font-size:14px}#fv-demo .answer.very-long{font-size:12px;overflow:auto}#fv-demo .submission{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}\n#fv-demo .header{display:none}\n#fv-demo .bird-picker{padding:6px 12px}\n#fv-demo .bird-picker summary{font-weight:700;min-height:28px}\n#fv-demo .bird-options{margin-top:4px}\n#fv-demo .bird-preview{height:56px}\n#fv-demo .bird-preview .bird{top:4px;transform:scale(.6)}\n#fv-demo .bird-choice{padding:2px 4px}\n#fv-demo .bird-choice .selection{display:none}\n#fv-demo .hud{padding:4px 12px;align-items:center}\n#fv-demo .hud>div{display:flex;align-items:center;gap:8px}\n#fv-demo .score{font-size:30px}\n#fv-demo .hearts{font-size:23px}\n#fv-demo .toolbar{padding:4px 12px;gap:6px}\n#fv-demo .clue{min-height:0;padding:6px 12px 9px}\n#fv-demo .definition{font-size:28px;margin-top:2px}\n#fv-demo button{padding:6px 12px}\n#fv-demo .feedback{min-height:0;padding:5px 12px;font-size:14px}\n#fv-demo .actions{padding:6px 12px;gap:6px}\n#fv-demo .rules,#fv-demo .submitted{padding:4px 12px;font-size:12px}\n#fv-demo .rules summary{min-height:28px}\n#fv-demo .aim{position:absolute;left:0;width:20px;height:20px;transform:translate(-50%,-50%);border:3px solid var(--red);background:var(--gate);border-radius:50%;z-index:2;pointer-events:none}\n#fv-demo .aim:after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--red)}\n#fv-demo .aim-a{top:62px}#fv-demo .aim-b{top:218px}#fv-demo .aim-c{top:374px}\n.games-dialog:has(#fv-demo){padding:12px}\n.games-dialog:has(#fv-demo) #gameTitle,.games-dialog:has(#fv-demo) #gameHelp,.games-dialog:has(#fv-demo) #gameProgress,.games-dialog:has(#fv-demo) #gameFeedback:empty{display:none}\n.games-dialog:has(#fv-demo) .game-board{margin:6px 0}\n.games-dialog:has(#fv-demo) .game-footer{margin-top:4px}\n</style>\n<section class=\"game\" aria-label=\"Flappy Vocab playable concept\">\n<div class=\"header\"><div><div class=\"kicker\">GAMIFY / VOCAB ARCADE</div><h2>Flappy Vocab</h2></div><span class=\"preview\">Class vocabulary</span></div>\n<details class=\"bird-picker\" id=\"fv-picker\" open><summary id=\"fv-bird-label\">Choose your bird</summary><div class=\"bird-options\" aria-label=\"Bird choices\">\n<button type=\"button\" class=\"bird-choice\" data-choice=\"bluejay\" aria-pressed=\"true\"><span class=\"bird-preview\" aria-hidden=\"true\"><span class=\"bird flying\" data-bird=\"bluejay\"><span class=\"wing wing-back\"></span><span class=\"tail\"></span><span class=\"bird-body\"></span><span class=\"eye\"></span><span class=\"beak\"></span><span class=\"wing\"></span></span></span><span class=\"bird-name\">Blue Jay</span><span class=\"selection\">Selected</span></button>\n<button type=\"button\" class=\"bird-choice\" data-choice=\"cardinal\" aria-pressed=\"false\"><span class=\"bird-preview\" aria-hidden=\"true\"><span class=\"bird flying\" data-bird=\"cardinal\"><span class=\"wing wing-back\"></span><span class=\"tail\"></span><span class=\"bird-body\"></span><span class=\"eye\"></span><span class=\"beak\"></span><span class=\"wing\"></span></span></span><span class=\"bird-name\">Cardinal</span><span class=\"selection\">Choose</span></button>\n<button type=\"button\" class=\"bird-choice\" data-choice=\"owl\" aria-pressed=\"false\"><span class=\"bird-preview\" aria-hidden=\"true\"><span class=\"bird flying\" data-bird=\"owl\"><span class=\"wing wing-back\"></span><span class=\"tail\"></span><span class=\"bird-body\"></span><span class=\"eye\"></span><span class=\"beak\"></span><span class=\"wing\"></span></span></span><span class=\"bird-name\">Snowy Owl</span><span class=\"selection\">Choose</span></button>\n</div></details>\n<div class=\"hud\"><div><div class=\"kicker\">YOUR SCORE</div><div class=\"score\" id=\"fv-score\">0</div></div><div class=\"lives\"><div class=\"kicker\" id=\"fv-lives-label\">3 LIVES</div><div class=\"hearts\" id=\"fv-lives\" aria-label=\"3 lives remaining\">♥♥♥</div></div></div>\n<div class=\"toolbar\"><div class=\"speeds\" aria-label=\"Flight speed\"><span>Speed</span><button type=\"button\" data-speed=\"1\" aria-pressed=\"true\">1x</button><button type=\"button\" data-speed=\"2\" aria-pressed=\"false\">2x</button><button type=\"button\" data-speed=\"3\" aria-pressed=\"false\">3x</button></div><span class=\"bonus\" id=\"fv-bonus\">Correct: +100</span></div>\n<div class=\"clue\"><div class=\"kicker\" id=\"fv-round\">ROUND 1 / 3 · WORD 1 / 5</div><p class=\"definition\" id=\"fv-clue\">Choose your bird and start flying.</p></div>\n<div class=\"world\" id=\"fv-world\" aria-label=\"Flight area. Tap or press Space to flap upward; release to fall.\">\n<span class=\"cloud\" style=\"left:6%;top:20px\">☁</span><span class=\"cloud\" style=\"left:42%;top:245px\">☁</span><div class=\"hill\" style=\"left:-15%\"></div><div class=\"hill\" style=\"right:-20%;bottom:-85px\"></div>\n<div class=\"bird flying\" id=\"fv-bird\" aria-hidden=\"true\"><div class=\"wing wing-back\"></div><div class=\"tail\"></div><div class=\"bird-body\"></div><div class=\"eye\"></div><div class=\"beak\"></div><div class=\"wing\"></div></div>\n<div class=\"gate\" id=\"fv-gate\"><span class=\"aim aim-a\" aria-hidden=\"true\"></span><div class=\"answer a\" id=\"fv-a\">Choice 1</div><div class=\"pipe p2\"></div><span class=\"aim aim-b\" aria-hidden=\"true\"></span><div class=\"answer b\" id=\"fv-b\">Choice 2</div><div class=\"pipe p3\"></div><span class=\"aim aim-c\" aria-hidden=\"true\"></span><div class=\"answer c\" id=\"fv-c\">Choice 3</div></div>\n<div class=\"overlay\" id=\"fv-overlay\"><h2>Three paths. One right word.</h2><div class=\"words\">3 rounds · 5 words each · 3 lives total.</div><p>Correct: +100 / +200 / +300<br>Green pipe: −50 · Wrong word: −100<br>Each mistake costs one of your 3 lives.</p><button type=\"button\" class=\"primary\" id=\"fv-start\">Start flying →</button></div>\n</div>\n<div class=\"meter\"><span id=\"fv-progress\"></span></div>\n<div class=\"feedback\" id=\"fv-feedback\" aria-live=\"polite\">Tap or press Space for a small wingbeat. Aim the bird’s body at the matching word; wings can overlap the edges.</div>\n<div class=\"actions\"><button type=\"button\" class=\"primary\" id=\"fv-flap\" disabled>Flap ↑ / Space</button><button type=\"button\" id=\"fv-pause\" disabled>Pause</button></div>\n<details class=\"rules\"><summary>Scoring rules</summary>1x = +100 · 2x = +200 · 3x = +300 per correct answer. Lowest speed used for that word sets its bonus. Completed runs save automatically. Only the top three scores are listed.</details>\n<div class=\"submitted\" id=\"fv-submitted\" aria-live=\"polite\">Your completed score saves automatically. Only the top three appear on the class board.</div>\n</section>\n</div>";
+        board.innerHTML = "<div id=\"fv-demo\">\n<style>\n#fv-demo{--paper:light-dark(#fffdf7,#202922);--ink:light-dark(#173b30,#eff8ee);--soft:light-dark(#e8efe3,#34473b);--sky:light-dark(#d9f2f3,#173d45);--green:light-dark(#398451,#65a578);--gate:light-dark(#fffef9,#263f35);--accent:light-dark(#205b42,#bce5bd);--on:light-dark(#ffffff,#163b2b);--yellow:light-dark(#ffd447,#f2c544);--wing:light-dark(#edab22,#c99524);--beak:light-dark(#ed792a,#f5a04c);--eye:light-dark(#1a322a,#182e26);--red:light-dark(#ac2e35,#ffadb0);font:16px/1.4 ui-rounded,system-ui,sans-serif;color:var(--ink)}\n#fv-demo *{box-sizing:border-box}#fv-demo .game{background:var(--paper);border:1px solid var(--soft);border-radius:20px;overflow:hidden}#fv-demo h2,#fv-demo p{margin:0}#fv-demo .header,#fv-demo .hud,#fv-demo .toolbar,#fv-demo .actions{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}#fv-demo .header{border-bottom:1px solid var(--soft)}#fv-demo .kicker{font-size:12px;letter-spacing:.1em;font-weight:700}#fv-demo h2{font-size:24px;font-weight:800}#fv-demo .preview{font-size:12px;padding:6px 10px;background:var(--soft);border-radius:20px}#fv-demo .hud{align-items:flex-start}#fv-demo .score{font-size:44px;line-height:1.1;font-weight:850;font-variant-numeric:tabular-nums}#fv-demo .lives{text-align:right}#fv-demo .hearts{color:var(--red);font-size:30px;font-weight:800;letter-spacing:4px}#fv-demo .clue{padding:8px 20px 18px;min-height:116px}#fv-demo .definition{font-size:clamp(25px,4.2vw,34px);font-weight:800;line-height:1.2;margin-top:5px}#fv-demo button{font:inherit;font-weight:700;color:var(--ink);background:var(--soft);border:0;border-radius:11px;padding:11px 16px;min-height:44px;cursor:pointer}#fv-demo button.primary,#fv-demo button[aria-pressed=\"true\"]{background:var(--accent);color:var(--on)}#fv-demo button:disabled{opacity:.45;cursor:default}#fv-demo .speeds{display:flex;align-items:center;gap:6px}#fv-demo .bonus{font-weight:700}#fv-demo .toolbar{padding-top:0}#fv-demo .world{height:436px;position:relative;background:var(--sky);overflow:hidden;touch-action:manipulation;user-select:none}#fv-demo .cloud{position:absolute;font-size:72px;color:var(--gate);opacity:.65;pointer-events:none}#fv-demo .hill{position:absolute;bottom:-95px;width:75%;height:140px;border-radius:50%;background:var(--green);opacity:.2}#fv-demo .bird{position:absolute;left:17%;top:187px;width:74px;height:58px;z-index:4;pointer-events:none;transform-origin:center}#fv-demo .bird-body{position:absolute;inset:4px 8px 3px 0;border-radius:50% 52% 48% 45%;background:var(--yellow);box-shadow:inset 0 -6px 0 var(--wing)}#fv-demo .eye{position:absolute;right:15px;top:13px;width:10px;height:13px;border-radius:50%;background:var(--eye)}#fv-demo .beak{position:absolute;right:0;top:29px;width:19px;height:13px;background:var(--beak);border-radius:0 80% 70% 0}#fv-demo .wing{position:absolute;left:7px;top:27px;width:37px;height:24px;background:var(--wing);border-radius:65% 25% 70% 40%;transform-origin:85% 25%;transform:rotate(-25deg)}#fv-demo .flying .wing{animation:fv-flap .24s ease-in-out infinite alternate}#fv-demo .tail{position:absolute;left:-6px;top:25px;width:16px;height:20px;background:var(--wing);transform:rotate(-25deg);border-radius:3px 2px 3px 15px}@keyframes fv-flap{from{transform:rotate(-65deg) scaleY(.7)}to{transform:rotate(45deg) scaleY(1)}}#fv-demo .gate{position:absolute;left:72%;top:0;bottom:0;width:145px}#fv-demo .pipe{position:absolute;width:100%;background:var(--green);border-left:8px solid color-mix(in srgb,var(--gate) 20%,transparent);border-right:8px solid color-mix(in srgb,var(--ink) 12%,transparent);border-radius:7px}#fv-demo .p1{top:0;height:28px;border-radius:0 0 7px 7px}#fv-demo .p2{top:140px;height:24px}#fv-demo .p3{top:276px;height:24px}#fv-demo .p4{top:412px;bottom:0;border-radius:7px 7px 0 0}#fv-demo .answer{position:absolute;width:100%;height:112px;display:flex;align-items:center;justify-content:center;background:var(--gate);color:var(--ink);font-size:25px;font-weight:800;border:2px dashed var(--green);border-radius:9px}#fv-demo .a{top:28px}#fv-demo .b{top:164px}#fv-demo .c{top:300px}#fv-demo .overlay{position:absolute;inset:0;z-index:6;background:var(--paper);padding:24px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:16px;text-align:center}#fv-demo .overlay h2{font-size:30px}#fv-demo .overlay .big{font-size:46px;font-weight:850}#fv-demo .words{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}#fv-demo .word{padding:7px 10px;background:var(--soft);border-radius:9px}#fv-demo .feedback{padding:12px 20px;background:var(--soft);min-height:64px}#fv-demo .rules,#fv-demo .submitted{padding:0 20px 15px;font-size:14px}#fv-demo .submitted{font-weight:700}#fv-demo .meter{height:5px;background:var(--soft)}#fv-demo .meter span{height:100%;display:block;background:var(--accent);width:0;transition:width .2s}#fv-demo .recall{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}#fv-demo input{font:inherit;min-width:0;width:180px;padding:11px;border:1px solid var(--green);border-radius:9px;background:var(--paper);color:var(--ink)}#fv-demo [hidden]{display:none!important}@media(max-width:450px){#fv-demo .header,#fv-demo .hud,#fv-demo .toolbar,#fv-demo .actions{padding-left:12px;padding-right:12px}#fv-demo .gate{width:114px}#fv-demo .answer{font-size:22px}#fv-demo .bird{left:7%}#fv-demo .clue{padding-left:12px;padding-right:12px}#fv-demo .actions{gap:7px}#fv-demo .actions button{padding:11px 12px}}@media(prefers-reduced-motion:reduce){#fv-demo .flying .wing{animation-duration:.6s}}\n#fv-demo{--hawk:light-dark(#946345,#c5966d);--feather:light-dark(#66432f,#91674a);--chest:light-dark(#e9c99d,#e4be8e)}\n#fv-demo .bird-body{inset:12px 7px 9px 0;background:var(--hawk);border-radius:55% 55% 45% 45%;box-shadow:inset 0 -12px 0 var(--chest)}\n#fv-demo .eye{top:18px;right:16px;width:9px;height:10px}\n#fv-demo .beak{top:27px;height:17px;clip-path:polygon(0 0,100% 15%,80% 100%,63% 54%,0 55%)}\n#fv-demo .tail{left:-13px;top:21px;width:27px;height:24px;background:var(--feather);clip-path:polygon(0 0,100% 35%,100% 65%,0 100%,15% 50%)}\n#fv-demo .wing{left:-27px;top:10px;width:91px;height:49px;background:var(--feather);border-radius:0;transform-origin:80% 65%;clip-path:polygon(83% 66%,100% 47%,73% 28%,14% 0,18% 18%,0 11%,10% 31%,0 32%,16% 49%,6% 52%,28% 71%,15% 74%,44% 89%,62% 92%);transform:rotate(35deg)}\n#fv-demo .wing-back{left:-16px;top:3px;background:var(--hawk);transform:rotate(65deg) scale(.92);opacity:.85}\n#fv-demo .flying .wing{animation:fv-hawk-flap .34s ease-in-out infinite alternate}\n#fv-demo .flying .wing-back{animation:fv-hawk-back .34s ease-in-out infinite alternate}\n@keyframes fv-hawk-flap{from{transform:rotate(58deg) scaleY(1)}to{transform:rotate(-52deg) scaleY(.8)}}\n@keyframes fv-hawk-back{from{transform:rotate(77deg) scale(.92)}to{transform:rotate(-35deg) scale(.92,.7)}}\n#fv-demo .pipe{left:20%;width:60%;border-left-width:4px;border-right-width:4px;border-radius:4px}\n#fv-demo .p2{top:124px;height:32px}#fv-demo .p3{top:280px;height:32px}\n#fv-demo .answer{height:124px}#fv-demo .a{top:0}#fv-demo .b{top:156px}#fv-demo .c{top:312px;height:124px}\n@media(prefers-reduced-motion:reduce){#fv-demo .flying .wing{animation-duration:.65s}}\n#fv-demo .bird-picker{padding:16px 20px 4px}\n#fv-demo .bird-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:9px}\n#fv-demo .bird-choice{padding:8px 4px 10px;background:var(--soft);color:var(--ink);border:2px solid transparent}\n#fv-demo .bird-choice[aria-pressed=\"true\"]{background:var(--soft);color:var(--ink);border-color:var(--accent)}\n#fv-demo .bird-preview{display:block;position:relative;height:100px;overflow:hidden}\n#fv-demo .bird-preview .bird{left:calc(50% - 33px);top:27px;transform:scale(.70)}\n#fv-demo .bird-name{display:block;font-size:15px;font-weight:800}\n#fv-demo .bird-choice .selection{display:block;font-size:12px;font-weight:400;min-height:17px}\n#fv-demo .bird{--plume:light-dark(#3587d6,#5ba4e9);--plume-dark:light-dark(#175392,#2d6eac);--belly:light-dark(#e5f4ff,#dfedfa);--face:light-dark(#f8fcff,#eef6fc)}\n#fv-demo .bird .bird-body{inset:8px 8px 3px 0;background:var(--plume);border-radius:55% 58% 45% 46%;box-shadow:inset 0 -15px 0 var(--belly)}\n#fv-demo .bird .bird-body:before{content:'';position:absolute;right:1px;top:-17px;width:32px;height:27px;background:var(--plume);clip-path:polygon(0 100%,22% 32%,36% 61%,59% 0,100% 100%)}\n#fv-demo .bird .bird-body:after{content:'';position:absolute;right:0;top:10px;width:23px;height:24px;border-radius:55% 45% 55% 50%;background:var(--face)}\n#fv-demo .bird .eye{top:20px;right:17px;width:9px;height:10px;background:var(--eye);box-shadow:inset 2px 2px 0 var(--face)}\n#fv-demo .bird .beak{top:30px;background:var(--eye);height:12px;clip-path:polygon(0 0,100% 50%,0 100%)}\n#fv-demo .bird .wing{left:3px;top:23px;width:50px;height:26px;background:repeating-linear-gradient(12deg,var(--plume-dark) 0 9px,var(--plume) 9px 15px);clip-path:polygon(85% 80%,100% 52%,75% 29%,10% 0,18% 24%,0 15%,16% 42%,2% 40%,22% 67%,13% 69%,49% 94%,70% 95%)}\n#fv-demo .bird .wing-back{left:8px;top:16px;opacity:.7}\n#fv-demo .bird .tail{left:-22px;top:33px;width:35px;height:23px;background:var(--plume-dark);clip-path:polygon(0 0,100% 25%,100% 70%,8% 100%,22% 50%)}\n#fv-demo .bird[data-bird=\"cardinal\"]{--plume:light-dark(#e14644,#ec6761);--plume-dark:light-dark(#a62b3e,#bd3a49);--belly:light-dark(#ef7770,#f39283);--face:light-dark(#3b3037,#3a3036)}\n#fv-demo .bird[data-bird=\"cardinal\"] .bird-body{inset:10px 7px 5px 0;border-radius:65% 60% 42% 45%;box-shadow:inset 0 -10px 0 var(--belly)}\n#fv-demo .bird[data-bird=\"cardinal\"] .bird-body:before{top:-22px;right:5px;height:33px;width:30px;clip-path:polygon(0 100%,37% 0,100% 100%)}\n#fv-demo .bird[data-bird=\"cardinal\"] .eye{background:var(--gate);box-shadow:none;width:7px;height:7px;top:21px}\n#fv-demo .bird[data-bird=\"cardinal\"] .beak{background:var(--beak);width:20px;height:17px;top:27px}\n#fv-demo .bird[data-bird=\"cardinal\"] .wing{width:53px;height:23px;clip-path:polygon(85% 86%,100% 54%,73% 30%,0 0,12% 35%,3% 32%,26% 66%,18% 63%,46% 90%,67% 100%)}\n#fv-demo .bird[data-bird=\"cardinal\"] .tail{width:43px;height:17px;left:-29px;top:32px;clip-path:polygon(0 0,100% 20%,100% 80%,0 100%)}\n#fv-demo .bird[data-bird=\"owl\"]{--plume:light-dark(#e4e9ec,#d7e1e8);--plume-dark:light-dark(#96a6b6,#91a3b5);--belly:light-dark(#ffffff,#f1f4f6);--face:light-dark(#ffffff,#f1f4f6)}\n#fv-demo .bird[data-bird=\"owl\"] .bird-body{inset:0 7px 0 0;border-radius:46% 46% 44% 44%;box-shadow:inset 0 -12px 0 var(--belly)}\n#fv-demo .bird[data-bird=\"owl\"] .bird-body:before{top:5px;left:7px;width:46px;height:32px;border-radius:50%;clip-path:none;background:var(--face)}\n#fv-demo .bird[data-bird=\"owl\"] .bird-body:after{top:12px;right:12px;width:17px;height:17px;border-radius:50%;background:var(--yellow);box-shadow:-23px 0 0 var(--yellow)}\n#fv-demo .bird[data-bird=\"owl\"] .eye{top:16px;right:24px;width:7px;height:10px;box-shadow:-23px 0 0 var(--eye);background:var(--eye)}\n#fv-demo .bird[data-bird=\"owl\"] .beak{top:30px;right:32px;width:10px;height:13px;background:var(--beak);clip-path:polygon(0 0,100% 0,50% 100%)}\n#fv-demo .bird[data-bird=\"owl\"] .wing{width:50px;height:32px;left:3px;top:24px;border-radius:75% 15% 65% 25%;clip-path:polygon(100% 30%,75% 10%,20% 0,0 10%,12% 25%,1% 32%,16% 44%,4% 52%,23% 66%,17% 75%,48% 95%,72% 100%);background:repeating-linear-gradient(15deg,var(--plume) 0 12px,var(--plume-dark) 12px 16px)}\n#fv-demo .bird[data-bird=\"owl\"] .wing-back{left:10px;top:17px}\n#fv-demo .bird[data-bird=\"owl\"] .tail{width:23px;height:18px;left:7px;top:44px;background:var(--plume-dark)}\n@media(max-width:450px){#fv-demo .bird-picker{padding:12px 10px 0}#fv-demo .bird-options{gap:5px}#fv-demo .bird-preview .bird{transform:scale(.65)}#fv-demo .bird-name{font-size:13px}}\n#fv-demo .world .bird{transform:scale(.65)}\n#fv-demo .answer{font-size:18px;padding:6px;overflow-wrap:anywhere;text-align:center;line-height:1.2}#fv-demo .overlay{overflow:auto;justify-content:safe center}#fv-demo .definition{overflow-wrap:anywhere}#fv-demo .answer.long{font-size:14px}#fv-demo .answer.very-long{font-size:12px;overflow:auto}#fv-demo .submission{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}\n#fv-demo .header{display:none}\n#fv-demo .bird-picker{padding:6px 12px}\n#fv-demo .bird-picker summary{font-weight:700;min-height:28px}\n#fv-demo .bird-options{margin-top:4px}\n#fv-demo .bird-preview{height:56px}\n#fv-demo .bird-preview .bird{top:4px;transform:scale(.6)}\n#fv-demo .bird-choice{padding:2px 4px}\n#fv-demo .bird-choice .selection{display:none}\n#fv-demo .hud{padding:4px 12px;align-items:center}\n#fv-demo .hud>div{display:flex;align-items:center;gap:8px}\n#fv-demo .score{font-size:30px}\n#fv-demo .hearts{font-size:23px}\n#fv-demo .toolbar{padding:4px 12px;gap:6px}\n#fv-demo .clue{min-height:0;padding:6px 12px 9px}\n#fv-demo .definition{font-size:28px;margin-top:2px}\n#fv-demo button{padding:6px 12px}\n#fv-demo .feedback{min-height:0;padding:5px 12px;font-size:14px}\n#fv-demo .actions{padding:6px 12px;gap:6px}\n#fv-demo .rules,#fv-demo .submitted{padding:4px 12px;font-size:12px}\n#fv-demo .rules summary{min-height:28px}\n#fv-demo .aim{position:absolute;left:0;width:20px;height:20px;transform:translate(-50%,-50%);border:3px solid var(--red);background:var(--gate);border-radius:50%;z-index:2;pointer-events:none}\n#fv-demo .aim:after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--red)}\n#fv-demo .aim-a{top:62px}#fv-demo .aim-b{top:218px}#fv-demo .aim-c{top:374px}\n\n\n\n\n</style>\n<section class=\"game\" aria-label=\"Flappy Vocab playable concept\">\n<div class=\"header\"><div><div class=\"kicker\">GAMIFY / VOCAB ARCADE</div><h2>Flappy Vocab</h2></div><span class=\"preview\">Class vocabulary</span></div>\n<details class=\"bird-picker\" id=\"fv-picker\" open><summary id=\"fv-bird-label\">Choose your bird</summary><div class=\"bird-options\" aria-label=\"Bird choices\">\n<button type=\"button\" class=\"bird-choice\" data-choice=\"bluejay\" aria-pressed=\"true\"><span class=\"bird-preview\" aria-hidden=\"true\"><span class=\"bird flying\" data-bird=\"bluejay\"><span class=\"wing wing-back\"></span><span class=\"tail\"></span><span class=\"bird-body\"></span><span class=\"eye\"></span><span class=\"beak\"></span><span class=\"wing\"></span></span></span><span class=\"bird-name\">Blue Jay</span><span class=\"selection\">Selected</span></button>\n<button type=\"button\" class=\"bird-choice\" data-choice=\"cardinal\" aria-pressed=\"false\"><span class=\"bird-preview\" aria-hidden=\"true\"><span class=\"bird flying\" data-bird=\"cardinal\"><span class=\"wing wing-back\"></span><span class=\"tail\"></span><span class=\"bird-body\"></span><span class=\"eye\"></span><span class=\"beak\"></span><span class=\"wing\"></span></span></span><span class=\"bird-name\">Cardinal</span><span class=\"selection\">Choose</span></button>\n<button type=\"button\" class=\"bird-choice\" data-choice=\"owl\" aria-pressed=\"false\"><span class=\"bird-preview\" aria-hidden=\"true\"><span class=\"bird flying\" data-bird=\"owl\"><span class=\"wing wing-back\"></span><span class=\"tail\"></span><span class=\"bird-body\"></span><span class=\"eye\"></span><span class=\"beak\"></span><span class=\"wing\"></span></span></span><span class=\"bird-name\">Snowy Owl</span><span class=\"selection\">Choose</span></button>\n</div></details>\n<div class=\"hud\"><div><div class=\"kicker\">YOUR SCORE</div><div class=\"score\" id=\"fv-score\">0</div></div><div class=\"lives\"><div class=\"kicker\" id=\"fv-lives-label\">3 LIVES</div><div class=\"hearts\" id=\"fv-lives\" aria-label=\"3 lives remaining\">♥♥♥</div></div></div>\n<div class=\"toolbar\"><div class=\"speeds\" aria-label=\"Flight speed\"><span>Speed</span><button type=\"button\" data-speed=\"1\" aria-pressed=\"true\">1x</button><button type=\"button\" data-speed=\"2\" aria-pressed=\"false\">2x</button><button type=\"button\" data-speed=\"3\" aria-pressed=\"false\">3x</button></div><span class=\"bonus\" id=\"fv-bonus\">Correct: +100</span></div>\n<div class=\"clue\"><div class=\"kicker\" id=\"fv-round\">ROUND 1 / 3 · WORD 1 / 5</div><p class=\"definition\" id=\"fv-clue\">Choose your bird and start flying.</p></div>\n<div class=\"world\" id=\"fv-world\" aria-label=\"Flight area. Tap or press Space to flap upward; release to fall.\">\n<span class=\"cloud\" style=\"left:6%;top:20px\">☁</span><span class=\"cloud\" style=\"left:42%;top:245px\">☁</span><div class=\"hill\" style=\"left:-15%\"></div><div class=\"hill\" style=\"right:-20%;bottom:-85px\"></div>\n<div class=\"bird flying\" id=\"fv-bird\" aria-hidden=\"true\"><div class=\"wing wing-back\"></div><div class=\"tail\"></div><div class=\"bird-body\"></div><div class=\"eye\"></div><div class=\"beak\"></div><div class=\"wing\"></div></div>\n<div class=\"gate\" id=\"fv-gate\"><span class=\"aim aim-a\" aria-hidden=\"true\"></span><div class=\"answer a\" id=\"fv-a\">Choice 1</div><div class=\"pipe p2\"></div><span class=\"aim aim-b\" aria-hidden=\"true\"></span><div class=\"answer b\" id=\"fv-b\">Choice 2</div><div class=\"pipe p3\"></div><span class=\"aim aim-c\" aria-hidden=\"true\"></span><div class=\"answer c\" id=\"fv-c\">Choice 3</div></div>\n<div class=\"overlay\" id=\"fv-overlay\"><h2>Three paths. One right word.</h2><div class=\"words\">3 rounds · 5 words each · 3 lives total.</div><p>Correct: +100 / +200 / +300<br>Green pipe: −50 · Wrong word: −100<br>Each mistake costs one of your 3 lives.</p><button type=\"button\" class=\"primary\" id=\"fv-start\">Start flying →</button></div>\n</div>\n<div class=\"meter\"><span id=\"fv-progress\"></span></div>\n<div class=\"feedback\" id=\"fv-feedback\" aria-live=\"polite\">Tap or press Space for a small wingbeat. Aim the bird’s body at the matching word; wings can overlap the edges.</div>\n<div class=\"actions\"><button type=\"button\" class=\"primary\" id=\"fv-flap\" disabled>Flap ↑ / Space</button><button type=\"button\" id=\"fv-pause\" disabled>Pause</button></div>\n<details class=\"rules\"><summary>Scoring rules</summary>1x = +100 · 2x = +200 · 3x = +300 per correct answer. Lowest speed used for that word sets its bonus. Completed runs save automatically. Only the top three scores are listed.</details>\n<div class=\"submitted\" id=\"fv-submitted\" aria-live=\"polite\">Your completed score saves automatically. Only the top three appear on the class board.</div>\n</section>\n</div>";
 
 const root=board.querySelector('#fv-demo'),el=id=>root.querySelector('#fv-'+id);
 const ROUND_COUNT=3,WORDS_PER_ROUND=5;
@@ -635,11 +631,19 @@ try{const saved=JSON.parse(localStorage.getItem('penina-flappy-preferences')||'{
 function speedUI(){root.querySelectorAll('[data-speed]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.speed)===speed)));el('bonus').textContent='Correct: +'+100*(state==='flight'||state==='paused'?rewardSpeed:speed);}
 function stats(){el('score').textContent=score;el('lives').textContent='♥'.repeat(lives)+'♡'.repeat(3-lives);el('lives').setAttribute('aria-label',lives+' lives remaining');el('lives-label').textContent=lives+' '+(lives===1?'LIFE':'LIVES');el('progress').style.width=(index/words.length*100)+'%';el('round').textContent='ROUND '+Math.min(Math.floor(index/WORDS_PER_ROUND)+1,ROUND_COUNT)+' / '+ROUND_COUNT+' · WORD '+(Math.min(index,words.length-1)%WORDS_PER_ROUND+1)+' / '+WORDS_PER_ROUND;speedUI();}
 function stop(){clearTimeout(roundTimer);roundTimer=null;cancelAnimationFrame(raf);root.classList.remove('active');el('bird').classList.remove('flying');el('flap').disabled=true;el('pause').disabled=true;}
-function draw(){el('bird').style.top=y+'px';el('bird').style.transform='rotate('+Math.max(-13,Math.min(18,vy/14))+'deg) scale(.65)';el('gate').style.left=x+'px';}
-function question(keepFlying=false){cancelAnimationFrame(raf);state='flight';rewardSpeed=speed;const q=words[index];answers=[q.word,...q.answers.slice().sort(()=>Math.random()-.5).slice(0,2)].sort(()=>Math.random()-.5);['a','b','c'].forEach((id,i)=>{const node=el(id);node.hidden=i>=answers.length;node.textContent=answers[i]||'';node.dir='auto';node.classList.toggle('long',(answers[i]||'').length>40);node.classList.toggle('very-long',(answers[i]||'').length>100);});renderStudyQuestion(el('clue'),{term:q.clue,picture:q.picture,questionFormatting:q.questionFormatting});el('clue').dir='auto';el('overlay').hidden=true;el('gate').hidden=false;if(!keepFlying){y=191;vy=0;}x=el('world').clientWidth-el('gate').offsetWidth-12;readTime=keepFlying?0:.7;el('flap').disabled=false;el('pause').disabled=false;el('pause').textContent='Pause';el('bird').classList.add('flying');stats();draw();el('flap').focus({preventScroll:true});last=performance.now();raf=requestAnimationFrame(tick);}
+// Flight and hit testing use the same 436-unit height in every orientation.
+function draw(){
+ const scale=el('world').clientHeight/436;
+ el('bird').style.top=((y+29)/436*100)+'%';
+ el('bird').style.transform='translateY(-50%) rotate('+Math.max(-13,Math.min(18,vy/14))+'deg) scale('+(.65*scale)+')';
+ const contact=el('bird').offsetLeft+37;
+ const distance=Math.max(0,el('world').clientWidth-el('gate').offsetWidth-12-contact);
+ el('gate').style.left=(contact+x*distance)+'px';
+}
+function question(keepFlying=false){cancelAnimationFrame(raf);state='flight';rewardSpeed=speed;const q=words[index];answers=[q.word,...q.answers.slice().sort(()=>Math.random()-.5).slice(0,2)].sort(()=>Math.random()-.5);['a','b','c'].forEach((id,i)=>{const node=el(id);node.hidden=i>=answers.length;node.textContent=answers[i]||'';node.dir='auto';node.classList.toggle('long',(answers[i]||'').length>40);node.classList.toggle('very-long',(answers[i]||'').length>100);});renderStudyQuestion(el('clue'),{term:q.clue,picture:q.picture,questionFormatting:q.questionFormatting});el('clue').dir='auto';el('overlay').hidden=true;el('gate').hidden=false;if(!keepFlying){y=191;vy=0;}x=1;readTime=keepFlying?0:.7;el('flap').disabled=false;el('pause').disabled=false;el('pause').textContent='Pause';el('bird').classList.add('flying');stats();draw();el('flap').focus({preventScroll:true});last=performance.now();raf=requestAnimationFrame(tick);}
 // With gravity 270, a 140px/s flap rises about 36px for finer control.
 function flap(){if(state==='flight'){readTime=0;vy=-140;}}
-function tick(t){if(destroyed||state!=='flight')return;const dt=Math.min((t-last)/1000,.035);last=t;if(readTime>0){readTime-=dt;}else{vy=Math.min(170,vy+270*dt);y+=vy*dt;if(y<0){y=0;vy=0;}if(y>378){y=378;vy=0;}const bx=el('bird').offsetLeft,travel=Math.max(70,el('world').clientWidth-el('gate').offsetWidth-12-bx-40);x-=travel/7*speed*dt;draw();if(x<=bx+37){resolve(laneAt(y));return;}}raf=requestAnimationFrame(tick);}
+function tick(t){if(destroyed||state!=='flight')return;const dt=Math.min((t-last)/1000,.035);last=t;if(readTime>0){readTime-=dt;}else{vy=Math.min(170,vy+270*dt);y+=vy*dt;if(y<0){y=0;vy=0;}if(y>378){y=378;vy=0;}x-=speed*dt/7;draw();if(x<=0){resolve(laneAt(y));return;}}raf=requestAnimationFrame(tick);}
 function laneAt(top){return [[0,124],[156,280],[312,436]].findIndex(([a,b])=>top+20>=a&&top+38<=b);}
 function panel(title,message,label,action){el('overlay').hidden=false;el('overlay').innerHTML='';const h=document.createElement('h2');h.textContent=title;const p=document.createElement('p');p.textContent=message;const b=document.createElement('button');b.type='button';b.className='primary';b.textContent=label;b.onclick=action;el('overlay').append(h,p,b);}
 function resolve(lane){
@@ -683,8 +687,8 @@ function roundComplete(){
  }
  roundTimer=setTimeout(countdown,1000);
 }
-function end(title,message){stop();state='over';el('round').textContent='RUN FINISHED';panel(title,score+' points. '+message,'Start over →',start);el('feedback').textContent='Run complete. Only the top three scores appear on the class board.';save();submitScore();}
-function start(){stop();el('picker').open=false;runId=crypto.randomUUID();index=0;score=0;lives=3;correct=0;missed=[];recallCorrect=0;submitted=false;el('feedback').textContent='Tap or press Space for a small wingbeat. Aim at the bullseye; wings can overlap the edges.';question();save();el('flap').focus({preventScroll:true});}
+function end(title,message){stop();state='over';root.dataset.finished='true';el('round').textContent='RUN FINISHED';panel(title,score+' points. '+message,'Start over →',start);el('feedback').textContent='Run complete. Only the top three scores appear on the class board.';save();submitScore();}
+function start(){stop();delete root.dataset.finished;el('picker').open=false;runId=crypto.randomUUID();index=0;score=0;lives=3;correct=0;missed=[];recallCorrect=0;submitted=false;el('feedback').textContent='Tap or press Space for a small wingbeat. Aim at the bullseye; wings can overlap the edges.';question();save();el('flap').focus({preventScroll:true});}
 async function submitScore(){
  if(submitted||submitting||state!=='over'||!scoreUrl)return;
  const initials=board.dataset.initials;if(!/^[A-Z]{1,3}$/.test(initials||''))return;
@@ -697,17 +701,19 @@ async function submitScore(){
 // Native clicks distinguish a deliberate flap from scrolling a long answer.
 el('start').onclick=start;el('flap').onclick=flap;el('world').addEventListener('click',e=>{if(!e.target.closest('.overlay')){el('flap').focus({preventScroll:true});flap();}});// Capture Space throughout this preview, including when another game button has focus.
 let flightSpace=false;
-function isTyping(target){return target?.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(target?.tagName);}
+function isTyping(target){return target?.closest?.('#gameFullscreen,#gameRead,#gameBack,#gameAgain,dialog.game-reader')||target?.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(target?.tagName);}
 function onFlightKeyDown(e){if((e.code!=='Space'&&e.key!==' ')||isTyping(e.target)||state!=='flight')return;e.preventDefault();e.stopPropagation();flightSpace=true;if(!e.repeat)flap();}
 function onFlightKeyUp(e){if((e.code==='Space'||e.key===' ')&&flightSpace){e.preventDefault();e.stopPropagation();flightSpace=false;}}
 document.addEventListener('keydown',onFlightKeyDown,true);
 document.addEventListener('keyup',onFlightKeyUp,true);
+const flightResize=typeof ResizeObserver!=='undefined'?new ResizeObserver(draw):null;
+flightResize?.observe(el('world'));
 function onBlur(){flightSpace=false;if(state==='flight')el('pause').onclick();}
 window.addEventListener('blur',onBlur);
 el('pause').onclick=()=>{if(state==='flight'){state='paused';cancelAnimationFrame(raf);el('bird').classList.remove('flying');el('pause').textContent='Resume';el('flap').disabled=true;el('feedback').textContent='Paused.';}else if(state==='paused'){state='flight';el('bird').classList.add('flying');el('pause').textContent='Pause';el('flap').disabled=false;el('feedback').textContent='Tap or press Space to flap.';last=performance.now();raf=requestAnimationFrame(tick);}};
 root.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{speed=Number(b.dataset.speed);if(state==='flight'||state==='paused')rewardSpeed=Math.min(rewardSpeed,speed);speedUI();save();});speedUI();birdUI();
 
-return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('keydown',onFlightKeyDown,true);document.removeEventListener('keyup',onFlightKeyUp,true);window.removeEventListener('blur',onBlur);};
+return ()=>{destroyed=true;flightResize?.disconnect();stop();abort.abort();document.removeEventListener('keydown',onFlightKeyDown,true);document.removeEventListener('keyup',onFlightKeyUp,true);window.removeEventListener('blur',onBlur);};
     }
 
     function mountSnowblaster({board, rows}) {
@@ -758,7 +764,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         function origin(){return{x:q('world').clientWidth/2+17,y:q('world').clientHeight-88};}
         function aim(){q('gun').setAttribute('transform','rotate('+(angle*180/Math.PI)+' 82 107)');q('guide').style.transform='rotate('+angle+'rad)';}
         function turn(direction,seconds){angle=Math.max(-1.38,Math.min(1.38,angle+direction*seconds*(held.has('fine')?.18:.65)));aim();}
-        function positionTargets(time){const world=q('world'),duration=[15,11,8][Math.floor(index/8)];let landed=false;targets.forEach(b=>{if(b.disabled)return;const flight=b.flight,progress=Math.min(1,time*flight.rate/duration),end=world.clientHeight-80-b.offsetHeight,start=Math.min(flight.start,Math.max(0,end-60)),sway=Math.sin(time*.85+flight.phase)*world.clientWidth*.055;const y=start+progress*(end-start)+Math.sin(time*1.6+flight.phase)*10*(1-progress);const lane=parseFloat(b.style.left)/100*world.clientWidth,x=Math.max(-lane,Math.min(world.clientWidth-lane-b.offsetWidth,sway));b.style.transform='translate('+x+'px,'+y+'px)';if(progress>=1&&b.dataset.answer===words[index].definition)landed=true;});return landed;}
+        function positionTargets(time){const world=q('world'),duration=[15,11,8][Math.floor(index/8)];let landed=false;targets.forEach(b=>{if(b.disabled)return;const flight=b.flight,progress=Math.min(1,time*flight.rate/duration),end=Math.max(0,world.clientHeight-80-b.offsetHeight),start=Math.min(flight.start,Math.max(0,end-60)),sway=Math.sin(time*.85+flight.phase)*world.clientWidth*.055;const y=Math.max(0,start+progress*(end-start)+Math.sin(time*1.6+flight.phase)*10*(1-progress));const lane=parseFloat(b.style.left)/100*world.clientWidth,x=Math.max(-lane,Math.min(world.clientWidth-lane-b.offsetWidth,sway));b.style.transform='translate('+x+'px,'+y+'px)';if(progress>=1&&b.dataset.answer===words[index].definition)landed=true;});return landed;}
         function tick(now){if(dead||state!=='falling')return;const dt=Math.min((now-last)/1000,.1);elapsed+=dt*([1,1.4,1.85][speed-1]);last=now;turn((held.has('right')?1:0)-(held.has('left')?1:0),dt);const landed=positionTargets(elapsed);moveProjectiles(dt);if(state!=='falling')return;if(blasts===0&&projectiles.length===0)recharge();else if(landed)resolve(false);else raf=requestAnimationFrame(tick);}
         // The fireball center must cross the snowflake or answer label, not its padded box.
         // Sweeping the entire segment prevents tunneling even during a slow frame.
@@ -813,10 +819,10 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         function resolve(correct){if(state!=='falling')return;held.clear();clearProjectiles();state='feedback';cancelAnimationFrame(raf);q('pause').disabled=true;targets.forEach(b=>b.disabled=true);if(correct){blasts++;score+=100*rewardSpeed;status('Melted! +'+(100*rewardSpeed)+' points and +1 blast.');}else{score-=25;status('Missed! −25 points. Correct answer: '+words[index].definition);for(let i=0;i<12;i++){const ball=document.createElement('i');ball.style.left=(i%4)*30+'%';ball.style.top=Math.floor(i/4)*35+'%';ball.style.setProperty('--sx',(i%2?600:-600)+'px');ball.style.setProperty('--sy',(i%3? -450:450)+'px');ball.style.animationDelay=(i*.035)+'s';q('barrage').append(ball);}q('drift').style.bottom='-85%';}hud();if(score<=0){bury();return;}timer=setTimeout(()=>{timer=null;if(dead)return;index++;if(index===24){finish();return;}if(index%8===0){state='ready';panel('Round '+(Math.floor(index/8)+1),index===8?'Larger snow. Faster falling.':'Snowballs incoming! Stay sharp.','Ready — blast!',question);}else question();},correct?1350:2200);}
         function bury(){held.clear();clearProjectiles();state='buried';score=0;hud();cancelAnimationFrame(raf);clearTimeout(timer);q('pause').disabled=true;targets.forEach(b=>b.disabled=true);q('beam').hidden=true;q('barrage').replaceChildren();for(let i=0;i<12;i++){const ball=document.createElement('i');ball.style.left=(i%4)*30+'%';ball.style.top=Math.floor(i/4)*35+'%';ball.style.setProperty('--sx',(i%2?600:-600)+'px');ball.style.setProperty('--sy',(i%3?-450:450)+'px');ball.style.animationDelay=(i*.035)+'s';q('barrage').append(ball);}q('drift').style.bottom='0%';status('Out of heat! Zero points — game over.');timer=setTimeout(()=>{timer=null;if(!dead)finish();},1500);}
         async function saveScore(){if(dead||saving||submitted||!scoreUrl)return;saving=true;q('save').textContent='Saving your score…';try{const response=await fetch(scoreUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initials:board.dataset.initials,score,runId}),signal:abort.signal});const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not save score.');if(dead)return;submitted=true;q('save').textContent='Class leaderboard · Top 3';const list=document.createElement('ol');data.scores.forEach(entry=>{const li=document.createElement('li');li.textContent=entry.initials+' — '+entry.score+' points';list.append(li);});q('save').append(list);}catch(error){if(dead)return;q('save').textContent='Your score could not be saved. ';const b=document.createElement('button');b.textContent='Retry saving';b.onclick=saveScore;q('save').append(b);}finally{saving=false;}}
-        function finish(){clearProjectiles();state='over';cancelAnimationFrame(raf);q('pause').disabled=true;panel(score===0?'Snowed under! Game over':'All three rounds complete!',score===0?'Your score reached zero. Try again!':score+' points · 24 words.','View leaderboard',()=>{q('save').scrollIntoView({block:'nearest'});});status(score===0?'Game over. Your score reached zero.':'All three rounds complete!');if(scoreUrl)saveScore();else localBoard(true);}
+        function finish(){clearProjectiles();state='over';root.dataset.finished='true';cancelAnimationFrame(raf);q('pause').disabled=true;panel(score===0?'Snowed under! Game over':'All three rounds complete!',score===0?'Your score reached zero. Try again!':score+' points · 24 words.','View leaderboard',()=>{q('save').scrollIntoView({block:'nearest'});});status(score===0?'Game over. Your score reached zero.':'All three rounds complete!');if(scoreUrl)saveScore();else localBoard(true);}
         function pause(){held.clear();if(state==='falling'){state='paused';cancelAnimationFrame(raf);q('pause').textContent='Resume';panel('Paused','The snow is waiting.','Resume',resume);}else if(state==='paused')resume();}
         function resume(){if(dead)return;state='falling';q('panel').hidden=true;q('pause').textContent='Pause';last=performance.now();raf=requestAnimationFrame(tick);}
-        function key(e){if(['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)||e.target?.isContentEditable)return;const k=e.key;if(e.shiftKey||k==='Shift')held.add('fine');else held.delete('fine');if((k==='ArrowLeft'||k==='ArrowRight')&&state==='falling'){e.preventDefault();held.add(k==='ArrowLeft'?'left':'right');if(!e.repeat)turn(k==='ArrowLeft'?-1:1,.012);}if((e.code==='Space'||k===' ')&&state==='falling'){e.preventDefault();if(!e.repeat)fire();}if(['1','2','3'].includes(k)&&!e.repeat)setSpeed(Number(k));if(k.toLowerCase()==='p'&&!e.repeat){e.preventDefault();pause();}}
+        function key(e){if(e.target?.closest?.('#gameFullscreen,#gameRead,#gameBack,#gameAgain,dialog.game-reader')||['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)||e.target?.isContentEditable)return;const k=e.key;if(e.shiftKey||k==='Shift')held.add('fine');else held.delete('fine');if((k==='ArrowLeft'||k==='ArrowRight')&&state==='falling'){e.preventDefault();held.add(k==='ArrowLeft'?'left':'right');if(!e.repeat)turn(k==='ArrowLeft'?-1:1,.012);}if((e.code==='Space'||k===' ')&&state==='falling'){e.preventDefault();if(!e.repeat)fire();}if(['1','2','3'].includes(k)&&!e.repeat)setSpeed(Number(k));if(k.toLowerCase()==='p'&&!e.repeat){e.preventDefault();pause();}}
         function keyup(e){if(e.key==='Shift')held.delete('fine');if(e.key==='ArrowLeft')held.delete('left');if(e.key==='ArrowRight')held.delete('right');if(e.code==='Space'&&state==='falling')e.preventDefault();}
         function blur(){held.clear();if(state==='falling')pause();}
         function localBoard(save){let entries=[];try{const stored=JSON.parse(localStorage.getItem('penina-snowblaster-local-v2')||'[]');if(Array.isArray(stored))entries=stored.filter(x=>/^[A-Z]{1,3}$/.test(x.initials)&&Number.isInteger(x.score)&&x.score>=0&&x.score<=7400);}catch(_){}if(save&&!submitted){entries.push({initials:board.dataset.initials,score});submitted=true;}entries.sort((a,b)=>b.score-a.score);entries=entries.slice(0,3);let persisted=true;try{if(save)localStorage.setItem('penina-snowblaster-local-v2',JSON.stringify(entries));}catch(_){persisted=false;}q('save').textContent='Local leaderboard · This browser only'+(persisted?'':' · Storage unavailable; scores last for this session');const list=document.createElement('ol');entries.forEach(entry=>{const li=document.createElement('li');li.textContent=entry.initials+' — '+entry.score+' points';list.append(li);});q('save').append(list);if(!entries.length){const p=document.createElement('p');p.textContent='No scores yet. Enter your initials and play!';q('save').append(p);}}
@@ -824,7 +830,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         for(const direction of ['left','right']){const button=q(direction);button.onpointerdown=e=>{if(state!=='falling')return;e.preventDefault();button.setPointerCapture(e.pointerId);held.add(direction);};button.onpointerup=button.onpointercancel=button.onlostpointercapture=()=>held.delete(direction);button.onclick=e=>{if(e.detail===0&&state==='falling')turn(direction==='left'?-1:1,.012);};}
         // A label can scroll without spending a blast; a completed tap still aims and fires.
         q('world').onpointermove=e=>{if(state==='falling'&&e.pointerType==='mouse'&&!held.has('left')&&!held.has('right'))aimAt(e);};q('world').onclick=e=>{if(state!=='falling'||e.target.closest('.sb-panel'))return;aimAt(e);fire();};q('fire').onclick=fire;q('pause').onclick=pause;document.addEventListener('keydown',key);document.addEventListener('keyup',keyup);window.addEventListener('blur',blur);hud();speedUI();q('pause').disabled=true;
-        panel('Snowblaster!','Start with 2 blasts and 200 points. Each correct hit earns 1 blast. When you run out, answer the recharge card correctly to earn 1 blast and continue. Zero points means game over! Aim with ← / → or your mouse; hold Shift for fine aim. Fire with Space, click, or tap. Three rounds of eight words. Speed 1 / 2 / 3 earns 100 / 200 / 300 points per correct hit. Wrong hit −50; missed answer −25.','Start blasting',()=>{if(!/^[A-Z]{1,3}$/.test(board.dataset.initials||'')){if(!initials.reportValidity())return;board.dataset.initials=initials.value.trim().toUpperCase();}question();});
+        panel('Snowblaster!','You have 2 blasts. Aim with the arrows or mouse. Press Space, click, or tap to fire. Each correct hit earns another blast.','Start blasting',()=>{if(!/^[A-Z]{1,3}$/.test(board.dataset.initials||'')){if(!initials.reportValidity())return;board.dataset.initials=initials.value.trim().toUpperCase();}question();});
         let initials;if(!/^[A-Z]{1,3}$/.test(board.dataset.initials||'')){const label=document.createElement('label');label.textContent='Your initials (1–3 letters)';initials=document.createElement('input');initials.maxLength=3;initials.pattern='[A-Za-z]{1,3}';initials.required=true;initials.autocomplete='off';initials.setAttribute('aria-label','Your initials (1–3 letters)');label.append(initials);q('panel').append(label);initials.focus();}if(!scoreUrl)localBoard(false);
         return ()=>{dead=true;cancelAnimationFrame(raf);clearTimeout(timer);clearTimeout(shotTimer);clearProjectiles();held.clear();abort.abort();document.removeEventListener('keydown',key);document.removeEventListener('keyup',keyup);window.removeEventListener('blur',blur);};
     }
@@ -834,7 +840,95 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         const dialog = byId('gamesDialog'), board = byId('gameBoard'), feedback = byId('gameFeedback');
         const title = byId('gameTitle'), progress = byId('gameProgress'), next = byId('gameNext');
         const surface = byId('gameSurface');
-        mountGameFullscreen(byId('gameFullscreen'), surface);
+        const fullscreen = byId('gameFullscreen'), again = byId('gameAgain'), back = byId('gameBack');
+        const windowActions = fullscreen.parentElement, brand = back.parentElement, footer = again.parentElement;
+        mountGameFullscreen(fullscreen, surface);
+        const reader = byId('gameReader'), read = byId('gameRead'), statusBar = byId('gameStatus');
+        const showReader = mountGameReader(reader);
+        const readingFields = {
+            quiz: '.game-term,.game-options button',
+            lines: '.game-tile-copy', cards: '.game-tile-copy',
+            chomp: '.word,.choices button,.dialog .feedback,.recap',
+            flappy: '#fv-clue,#fv-world:has(#fv-overlay[hidden]) .answer,#fv-overlay p,#fv-feedback',
+            snowblaster: '.sb-prompt,.sb-world:has(.sb-panel[hidden]) .sb-target:not(.melt) span,.sb-panel p,.sb-recharge button,.sb-status'
+        };
+        let stopReading = null;
+        function mountReading(game, bar) {
+            const selector = readingFields[game];
+            const fields = () => [...board.querySelectorAll(selector)].filter(node =>
+                node.clientHeight && getComputedStyle(node).visibility === 'visible');
+            let readingQuestion = null;
+            function measure() {
+                if (reader.open && readingQuestion && !readingQuestion.isConnected) reader.close();
+                read.hidden = !fields().some(node => node.scrollHeight > node.clientHeight + 1 || node.scrollWidth > node.clientWidth + 1);
+            }
+            function containsField(node) {
+                return node.nodeType === 1 && (node.matches(selector) || node.querySelector(selector));
+            }
+            // A refreshed question, reveal or answer can change which text needs the reader.
+            const observer = new MutationObserver(records => {
+                for (const record of records) {
+                    if (record.target.closest(selector) || (record.type === 'attributes' && containsField(record.target)) ||
+                        [...record.addedNodes, ...record.removedNodes].some(containsField)) {
+                        measure();
+                        break;
+                    }
+                }
+            });
+            observer.observe(board, {subtree:true, childList:true, attributes:true, attributeFilter:['hidden']});
+            const resize = new ResizeObserver(measure);
+            resize.observe(board);
+            board.addEventListener('load', measure, true);
+            let resume = null;
+            function returnToPlay() {
+                if (resume?.textContent === 'Resume') resume.click();
+                resume = null; readingQuestion = null;
+            }
+            reader.addEventListener('close', returnToPlay);
+            read.textContent = ['cards','lines'].includes(game) ? 'Read board' : 'Read full card';
+            read.onclick = () => {
+                const visible = fields();
+                if (game === 'quiz' || game === 'lines' || game === 'cards') readingQuestion = visible[0];
+                const content = visible.map(field => {
+                    const row = element('div', undefined, 'game-reading-item');
+                    row.dir = field.dir || 'auto';
+                    row.append(...Array.from(field.childNodes, child => child.cloneNode(true)));
+                    return row;
+                });
+                const pause = board.querySelector('#fv-pause,.sb-pause');
+                if (pause && !pause.disabled && pause.textContent === 'Pause') {
+                    pause.click();
+                    resume = pause;
+                }
+                showReader(read.textContent, content);
+            };
+            bar.append(read);
+            measure();
+            return () => {
+                observer.disconnect(); resize.disconnect();
+                board.removeEventListener('load', measure, true);
+                reader.removeEventListener('close', returnToPlay);
+                if (reader.open) reader.close();
+                read.onclick = null; read.hidden = true;
+                statusBar.append(read);
+            };
+        }
+        function restoreNavigation() {
+            stopReading?.(); stopReading = null;
+            delete surface.dataset.playing;
+            windowActions.prepend(fullscreen);
+            footer.append(again);
+            brand.append(back);
+        }
+        function placeNavigation(game) {
+            const controls = {asteroids:'.asteroids-corner',chomp:'.controls',flappy:'.actions',snowblaster:'.sb-controls'};
+            const target = controls[game] && board.querySelector(controls[game]);
+            const bar = target || statusBar;
+            surface.dataset.playing = game;
+            if (readingFields[game]) stopReading = mountReading(game, bar);
+            bar.append(fullscreen);
+            (board.querySelector('.asteroids-actions') || footer).append(again, back);
+        }
         const language = byId('gameLanguage');
         const shuffle = values => {
             const result = values.slice();
@@ -852,11 +946,11 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         function mistake(text='Try again', onDismiss){
             doc.getElementById('gameMistake')?.remove();
             const overlay=element('div',undefined,'game-mistake');overlay.id='gameMistake';overlay.setAttribute('role','alert');
-            overlay.append(element('span','×'),element('strong',text));surface.append(overlay);locked=true;
+            overlay.append(element('span','×'),element('strong',text));board.append(overlay);locked=true;
             later(()=>{overlay.remove();locked=false;onDismiss?.();},800);
         }
 
-        const labels = { quiz: 'Multiple Choice', lines: 'Connect the Words', cards: 'Match the Cards', asteroids: 'Vocabulary Asteroids', chomp: 'Chomp & Charge', flappy: 'Flappy Vocab', snowblaster: 'Snowblaster!' };
+        const labels = { quiz: 'Quick Quiz', lines: 'Connect the Words', cards: 'Match the Cards', asteroids: 'Vocabulary Asteroids', chomp: 'Chomp & Charge', flappy: 'Flappy Vocab', snowblaster: 'Snowblaster!' };
         function element(tag, text, className) {
             const node = doc.createElement(tag);
             if (text !== undefined) node.textContent = text;
@@ -1094,13 +1188,15 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         }
         async function prepare(value) {
             if (matchingActive) return;
+            restoreNavigation();
             stopPending();stopAsteroids?.();stopAsteroids=null;clearSelection();mode=value;
             byId('gameBack').hidden=false;
-            byId('gameClose').hidden=value==='asteroids';
+            byId('gameClose').hidden=true;
+            dialog.setAttribute('aria-labelledby','lobbyTitle');
             byId('gameLobby').dataset.mode=value;
             byId('gameMenu').hidden=true;byId('gamePlay').hidden=true;byId('gameLobby').hidden=false;
             const heading=byId('lobbyTitle'),scores=byId('lobbyScores'),note=byId('lobbyNote');
-            byId('lobbyHelp').textContent=value==='cards'?'Each round shows up to six terms. Match each term with its definition. Continue until every word is matched once. Three incorrect matches end the game.':value==='asteroids'?'There are 3 rounds: asteroids, pursuing Martians, then enemy ships.':value==='flappy'?'Choose a bird, flap through the correct answers, and earn a place in the top three. Three rounds of five words, with three lives total.':value==='snowblaster'?'Start with 2 blasts. Each correct hit earns 1 blast. When you run out, answer a recharge card correctly to earn 1 blast. Aim with the arrow keys and fire with Space. Speed 1 / 2 / 3 earns 100 / 200 / 300 points; wrong blasts lose 50 points. Play three rounds of eight words: snowflakes, heavy snow, and snowballs. Missed correct answers lose 25 points. Start with 200; zero means game over.':value==='chomp'?'Clear the maze, dodge ghosts, and power up with your vocabulary.':'';
+            byId('lobbyHelp').textContent=value==='cards'?'Each round shows up to six terms. Match each term with its definition. Continue until every word is matched once. Three incorrect matches end the game.':value==='asteroids'?'There are 3 rounds: asteroids, pursuing Martians, then enemy ships.':value==='flappy'?'Choose a bird, flap through the correct answers, and earn a place in the top three. Three rounds of five words, with three lives total.':value==='snowblaster'?'Start with 2 blasts. Each correct hit earns 1 blast. When you run out, answer a recharge card correctly to earn 1 blast. Aim with the arrow keys or mouse. Hold Shift for fine aim. Press Space, click, or tap to fire. Speed 1 / 2 / 3 earns 100 / 200 / 300 points; wrong blasts lose 50 points. Play three rounds of eight words: snowflakes, heavy snow, and snowballs. Missed correct answers lose 25 points. Start with 200; zero means game over.':value==='chomp'?'Clear the maze, dodge ghosts, and power up with your vocabulary.':'';
             heading.textContent=labels[value];scores.replaceChildren();
             const ranked=value==='cards'||value==='asteroids'||value==='flappy'||value==='snowblaster';
             byId('lobbyRankingTitle').hidden=!ranked;
@@ -1130,37 +1226,37 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             stopPending();stopAsteroids?.(); stopAsteroids = null;
             matchingRunId=typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
             mastered=new Set();startedAt=performance.now();finishedMs=0;totalTerms=groups[language.value].length;
-            matchingActive = value === 'cards'; matchingMistakes = 0; byId('gameAgain').hidden = matchingActive;
+            matchingActive = value === 'cards'; matchingMistakes = 0; again.hidden = false;
             cardRound = 1; mode = value; rows = scheduleClassTerms(groups[language.value]);totalTerms=rows.length; offset = score = attempts = 0;
             byId('gameMenu').hidden = true; byId('gamePlay').hidden = false;
             title.textContent = labels[mode];
             if (mode === 'snowblaster') {
                 next.hidden=true;message('');progress.textContent='';byId('gameHelp').textContent='';
-                stopAsteroids=mountSnowblaster({board,rows});return;
-            }
-            if (mode === 'flappy') {
+                stopAsteroids=mountSnowblaster({board,rows});
+            } else if (mode === 'flappy') {
                 next.hidden=true;message('');progress.textContent='';byId('gameHelp').textContent='';
-                stopAsteroids=mountFlappy({board,rows});return;
-            }
-            if (mode === 'chomp') {
+                stopAsteroids=mountFlappy({board,rows});
+            } else if (mode === 'chomp') {
                 next.hidden = true; message(''); progress.textContent = '';
                 byId('gameHelp').textContent = '';
                 stopAsteroids = mountChomp({ board, rows });
-                return;
-            }
-            if (mode === 'asteroids') {
+            } else if (mode === 'asteroids') {
                 board.replaceChildren(); next.hidden = true; message('');
                 byId('gameHelp').textContent = 'Each correct answer refills 10 shots and 5 jet bursts. After five thrust presses, answer a new question. There are 3 rounds: asteroids, pursuing Martians, then enemy ships. Hits cost 150 points; wrong answers cost 25. Zero points means game over.';
-                stopAsteroids = mountAsteroids({ board, rows, createEngine: createAsteroids, setFeedback: message, setProgress: text => { if (progress.textContent !== text) progress.textContent = text; } });
-                return;
-            }
-            byId('gameHelp').textContent = mode === 'quiz' ? 'You have two chances. Miss twice and the term returns later.' : mode === 'lines'
+                stopAsteroids = mountAsteroids({ board, rows, createEngine: createAsteroids, showReader, setFeedback: message, setProgress: text => { if (progress.textContent !== text) progress.textContent = text; } });
+            } else {
+                byId('gameHelp').textContent = mode === 'quiz' ? 'You have two chances. Miss twice and the term returns later.' : mode === 'lines'
                 ? 'Match every term; extra definitions will remain unused. Drag from the dot inside a term oval to the dot inside its definition oval. You can also click or use Tab and Enter to select each pair.'
                 : 'Each round shows up to six terms. Match the words in each round; emphasized lists return more often; correct pairs pop away. Three incorrect matches across the entire game end the game. Extra definitions will remain unused. Race the clock!';
-            if(mode==='cards')timer=setInterval(updateProgress,100);
-            render();
+                if(mode==='cards')timer=setInterval(updateProgress,100);
+                render();
+            }
+            placeNavigation(mode);
+            dialog.setAttribute('aria-labelledby','gameTitle');
         }
         function menu() {
+            restoreNavigation();
+            dialog.setAttribute('aria-labelledby','gamesTitle');
             matchingActive = false;
             stopAsteroids?.(); stopAsteroids = null;
             stopPending();mode = ''; clearSelection(); board.replaceChildren(); drag = null;
@@ -1173,7 +1269,11 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             option.value = value; language.append(option);
         });
         dialog.querySelectorAll('[data-game]').forEach(node => { node.onclick = () => prepare(node.dataset.game); });
-        byId('gameAgain').onclick = () => prepare(mode);
+        again.onclick = () => {
+            // An explicit replay abandons the current timed run before returning to its lobby.
+            matchingActive = false;
+            prepare(mode);
+        };
         byId('gameBack').onclick = menu;
         byId('gameClose').onclick = () => dialog.close();
         byId('gamify').onclick = () => { menu(); dialog.showModal(); };
@@ -1229,15 +1329,15 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
 @media(max-width:540px){
  #gamesDialog .asteroids-options{grid-template-rows:repeat(6,64px)}
 }
-#gameLobby[data-mode="asteroids"]{margin:8px auto}
-#gameLobby[data-mode="asteroids"] :is(h2,h3,p,ol){margin:4px 0}
-#gameLobby[data-mode="asteroids"] li{padding:3px;font-size:16px}
-#gameLobby[data-mode="asteroids"] .game-launch{margin-top:6px}
+#gameLobby[data-mode]{margin:8px auto}
+#gameLobby[data-mode] :is(h2,h3,p,ol){margin:4px 0}
+#gameLobby[data-mode] li{padding:3px;font-size:16px}
+#gameLobby[data-mode] .game-launch{margin-top:6px}
 @media(max-height:560px){
- #gamesDialog:has(#gameLobby[data-mode="asteroids"]:not([hidden])){box-sizing:border-box;height:100vh;height:100dvh;max-height:100dvh;padding:4px 8px}
- #gameSurface:has(#gameLobby[data-mode="asteroids"]:not([hidden])) .games-brand{display:flex;align-items:center}
- #gameLobby[data-mode="asteroids"]{max-width:700px;line-height:1.1}
- #gameLobby[data-mode="asteroids"] li{display:inline-block;padding:3px 8px}
+ #gamesDialog:has(#gameLobby[data-mode]:not([hidden])){box-sizing:border-box;height:100vh;height:100dvh;max-height:100dvh;padding:4px 8px}
+ #gameSurface:has(#gameLobby[data-mode]:not([hidden])) .games-brand{display:flex;align-items:center}
+ #gameLobby[data-mode]{max-width:700px;line-height:1.1}
+ #gameLobby[data-mode] li{display:inline-block;padding:3px 8px}
 }
 /* Asteroids keeps the flight controls and navigation in view while the arena takes the remaining height. */
 #gamesDialog:has(>.asteroids-active:not(.game-fullscreen)){box-sizing:border-box;height:94vh;height:94dvh;max-height:100dvh;padding:clamp(6px,1.5vmin,16px);overflow:hidden;scrollbar-gutter:auto}
@@ -1301,9 +1401,217 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
  .asteroids-active .asteroids-options{grid-column:2;grid-row:1 / -1}
  .asteroids-active .asteroids-term,.asteroids-active .asteroids-result,.asteroids-active .asteroids-continue{grid-column:1}
 }
+/* Keep the active board and its controls within one viewport. The menu and rules live outside play. */
+#gameStatus{display:contents}
+.game-board>.game-mistake{position:absolute}
+#gamesDialog:has(>[data-playing]:not(.game-fullscreen)){box-sizing:border-box;height:94vh;height:94dvh;max-height:100dvh;padding:clamp(6px,1.5vmin,16px);overflow:hidden;scrollbar-gutter:auto}
+#gameSurface[data-playing]:not(.asteroids-active),#gameSurface[data-playing]:not(.asteroids-active) #gamePlay{box-sizing:border-box;height:100%;min-height:0;display:flex;flex-direction:column;gap:4px}
+#gameSurface[data-playing] .games-heading{display:none}
+#gameSurface[data-playing] #gameTitle{margin:0;font-size:clamp(17px,2.7vmin,24px);line-height:1.15}
+#gameSurface[data-playing] #gameBoard{flex:1;min-height:0;margin:0}
+#gameSurface[data-playing] #gameHelp{margin:0;font-size:13px;line-height:1.2}
+#gameSurface[data-playing] :is(#gameHelp,#gameProgress):empty{display:none}
+#gameSurface[data-playing] #gameProgress:not(:empty){height:2.45em;margin:0;font-size:14px;line-height:1.2;font-variant-numeric:tabular-nums}
+#gameSurface[data-playing] .game-footer{margin:0;justify-content:flex-start;align-items:center;gap:6px;flex-wrap:nowrap}
+#gameSurface[data-playing] :is(#gameAgain,#gameBack,#gameNext,#gameFullscreen,#gameRead){width:auto;min-height:36px;margin:0;padding:4px 9px;font:650 14px/1.15 system-ui;border-radius:8px}
+#gameSurface[data-playing] #gameFullscreen{margin-inline-start:auto;background:#28203b;color:white;border:1px solid #a89bbc;white-space:nowrap}
+#gameSurface[data-playing].game-fullscreen:not(.asteroids-active){padding:max(4px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));overflow:hidden}
+#gameSurface[data-playing].game-fullscreen :is(#gameTitle,#gameHelp,.game-footer){display:none}
+#gameSurface[data-playing]:has(:is(#chomp-game,#fv-demo,.sb)) :is(#gameTitle,#gameStatus){display:none}
+#gameSurface:is([data-playing=quiz],[data-playing=cards],[data-playing=lines]) #gameBoard{overflow:auto;overscroll-behavior:contain}
+#gameSurface:is([data-playing=quiz],[data-playing=cards],[data-playing=lines]) #gameStatus{display:flex;align-items:center;gap:6px}
+#gameSurface[data-playing] #gameStatus .game-feedback{flex:1;min-width:0;height:2.45em;min-height:0;margin:0;font-size:14px;line-height:1.2}
+#gameSurface[data-playing] #gameBoard:has(>.game-options){display:grid;grid-template-rows:minmax(0,1fr) minmax(0,2fr);gap:6px}
+#gameSurface[data-playing] #gameBoard>h3.game-term{height:auto;min-height:0;margin:0;align-content:safe center}
+#gameSurface[data-playing] .game-options{min-height:0;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none;grid-auto-rows:minmax(0,1fr);align-content:stretch;gap:6px}
+#gameSurface[data-playing] .game-options .game-tile{box-sizing:border-box;height:auto;min-height:0}
+#gameSurface[data-playing] :is(.game-columns,.game-card-grid){height:100%;min-height:0}
+#gameSurface[data-playing] .game-card-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:5px}
+#gameSurface[data-playing] .game-columns{grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(24px,5vw,60px)}
+#gameSurface[data-playing] .game-column{min-height:0;grid-template-rows:auto;grid-auto-rows:minmax(0,1fr);align-content:stretch;gap:3px}
+#gameSurface[data-playing] .game-column h3{font-size:16px;line-height:1.1}
+#gameSurface[data-playing] :is(.game-column,.game-card-grid) .game-tile{box-sizing:border-box;height:auto;min-height:0;min-width:0;margin:0;padding:3px 6px;overflow:hidden}
+#gameSurface[data-playing] .game-column .game-term{padding-right:26px}
+#gameSurface[data-playing] .game-column .game-definition{padding-left:26px}
+#gameSurface[data-playing] .game-dot{width:14px;height:14px}
+#gameSurface[data-playing] .game-tile-copy{scrollbar-gutter:auto;font-size:clamp(15px,2.35vmin,21px);line-height:1.18}
+#gameSurface[data-playing] :is(.game-term,.game-tile-copy) .study-picture img{max-width:100%}
+
+#gamesDialog #chomp-game,#gamesDialog #fv-demo,#gamesDialog #fv-demo .game,#gamesDialog .sb{box-sizing:border-box;width:100%;max-width:none;height:100%;min-height:0;margin:0;display:flex;flex-direction:column}
+#gamesDialog :is(#chomp-game,#fv-demo,.sb) button{min-height:32px}
+#gamesDialog #chomp-game header,#gamesDialog #chomp-game .stats,#gamesDialog #chomp-game .power-status,#gamesDialog #chomp-game .energy{margin:0;padding:2px 8px;gap:2px 8px}
+#gamesDialog #chomp-game header .eyebrow,#gamesDialog #fv-demo .header{display:none}
+#gamesDialog #chomp-game header h2{margin:0;font-size:18px}
+#gamesDialog #chomp-game .energy-label{margin:0}
+#gamesDialog #chomp-game .arena{flex:1;min-height:0;height:auto;display:block}
+#gamesDialog #chomp-game canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#gamesDialog #chomp-game .shade{position:absolute;inset:0;height:auto;padding:4px;min-height:0;overflow:hidden;align-items:stretch}
+#gamesDialog #chomp-game .dialog{box-sizing:border-box;min-height:0;height:100%;max-width:780px;padding:4px 8px;display:flex;flex-direction:column;justify-content:safe center;gap:3px}
+#gamesDialog #chomp-game .dialog:has(.choices:not([hidden])){display:grid;justify-content:stretch;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) minmax(0,2fr)}
+#gamesDialog #chomp-game .word,#gamesDialog #chomp-game .feedback{height:auto;min-height:0;margin:0}
+#gamesDialog #chomp-game .choices{min-height:0;grid-template-rows:none;grid-auto-rows:minmax(0,1fr);gap:4px}
+#gamesDialog #chomp-game .choices button{height:auto;min-height:0;padding:3px}
+#gamesDialog #chomp-game .dialog :is(.feedback,.eyebrow):empty{display:none}
+#gamesDialog #chomp-game .controls{order:1;margin:0;padding:3px 6px;gap:4px;flex-wrap:nowrap}
+#gamesDialog #chomp-game .pad{gap:3px}
+#gamesDialog #chomp-game .pad button{padding:4px 8px}
+#gamesDialog #chomp-game .legend{margin:0;padding:2px 8px;font-size:12px}
+
+#gamesDialog #fv-demo .game{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto clamp(48px,11dvh,110px) minmax(0,1fr) auto auto auto auto auto}
+#gamesDialog #fv-demo .game>*{grid-column:1/-1;min-width:0}
+#gamesDialog #fv-demo .hud{grid-column:1;padding:2px 6px;align-items:center;justify-content:flex-start;gap:8px}
+#gamesDialog #fv-demo .hud>div{display:flex;align-items:center;gap:4px}
+#gamesDialog #fv-demo .score,#gamesDialog #fv-demo .hearts{font-size:16px;line-height:1}
+#gamesDialog #fv-demo .toolbar{grid-column:2;padding:2px 6px;gap:5px}
+#gamesDialog #fv-demo .clue{height:auto;min-height:0;display:flex;flex-direction:column;padding:2px 8px}
+#gamesDialog #fv-clue{flex:1;height:auto;min-height:0;margin:0;font-size:clamp(16px,2.6vmin,24px);line-height:1.15}
+#gamesDialog #fv-world{height:auto;min-height:0}
+#gamesDialog #fv-demo :is(.a,.b,.c){height:28.4404%;overflow:auto}
+#gamesDialog #fv-demo .b{top:35.7798%}
+#gamesDialog #fv-demo .c{top:71.5596%}
+#gamesDialog #fv-demo :is(.p2,.p3){height:7.3394%}
+#gamesDialog #fv-demo .p2{top:28.4404%}
+#gamesDialog #fv-demo .p3{top:64.2202%}
+#gamesDialog #fv-demo .aim-a{top:14.2202%}
+#gamesDialog #fv-demo .aim-b{top:50%}
+#gamesDialog #fv-demo .aim-c{top:85.7798%}
+#gamesDialog #fv-demo .overlay{padding:4px 10px;gap:4px}
+#gamesDialog #fv-demo .overlay :is(h2,p){margin:0}
+#gamesDialog #fv-demo .overlay p,#gamesDialog #chomp-game .recap,#gamesDialog #chomp-game .dialog .feedback{min-height:0;overflow:auto;overscroll-behavior:contain}
+#gamesDialog #fv-demo .overlay button,#gamesDialog #chomp-game #cc-continue{flex:none}
+#gameSurface:not(.game-fullscreen) :is(#chomp-game[data-finished] #cc-continue,#fv-demo[data-finished] .overlay button){display:none}
+#gamesDialog #fv-demo .feedback{height:2.55em;min-height:0;padding:1px 6px;line-height:1.2;overflow:auto}
+#gamesDialog #fv-demo .actions button{flex:none}
+#gamesDialog #fv-demo #gameRead[hidden]{display:inline-flex!important;visibility:hidden}
+#gameSurface.game-fullscreen #fv-demo .rules,#gameSurface.game-fullscreen #fv-demo:not([data-finished]) .submitted,#gameSurface.game-fullscreen .sb:not([data-finished]) .sb-save{display:none}
+#gamesDialog #fv-demo .actions{grid-row:9;margin:0;padding:3px 6px;justify-content:flex-start;gap:4px;flex-wrap:nowrap}
+#gamesDialog #fv-demo .rules,#gamesDialog #fv-demo .submitted{padding:1px 6px;line-height:1.15}
+#gamesDialog #fv-demo .rules summary{min-height:0}
+#gamesDialog #fv-demo .submitted{overflow-wrap:anywhere}
+#gamesDialog #fv-demo .bird-choice{min-height:30px}
+#gamesDialog #fv-demo .bird-picker{padding:1px 6px}
+
+#gamesDialog .sb header{padding:3px 8px;gap:3px 9px;font-size:14px}
+#gamesDialog .sb .sb-prompt{height:clamp(40px,10dvh,96px);min-height:0;margin:0;padding:2px 8px;font-size:clamp(17px,2.8vmin,24px);line-height:1.15}
+#gamesDialog .sb .sb-world{flex:1;min-height:0;height:auto}
+#gamesDialog .sb .sb-controls{order:1;padding:3px 6px;gap:4px;flex-wrap:nowrap}
+#gamesDialog .sb .sb-controls button{padding:4px 6px}
+#gamesDialog .sb .sb-controls .sb-reward{margin:0;font-size:12px}
+#gamesDialog .sb .sb-status{height:2.55em;min-height:0;font-size:13px;line-height:1.2;padding:1px 6px}
+#gamesDialog .sb .sb-save{padding:2px 6px;font-size:13px;line-height:1.2}
+#gamesDialog .sb .sb-save:empty{display:none}
+#gamesDialog .sb .sb-save :is(p,ol){margin:0}
+#gamesDialog .sb .sb-save li{display:inline-block;margin-inline-end:10px}
+#gamesDialog .sb .sb-panel{box-sizing:border-box;align-content:safe center;overflow:auto;padding:4px 8px}
+#gamesDialog .sb .sb-panel :is(h3,p){margin:2px 0}
+#gamesDialog .sb .sb-recharge .asteroids-question{box-sizing:border-box;display:grid;grid-template-rows:auto minmax(0,1fr) auto minmax(0,2fr) auto;gap:2px;height:100%;min-height:0;padding:4px}
+#gamesDialog .sb .sb-recharge .asteroids-term{height:auto;min-height:0;font-size:18px;margin:0}
+#gamesDialog .sb .sb-recharge .asteroids-options{min-height:0;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none;grid-auto-rows:minmax(0,1fr);gap:3px}
+#gamesDialog .sb .sb-recharge .asteroids-options button{height:auto;min-height:0;padding:2px;font-size:15px}
+#gamesDialog .sb .sb-recharge .asteroids-result{height:auto;margin:0;font-size:13px}
+
+@media(max-width:700px),(max-height:560px){
+ #gamesDialog:has(>[data-playing]:not(.game-fullscreen)){width:100%;max-width:none;height:100vh;height:100dvh;margin:0;border-radius:0}
+ #gamesDialog #chomp-game .hint{display:none}
+ #gamesDialog #fv-demo .toolbar .bonus{display:none}
+ #gamesDialog #fv-demo .actions{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:3px}
+ #gamesDialog #fv-demo .actions button{min-width:0;min-height:34px;padding:3px 5px;font:650 13px/1.1 system-ui;white-space:normal}
+ #gamesDialog #fv-demo .actions #gameFullscreen{grid-column:4;justify-self:end}
+ #gamesDialog #fv-demo .speeds{gap:3px}
+ #gamesDialog #fv-demo .speeds button{padding:3px 6px}
+ #gamesDialog #fv-demo .hud{gap:4px}
+ #gamesDialog #fv-demo .bird-preview{height:28px}
+ #gamesDialog #fv-demo .bird-preview .bird{top:-13px;transform:scale(.45)}
+ #gamesDialog .sb .sb-controls{flex-wrap:wrap}
+ #gamesDialog .sb .sb-controls .sb-reward{display:none}
+ #gamesDialog .sb .sb-aim-controls,#gamesDialog .sb .sb-speeds{gap:2px}
+}
+@media(orientation:landscape) and (max-height:560px){
+ #gameSurface[data-playing]:not(.asteroids-active) #gamePlay{gap:2px}
+ #gameSurface[data-playing] #gameTitle{font-size:15px}
+ #gameSurface[data-playing] #gameBoard:has(>.game-options){grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);grid-template-rows:minmax(0,1fr)}
+ #gameSurface[data-playing] .game-card-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+ #gameSurface[data-playing] .game-tile-copy{font-size:14px}
+ #gamesDialog #chomp-game header h2{font-size:14px;line-height:1.12}
+ #gamesDialog #chomp-game .stats{font-size:12px;line-height:1.12}
+ #gamesDialog #cc-pause{min-height:28px;padding:2px 6px}
+ #gamesDialog #chomp-game .energy-label,#gamesDialog #chomp-game .power-status,#gamesDialog #chomp-game .legend{font-size:11px;line-height:1.1}
+ #gamesDialog #chomp-game .dialog:has(.choices:not([hidden])){grid-template-columns:minmax(0,1fr) minmax(0,1.65fr);grid-template-rows:auto minmax(0,1fr)}
+ #gamesDialog #chomp-game .choices{grid-column:2;grid-row:1 / -1}
+ #gamesDialog #fv-demo .bird-preview{display:none}
+ #gamesDialog #fv-demo .overlay :is(h2,.big),#gamesDialog .sb .sb-panel h3{font-size:18px}
+ #gamesDialog #fv-demo .game{grid-template-rows:auto auto 36px minmax(0,1fr) auto auto auto auto auto}
+ #gamesDialog #fv-demo .feedback,#gamesDialog .sb .sb-status{height:1.35em}
+ #gamesDialog .sb .sb-target{min-height:0;height:30%;padding:0!important}
+ #gamesDialog .sb .sb-target span{max-height:100%}
+}
+#gamesDialog .game-menu-options{margin-top:10px;gap:8px}
+#gamesDialog .game-menu-options button{min-height:clamp(62px,11dvh,125px);padding:clamp(6px,1.5vmin,15px)!important;gap:4px}
+#gameReader .game-reading-item{margin:0 0 8px;white-space:pre-wrap}
+#gameReader .asteroids-pages img{max-width:100%;max-height:40dvh;object-fit:contain}
+@media(max-width:600px) and (orientation:portrait){
+ #gamesDialog .sb .sb-controls{display:grid;grid-template-columns:minmax(0,1fr) auto}
+ #gamesDialog .sb-controls #gameRead{grid-column:1;justify-self:start}
+ #gamesDialog .sb-controls #gameFullscreen{grid-column:2;grid-row:2;justify-self:end}
+}
+@media(max-width:400px){
+ #gamesDialog #chomp-game .pad{gap:2px}
+ #gamesDialog #chomp-game .pad button{padding:2px 5px}
+ #gameSurface[data-playing] :is(#gameRead,#gameFullscreen){font-size:13px;padding-inline:6px}
+}
+/* On a short screen, give the playing field the full height beside its instruments. */
+@media(orientation:landscape) and (max-height:560px){
+ #gamesDialog #chomp-game,#gamesDialog #fv-demo .game,#gamesDialog .sb{
+  display:grid;grid-template-columns:minmax(135px,29%) minmax(0,1fr);column-gap:4px
+ }
+ #gamesDialog #chomp-game{grid-template-rows:auto auto auto minmax(0,1fr) auto auto}
+ #gamesDialog #chomp-game>*{grid-column:1;min-width:0}
+ #gamesDialog #chomp-game .arena{grid-column:2;grid-row:1/6;margin:0}
+ #gamesDialog #chomp-game .controls{grid-column:1/-1;grid-row:6}
+ #gamesDialog #fv-demo .game{grid-template-rows:auto auto auto minmax(0,1fr) auto auto auto auto auto}
+ #gamesDialog #fv-demo .game>*{grid-column:1}
+ #gamesDialog #fv-demo .toolbar{grid-column:1}
+ #gamesDialog #fv-demo .clue{min-height:0;height:auto}
+ #gamesDialog #fv-demo #fv-world{grid-column:2;grid-row:1/9}
+ #gamesDialog #fv-demo .actions{grid-column:1/-1}
+ #gamesDialog #fv-demo .bird-options{gap:2px}
+ #gamesDialog #fv-demo .bird-name{font-size:11px}
+ #gamesDialog .sb{grid-template-rows:auto minmax(0,1fr) auto auto auto}
+ #gamesDialog .sb>*{grid-column:1;min-width:0}
+ #gamesDialog .sb .sb-prompt{height:auto}
+ #gamesDialog .sb .sb-world{grid-column:2;grid-row:1/5}
+ #gamesDialog .sb .sb-controls{grid-column:1/-1;grid-row:5}
+}
+@media(max-width:700px),(max-height:800px){
+ #gamesDialog:has(#gameMenu:not([hidden])),#gamesDialog:has(#gameLobby:not([hidden])){box-sizing:border-box;width:100%;max-width:none;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;margin:0;padding:6px 8px}
+ #gameSurface:has(#gameMenu:not([hidden])) .games-heading,#gameSurface:has(#gameLobby:not([hidden])) .games-heading{gap:4px}
+ #gamesDialog .game-menu-intro{display:none}
+ #gamesDialog .game-menu-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:6px}
+ #gamesDialog .game-menu-options button{min-height:42px;padding:5px 8px!important;gap:2px}
+ #gamesDialog .game-menu-options strong{font-size:16px}
+ #gamesDialog .game-menu-options small{font-size:12px;line-height:1.15}
+ #gamesDialog .game-icon{font-size:19px}
+ #gamesDialog #gameLobby[data-mode]{margin:3px auto}
+ #gamesDialog #gameLobby[data-mode] p{font-size:14px;line-height:1.2}
+}
+@media(max-width:420px) and (max-height:700px){
+ #gamesDialog .game-menu-options .game-icon{display:none}
+}
+@media(max-height:560px){
+ #gamesDialog .game-menu-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #gamesDialog .game-menu-options button{min-height:38px;align-items:center;justify-content:center}
+ #gamesDialog .game-menu-options :is(small,.game-icon){display:none}
+ #gamesDialog #gameLobby[data-mode] :is(h2,h3,p,ol){margin:2px 0}
+ #gamesDialog #gameLobby[data-mode] :is(h2,h3){font-size:18px}
+ #gamesDialog #gameLobby[data-mode] .game-launch{min-height:34px;margin-top:3px}
+}
 </style>
-<dialog id="gamesDialog" class="games-dialog" aria-labelledby="gamesTitle"><div id="gameSurface"><div class="games-heading"><div class="games-brand"><h2 id="gamesTitle">Gamify!</h2><button id="gameBack" type="button" hidden>Choose another game</button></div><div class="games-window-actions"><button id="gameFullscreen" type="button">Full screen</button><button id="gameClose" type="button">Close</button></div></div><section id="gameMenu"><p class="game-menu-intro">Choose your challenge. Build your skills. Beat your best.</p><label>Answer language <select id="gameLanguage"></select></label><div class="game-menu-options"><button type="button" data-game="quiz"><span class="game-icon">⚡</span><strong>Quick Quiz</strong><small>Trust your knowledge. Find the right definition.</small></button><button type="button" data-game="lines"><span class="game-icon">🔗</span><strong>Connect the Words</strong><small>Draw the connections. Outsmart the distractors.</small></button><button type="button" data-game="cards"><span class="game-icon">🧩</span><strong>Match the Cards</strong><small>Find every pair. Leave the decoys behind.</small></button><button type="button" data-game="asteroids"><span class="game-icon">🚀</span><strong>Vocabulary Asteroids</strong><small>Fuel up. Survive three rounds. Become captain.</small></button><button type="button" data-game="flappy"><span class="game-icon">🐦</span><strong>Flappy Vocab</strong><small>Choose your bird. Fly through the answers. Beat your best.</small></button><button type="button" data-game="snowblaster"><span class="game-icon">❄️</span><strong>Snowblaster!</strong><small>Melt the right answers. Brave the blizzard. Survive three rounds.</small></button><button type="button" data-game="chomp"><span class="game-icon">👻</span><strong>Chomp &amp; Charge</strong><small>Chomp the dots. Chase the ghosts. Power up with words.</small></button></div></section><section id="gameLobby" class="game-lobby" hidden><h2 id="lobbyTitle" tabindex="-1"></h2><p id="lobbyHelp"></p><h3 id="lobbyRankingTitle">Top 3</h3><ol id="lobbyScores"></ol><p id="lobbyNote" role="status"></p><button id="gameLaunch" class="game-launch" type="button">Launch</button></section><section id="gamePlay" hidden><h2 id="gameTitle" tabindex="-1"></h2><p id="gameHelp"></p><p id="gameProgress" role="status"></p><div id="gameBoard" class="game-board"></div><p id="gameFeedback" class="game-feedback" role="status" aria-live="polite"></p><button id="gameNext" type="button" hidden>Next</button><div class="game-footer"><button id="gameAgain" type="button">Play again</button></div></section></div></dialog>
+<dialog id="gamesDialog" class="games-dialog" aria-labelledby="gamesTitle"><div id="gameSurface"><div class="games-heading"><div class="games-brand"><h2 id="gamesTitle">Gamify!</h2><button id="gameBack" type="button" hidden>Choose another game</button></div><div class="games-window-actions"><button id="gameFullscreen" type="button" data-exit-label="Exit">Full screen</button><button id="gameClose" type="button">Close</button></div></div><section id="gameMenu"><p class="game-menu-intro">Choose your challenge. Build your skills. Beat your best.</p><label>Answer language <select id="gameLanguage"></select></label><div class="game-menu-options"><button type="button" data-game="quiz"><span class="game-icon">⚡</span><strong>Quick Quiz</strong><small>Trust your knowledge. Find the right definition.</small></button><button type="button" data-game="lines"><span class="game-icon">🔗</span><strong>Connect the Words</strong><small>Draw the connections. Outsmart the distractors.</small></button><button type="button" data-game="cards"><span class="game-icon">🧩</span><strong>Match the Cards</strong><small>Find every pair. Leave the decoys behind.</small></button><button type="button" data-game="asteroids"><span class="game-icon">🚀</span><strong>Vocabulary Asteroids</strong><small>Fuel up. Survive three rounds. Become captain.</small></button><button type="button" data-game="flappy"><span class="game-icon">🐦</span><strong>Flappy Vocab</strong><small>Choose your bird. Fly through the answers. Beat your best.</small></button><button type="button" data-game="snowblaster"><span class="game-icon">❄️</span><strong>Snowblaster!</strong><small>Melt the right answers. Brave the blizzard. Survive three rounds.</small></button><button type="button" data-game="chomp"><span class="game-icon">👻</span><strong>Chomp &amp; Charge</strong><small>Chomp the dots. Chase the ghosts. Power up with words.</small></button></div></section><section id="gameLobby" class="game-lobby" hidden><h2 id="lobbyTitle" tabindex="-1"></h2><p id="lobbyHelp"></p><h3 id="lobbyRankingTitle">Top 3</h3><ol id="lobbyScores"></ol><p id="lobbyNote" role="status"></p><button id="gameLaunch" class="game-launch" type="button">Launch</button></section><section id="gamePlay" hidden><h2 id="gameTitle" tabindex="-1"></h2><p id="gameProgress" role="status"></p><div id="gameBoard" class="game-board"></div><div id="gameStatus"><p id="gameFeedback" class="game-feedback" role="status" aria-live="polite"></p><button id="gameNext" type="button" hidden>Next</button><button id="gameRead" type="button" hidden>Read full card</button></div><p id="gameHelp"></p><div class="game-footer"><button id="gameAgain" type="button">Play again</button></div></section><dialog id="gameReader" class="asteroids-reader game-reader" aria-labelledby="gameReaderTitle">
+    <h3 id="gameReaderTitle"></h3><div class="asteroids-pages"></div>
+    <div class="asteroids-page-tools"><button type="button" data-prev>Previous</button><span role="status"></span><button type="button" data-next>Next</button><button type="button" data-return>Back to game</button></div>
+</dialog></div></dialog>
 <script>${fullscreenControl.toString()}
+${mountGameReader.toString()}
 ${arrowMarkup.toString()}
 ${appendStudyPicture.toString()}
 ${normalizeTextFormat.toString()}

@@ -78,6 +78,14 @@ async function geometry(page,game){return page.locator('#gamesDialog').evaluate(
         assert.equal(await page.locator('.game-tile.selected').count(),1,game+' deliberate tap still selects a tile');
        }
       }
+      if(kind==='vocabulary'&&viewport.width===1200){
+       const playing=await page.locator(textSelector[game]).first().elementHandle();
+       await page.getByRole('button',{name:'Full screen',exact:true}).click();
+       await page.waitForFunction(()=>document.fullscreenElement===document.getElementById('gameSurface'));
+       await page.getByRole('button',{name:'Exit full screen'}).click();
+       await page.waitForFunction(()=>!document.fullscreenElement);
+       assert(await playing.evaluate(node=>node.isConnected),game+' stays mounted through fullscreen');
+      }
       assert.deepEqual(errors,[]);
      }finally{await page.close();}
     }

@@ -245,3 +245,13 @@ body:has(.student-round){min-height:100svh}
 .live-picture{text-align:center;margin:12px auto;line-height:0}.live-picture>span{display:inline-block;position:relative;max-width:100%}.live-picture img{display:block;max-width:100%;max-height:260px;width:auto;height:auto;border-radius:10px}.live-picture-target{position:absolute;transform:translate(-50%,-50%);color:#b42318;background:#fff;border:2px solid #b42318;border-radius:50%;font:900 28px/1 system-ui;pointer-events:none}
 
 .live-picture-target.lettered{display:grid;place-items:center;width:28px;height:28px;font-size:20px}
+
+.topbar #connection{margin-left:auto}
+#live-fullscreen{flex:none;min-height:36px;padding:5px 9px;font-size:13px}
+#live-fullscreen[hidden]{display:none}
+html.game-fullscreen .live-shell{max-width:none;padding-inline:clamp(8px,2vw,24px)}
+html.game-fullscreen .student-round .live-question{max-width:none}
+html.game-fullscreen .live-shell footer,html.game-fullscreen .topbar .brand{display:none}
+html.game-fullscreen .topbar{padding-bottom:4px;margin-bottom:6px}
+html.game-fullscreen .topbar #connection{margin-left:0}
+@media(max-width:420px){.topbar:has(#live-fullscreen:not([hidden])){gap:6px}.topbar .brand{white-space:nowrap}}

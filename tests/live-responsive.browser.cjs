@@ -27,7 +27,7 @@ async function open(browser,viewport,host=false){
   }
   if(url.pathname.endsWith('/live.js'))return route.fulfill({contentType:'text/javascript',body:source.slice(0,source.indexOf(' auth=stored(storageKey())'))+' window.liveTest={present,getSnapshot:()=>snapshot};})();'});
   const file=path.join(root,url.pathname,url.pathname.endsWith('/')?'index.html':'');
-  if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live\.js|\/PeninaPlus-knowledge-builder\/cards\.js|qrcode\.js))[^"]+"><\/script>/g,'')});
+  if(url.pathname.endsWith('/'))return route.fulfill({contentType:'text/html',body:fs.readFileSync(file,'utf8').replace(/<script src="(?!(?:live\.js|\/PeninaPlus-knowledge-builder\/cards\.js|qrcode\.js|\.\.\/\.\.\/game-fullscreen\.js))[^"]+"><\/script>/g,'')});
   if(fs.existsSync(file))return route.fulfill({path:file});
   return route.abort();
  });
@@ -109,6 +109,11 @@ async function check(browser,viewport){
   // Use keyboard activation as well as the touch checks above.
   await page.locator('[data-choice="0"]').focus();await page.keyboard.press('Enter');
   await page.waitForFunction(()=>window.liveTest.getSnapshot().me.choice===0);
+  await page.getByRole('button',{name:'Full screen',exact:true}).click();
+  await page.waitForFunction(()=>document.fullscreenElement===document.documentElement);
+  assert.equal(await page.evaluate(()=>window.liveTest.getSnapshot().me.choice),0);
+  await page.getByRole('button',{name:'Exit full screen'}).click();
+  await page.waitForFunction(()=>!document.fullscreenElement);
   assert.deepEqual(errors,[]);
   console.log(`Passed normal/long vocabulary and Knowledge layouts at ${viewport.width}×${viewport.height}`);
  }finally{await page.close();}

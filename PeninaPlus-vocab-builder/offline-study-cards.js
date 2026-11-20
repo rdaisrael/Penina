@@ -2,6 +2,8 @@
     'use strict';
     const {arrowMarkup, normalizeTextFormat, formattedTextHTML, fitCardLines} = typeof module !== 'undefined' && module.exports ? require('../PeninaPlus-knowledge-builder/cards') : window.PeninaKnowledgeCards;
 
+    const fullscreenControl = typeof module !== 'undefined' && module.exports ? require('./game-fullscreen') : window.mountGameFullscreen;
+
     function escapeHtml(value) {
         return String(value || '').replace(/[&<>"']/g, character => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -698,6 +700,8 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         const doc = document, byId = id => doc.getElementById(id);
         const dialog = byId('gamesDialog'), board = byId('gameBoard'), feedback = byId('gameFeedback');
         const title = byId('gameTitle'), progress = byId('gameProgress'), next = byId('gameNext');
+        const surface = byId('gameSurface');
+        mountGameFullscreen(byId('gameFullscreen'), surface);
         const language = byId('gameLanguage');
         const shuffle = values => {
             const result = values.slice();
@@ -715,7 +719,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
         function mistake(text='Try again', onDismiss){
             doc.getElementById('gameMistake')?.remove();
             const overlay=element('div',undefined,'game-mistake');overlay.id='gameMistake';overlay.setAttribute('role','alert');
-            overlay.append(element('span','×'),element('strong',text));dialog.append(overlay);locked=true;
+            overlay.append(element('span','×'),element('strong',text));surface.append(overlay);locked=true;
             later(()=>{overlay.remove();locked=false;onDismiss?.();},800);
         }
 
@@ -1052,6 +1056,9 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
 /* Keep each game's reading panels and playing field anchored as content changes.
    Long questions/answers scroll; their font does not shrink to fit a word box. */
 #gamesDialog{height:92svh;scrollbar-gutter:stable}
+#gamesDialog:has(>.game-fullscreen){inset:0;box-sizing:border-box;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:0;border-radius:0;scrollbar-gutter:auto}
+#gameSurface.game-fullscreen{box-sizing:border-box;width:100%;height:100%;padding:clamp(12px,2vw,24px);overflow:auto;background:#faf7ff;color:#241632}
+.games-window-actions{display:flex;flex-wrap:wrap;gap:8px}
 #gamesDialog .game-board{min-width:0}
 #gamesDialog #gameProgress:not(:empty){height:3.9em;line-height:1.3;overflow:auto;overscroll-behavior:contain}
 #gamesDialog .game-feedback{height:54px;overflow:auto;overscroll-behavior:contain}
@@ -1088,8 +1095,9 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
  #gamesDialog .asteroids-options{grid-template-rows:repeat(6,64px)}
 }
 </style>
-<dialog id="gamesDialog" class="games-dialog" aria-labelledby="gamesTitle"><div class="games-heading"><div class="games-brand"><h2 id="gamesTitle">Gamify!</h2><button id="gameBack" type="button" hidden>Choose another game</button></div><button id="gameClose" type="button">Close</button></div><section id="gameMenu"><p class="game-menu-intro">Choose your challenge. Build your skills. Beat your best.</p><label>Answer language <select id="gameLanguage"></select></label><div class="game-menu-options"><button type="button" data-game="quiz"><span class="game-icon">⚡</span><strong>Quick Quiz</strong><small>Trust your knowledge. Find the right definition.</small></button><button type="button" data-game="lines"><span class="game-icon">🔗</span><strong>Connect the Words</strong><small>Draw the connections. Outsmart the distractors.</small></button><button type="button" data-game="cards"><span class="game-icon">🧩</span><strong>Match the Cards</strong><small>Find every pair. Leave the decoys behind.</small></button><button type="button" data-game="asteroids"><span class="game-icon">🚀</span><strong>Vocabulary Asteroids</strong><small>Fuel up. Survive three rounds. Become captain.</small></button><button type="button" data-game="flappy"><span class="game-icon">🐦</span><strong>Flappy Vocab</strong><small>Choose your bird. Fly through the answers. Beat your best.</small></button><button type="button" data-game="snowblaster"><span class="game-icon">❄️</span><strong>Snowblaster!</strong><small>Melt the right answers. Brave the blizzard. Survive three rounds.</small></button><button type="button" data-game="chomp"><span class="game-icon">👻</span><strong>Chomp &amp; Charge</strong><small>Chomp the dots. Chase the ghosts. Power up with words.</small></button></div></section><section id="gameLobby" class="game-lobby" hidden><h2 id="lobbyTitle" tabindex="-1"></h2><p id="lobbyHelp"></p><h3 id="lobbyRankingTitle">Top 3</h3><ol id="lobbyScores"></ol><p id="lobbyNote" role="status"></p><button id="gameLaunch" class="game-launch" type="button">Launch</button></section><section id="gamePlay" hidden><h2 id="gameTitle" tabindex="-1"></h2><p id="gameHelp"></p><p id="gameProgress" role="status"></p><div id="gameBoard" class="game-board"></div><p id="gameFeedback" class="game-feedback" role="status" aria-live="polite"></p><button id="gameNext" type="button" hidden>Next</button><div class="game-footer"><button id="gameAgain" type="button">Play again</button></div></section></dialog>
-<script>${arrowMarkup.toString()}
+<dialog id="gamesDialog" class="games-dialog" aria-labelledby="gamesTitle"><div id="gameSurface"><div class="games-heading"><div class="games-brand"><h2 id="gamesTitle">Gamify!</h2><button id="gameBack" type="button" hidden>Choose another game</button></div><div class="games-window-actions"><button id="gameFullscreen" type="button">Full screen</button><button id="gameClose" type="button">Close</button></div></div><section id="gameMenu"><p class="game-menu-intro">Choose your challenge. Build your skills. Beat your best.</p><label>Answer language <select id="gameLanguage"></select></label><div class="game-menu-options"><button type="button" data-game="quiz"><span class="game-icon">⚡</span><strong>Quick Quiz</strong><small>Trust your knowledge. Find the right definition.</small></button><button type="button" data-game="lines"><span class="game-icon">🔗</span><strong>Connect the Words</strong><small>Draw the connections. Outsmart the distractors.</small></button><button type="button" data-game="cards"><span class="game-icon">🧩</span><strong>Match the Cards</strong><small>Find every pair. Leave the decoys behind.</small></button><button type="button" data-game="asteroids"><span class="game-icon">🚀</span><strong>Vocabulary Asteroids</strong><small>Fuel up. Survive three rounds. Become captain.</small></button><button type="button" data-game="flappy"><span class="game-icon">🐦</span><strong>Flappy Vocab</strong><small>Choose your bird. Fly through the answers. Beat your best.</small></button><button type="button" data-game="snowblaster"><span class="game-icon">❄️</span><strong>Snowblaster!</strong><small>Melt the right answers. Brave the blizzard. Survive three rounds.</small></button><button type="button" data-game="chomp"><span class="game-icon">👻</span><strong>Chomp &amp; Charge</strong><small>Chomp the dots. Chase the ghosts. Power up with words.</small></button></div></section><section id="gameLobby" class="game-lobby" hidden><h2 id="lobbyTitle" tabindex="-1"></h2><p id="lobbyHelp"></p><h3 id="lobbyRankingTitle">Top 3</h3><ol id="lobbyScores"></ol><p id="lobbyNote" role="status"></p><button id="gameLaunch" class="game-launch" type="button">Launch</button></section><section id="gamePlay" hidden><h2 id="gameTitle" tabindex="-1"></h2><p id="gameHelp"></p><p id="gameProgress" role="status"></p><div id="gameBoard" class="game-board"></div><p id="gameFeedback" class="game-feedback" role="status" aria-live="polite"></p><button id="gameNext" type="button" hidden>Next</button><div class="game-footer"><button id="gameAgain" type="button">Play again</button></div></section></div></dialog>
+<script>${fullscreenControl.toString()}
+${arrowMarkup.toString()}
 ${appendStudyPicture.toString()}
 ${normalizeTextFormat.toString()}
 ${formattedTextHTML.toString()}

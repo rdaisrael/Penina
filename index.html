@@ -383,6 +383,10 @@
         #teacher-numbers button:not(.password-visibility) { padding: 10px 16px; background: #f9f6ef; color: var(--text-dark); border: 1px solid var(--gold-border); border-radius: 6px; }
         #teacher-list { overflow-wrap: anywhere; list-style: none; padding: 0; }
         #your-webpages { box-sizing: border-box; width: min(100% - 40px, 1000px); margin: 32px auto; padding: 24px; background: #fff; border: 1px solid #d8c79d; border-radius: 12px; }
+        #page-code-panel { box-sizing: border-box; width: min(100% - 40px, 1000px); margin: 24px auto; padding: 20px 24px; background: white; border: 1px solid var(--gold-border); border-radius: 12px; }
+        #page-code-panel summary { cursor: pointer; font-size: 1.25rem; font-weight: bold; }
+        #page-code-panel select, #page-code-panel button { max-width: 100%; margin: 4px; padding: 8px; font: inherit; }
+        #class-access-code { display: inline-block; font-family: monospace; user-select: all; }
         #your-webpages h2 { margin-top: 0; }
         #your-webpages-list { padding-left: 24px; overflow-wrap: anywhere; }
         #your-webpages-list li { margin: 12px 0; }
@@ -410,6 +414,7 @@
         #video-storage, #video-file-help { font-size:14px; }
     </style>
     <script src="/homepage-videos.js?v=20261028-1" defer></script>
+    <script src="/homepage-page-codes.js" defer></script>
     <script src="/homepage-teachers.js?v=20261029-2" defer></script>
     <link rel="stylesheet" href="/Penina-Quizzes/password-toggle.css">
     <script src="/Penina-Quizzes/password-toggle.js" defer></script>
@@ -549,6 +554,20 @@
         <p id="video-storage"></p>
         <p id="video-empty" hidden>No videos uploaded yet.</p>
         <ul id="video-list"></ul>
+    </details>
+    <details id="page-code-panel" class="panel" hidden>
+        <summary>Class page access codes</summary>
+        <p>Give someone the code for a class page to use its teacher tools without an email. Replacing or revoking the code ends access for everyone using it.</p>
+        <label for="code-page">Class page</label>
+        <select id="code-page"><option value="">Choose a class page</option></select>
+        <button id="code-refresh" type="button">Refresh pages</button>
+        <div id="code-controls" hidden>
+            <p id="code-display" hidden>Access code <strong id="class-access-code"></strong> <button id="code-copy" type="button">Copy code</button></p>
+            <button id="code-create" type="button">Create code</button>
+            <button id="code-replace" type="button" hidden>Replace code</button>
+            <button id="code-revoke" type="button" hidden>Revoke code</button>
+        </div>
+        <p id="code-status" role="status"></p>
     </details>
     <section id="teacher-numbers" class="panel" hidden><div class="teacher-management-header"><h2><button id="teacher-management-toggle" type="button" aria-expanded="false" aria-controls="teacher-management-content">Manage users</button></h2><input id="teacher-search" type="search" placeholder="User # or last name" aria-label="Search users by user number or last name" aria-controls="teacher-list" autocomplete="off"></div><div id="teacher-management-content" hidden><p id="teacher-search-status" role="status" aria-live="polite"></p><button id="teacher-retry" type="button">Refresh users</button><p id="teacher-number-status" role="status" aria-live="polite"></p><p>Each user below has their own app checkboxes. Scroll to the user you want to edit, check or uncheck apps, then click Save access in that user’s box.</p><form id="assign-teacher"><h3>Assign a new number</h3><label>Teacher number<input name="userId" type="number" min="2" max="999999999" required></label><label>Name<input name="name" maxlength="120" required></label><label>School email<input name="email" type="email" maxlength="254" required></label><fieldset id="teacher-app-access"><legend>Webapp access</legend><p>Select the apps this teacher may use.</p><label><input type="checkbox" name="apps" value="reader"> Penina Hebrew Reader</label><label><input type="checkbox" name="apps" value="vocabulary"> Penina Vocabulary Builder</label><label><input type="checkbox" name="apps" value="binyan"> Penina Binyan Builder</label><label><input type="checkbox" name="apps" value="quizzes"> Penina Quizzes</label></fieldset><p>We’ll email instructions for both sign-in options. Users can sign in with Google using their registered email address, with no Penina password change. If they use the temporary Penina password instead, they must choose a new password the first time.</p><button type="submit">Assign teacher number</button></form><p id="assign-teacher-status" role="status" aria-live="polite"></p><ul id="teacher-list"></ul></div></section>
 

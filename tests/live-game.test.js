@@ -660,3 +660,17 @@ for(const database of [false,true])test('Deletion removes a user from another te
  assert.equal([...h.storage.keys()].filter(p=>p.includes('/answers/')).length,1);
  await h.handler.deleteOwnedGames({userId:2,email:'deleted@school.example'},[]);
 });
+
+test('A page-code host can run live games and send scores to the page owner until the code changes', async () => {
+ const options={signedOut:true,pageVersion:'original-version',env:{RESEND_API_KEY:'test',LIVE_SCORE_EMAIL_FROM:'penina@example.org'}};
+ const h=harness(options),created=await h.create({sendScoresToTeacher:true});
+ assert.equal(created.code,201);
+ const {code,hostToken}=created.body;
+ const joined=await h.join(code);
+ assert.equal((await h.request(null,{code},hostToken)).code,200);
+ assert.equal((await h.request('start',{code,version:0},hostToken)).code,200);
+ options.pageVersion='replacement-version';
+ assert.equal((await h.request(null,{code},hostToken)).code,401);
+ assert.equal((await h.request('reveal',{code,version:1},hostToken)).code,401);
+ assert.equal((await h.request(null,{code},joined.body.studentToken)).code,200);
+});

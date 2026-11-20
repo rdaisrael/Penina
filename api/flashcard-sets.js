@@ -1,7 +1,7 @@
 const { del, list, put } = require('@vercel/blob');
 const {listKnowledge,readKnowledge}=require('../lib/study-sets');
 const allGameSets=async grade=>[...await listAll(`vocabulary-cards/${grade}/`),...await listKnowledge(list,grade)];
-const { getPage, publicPage, authorizePage } = require('../lib/vocabulary-pages');
+const { getPage, publicPage, requirePageTools } = require('../lib/vocabulary-pages');
 const { makeApp, makeClassGames, practiceRows } = require('../PeninaPlus-vocab-builder/offline-study-cards');
 
 const { makeSheet } = require('../PeninaPlus-vocab-builder/vocabulary-sheets');
@@ -156,10 +156,8 @@ module.exports = async function (req, res) {
 
         if (!['POST', 'DELETE'].includes(req.method)) return send(res, 405, { error: 'Method Not Allowed' });
 
-        if((req.headers?.cookie || '').includes('__Host-penina-quiz-session=')) await require('../lib/quiz-teachers').rejectDeletedSession(req);
-        await require('../lib/teacher-apps').requireApps(req,['vocabulary']);
-        const authenticationError = authorizePage(req, page);
-        if (authenticationError) return send(res, authenticationError.status, { error: authenticationError.error });
+        const pageAction = req.method === 'DELETE' || ['authenticate', 'game-settings', 'wordlist-visibility', 'wordlist-settings'].includes(req.body?.action);
+        const access = await requirePageTools(req, page, pageAction);
 
         if (req.method === 'DELETE') {
             const prefix = `vocabulary-cards/${grade}/`;
@@ -228,7 +226,7 @@ module.exports = async function (req, res) {
         }
 
         if (req.body && req.body.action === 'authenticate') {
-            return send(res, 200, { authenticated: true, ...(await readGameSettings(grade)) });
+            return send(res, 200, { authenticated: true, accessMode:access.mode, ...(await readGameSettings(grade)) });
         }
 
         const title = String(req.body && req.body.title || '').replace(/\s+/g, ' ').trim().slice(0, 120);

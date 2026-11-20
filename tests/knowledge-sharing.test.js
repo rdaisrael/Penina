@@ -8,6 +8,9 @@ const response=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},status(code){
 function harness({access=true,owner=true}={}) {
     const records=new Map(),operations=[];let generationCalls=0;
     const pageStore={getPage:async id=>['class-a','class-b'].includes(id)?{id,name:id,url:'/PeninaPlus-vocab-builder/flash-cards/?page='+id}:null,publicPage:page=>page,authorizePage:()=>owner?null:{status:403,error:'Wrong owner'}};
+    pageStore.requirePageTools=async req=>{
+        if(!access || !owner || req.headers.origin!=='https://www.penina-hebrew.org')throw Object.assign(Error('Denied'),{status:403});
+    };
     const handle=createHandler({pageStore,requireApps:async()=>{if(!access)throw Object.assign(Error('Sign in'),{status:401});},generate:async()=>{generationCalls++;return {rows:[]};},
         fetch:async url=>({ok:records.has(url),json:async()=>JSON.parse(records.get(url).content)}),
         storage:{list:async({prefix})=>({blobs:[...records.values()].filter(blob=>blob.pathname.startsWith(prefix)),hasMore:false}),

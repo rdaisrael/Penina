@@ -70,7 +70,8 @@ function publishingApi(storedHtml) {
     const operations=[];
     const context={module:{exports:{}},Buffer,console,process:{env:{CARD_PUBLISH_KEY_SIXTH:'1-test-only-key'}},fetch:async url=>{assert.equal(url,blob.url);return{ok:true,text:async()=>storedHtml}},require:name=>{
         if(name==='../lib/study-sets')return require('../lib/study-sets');
-        if(name==='../lib/teacher-apps')return {requireApps:async()=>({userId:1})};
+        if(name==='./quiz-teachers')return {rejectDeletedSession:async()=>{}};
+        if(name==='./teacher-apps')return {requireApps:async()=>({userId:1})};
         if(name==='crypto')return require('node:crypto');
         if(name==='./quiz-account')return {session:req=>{if(req.headers.cookie!=='owner-session')throw Error('Sign in');return {role:'teacher',userId:1};}};
         if(name.includes('offline-study-cards'))return app;

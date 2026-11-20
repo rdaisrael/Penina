@@ -4,12 +4,12 @@ async function view(user,denied=false,extraTeacher=false,confirmed=true,mailResu
  const timers=new Map();let timerId=0;
  const elements=new Map(),events={},calls=[],warnings=[],payloads=[],redirects=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,setAttribute(name,value){this[name]=value;},replaceChildren(){this.items=[];},append(...items){this.items.push(...items);},reset(){},textContent:''});return elements.get(id);};
- vm.runInNewContext(source,{setTimeout:(callback,delay)=>{timers.set(++timerId,{callback,delay});return timerId;},clearTimeout:id=>timers.delete(id),AbortSignal,FormData:class {constructor(form){return form.fields;}},location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org',pages:[{name:'Class vocabulary',url:'/PeninaPlus-vocab-builder/flash-cards/?page=class'}]}]:[])]}};}});
+ vm.runInNewContext(source,{setTimeout:(callback,delay)=>{timers.set(++timerId,{callback,delay});return timerId;},clearTimeout:id=>timers.delete(id),AbortSignal,FormData:class {constructor(form){return form.fields;}},location:{hash:'',replace:url=>redirects.push(url)},document:{getElementById:element,querySelectorAll:()=>[],createTextNode:text=>({textContent:text}),createElement:()=>({items:[],append(...items){this.items.push(...items);},setAttribute(){}})},window:{PeninaPageCodes:{show(){element('page-code-panel').hidden=false;},hide(){element('page-code-panel').hidden=true;}},confirm:message=>{warnings.push(message);return confirmed;},addEventListener:(name,fn)=>events[name]=fn},fetch:async (url,options)=>{calls.push(url);if(url.includes('action=my-pages'))return {ok:!pagesResult.error,json:async()=>pagesResult};if(options?.method==='POST'){payloads.push(JSON.parse(options.body));if(mailResult && payloads.at(-1).operation==='welcome'){if(mailResult instanceof Error)throw mailResult;return {ok:true,json:async()=>({welcomeEmail:mailResult})};}extraTeacher=false;}return url.includes('quiz-account')?{ok:!!user || !!accountResult,json:async()=>options?.method==='POST' && accountResult?accountResult:user}:{ok:!denied,json:async()=>denied?{error:'Denied'}:{teachers:[{userId:1,name:'David',email:user.email},...(extraTeacher?[{userId:2,name:'Second Teacher',email:'second@example.org',pages:[{name:'Class vocabulary',url:'/PeninaPlus-vocab-builder/flash-cards/?page=class'}]}]:[])]}};}});
  await events.pageshow();return {elements,events,calls,warnings,payloads,redirects,timers};
 }
 test('Homepage hides user management for visitors and all other accounts',async()=>{
  for(const user of [null,{userId:2,email:'teacher@example.org'},{userId:1,email:'other@example.org'}]) {
-  const v=await view(user);assert.equal(v.elements.get('teacher-numbers').hidden,true);assert.equal(v.calls.length,user?2:1);
+  const v=await view(user);assert.equal(v.elements.get('teacher-numbers').hidden,true);assert.equal(v.elements.get('page-code-panel').hidden,true);assert.equal(v.calls.length,user?2:1);
  }
 });
 test('Homepage preserves owner controls and reports protected directory failures',async()=>{
@@ -18,8 +18,8 @@ test('Homepage preserves owner controls and reports protected directory failures
  assert.equal(denied.elements.get('teacher-number-status').textContent,'Denied');
  assert.equal(denied.elements.get('signed-in-account').hidden,false);
  assert.equal(denied.elements.get('your-webpages').hidden,false);
- const v=await view(owner);assert.equal(v.elements.get('teacher-numbers').hidden,false);assert.equal(v.elements.get('teacher-list').items.length,1);
- v.events.pagehide();assert.equal(v.elements.get('teacher-numbers').hidden,true);assert.equal(v.elements.get('teacher-list').items.length,0);
+ const v=await view(owner);assert.equal(v.elements.get('teacher-numbers').hidden,false);assert.equal(v.elements.get('page-code-panel').hidden,false);assert.equal(v.elements.get('teacher-list').items.length,1);
+ v.events.pagehide();assert.equal(v.elements.get('page-code-panel').hidden,true);assert.equal(v.elements.get('teacher-numbers').hidden,true);assert.equal(v.elements.get('teacher-list').items.length,0);
 });
 
 

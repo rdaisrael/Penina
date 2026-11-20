@@ -3,6 +3,7 @@ const teachers = require('../lib/quiz-teachers');
 module.exports = async function(req,res) {
     res.setHeader('Cache-Control','no-store');
     try {
+        if (req.body?.action === 'page-access') return await require('../lib/page-access').handle(req, res);
         await teachers.rejectDeletedSession(req);
         if (!['GET','POST'].includes(req.method)) return res.status(405).json({error:'Method Not Allowed'});
         if ((req.query?.action || req.body?.action)==='teachers') return res.status(200).json(await teachers.manage(req));

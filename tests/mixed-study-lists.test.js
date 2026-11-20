@@ -14,7 +14,7 @@ function fixture(){
  function load(file){const module={exports:{}};vm.runInNewContext(fs.readFileSync(require.resolve('../'+file),'utf8'),{module,Buffer,console,fetch:fetcher,require:name=>{
   if(name==='@vercel/blob')return storage;
   if(name.includes('study-sets'))return study;
-  if(name.includes('vocabulary-pages'))return {listPages:async()=>[page],getPage:async grade=>grade==='sixth'?page:null,publicPage:p=>p,authorizePage:req=>req.headers.cookie==='owner'?null:{status:403,error:'Wrong owner'}};
+  if(name.includes('vocabulary-pages'))return {listPages:async()=>[page],getPage:async grade=>grade==='sixth'?page:null,publicPage:p=>p,requirePageTools:async req=>{if(req.headers.cookie!=='owner')throw Object.assign(Error('Wrong owner'),{status:403});return {mode:'owner'};}};
   if(name.includes('teacher-apps'))return {requireApps:async()=>{}};
   if(name.includes('offline-study-cards'))return games;
   if(name==='./quiz-vocabulary')return vocab;

@@ -14,12 +14,14 @@ test('Shared leaderboard route dispatches each game and rejects unknown games',a
 test('Query actions cannot mask restricted assessment or live-game body actions',async()=>{
  const calls=[],ctx={module:{exports:{}},require:name=>{
   if(name==='../lib/teacher-apps')return {requireApps:async()=>{throw Object.assign(Error('App denied'),{status:403});}};
+  if(name==='../lib/live-game')return require('./helpers/live-harness')({signedOut:true}).handler;
   return ()=>{calls.push(name);};
  }};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../api/game-scores.js'),'utf8'),ctx);
  for(const [game,action] of [['assessment','report'],['assessment-custom','correct'],['assessment-retake','correct'],['assessment-retake-8','report'],['live','create']]){
   const res={setHeader(){},status(code){this.code=code;return this;},json(data){this.body=data;}};
-  await ctx.module.exports({method:'POST',query:{game,action:'student'},body:{action}},res);assert.equal(res.code,403);
+  await ctx.module.exports({method:'POST',headers:{'content-type':'application/json'},query:{game,action:'student'},body:{grade:'sixth',action}},res);
+  assert.equal(res.code,game==='live'?401:403);
  }
  assert.equal(calls.length,0);
 });

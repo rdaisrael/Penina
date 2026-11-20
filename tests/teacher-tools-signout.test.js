@@ -3,10 +3,11 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const source = fs.readFileSync(require.resolve('../PeninaPlus-vocab-builder/flash-cards/library.js'), 'utf8');
-function harness(fetch) {
+function harness(fetch, accessMode = 'owner') {
     const controls = [], calls = [];
     let closed = 0;
     const context = {
+        accessMode, grade:'sixth',
         document: {createElement: () => ({setAttribute() {}})},
         management: {append: (...items) => controls.push(...items)},
         teacherDialog: {close: () => closed++},
@@ -48,4 +49,12 @@ test('Duplicate clicks send only one logout request; closing tools alone does no
     finish({ok: true});
     await pending;
     assert.equal(h.closed, 2);
+});
+
+test('Code sign-out clears access to this class without changing an account session', async () => {
+    const h = harness(async () => ({ok:true}), 'code');
+    await h.controls[1].onclick();
+    assert.equal(h.calls[0][0], '/api/vocabulary-pages');
+    assert.deepEqual(JSON.parse(h.calls[0][1].body),{action:'page-access',operation:'sign-out',pageId:'sixth'});
+    assert.equal(h.closed,1);
 });

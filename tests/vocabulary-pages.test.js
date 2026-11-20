@@ -6,19 +6,35 @@ const path = require('node:path');
 
 function server() {
     const blobs = new Map();
+    const sessions = new Map();
+    const idFor = req => Number(/(?:^|; *)__Host-penina-quiz-session=(\d+)(?:;|$)/.exec(req.headers?.cookie || '')?.[1]) || 0;
+    class BlobNotFoundError extends Error {}
+    class BlobPreconditionFailedError extends Error {}
     const storage = {
+        BlobNotFoundError, BlobPreconditionFailedError,
+        async head(pathname) {
+            const blob = blobs.get(pathname);
+            if (!blob) throw new BlobNotFoundError();
+            return blob;
+        },
         async list({ prefix, cursor }) {
             const all = [...blobs.values()].filter(blob => blob.pathname.startsWith(prefix));
             const offset = Number(cursor || 0);
             return { blobs: all.slice(offset, offset + 1), hasMore: offset + 1 < all.length, cursor: String(offset + 1) };
         },
         async put(pathname, content, options) {
+            if (options.ifMatch && blobs.get(pathname)?.etag !== options.ifMatch) throw new BlobPreconditionFailedError();
             if (blobs.has(pathname) && !options.allowOverwrite) throw new Error('Blob already exists');
-            const blob = { pathname, url: 'https://storage.example/' + pathname, uploadedAt: new Date().toISOString(), content };
+            const blob = { pathname, etag:require('node:crypto').randomUUID(), url: 'https://storage.example/' + pathname, uploadedAt: new Date().toISOString(), content };
             blobs.set(pathname, blob);
             return blob;
         },
-        async del(urls) {
+        async del(urls, options = {}) {
+            if (options.ifMatch) {
+                if (blobs.get(urls)?.etag !== options.ifMatch) throw new BlobPreconditionFailedError();
+                blobs.delete(urls);
+                return;
+            }
             for (const [id, blob] of blobs) if (urls.includes(blob.url)) blobs.delete(id);
         }
     };
@@ -33,10 +49,18 @@ function server() {
             if (name === 'crypto') return require('node:crypto');
             if (name === '@vercel/blob') return storage;
             // Account lifecycle is covered by quiz-teachers.test.js; these fixtures model authorized page owners.
-            if (name === '../lib/quiz-teachers') return {rejectDeletedSession:async()=>{}};
-            if (name === '../lib/teacher-apps') return {requireApps:async req=>{const id=Number(req.headers?.cookie?.split('=').pop());if(!id || id===99)throw Object.assign(Error('Sign in'),{status:401});return {userId:id};}};
-            if (name === '../lib/quiz-account' || name === './quiz-account') return {session: req => { const id=Number(req.headers?.cookie?.split('=').pop()); if(!id) throw Object.assign(Error('Sign in'),{status:401}); return {role:id===99?'student':'teacher',userId:id}; }};
-            if (name === '../lib/vocabulary-pages') return load('lib/vocabulary-pages.js');
+            if (name === './quiz-teachers' || name === '../lib/quiz-teachers') return {rejectDeletedSession:async()=>{}};
+            if (name === './teacher-apps' || name === '../lib/teacher-apps') return {requireApps:async req=>{const id=idFor(req);if(!id || id===99)throw Object.assign(Error('Sign in'),{status:401});return {userId:id};}};
+            if (name === '../lib/quiz-account' || name === './quiz-account') return {
+                isAccountOwner:req=>idFor(req)===1,
+                seal:claims=>{const key=require('node:crypto').randomUUID();sessions.set(key,claims);return key;},
+                unseal:key=>sessions.get(key),
+                session: req => { const id=idFor(req); if(!id) throw Object.assign(Error('Sign in'),{status:401}); return {role:id===99?'student':'teacher',userId:id}; }};
+            if (name === '../lib/knowledge-sets') return {handle:require('../lib/knowledge-sets').createHandler({
+                pageStore:load('lib/vocabulary-pages.js'), storage, fetch:context.fetch, requireApps:context.require('./teacher-apps').requireApps
+            })};
+            if (name === './page-access' || name === '../lib/page-access') return load('lib/page-access.js');
+            if (name === './vocabulary-pages' || name === '../lib/vocabulary-pages') return load('lib/vocabulary-pages.js');
             return require(path.join(__dirname, '../api', name));
         }
     };
@@ -370,3 +394,91 @@ test('Hiding persists without deleting a list, preserves game choices, and can b
  assert.equal(pages[2],undefined);
  for(const list of Object.values(pages))for(const page of list)assert.deepEqual(Object.keys(page).sort(),['id','name','url']);
  });
+
+test('Only the administrator can see or change a class code, including for another teacher’s page', async () => {
+    const h = server();
+    await h.create({name:'Class A',password:'2-old'});
+    const origin = 'https://www.penina-hebrew.org';
+    const api = (body, headers) => h.request('api/vocabulary-pages.js','POST',{action:'page-access',pageId:'class-a',...body},{},headers);
+    const catalog = await api({operation:'list'});
+    assert(catalog.body.pages.some(page=>page.id==='sixth'));
+    assert(catalog.body.pages.some(page=>page.id==='class-a'));
+    assert.equal((await api({operation:'show'})).body.code,null);
+    const created = await api({operation:'create',version:null});
+    assert.equal(created.code,200);
+    assert.match(created.body.code,/^(?:[0-9A-F]{4}-){4}[0-9A-F]{4}$/);
+    assert.equal((await api({operation:'show'})).body.code,created.body.code);
+    assert(![...h.blobs.values()].some(b=>b.content.includes(created.body.code)));
+    for (const operation of ['list','show','create','replace','revoke']) {
+        for (const headers of [{origin}, {origin,cookie:'__Host-penina-quiz-session=2'},
+            {origin:'https://other.example',cookie:'__Host-penina-quiz-session=1'}]) {
+            assert.equal((await api({operation,version:created.body.version},headers)).code,403);
+        }
+    }
+    assert.equal((await api({operation:'show'})).headers['Cache-Control'],'private, no-store');
+    assert.equal((await api({operation:'create',version:null})).code,409);
+});
+
+test('No-email sessions work only on their page and stop on replacement, revocation or page deletion', async () => {
+    const h = server();
+    const origin = 'https://www.penina-hebrew.org', admin = {origin,cookie:'__Host-penina-quiz-session=1'};
+    await h.create({name:'Class A',password:'2-alpha'});
+    const pageAPI = (pageId, operation, fields = {}, headers = admin) => h.request('api/vocabulary-pages.js','POST',
+        {action:'page-access',operation,pageId,...fields},{},headers);
+    const flashAPI = (grade, action, headers, fields = {}) => h.request('api/flashcard-sets.js','POST',{grade,action,...fields},{},headers);
+    const login = (page, code) => pageAPI(page,'sign-in',{code},{origin});
+    const first = (await pageAPI('class-a','create',{version:null})).body;
+    assert.equal((await login('sixth',first.code)).code,401);
+    assert.equal((await login('class-a','PENINA613')).code,401);
+    const signedIn = await login('class-a',first.code.toLowerCase().replace(/-/g,' '));
+    assert.equal(signedIn.code,200);
+    const cookie = signedIn.headers['Set-Cookie'];
+    assert.match(cookie,/HttpOnly/); assert.match(cookie,/Secure/); assert.match(cookie,/SameSite=Strict/);
+    const guest = {origin,cookie:cookie.split(';')[0]};
+    assert.equal((await flashAPI('class-a','authenticate',guest)).body.accessMode,'code');
+    assert.equal((await flashAPI('class-a','game-settings',guest,{disabledGames:['quiz']})).code,200);
+    assert.equal((await flashAPI('class-a','game-settings',{...guest,origin:'https://other.example'},{disabledGames:[]})).code,403);
+    assert.equal((await flashAPI('sixth','authenticate',guest)).code,401);
+    assert.equal((await flashAPI('class-a','publish',guest)).code,401);
+    assert.equal((await pageAPI('class-a','show',{},guest)).code,403);
+    assert.equal((await pageAPI('class-a','revoke',{version:first.version},guest)).code,403);
+    assert.equal((await h.request('api/vocabulary-pages.js','GET',{}, {action:'my-pages'},guest)).code,401);
+    const knowledgePath = 'knowledge-cards/class-a/example.json';
+    const knowledge = {kind:'knowledge', grade:'class-a', pathnames:[knowledgePath]};
+    h.blobs.set(knowledgePath,{pathname:knowledgePath, url:'https://storage.example/'+knowledgePath, content:'{}'});
+    assert.equal((await h.request('api/flashcard-sets.js','DELETE',{...knowledge,grade:'sixth'},{},guest)).code,401);
+    assert(h.blobs.has(knowledgePath));
+    assert.equal((await h.request('api/flashcard-sets.js','DELETE',knowledge,{},guest)).code,200);
+    assert(!h.blobs.has(knowledgePath));
+    const builtIn = (await pageAPI('sixth','create',{version:null})).body;
+    const other = await login('sixth',builtIn.code);
+    const otherGuest = {origin,cookie:other.headers['Set-Cookie'].split(';')[0]};
+    assert.equal((await flashAPI('sixth','authenticate',otherGuest)).body.accessMode,'code');
+    const replacement = (await pageAPI('class-a','replace',{version:first.version})).body;
+    assert.notEqual(replacement.code,first.code);
+    assert.equal((await pageAPI('class-a','revoke',{version:first.version})).code,409);
+    assert.equal((await login('class-a',first.code)).code,401);
+    assert.equal((await flashAPI('class-a','game-settings',guest,{disabledGames:[]})).code,401);
+    const newLogin = await login('class-a',replacement.code);
+    const newGuest = {origin,cookie:newLogin.headers['Set-Cookie'].split(';')[0]};
+    const logout = await pageAPI('class-a','sign-out',{},newGuest);
+    assert.match(logout.headers['Set-Cookie'],/^__Host-penina-page-class-a=;.*Max-Age=0$/);
+    assert.equal((await pageAPI('class-a','revoke',{version:replacement.version})).body.code,null);
+    assert.equal((await flashAPI('class-a','authenticate',newGuest)).code,401);
+    assert.equal((await login('class-a',replacement.code)).code,401);
+    assert.equal((await flashAPI('sixth','authenticate',otherGuest)).code,200);
+    const last = (await pageAPI('class-a','create',{version:null})).body;
+    await h.deleteOwnedPages(2);
+    await h.create({name:'Class A',password:'2-alpha'});
+    assert.equal((await login('class-a',last.code)).code,401);
+});
+
+test('Simultaneous code changes cannot overwrite a newer decision', async () => {
+    const h = server();
+    const api = (operation, version) => h.request('api/vocabulary-pages.js','POST',{action:'page-access',pageId:'sixth',operation,version});
+    const creations = await Promise.all([api('create',null),api('create',null)]);
+    assert.deepEqual(creations.map(r=>r.code).sort(),[200,409]);
+    const current = (await api('show')).body;
+    const replacements = await Promise.all([api('replace',current.version),api('replace',current.version)]);
+    assert.deepEqual(replacements.map(r=>r.code).sort(),[200,409]);
+});

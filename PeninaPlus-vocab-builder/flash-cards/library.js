@@ -136,6 +136,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         teacherSection('teacher-games-heading', 'Student Exercises', [gameChoices, practiceChoices, saveGames, gameStatus]),
         wordlistSection
     );
+    let accessMode = 'owner';
     const lockTools = document.createElement('button');lockTools.type = 'button';lockTools.className = 'combine-action';lockTools.textContent = 'Close Teacher Tools';
     lockTools.onclick = () => teacherDialog.close();
     management.append(lockTools);
@@ -152,11 +153,12 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         signOutStatus.hidden = false;
         signOutStatus.textContent = 'Signing out…';
         try {
-            const response = await fetch('/api/game-scores?game=quiz-account&action=logout', {
+            const usingCode = accessMode === 'code';
+            const response = await fetch(usingCode ? '/api/vocabulary-pages' : '/api/game-scores?game=quiz-account&action=logout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                body: '{}'
+                body: usingCode ? JSON.stringify({action:'page-access', operation:'sign-out', pageId:grade}) : '{}'
             });
             if (!response.ok) throw new Error('Could not sign out. Please try again.');
             signOutStatus.textContent = '';
@@ -434,8 +436,8 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
             dialog.innerHTML = `<form class="input-dialog-form">
                 <h2 id="teacher-signin-title">Sign in to Teacher tools</h2>
                 <button type="button" class="input-dialog-button" data-google>Sign in with Google</button>
-                <label>Email<input name="email" type="email" autocomplete="username" required></label>
-                <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+                <label>Email (leave blank for a page code)<input name="email" type="email" autocomplete="username"></label>
+                <label>Password or page access code<input name="password" type="password" autocomplete="current-password" required></label>
                 <p role="status" aria-live="polite"></p>
                 <div class="input-dialog-actions"><button type="button" class="input-dialog-button" data-cancel>Cancel</button><button type="submit" class="input-dialog-button primary">Sign in</button></div>
             </form>`;
@@ -499,9 +501,11 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
                 submit.disabled = true;
                 message.textContent = 'Signing in…';
                 try {
-                    const response = await fetch('/api/game-scores?game=quiz-account&action=password-login', {
+                    const email = form.elements.email.value.trim();
+                    const password = form.elements.password.value;
+                    const response = await fetch(email ? '/api/game-scores?game=quiz-account&action=password-login' : '/api/vocabulary-pages', {
                         method:'POST', headers:{'Content-Type':'application/json'},
-                        body:JSON.stringify({email:form.elements.email.value, password:form.elements.password.value})
+                        body:JSON.stringify(email ? {email, password} : {action:'page-access', operation:'sign-in', pageId:grade, code:password})
                     });
                     const result = await response.json();
                     if (finished) return;
@@ -532,12 +536,13 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
                 body: JSON.stringify({ grade, action: 'authenticate' })
             });
             let response = await authenticate();
-            if (response.status === 401) {
+            if (response.status === 401 || response.status === 403) {
                 if (!await signInForTeacherTools()) return;
                 response = await authenticate();
             }
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Sign in with the teacher account that owns this webpage.');
+            accessMode = data.accessMode || 'owner';
             disabledGames = data.disabledGames || [];
             wordlistEmphasis = data.wordlistEmphasis || {};
             excludedWordlists = data.excludedWordlists || [];

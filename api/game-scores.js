@@ -14,8 +14,8 @@ module.exports = async function (req, res) {
     // Match the action source used by each downstream handler; query strings must not mask body actions.
     const action=game==='quiz-account'?accountAction:req.body?.action;
     const quizAction=game==='quiz-builder' || (game.startsWith('assessment') && ['report','correct'].includes(action)) || (game==='quiz-account' && ['assignments','archive-assignment','publish-assignment','courses','assign'].includes(action));
-    if(quizAction || (game==='live' && action==='create')) {
-        try {await require('../lib/teacher-apps').requireApps(req,[quizAction?'quizzes':'vocabulary']);}
+    if(quizAction) {
+        try {await require('../lib/teacher-apps').requireApps(req,['quizzes']);}
         catch(error){res.setHeader('Cache-Control','no-store');return res.status(error.status || 503).json({error:error.status?error.message:'App access could not be checked.'});}
     }
 

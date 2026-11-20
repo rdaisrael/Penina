@@ -141,6 +141,7 @@ function hideManagement() {
     $('password-change-panel').hidden=true;
     accountCheck++;
     window.PeninaVideos?.hide();
+    window.PeninaPageCodes?.hide();
     showAccount(null);
     showApps(null);
     $('teacher-numbers').hidden = true;
@@ -190,6 +191,7 @@ async function checkOwner() {
     if(user.userId===1 && user.email?.toLowerCase()==='disrael@saracademy.org') {
         loading.push(loadManagement(check));
         window.PeninaVideos?.show(user);
+        window.PeninaPageCodes?.show();
     }
     await Promise.all(loading);
 }

@@ -45,13 +45,28 @@ const measure=page=>page.evaluate(()=>({
 const sameScroll=(actual,expected,message)=>assert(actual.every((value,i)=>Math.abs(value-expected[i])<=1),message+': '+JSON.stringify({actual,expected}));
 async function checkFrame(page){
  const frame=await page.evaluate(()=>{
-  const shell=document.querySelector('.student-view').getBoundingClientRect();
+  const shell=document.querySelector('.live-shell').getBoundingClientRect();
   const toggle=document.getElementById('live-fullscreen').getBoundingClientRect();
   return {height:innerHeight,width:innerWidth,docHeight:document.documentElement.scrollHeight,
    docWidth:document.documentElement.scrollWidth,gapRight:shell.right-toggle.right,gapBottom:shell.bottom-toggle.bottom};
  });
- assert(frame.docHeight<=frame.height+1&&frame.docWidth<=frame.width+1,'the student screen fits the viewport '+JSON.stringify(frame));
+ assert(frame.docHeight<=frame.height+1&&frame.docWidth<=frame.width+1,'the game fits the viewport '+JSON.stringify(frame));
  assert(frame.gapRight>=0&&frame.gapRight<=24&&frame.gapBottom>=0&&frame.gapBottom<=24,'fullscreen is at the bottom right');
+}
+async function checkTeacherRound(page){
+ await checkFrame(page);
+ const qr=page.getByRole('link',{name:'Open student join page for game 123456'});
+ assert.equal(await qr.count(),1);
+ assert(await qr.evaluate(node=>{
+  const r=node.getBoundingClientRect(),standings=document.querySelector('.live-standings').getBoundingClientRect();
+  return r.width>0&&r.top>=0&&r.bottom+4<=standings.top&&r.right<=innerWidth&&
+   [r.left+1,r.right-1].every(x=>[r.top+1,r.bottom-1].every(y=>node.contains(document.elementFromPoint(x,y))));
+ }),'the entire QR code is visible and clickable above standings');
+ const controls=page.locator('.teacher-round .answer,.teacher-round .actions button');
+ assert(await controls.evaluateAll(nodes=>nodes.every(node=>{
+  const r=node.getBoundingClientRect();
+  return r.height>0&&r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1;
+ })),'all answers and teacher actions fit without scrolling');
 }
 async function check(browser,viewport){
  const {page,errors,now}=await open(browser,viewport);let index=1,anchors;
@@ -167,16 +182,34 @@ async function check(browser,viewport){
     }
    }finally{await page.close();}
   }
-  const {page,errors,now}=await open(browser,{width:1024,height:768},true);
-  try{
-   await page.evaluate(data=>window.liveTest.present(data),{...base,question:questions[1],deadline:now+10000});
-   assert((await measure(page)).boxes.every(b=>b.bottom<=768),'teacher question and answers fit on iPad');
-   assert.equal(await page.locator('.live-join-qr').count(),1,'teacher join QR remains available');
-   const before=await measure(page);
-   await page.evaluate(data=>window.liveTest.present(data),{...base,phase:'reveal',question:{...questions[1],correct:0},deadline:now+15000,distribution:[24,0,0,0],scores:[]});
-   assert.deepEqual(await measure(page),before,'teacher standings and reveal keep the question column in place');
-   assert.deepEqual(errors,[]);
-  }finally{await page.close();}
+  for(const viewport of viewports){
+   const fallback=viewport.width<900;
+   const {page,errors,now}=await open(browser,viewport,true,fallback);
+   try{
+    const players=Array.from({length:32},(_,i)=>({name:'S'+i,avatar:i%14+1,score:100-i}));
+    const game={...base,players,playerCount:players.length,scores:players,question:{...questions[1],correct:0},deadline:now+10000,distribution:[32,0,0,0]};
+    const present=phase=>page.evaluate(data=>window.liveTest.present(data),{...game,phase});
+    await present('lobby');
+    await checkFrame(page);
+    assert(await page.locator('#qr svg').isVisible());
+    await page.getByRole('button',{name:'Full screen',exact:true}).click();
+    await page.waitForFunction(()=>document.documentElement.classList.contains('game-fullscreen'));
+    assert.equal(await page.evaluate(()=>!!document.fullscreenElement),!fallback);
+    await present('question');
+    await checkTeacherRound(page);
+    const before=await measure(page);
+    await present('reveal');
+    await checkTeacherRound(page);
+    assert.deepEqual(await measure(page),before,'the reveal keeps the question column in place');
+    await page.getByRole('button',{name:'Exit',exact:true}).click();
+    await page.waitForFunction(()=>!document.documentElement.classList.contains('game-fullscreen'));
+    await checkTeacherRound(page);
+    await present('ended');
+    await checkFrame(page);
+    assert(await page.getByRole('button',{name:'Full screen',exact:true}).isVisible());
+    assert.deepEqual(errors,[]);
+   }finally{await page.close();}
+  }
   const zoomed=await open(browser,{width:1024,height:768});
   try{
    await zoomed.page.evaluate(data=>window.liveTest.present(data),{...base,question:questions[1]});

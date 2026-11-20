@@ -10,8 +10,6 @@ function mountLiveStudentDisplay(stage) {
     let page = 0;
 
     shell.classList.add('student-view');
-    document.getElementById('student-controls').hidden = false;
-    mountGameFullscreen(document.getElementById('live-fullscreen'), document.documentElement);
 
     function turnPage(index) {
         if (!reader.open || !pages.clientWidth) return;

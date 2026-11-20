@@ -1,9 +1,10 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../PeninaPlus-vocab-builder/flash-cards/live/live.js'),'utf8');
-function setup(respond,time,studentDisplay){
+function setup(respond,time,studentDisplay,configure){
  let renders=0,markup='';const count={textContent:''},clock={textContent:''},requests=[],listeners={},error={},scheduled=[];
  const stage={set innerHTML(value){markup=value;renders++;},get innerHTML(){return markup;},querySelector:selector=>selector==='[data-answered-count]'?count:selector==='[data-clock]'&&markup.includes('data-clock')?clock:null,querySelectorAll:()=>[],addEventListener:(event,handler)=>listeners[event]=handler};
  const ctx={Date:time?class extends Date{static now(){return time.now;}}:Date,URLSearchParams,location:{search:'?code=123456'},document:{createElement:()=>({}),head:{append(){}},getElementById:id=>id==='stage'?stage:id==='error'?error:{},querySelectorAll:()=>[],addEventListener(){},hidden:true},window:{mountLiveStudentDisplay:()=>studentDisplay,matchMedia:()=>({matches:true}),addEventListener(){}},setInterval(){},setTimeout(fn,delay){const task={fn,delay,active:true};scheduled.push(task);return task;},clearTimeout(task){if(task)task.active=false;},AbortController,fetch:async(url,options)=>{const body=options.body?JSON.parse(options.body):{action:null};requests.push(body);return respond?respond(body):reply(body.action==='answer'?{saved:true,round:body.round,index:body.index,choice:body.choice}:question());}};
+ configure?.(ctx,stage);
  vm.runInNewContext(source.slice(0,source.indexOf(" auth=stored(storageKey())"))+" globalThis.client={present,act,poll,syncClock,updateClock,connect:()=>{auth='test-student';document.hidden=false;},getSnapshot:()=>snapshot};})();",ctx);
  return {client:ctx.client,count,clock,requests,listeners,error,scheduled,get renders(){return renders;},get markup(){return markup;}};
 }
@@ -187,4 +188,32 @@ test('the student reader survives polls and closes on pause, reveal, advance, an
  h.client.present({...q,index:2});
  h.client.present({...q,round:2,index:2});
  assert.equal(display.resets,5);
+});
+
+test('both live roles mount one persistent fullscreen control and only teachers project the join QR',()=>{
+ const qrcode=require('../PeninaPlus-vocab-builder/flash-cards/live/qrcode.js');
+ for(const host of [true,false]){
+  const button={},root={},mounts=[];
+  const h=setup(undefined,undefined,undefined,(ctx,stage)=>{
+   ctx.URL=URL;
+   ctx.location.href='https://live.test/game/?code=123456'+(host?'&host=1':'');
+   ctx.location.search=new URL(ctx.location.href).search;
+   ctx.qrcode=ctx.window.qrcode=qrcode;
+   stage.closest=()=>({classList:new Set()});
+   const get=ctx.document.getElementById;
+   ctx.document.documentElement=root;
+   ctx.document.getElementById=id=>id==='live-fullscreen'?button:get(id);
+   ctx.window.mountGameFullscreen=(control,surface)=>mounts.push([control,surface]);
+  });
+  const data={...question(),players:[],scores:[],distribution:[2,0,0,0]};
+  for(const phase of ['lobby','question','reveal','ended','lobby']){
+   h.client.present({...data,phase,question:{...data.question,correct:0}});
+   assert.deepEqual(mounts,[[button,root]]);
+   assert.doesNotMatch(h.markup,/id="live-fullscreen"/);
+   if(host&&['question','reveal'].includes(phase)){
+    assert.match(h.markup,/<a class="live-join-qr" href="https:\/\/live\.test\/game\/\?code=123456"[^>]*><span[^>]*><svg/);
+    assert.match(h.markup,phase==='question'?/<h2>Student responses<\/h2>/:/<h2>Class standings<\/h2>/);
+   }else assert.doesNotMatch(h.markup,/live-join-qr/);
+  }
+ }
 });

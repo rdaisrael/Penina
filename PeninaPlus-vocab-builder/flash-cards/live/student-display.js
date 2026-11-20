@@ -1,5 +1,5 @@
 // The toolbar and reader stay mounted while the shared game replaces its stage.
-function mountLiveStudentDisplay(stage) {
+function mountLiveCardReader(stage, host) {
     const shell = stage.closest('.live-shell');
     const read = document.getElementById('read-card');
     const reader = document.getElementById('card-reader');
@@ -9,7 +9,7 @@ function mountLiveStudentDisplay(stage) {
     const clock = reader.querySelector('[data-reader-clock]');
     let page = 0;
 
-    shell.classList.add('student-view');
+    shell.classList.add(host ? 'teacher-view' : 'student-view');
 
     function turnPage(index) {
         if (!reader.open || !pages.clientWidth) return;
@@ -22,7 +22,7 @@ function mountLiveStudentDisplay(stage) {
     }
 
     function measureCard() {
-        const fields = stage.querySelectorAll('.student-round .question-content,.student-round .answer .text');
+        const fields = stage.querySelectorAll('.live-round .question-content,.live-round .answer .text');
         read.hidden = !Array.from(fields).some(field =>
             field.scrollHeight > field.clientHeight + 1 || field.scrollWidth > field.clientWidth + 1);
     }

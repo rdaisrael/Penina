@@ -182,12 +182,14 @@ body:has(.student-round){min-height:100svh}
  .student-round .answer .letter{width:28px;height:28px;font-size:17px}
 }
 
+/* Apply the larger vocabulary type to the board and its full-card reader. */
+.live-shell:has(.vocabulary-question){--question-scale:3;--answer-scale:2}
 .live-round{--question-height:clamp(120px,18svh,180px);--answer-height:96px}
 .live-round .question-content{height:var(--question-height);overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable both-edges;display:flex;flex-direction:column;justify-content:safe center;outline-offset:2px}
 .live-round .question-content>*{flex:none}
-.live-round .question{font-size:clamp(22px,2.5vw,28px);font-weight:600;line-height:1.35;letter-spacing:normal;margin:0;padding:0;white-space:pre-wrap}
+.live-round .question{font-size:calc(clamp(22px,2.5vw,28px) * var(--question-scale,1));font-weight:600;line-height:1.35;letter-spacing:normal;margin:0;padding:0;white-space:pre-wrap}
 .live-round .answer{height:var(--answer-height);min-height:var(--answer-height);font-size:clamp(18px,2vw,22px);line-height:1.25;padding:6px 12px}
-.live-round .answer .text{min-height:0;max-height:100%;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.live-round .answer .text{font-size:calc(1em * var(--answer-scale,1));min-height:0;max-height:100%;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
 .live-round .answer .letter{width:32px;height:44px;display:grid;grid-template-rows:1fr 12px;font-size:18px}
 .live-round .answer .count{font-size:11px;line-height:12px;margin:0}
 .live-round .answers{grid-template-rows:repeat(2,var(--answer-height))}
@@ -303,13 +305,15 @@ html.game-fullscreen .student-view .brand{display:none}
 #reader-title{font-size:18px;margin:0}
 .reader-pages{column-count:1;column-fill:auto;column-gap:0;overflow:hidden;overflow-wrap:anywhere;white-space:pre-wrap;font-size:18px;line-height:1.4}
 .reader-pages .question,.reader-pages p{margin:0 0 8px;font-size:inherit;padding:0}
+:where(.live-shell:has(.vocabulary-question)) .reader-pages .question{font-size:3em;line-height:1.2}
+:where(.live-shell:has(.vocabulary-question)) .reader-pages>p{font-size:2em;line-height:1.25}
 .reader-pages .live-picture{break-inside:avoid}
 .reader-pages .live-picture img{max-height:min(34dvh,260px)}
 
 @media(max-width:600px){
  .student-view .live-question{grid-template-rows:18px 35px minmax(0,1fr) 52px}
  .student-view .question-body{grid-template-rows:minmax(0,1fr) minmax(0,2.15fr)}
- .student-view .question{font-size:19px;line-height:1.2}
+ .student-view .question{font-size:calc(19px * var(--question-scale,1));line-height:1.2}
  .student-view .answer{padding:2px 6px;gap:5px}
  .student-view .streak-meter{padding:3px 6px}
  .student-view .round-feedback .notice,.student-view .round-feedback .bonus-notice{font-size:12px}
@@ -323,7 +327,8 @@ html.game-fullscreen .student-view .brand{display:none}
  .student-view .round-feedback{display:flex;align-items:center;justify-content:center;gap:4px}
  .student-view .answer{padding:2px 5px;gap:4px}
  .student-view .answer .letter{width:23px;height:32px}
- .student-view .question,.student-view .answer{font-size:18px}
+ .student-view .question{font-size:calc(18px * var(--question-scale,1))}
+ .student-view .answer{font-size:18px}
  .student-view .join-panel{max-width:740px}
  .join-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px;align-items:center}
  .join-details button{grid-column:1 / -1}
@@ -403,6 +408,6 @@ html.game-fullscreen .teacher-view .brand{display:none}
  .teacher-view .live-join-qr{width:72px;flex-basis:72px}
  .teacher-round .question-body{grid-template-columns:minmax(0,1fr) minmax(0,1.8fr);grid-template-rows:minmax(0,1fr);gap:4px}
  .teacher-round .answers{gap:4px}
- .teacher-round .question{font-size:19px}
+ .teacher-round .question{font-size:calc(19px * var(--question-scale,1))}
  .teacher-view .lobby{grid-template-columns:repeat(2,minmax(0,1fr))}
 }

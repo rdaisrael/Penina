@@ -11,7 +11,8 @@ const questions=[
  {term:'בַּיִת',options:['House','Water','Book','Light']},
  {kind:'knowledge',term:'Why did the people gather at the city gate?',options:["To hear the king’s announcement",'To buy food for the journey','To welcome visitors to the city','To prepare for the festival']},
  {kind:'knowledge',term:'Why did the people gather at the city gate, and what did they expect to hear from the king?',options:["To hear the king’s announcement",'To buy food for the journey','To welcome visitors to the city','To prepare for the festival']},
- {kind:'knowledge',term:'מדוע התאספו האנשים בשער העיר?',options:['כדי לשמוע את דברי המלך','כדי לקנות אוכל למסע','כדי לקבל את פני האורחים','כדי להתכונן לחג']}
+ {kind:'knowledge',term:'מדוע התאספו האנשים בשער העיר?',options:['כדי לשמוע את דברי המלך','כדי לקנות אוכל למסע','כדי לקבל את פני האורחים','כדי להתכונן לחג']},
+ {kind:'vocabulary',term:'בַּיִת הַסֵּפֶר '.repeat(8).trim(),options:['School','Street','Garden','House']}
 ];
 const base={phase:'question',round:1,index:1,version:2,className:'Sixth Grade Knowledge',playerCount:24,answeredCount:0,total:20,paused:false,
  me:{name:'AB',avatar:1,score:500,streak:4,choice:null},players:[]};
@@ -39,7 +40,7 @@ async function open(browser,viewport,host=false,denyFullscreen=false){
 }
 const measure=page=>page.evaluate(()=>({
  scroll:scrollY,width:innerWidth,height:innerHeight,pageWidth:document.documentElement.scrollWidth,
- boxes:[...document.querySelectorAll('.question-content,.answer')].map(node=>{const r=node.getBoundingClientRect(),s=getComputedStyle(node.matches('.question-content')?node.querySelector('.question'):node);return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height,font:parseFloat(s.fontSize)};})
+ boxes:[...document.querySelectorAll('.question-content,.answer')].map(node=>{const r=node.getBoundingClientRect(),s=getComputedStyle(node.querySelector('.question,.text'));return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height,font:parseFloat(s.fontSize)};})
 }));
 // Scroll offsets can round by one pixel when fractional text lines receive focus.
 const sameScroll=(actual,expected,message)=>assert(actual.every((value,i)=>Math.abs(value-expected[i])<=1),message+': '+JSON.stringify({actual,expected}));
@@ -53,8 +54,22 @@ async function checkFrame(page){
  assert(frame.docHeight<=frame.height+1&&frame.docWidth<=frame.width+1,'the game fits the viewport '+JSON.stringify(frame));
  assert(frame.gapRight>=0&&frame.gapRight<=24&&frame.gapBottom>=0&&frame.gapBottom<=24,'fullscreen is at the bottom right');
 }
+async function checkLiveType(page,host,kind){
+ const layout=await measure(page);
+ const compactLandscape=layout.width>layout.height&&layout.height<=520;
+ const vocabulary=kind!=='knowledge';
+ const baseTerm=compactLandscape?(host?19:18):!host&&layout.width<=600?19:Math.min(28,Math.max(22,layout.width*.025));
+ const baseAnswer=compactLandscape&&!host?18:Math.min(22,Math.max(18,layout.width*.02));
+ assert(Math.abs(layout.boxes[0].font-baseTerm*(vocabulary?3:1))<.01,'question size matches the card type');
+ assert(layout.boxes.slice(1).every(box=>Math.abs(box.font-baseAnswer*(vocabulary?2:1))<.01),'answer size matches the card type');
+ const overflows=await page.locator('.question-content,.answer .text').evaluateAll(nodes=>
+  nodes.some(n=>n.scrollHeight>n.clientHeight+1||n.scrollWidth>n.clientWidth+1));
+ assert.equal(await page.locator('#read-card').isVisible(),overflows,'a paged reading view is available for oversized text');
+ return overflows;
+}
 async function checkTeacherRound(page){
  await checkFrame(page);
+ await checkLiveType(page,true,'knowledge');
  const qr=page.getByRole('link',{name:'Open student join page for game 123456'});
  assert.equal(await qr.count(),1);
  assert(await qr.evaluate(node=>{
@@ -82,9 +97,10 @@ async function check(browser,viewport){
    assert(layout.boxes.every(b=>b.font>=18),label+': text remains readable');
    assert(layout.boxes.slice(1).every(b=>b.height>=48),label+': comfortable tap targets');
    assert.equal(await page.locator('.answer').count(),4);
-   if(anchors)assert.deepEqual(layout,anchors,label+': mixed question types keep the same positions');else anchors=layout;
-   assert(await page.locator('.question-content').evaluate(node=>node.scrollHeight<=node.clientHeight+1),label+': normal question is visible without scrolling');
-   assert(await page.locator('.answer .text').evaluateAll(nodes=>nodes.every(node=>node.scrollHeight<=node.clientHeight+1)),label+': normal answers are fully visible');
+   const bounds=layout.boxes.map(({font,...box})=>box);
+   if(anchors)assert.deepEqual(bounds,anchors,label+': mixed question types keep the same positions');else anchors=bounds;
+   const needsReader=await checkLiveType(page,false,question.kind);
+   if(!question.kind)assert.equal(needsReader,false,label+': short vocabulary and definitions fit directly on the board');
    await page.locator('[data-choice="3"]').tap();
    await page.waitForFunction(()=>window.liveTest.getSnapshot().me.choice===3);
    assert.deepEqual(await measure(page),layout,label+': selection and saving do not move content');
@@ -100,11 +116,14 @@ async function check(browser,viewport){
   const long={...base,index:index++,deadline:now+10000,question:{kind:'knowledge',term:Array(12).fill('Read the passage carefully and explain how the events support the conclusion.').join('\n\n'),options:questions[1].options.map(text=>text+'. '+Array(30).fill('Consider the evidence given in the passage.').join(' '))}};
   await page.evaluate(data=>window.liveTest.present(data),long);
   const longLayout=await measure(page);
-  assert.deepEqual(longLayout,anchors,'long material keeps the same frame and answer positions');
+  assert.deepEqual(longLayout.boxes.map(({font,...box})=>box),anchors,'long material keeps the same frame and answer positions');
   assert(longLayout.boxes.every(b=>b.font>=18),'long material is not shrunk to fit');
   assert(longLayout.pageWidth<=viewport.width,'long material wraps within the screen');
   await page.getByRole('button',{name:'Read full card'}).click();
   const reader=page.locator('#card-reader[open]');
+  const readerSizes=await reader.locator('.reader-pages .question,.reader-pages>p').evaluateAll(nodes=>nodes.map(node=>parseFloat(getComputedStyle(node).fontSize)));
+  const narrowPortrait=viewport.width<=600 && !(viewport.width>viewport.height && viewport.height<=520);
+  assert.deepEqual(readerSizes,[narrowPortrait?19:18,18,18,18,18],'Knowledge reader uses the original text sizes');
   await reader.getByRole('button',{name:'Next',exact:true}).click();
   assert(await reader.locator('.reader-pages').evaluate(node=>node.scrollLeft>0),'long text can be read a page at a time');
   await page.evaluate(data=>window.liveTest.present({...data,answeredCount:5}),long);

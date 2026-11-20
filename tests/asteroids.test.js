@@ -127,3 +127,27 @@ test('Five distinct jet bursts require a new answer; holding counts once and ref
  game.answer(false);assert.equal(s.jets,0);game.nextQuestion();game.answer(true);assert.equal(s.jets,5);assert.equal(s.fuel,10);
  game.launch();game.tick(.01,{thrust:true});game.pause();game.tick(.01,{thrust:true});assert.equal(s.jets,4);game.launch();game.tick(.01,{thrust:true});assert.equal(s.jets,4);
 });
+
+test('changing the arena aspect ratio preserves a flight and remaps its positions', () => {
+    const game = app.createAsteroids(() => .5);
+    game.answer(true); game.launch(); game.shoot();
+    const {state} = game;
+    state.enemies.push({x:500,y:250,radius:18,kind:'martian'});
+    state.enemyShots.push({x:120,y:100,vx:0,vy:0,ttl:1});
+    state.effects.push({x:120,y:100,points:20,ttl:.7});
+    const before = structuredClone(state);
+    game.resize(450, 1000);
+    assert.deepEqual([state.ship.x,state.ship.y], [225,500]);
+    for (const group of ['rocks','enemies','bullets','enemyShots','effects']) {
+        state[group].forEach((item,i) => {
+            assert.equal(item.x,before[group][i].x / 2);
+            assert.equal(item.y,before[group][i].y * 2);
+        });
+    }
+    game.resize(900,500);
+    assert.deepEqual(state,before);
+    game.resize(450,1000);
+    Object.assign(state.ship,{x:449,y:750,vx:200});
+    game.tick(.02);
+    assert(state.ship.x < 10 && state.ship.y > 500);
+});

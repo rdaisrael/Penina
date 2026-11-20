@@ -18,9 +18,10 @@ const selectors={
  snowblaster:'.sb-world,.sb-controls'
 };
 const textSelector={quiz:'#gameBoard>h3',lines:'.game-term .game-tile-copy',cards:'.game-term .game-tile-copy',asteroids:'.asteroids-term',chomp:'#chomp-game .word',flappy:'#fv-clue',snowblaster:'.sb-prompt'};
-async function open(browser,viewport,html){
+async function open(browser,viewport,html,{denyFullscreen=false}={}){
  const page=await browser.newPage({viewport,hasTouch:true,reducedMotion:'reduce'}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
+ if(denyFullscreen)await page.addInitScript(()=>{Element.prototype.requestFullscreen=()=>Promise.reject(Error('Unavailable'));});
  await page.addInitScript(()=>{requestAnimationFrame=()=>1;cancelAnimationFrame=()=>{};Math.random=()=>.5;});
  await page.route('**/*',route=>route.request().url().startsWith('http://localhost/')?route.fulfill({contentType:'text/html',body:html}):route.abort());
  await page.goto('http://localhost/#gamify');
@@ -34,6 +35,27 @@ async function launch(page,game){
  if(game==='flappy')await page.getByRole('button',{name:'Start flying →'}).click();
  if(game==='snowblaster')await page.getByRole('button',{name:'Start blasting',exact:true}).click();
  await page.locator(textSelector[game]).first().waitFor();
+}
+async function checkAsteroidsFrame(page,fullscreen){
+ const dims=await page.evaluate(()=>{
+  const rect=selector=>document.querySelector(selector).getBoundingClientRect().toJSON();
+  const dialog=document.getElementById('gamesDialog');
+  return {w:innerWidth,h:innerHeight,arena:rect('.asteroids-arena'),controls:rect('.asteroids-controls'),
+   toggle:rect('#gameFullscreen'),again:rect('#gameAgain'),back:rect('#gameBack'),
+   guidance:rect('.asteroids-rules'),scroll:dialog.scrollHeight-dialog.clientHeight,close:rect('#gameClose')};
+ });
+ const {arena,controls,toggle}=dims;
+ assert(dims.scroll<=1 && arena.height>0 && controls.bottom<=dims.h+1,'flight area and controls fit');
+ assert(toggle.right<=arena.right && arena.right-toggle.right<12 && arena.bottom-toggle.bottom<12,'toggle stays in the navy corner');
+ assert.equal(dims.close.height,0);
+ if(fullscreen){
+  assert(Math.abs(arena.top)<1 && Math.abs(arena.width-dims.w)<1 && Math.abs(controls.bottom-dims.h)<1,'fullscreen spans only the arena and flight buttons');
+  assert.equal(dims.again.height,0);
+ }else{
+  assert(dims.again.bottom<=dims.h && dims.again.top>=controls.bottom);
+  assert(dims.again.left>=dims.guidance.right || dims.again.top>=dims.guidance.bottom-1);
+  assert(Math.abs(dims.again.top-dims.back.top)<1 && dims.back.left>=dims.again.right,'navigation stays together, in order');
+ }
 }
 async function geometry(page,game){return page.locator('#gamesDialog').evaluate((dialog,selector)=>({
  top:dialog.getBoundingClientRect().top,height:dialog.getBoundingClientRect().height,scroll:dialog.scrollTop,
@@ -78,13 +100,35 @@ async function geometry(page,game){return page.locator('#gamesDialog').evaluate(
         assert.equal(await page.locator('.game-tile.selected').count(),1,game+' deliberate tap still selects a tile');
        }
       }
-      if(kind==='vocabulary'&&viewport.width===1200){
+      if(game==='asteroids'&&kind==='long'){
+       await page.getByRole('button',{name:'Read full card'}).click();
+       const pages=page.locator('.asteroids-pages');
+       await page.getByRole('button',{name:'Next',exact:true}).click();
+       assert(await pages.evaluate(n=>n.scrollLeft>0),'read long text a page at a time');
+       await page.getByRole('button',{name:'Back to game'}).click();
+      }
+      if(kind==='vocabulary'&&(game==='asteroids'||viewport.width===1200)){
+       if(game==='asteroids')await checkAsteroidsFrame(page,false);
        const playing=await page.locator(textSelector[game]).first().elementHandle();
        await page.getByRole('button',{name:'Full screen',exact:true}).click();
        await page.waitForFunction(()=>document.fullscreenElement===document.getElementById('gameSurface'));
-       await page.getByRole('button',{name:'Exit full screen'}).click();
+       if(game==='asteroids'){
+        await checkAsteroidsFrame(page,true);
+        const fuel=page.locator('#asteroidFuel');
+        await page.locator('.asteroids-options button').filter({hasText:'Correct'}).click();
+        assert.equal(await fuel.textContent(),'10');
+        await checkAsteroidsFrame(page,true);
+       }
+       await page.getByRole('button',{name:game==='asteroids'?'Exit':'Exit full screen',exact:true}).click();
        await page.waitForFunction(()=>!document.fullscreenElement);
        assert(await playing.evaluate(node=>node.isConnected),game+' stays mounted through fullscreen');
+       if(game==='asteroids'){
+        await checkAsteroidsFrame(page,false);
+        await page.getByRole('button',{name:'Play again'}).click();
+        await page.locator('#gameLaunch').click();
+        await page.getByRole('button',{name:'Choose another game'}).click();
+        assert(await page.locator('#gameClose').isVisible());
+       }
       }
       assert.deepEqual(errors,[]);
      }finally{await page.close();}
@@ -92,6 +136,19 @@ async function geometry(page,game){return page.locator('#gamesDialog').evaluate(
     console.log('Passed '+game+' stable vocabulary/Knowledge/long layout at '+viewport.width);
    }
   }
+  const landscape=await open(browser,{width:568,height:320},games.makeClassGames('Landscape Asteroids',cards('vocabulary')),{denyFullscreen:true});
+  try{
+   await launch(landscape.page,'asteroids');
+   await checkAsteroidsFrame(landscape.page,false);
+   await landscape.page.getByRole('button',{name:'Full screen',exact:true}).tap();
+   await landscape.page.getByRole('button',{name:'Exit',exact:true}).waitFor();
+   await checkAsteroidsFrame(landscape.page,true);
+   await landscape.page.setViewportSize({width:320,height:568});
+   await checkAsteroidsFrame(landscape.page,true);
+   await landscape.page.getByRole('button',{name:'Exit',exact:true}).tap();
+   await checkAsteroidsFrame(landscape.page,false);
+   assert.deepEqual(landscape.errors,[]);
+  }finally{await landscape.page.close();}
   // Exercise actual Quick Quiz advancement, not just initial mounts.
   const mixed=[...cards('vocabulary'),...cards('long')],{page,errors}=await open(browser,{width:390,height:844},games.makeClassGames('Mixed run',mixed,{homeUrl:'/class'}));
   try{

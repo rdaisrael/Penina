@@ -11,7 +11,7 @@ function mountGameFullscreen(button, surface) {
     function sync() {
         const active = nativeElement() === surface || expandedInPage;
         surface.classList.toggle('game-fullscreen', active);
-        button.textContent = active ? 'Exit full screen' : 'Full screen';
+        button.textContent = active ? (button.dataset?.exitLabel || 'Exit full screen') : 'Full screen';
     }
 
     async function leave() {

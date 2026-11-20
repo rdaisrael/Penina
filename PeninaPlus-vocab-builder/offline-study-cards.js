@@ -163,6 +163,7 @@
             ship: { x: width / 2, y: height / 2, vx: 0, vy: 0, angle: -Math.PI / 2, shield: 2 } };
         const wrap = (value, limit) => (value % limit + limit) % limit;
         function distance(a, b) {
+            const { width, height } = state;
             const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y);
             return Math.hypot(Math.min(dx, width - dx), Math.min(dy, height - dy));
         }
@@ -172,15 +173,28 @@
                 angle: random() * Math.PI * 2, spin: random() - .5,
                 outline: Array.from({ length: 10 }, () => .75 + random() * .25) };
         }
+        // Preserve positions and game progress when the visible flight area changes shape.
+        function resize(newWidth, newHeight) {
+            const { width, height } = state;
+            if (width === newWidth && height === newHeight) return;
+            for (const item of [state.ship, ...state.rocks, ...state.enemies, ...state.enemyShots, ...state.bullets, ...state.effects]) {
+                item.x *= newWidth / width;
+                item.y *= newHeight / height;
+            }
+            state.width = newWidth;
+            state.height = newHeight;
+        }
         function populate() {
+            const { width, height } = state;
             state.enemyShots=[];
-            if(state.wave>=2) for(let i=0;i<2+state.wave;i++) state.enemies.push({x:40+i*170,y:30,radius:18,kind:state.wave===2?'martian':'ship',cooldown:1+i*.35});
+            if(state.wave>=2) for(let i=0;i<2+state.wave;i++) state.enemies.push({x:(40+i*170)*width/900,y:30,radius:18,kind:state.wave===2?'martian':'ship',cooldown:1+i*.35});
             for (let i = 0; i < Math.min(2 + state.wave, 7); i++) {
                 // New waves arrive at the edge, away from the ship's starting position.
                 state.rocks.push(rock('large', i % 2 ? random() * width : 20, i % 2 ? 20 : random() * height));
             }
         }
         function damage(cause) {
+            const { width, height } = state;
             state.score = Math.max(0, state.score - 150);
             state.effects.push({x:state.ship.x,y:state.ship.y,points:-150,ttl:1});state.lastDamage={cause,number:(state.lastDamage?.number||0)+1};
             state.ship.x=width/2;state.ship.y=height/2;state.ship.vx=state.ship.vy=0;state.ship.shield=2;
@@ -210,6 +224,7 @@
             state.fuel--; state.cooldown = .18; return true;
         }
         function tick(seconds, controls = {}) {
+            const { width, height } = state;
             if (state.phase !== 'flying') return;
             // One press-and-hold is one jet burst; ask after the fifth burst is released.
             if (!controls.thrust && state.thrustActive && !state.jets) { state.thrustActive=false; state.phase='question'; return; }
@@ -267,19 +282,97 @@
             if (!state.fuel && !state.bullets.length) state.phase = 'question';
         }
         populate();
-        return { state, answer, nextQuestion, launch, pause, shoot, tick };
+        return { state, answer, nextQuestion, launch, pause, shoot, tick, resize };
     }
 
     function mountAsteroids({ board, rows, createEngine, setFeedback, setProgress }) {
         const doc = board.ownerDocument, game = createEngine(), state = game.state;
-        board.innerHTML = `<div class="asteroids-hud"><span>Score <b id="asteroidScore">300</b></span><span>Fuel cells <b id="asteroidFuel">0</b> / 10</span><span>Jet bursts <b id="asteroidJets">0</b> / 5</span><span>Round <b id="asteroidWave">1</b></span><button id="asteroidPause" type="button" disabled>Pause</button></div><div class="asteroids-arena"><canvas id="asteroidCanvas" width="900" height="500" tabindex="0" aria-label="Asteroids play area. Left and right arrows turn, up arrow thrusts, space fires. Press P to pause.">Use a browser with canvas support to play Asteroids.</canvas><div id="asteroidOverlay" class="asteroids-overlay"><section id="asteroidQuestion" class="asteroids-question" aria-labelledby="asteroidQuestionTitle"></section></div></div><div class="asteroids-controls" aria-label="Spaceship controls"><button type="button" data-flight="left" aria-label="Turn left">↶ Left</button><button type="button" data-flight="thrust" aria-label="Thrust">↑ Thrust</button><button type="button" data-flight="right" aria-label="Turn right">Right ↷</button><button type="button" data-flight="fire" aria-label="Fire">● Fire</button></div><p class="asteroids-rules">Large asteroid: <b>20</b> · Medium: <b>50</b> · Small: <b>100</b> · Martian: <b>125</b> · Enemy ship: <b>200</b> · Collision / enemy fire: <b>−150</b> · Wrong answer: <b>−25</b> · Start: <b>300</b><br>Arrows or W/A/D to fly · Space to fire · P to pause. Each thrust press-and-hold uses one of your 5 jet bursts. Release the fifth burst to answer a new question. You can also hold the buttons above.</p>`;
+        board.innerHTML = `
+<div class="asteroids-hud">
+    <span>Score <b id="asteroidScore">300</b></span><span>Fuel cells <b id="asteroidFuel">0</b> / 10</span>
+    <span>Jet bursts <b id="asteroidJets">0</b> / 5</span><span>Round <b id="asteroidWave">1</b></span>
+    <button id="asteroidGuide" type="button">How to play</button><button id="asteroidPause" type="button" disabled>Pause</button>
+</div>
+<div class="asteroids-arena">
+    <canvas id="asteroidCanvas" width="900" height="500" tabindex="0" aria-label="Asteroids play area. Left and right arrows turn, up arrow thrusts, space fires. Press P to pause."></canvas>
+    <div id="asteroidOverlay" class="asteroids-overlay"><section id="asteroidQuestion" class="asteroids-question" aria-labelledby="asteroidQuestionTitle"></section></div>
+    <div class="asteroids-corner"><button type="button" id="asteroidRead" hidden>Read full card</button></div>
+</div>
+<div class="asteroids-controls" aria-label="Spaceship controls">
+    <button type="button" data-flight="left" aria-label="Turn left">↶ Left</button><button type="button" data-flight="thrust" aria-label="Thrust">↑ Thrust</button>
+    <button type="button" data-flight="right" aria-label="Turn right">Right ↷</button><button type="button" data-flight="fire" aria-label="Fire">● Fire</button>
+</div>
+<div class="asteroids-navigation"><p class="asteroids-rules">You can also hold the buttons above.</p><div class="asteroids-actions"></div></div>
+<dialog class="asteroids-reader" aria-labelledby="asteroidReaderTitle">
+    <h3 id="asteroidReaderTitle"></h3><div class="asteroids-pages"></div>
+    <div class="asteroids-page-tools"><button type="button" data-prev>Previous</button><span role="status"></span><button type="button" data-next>Next</button><button type="button" data-return>Back to game</button></div>
+</dialog>`;
         const find = id => board.querySelector('#' + id);
         const canvas = find('asteroidCanvas'), ctx = canvas.getContext('2d');
         const overlay = find('asteroidOverlay'), question = find('asteroidQuestion'), pause = find('asteroidPause');
         const keyboard = new Set(), pointers = new Map(), aborter = new AbortController();
         const listen = (target, type, handler) => target.addEventListener(type, handler, { signal: aborter.signal });
         let frame, stopped = false, previous = 0, deck = [], lastRow = null, seenPhase = '', damageSeen = 0;
-        const stars = Array.from({ length: 80 }, (_, i) => ({ x: (i * 137.7) % state.width, y: (i * 71.3) % state.height }));
+        const stars = Array.from({ length: 80 }, (_, i) => ({ x: (i * 137.7 % 900) / 900, y: (i * 71.3 % 500) / 500 }));
+        const arena = board.querySelector('.asteroids-arena'), read = find('asteroidRead');
+        const reader = board.querySelector('.asteroids-reader'), pages = reader.querySelector('.asteroids-pages');
+        const prev = reader.querySelector('[data-prev]'), next = reader.querySelector('[data-next]');
+        let page = 0;
+        function turnPage(index) {
+            if (!reader.open || !pages.clientWidth) return;
+            const count = Math.max(1, Math.ceil((pages.scrollWidth - 1) / pages.clientWidth));
+            page = Math.max(0, Math.min(index, count - 1));
+            pages.scrollLeft = page * pages.clientWidth;
+            prev.disabled = page === 0;
+            next.disabled = page === count - 1;
+            reader.querySelector('[role=status]').textContent = (page + 1) + ' / ' + count;
+        }
+        function showPages(title, content) {
+            if (state.phase === 'flying') showPause();
+            find('asteroidReaderTitle').textContent = title;
+            pages.replaceChildren(...content);
+            reader.showModal();
+            turnPage(0);
+        }
+        prev.onclick = () => turnPage(page - 1);
+        next.onclick = () => turnPage(page + 1);
+        reader.querySelector('[data-return]').onclick = () => reader.close();
+        pages.addEventListener('load', () => turnPage(page), {capture:true, signal:aborter.signal});
+        question.addEventListener('load', updateReadButton, {capture:true, signal:aborter.signal});
+        read.onclick = () => {
+            const term = question.querySelector('.asteroids-term').cloneNode(true);
+            term.className = '';
+            const choices = [...question.querySelectorAll('.asteroids-options button')].map((option, i) => {
+                const row = el('p', ''), wording = el('bdi', option.textContent);
+                row.append(String.fromCharCode(65 + i) + '. ', wording);
+                return row;
+            });
+            const result = question.querySelector('.asteroids-result').textContent;
+            if (result) choices.push(el('p', result));
+            showPages('Question and answers', [term, ...choices]);
+        };
+        find('asteroidGuide').onclick = () => showPages('How to play', [
+            el('p', doc.getElementById('gameHelp').textContent),
+            el('p', 'Arrows or W/A/D to fly · Space to fire · P to pause. Each thrust press-and-hold uses one jet burst. Release the fifth burst to answer a new question.'),
+            el('p', 'Large asteroid: 20 points · Medium: 50 · Small: 100 · Martian: 125 · Enemy ship: 200. Start with 300 points.'),
+            el('p', doc.getElementById('gameProgress').textContent)
+        ]);
+        function fitArena() {
+            const aspect = arena.clientWidth / arena.clientHeight;
+            if (!(aspect > 0 && Number.isFinite(aspect))) return;
+            // Keep the playable area constant and the artwork proportional on rotation.
+            const w = Math.round(Math.sqrt(900 * 500 * aspect)), h = Math.round(w / aspect);
+            if (canvas.width !== w || canvas.height !== h) {
+                game.resize(w, h);
+                canvas.width = w;
+                canvas.height = h;
+            }
+        }
+        function updateReadButton() {
+            const items = question.querySelectorAll('.asteroids-term,.asteroids-options button,.asteroids-result');
+            read.hidden = overlay.hidden || !question.querySelector('.asteroids-term') ||
+                !Array.from(items).some(node => node.scrollHeight > node.clientHeight + 1 || node.scrollWidth > node.clientWidth + 1);
+        }
         function shuffled(values) {
             const result = values.slice();
             for (let i = result.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [result[i], result[j]] = [result[j], result[i]]; }
@@ -308,7 +401,7 @@
         }
         function resume() {
             if (!game.launch()) return;
-            clearControls(); overlay.hidden = true; setFeedback(''); seenPhase = state.phase;
+            clearControls(); overlay.hidden = true; read.hidden = true; setFeedback(''); seenPhase = state.phase;
             update(); canvas.focus(); previous = 0;
         }
         function ask() {
@@ -321,11 +414,11 @@
             const heading = el('h3', state.correct || state.incorrect ? 'Refuel: 10 shots and 5 jet bursts' : 'Answer a word to launch');
             heading.id = 'asteroidQuestionTitle'; heading.tabIndex = -1;
             const term = el('p', row.term, 'asteroids-term'); renderStudyQuestion(term,row);
-            const instruction = el('p', 'Choose the correct definition.');
+            heading.setAttribute('aria-label', heading.textContent + '. Choose the correct definition.');
             const options = el('div', '', 'asteroids-options');
             const result = el('p', '', 'asteroids-result'); result.setAttribute('role', 'status');
-            shuffled([row.definition, ...row.answers]).forEach(answer => {
-                const node = el('button', answer); node.type = 'button'; node.dir = 'auto';
+            shuffled([row.definition, ...row.answers]).forEach((answer, index) => {
+                const node = el('button', answer); node.type = 'button'; node.dir = 'auto'; node.dataset.letter = String.fromCharCode(65 + index);
                 node.onclick = () => {
                     const correct = answer === row.definition;
                     if (!game.answer(correct)) return;
@@ -341,17 +434,17 @@
                     const proceed = action('Next question', () => {
                         if (game.nextQuestion()) { ask(); update(); }
                     });
-                    question.append(proceed); update(); proceed.focus();
+                    question.append(proceed); update(); updateReadButton(); proceed.focus({preventScroll:true});
                 };
                 options.append(node);
             });
-            question.append(heading, term, instruction, options, result);
-            update(); heading.focus();
+            question.append(heading, term, options, result);
+            update(); heading.focus({preventScroll:true}); updateReadButton();
         }
         function showPause() {
             game.pause(); clearControls();
             if (state.phase !== 'paused') return;
-            overlay.hidden = false;
+            overlay.hidden = false; read.hidden = true;
             const heading = el('h3', 'Paused'); heading.id = 'asteroidQuestionTitle';
             const resumeButton = action('Resume flight', resume);
             question.replaceChildren(heading, el('p', 'Your ship, score, and fuel cells are waiting.'), resumeButton);
@@ -360,6 +453,7 @@
         pause.onclick = () => state.phase === 'paused' ? resume() : showPause();
         const keys = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'thrust', KeyW: 'thrust', Space: 'fire' };
         listen(doc, 'keydown', event => {
+            if (reader.open) return;
             if (event.code === 'KeyP' && ['flying', 'paused'].includes(state.phase) && !event.repeat) { event.preventDefault(); pause.click(); return; }
             // Keep Tab, button activation, and all question controls native.
             if (state.phase !== 'flying' || !keys[event.code] || event.target !== canvas) return;
@@ -387,7 +481,7 @@
         });
         function draw(controls) {
             ctx.fillStyle = '#0c1026'; ctx.fillRect(0, 0, state.width, state.height);
-            for (const star of stars) { ctx.fillStyle = '#c4c5ee88'; ctx.fillRect(star.x, star.y, 1.6, 1.6); }
+            for (const star of stars) { ctx.fillStyle = '#c4c5ee88'; ctx.fillRect(star.x * state.width, star.y * state.height, 1.6, 1.6); }
             for (const rock of state.rocks) {
                 ctx.save(); ctx.translate(rock.x, rock.y); ctx.rotate(rock.angle);
                 ctx.beginPath(); rock.outline.forEach((scale, i) => {
@@ -417,7 +511,7 @@
             state.effects.forEach(effect => { ctx.fillStyle = '#ffec55'; ctx.fillText((effect.points>0?'+':'') + effect.points, effect.x, effect.y - (1 - effect.ttl) * 30); });
         }
         function showEnd() {
-            clearControls();overlay.hidden=false;
+            clearControls();overlay.hidden=false;read.hidden=true;
             const won=state.phase==='won', heading=el('h3',won?'Congratulations captain!':'Game over');heading.id='asteroidQuestionTitle';heading.tabIndex=-1;
             question.replaceChildren(heading,el('p',`Final score: ${state.score}`));
             const config=doc.getElementById('peninaClassConfig');
@@ -430,8 +524,19 @@
             heading.focus();
         }
         const runId = typeof crypto!=='undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
-        const leaderboard=el('section','', 'asteroids-leaderboard');board.append(leaderboard);
-        function showBoard(scores){leaderboard.replaceChildren(el('h3','🏆 Class Asteroids board — Top 3 all time'));const list=el('ol','');scores.slice(0,3).forEach(entry=>list.append(el('li',`${entry.initials} · ${entry.score.toLocaleString()} points`)));leaderboard.append(scores.length?list:el('p','Be the first captain on the board!'));}
+        function showBoard(scores) {
+            const boardTitle = 'Class Asteroids board — Top 3 all time';
+            const list = el('ol', '');
+            for (const entry of scores.slice(0, 3)) {
+                list.append(el('li', entry.initials + ' · ' + entry.score.toLocaleString() + ' points'));
+            }
+            const standings = scores.length ? list : el('p', 'Be the first captain on the board!');
+            const leaderboard = el('section', '', 'asteroids-leaderboard');
+            leaderboard.append(el('h3', boardTitle), standings);
+            const openScores = action('Class scores', () => showPages(boardTitle, [standings.cloneNode(true)]));
+            openScores.classList.add('asteroids-open-scores');
+            question.append(leaderboard, openScores);
+        }
         function animate(time) {
             if (stopped) return;
             const controls = {};
@@ -447,8 +552,36 @@
             board.replaceChildren(el('p', 'Asteroids needs a browser with canvas support. Please try another browser or choose a different practice game.'));
             return () => aborter.abort();
         }
+        const surface = doc.getElementById('gameSurface');
+        const fullscreen = doc.getElementById('gameFullscreen'), back = doc.getElementById('gameBack'), again = doc.getElementById('gameAgain');
+        const windowActions = fullscreen.parentElement, brand = back.parentElement, footer = again.parentElement;
+        board.querySelector('.asteroids-corner').append(fullscreen);
+        board.querySelector('.asteroids-actions').append(again, back);
+        surface.classList.add('asteroids-active');
+        fullscreen.dataset.exitLabel = 'Exit';
+        if (surface.classList.contains('game-fullscreen')) fullscreen.textContent = 'Exit';
+        function syncFlightFocus() {
+            if (state.phase === 'flying' && !reader.open) canvas.focus({preventScroll:true});
+        }
+        // Includes the in-page fullscreen fallback.
+        const viewChange = new MutationObserver(syncFlightFocus);
+        viewChange.observe(surface, {attributes:true, attributeFilter:['class']});
+        const resize = new ResizeObserver(() => { fitArena(); updateReadButton(); turnPage(page); });
+        resize.observe(arena); resize.observe(question); resize.observe(pages);
+        fitArena();
         ask(); seenPhase = state.phase; frame = requestAnimationFrame(animate);
-        return () => { stopped = true; cancelAnimationFrame(frame); clearControls(); aborter.abort(); };
+        return () => {
+            viewChange.disconnect(); resize.disconnect();
+            if (reader.open) reader.close();
+            surface.classList.remove('asteroids-active');
+            delete fullscreen.dataset.exitLabel;
+            fullscreen.textContent = surface.classList.contains('game-fullscreen') ? 'Exit full screen' : 'Full screen';
+            windowActions.prepend(fullscreen); brand.append(back); footer.append(again);
+            stopped = true;
+            cancelAnimationFrame(frame);
+            clearControls();
+            aborter.abort();
+        };
     }
 
     // Embedded in each published or downloaded set; uses its reviewed answer choices.
@@ -963,6 +1096,8 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             if (matchingActive) return;
             stopPending();stopAsteroids?.();stopAsteroids=null;clearSelection();mode=value;
             byId('gameBack').hidden=false;
+            byId('gameClose').hidden=value==='asteroids';
+            byId('gameLobby').dataset.mode=value;
             byId('gameMenu').hidden=true;byId('gamePlay').hidden=true;byId('gameLobby').hidden=false;
             const heading=byId('lobbyTitle'),scores=byId('lobbyScores'),note=byId('lobbyNote');
             byId('lobbyHelp').textContent=value==='cards'?'Each round shows up to six terms. Match each term with its definition. Continue until every word is matched once. Three incorrect matches end the game.':value==='asteroids'?'There are 3 rounds: asteroids, pursuing Martians, then enemy ships.':value==='flappy'?'Choose a bird, flap through the correct answers, and earn a place in the top three. Three rounds of five words, with three lives total.':value==='snowblaster'?'Start with 2 blasts. Each correct hit earns 1 blast. When you run out, answer a recharge card correctly to earn 1 blast. Aim with the arrow keys and fire with Space. Speed 1 / 2 / 3 earns 100 / 200 / 300 points; wrong blasts lose 50 points. Play three rounds of eight words: snowflakes, heavy snow, and snowballs. Missed correct answers lose 25 points. Start with 200; zero means game over.':value==='chomp'?'Clear the maze, dodge ghosts, and power up with your vocabulary.':'';
@@ -1029,7 +1164,7 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
             matchingActive = false;
             stopAsteroids?.(); stopAsteroids = null;
             stopPending();mode = ''; clearSelection(); board.replaceChildren(); drag = null;
-            byId('gameBack').hidden = true;
+            byId('gameBack').hidden = true; byId('gameClose').hidden = false;
             byId('gameMenu').hidden = false; byId('gamePlay').hidden = true;byId('gameLobby').hidden=true;
             byId('gameMenu').querySelector('button')?.focus();
         }
@@ -1093,6 +1228,78 @@ return ()=>{destroyed=true;stop();abort.abort();document.removeEventListener('ke
 #gamesDialog .sb .sb-status{height:54px;overflow:auto}
 @media(max-width:540px){
  #gamesDialog .asteroids-options{grid-template-rows:repeat(6,64px)}
+}
+#gameLobby[data-mode="asteroids"]{margin:8px auto}
+#gameLobby[data-mode="asteroids"] :is(h2,h3,p,ol){margin:4px 0}
+#gameLobby[data-mode="asteroids"] li{padding:3px;font-size:16px}
+#gameLobby[data-mode="asteroids"] .game-launch{margin-top:6px}
+@media(max-height:560px){
+ #gamesDialog:has(#gameLobby[data-mode="asteroids"]:not([hidden])){box-sizing:border-box;height:100vh;height:100dvh;max-height:100dvh;padding:4px 8px}
+ #gameSurface:has(#gameLobby[data-mode="asteroids"]:not([hidden])) .games-brand{display:flex;align-items:center}
+ #gameLobby[data-mode="asteroids"]{max-width:700px;line-height:1.1}
+ #gameLobby[data-mode="asteroids"] li{display:inline-block;padding:3px 8px}
+}
+/* Asteroids keeps the flight controls and navigation in view while the arena takes the remaining height. */
+#gamesDialog:has(>.asteroids-active:not(.game-fullscreen)){box-sizing:border-box;height:94vh;height:94dvh;max-height:100dvh;padding:clamp(6px,1.5vmin,16px);overflow:hidden;scrollbar-gutter:auto}
+#gameSurface.asteroids-active,.asteroids-active #gamePlay{height:100%;min-height:0;display:flex;flex-direction:column}
+.asteroids-active .games-heading,.asteroids-active .game-footer,.asteroids-active #gameHelp{display:none}
+.asteroids-active #gameProgress,.asteroids-active #gameFeedback{position:absolute;width:1px;height:1px!important;overflow:hidden;clip-path:inset(50%);margin:0;padding:0}
+.asteroids-active #gameTitle{margin:0 0 4px;font-size:clamp(15px,2.8vmin,24px);line-height:1.1}
+.asteroids-active #gameBoard{flex:1;min-height:0;margin:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto}
+.asteroids-active .asteroids-hud{gap:3px 10px;padding:4px 8px;font-size:clamp(11px,2vmin,15px);line-height:1.1}
+.asteroids-active .asteroids-hud span{white-space:nowrap}
+.asteroids-active .asteroids-hud b{font-size:1.2em;margin:0}
+.asteroids-active .asteroids-hud button,.asteroids-active .asteroids-actions button,.asteroids-corner button,.asteroids-page-tools button{font:600 14px/1.15 system-ui;min-height:36px;padding:5px 10px;width:auto}
+.asteroids-active .asteroids-arena{min-height:0}
+.asteroids-active .asteroids-arena canvas{width:100%;height:100%;min-height:0;object-fit:fill}
+.asteroids-active .asteroids-overlay{position:absolute;inset:0 0 46px;box-sizing:border-box;overflow:hidden;padding:4px}
+#gamesDialog .asteroids-active .asteroids-question{box-sizing:border-box;min-width:0;width:min(100%,820px);height:100%;max-height:100%;padding:clamp(3px,1vmin,10px);margin:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:4px}
+#gamesDialog .asteroids-active .asteroids-question:has(.asteroids-options){display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) minmax(0,2fr);justify-content:stretch;align-content:stretch}
+.asteroids-active .asteroids-question h3{font-size:clamp(14px,2.6vmin,21px);line-height:1.1}
+#gamesDialog .asteroids-active .asteroids-term{height:auto;min-height:0;margin:0;scrollbar-gutter:auto;overflow:auto;font-size:clamp(16px,3vmin,24px);line-height:1.2;align-content:safe center}
+#gamesDialog .asteroids-active .asteroids-options{min-height:0;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none;grid-auto-rows:minmax(0,1fr);gap:4px}
+#gamesDialog .asteroids-active .asteroids-options button{height:auto;min-height:0;overflow:auto;font-size:clamp(14px,2.5vmin,19px);line-height:1.15;padding:3px 6px}
+.asteroids-active .asteroids-options button::before{content:attr(data-letter) ". " / "";font-weight:bold}
+#gamesDialog .asteroids-active .asteroids-result{height:auto;max-height:2.6em;margin:0;font-size:14px;line-height:1.2}
+.asteroids-active .asteroids-result:empty,.asteroids-active .asteroids-open-scores{display:none}
+.asteroids-active .asteroids-leaderboard ol{margin:4px 0;padding-inline-start:2em}
+.asteroids-active .asteroids-question>p:not(.asteroids-term){margin:2px 0}
+.asteroids-active .asteroids-question .asteroids-continue{min-height:30px;padding:4px}
+.asteroids-corner{position:absolute;bottom:max(4px,env(safe-area-inset-bottom));right:max(4px,env(safe-area-inset-right));display:flex;gap:5px;z-index:2}
+.asteroids-corner button{background:#1c2344;color:#fff;border:1px solid #abb4d8;border-radius:8px}
+.asteroids-active .asteroids-controls{gap:4px;margin:0}
+.asteroids-active .asteroids-controls button{min-height:40px;padding:4px}
+.asteroids-navigation{text-align:left}
+.asteroids-active .asteroids-rules{margin:3px 0;font-size:13px;line-height:1.15}
+.asteroids-actions,.asteroids-page-tools{display:flex;align-items:center;gap:6px}
+#gamesDialog:has(>.asteroids-active.game-fullscreen){height:100dvh}
+#gameSurface.asteroids-active.game-fullscreen{padding:0;overflow:hidden;background:#0c1026}
+.asteroids-active.game-fullscreen #gameBoard{grid-template-rows:minmax(0,1fr) auto}
+.asteroids-active.game-fullscreen #gameTitle,.asteroids-active.game-fullscreen .asteroids-navigation,.asteroids-active.game-fullscreen .asteroids-hud{display:none}
+.asteroids-active.game-fullscreen .asteroids-arena{border-radius:0}
+.asteroids-active.game-fullscreen .asteroids-controls{padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+/* During flight, keep the instruments and Pause inside the arena without making a header row. */
+.asteroids-active.game-fullscreen #gameBoard:has(#asteroidOverlay[hidden]) .asteroids-hud{display:flex;position:absolute;z-index:1;top:env(safe-area-inset-top);left:env(safe-area-inset-left);max-width:100%;box-sizing:border-box;border-radius:0 0 8px 0;background:#0c1026c9;pointer-events:none}
+.asteroids-active.game-fullscreen .asteroids-hud button{pointer-events:auto}
+.asteroids-reader{box-sizing:border-box;width:min(90vw,700px);height:min(84vh,600px);height:min(84dvh,600px);margin:auto;padding:12px;background:#faf7ff;color:#241632;border:1px solid #a089d0;border-radius:12px}
+.asteroids-reader[open]{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:8px;overflow:hidden}
+.asteroids-reader::backdrop{background:#0c1026c9}
+.asteroids-reader h3,.asteroids-pages p{margin:0 0 6px}
+.asteroids-pages{column-count:1;column-gap:0;column-fill:auto;overflow:hidden;overflow-wrap:anywhere;white-space:pre-wrap;font:17px/1.4 system-ui}
+.asteroids-page-tools{flex-wrap:wrap;justify-content:center}
+@media(max-width:600px),(max-height:560px){
+ #gamesDialog:has(>.asteroids-active:not(.game-fullscreen)){width:100%;max-width:none;height:100vh;height:100dvh;margin:0;border-radius:0}
+ .asteroids-active .asteroids-hud{justify-content:flex-start;gap:3px 6px}
+}
+@media(orientation:landscape) and (max-height:560px){
+ .asteroids-active #gameTitle,.asteroids-active .asteroids-leaderboard{display:none}
+ .asteroids-active .asteroids-open-scores{display:block}
+ .asteroids-navigation{display:flex;align-items:center;gap:8px}
+ .asteroids-active .asteroids-overlay{inset:0 104px 0 0}
+ .asteroids-corner{align-items:flex-end;flex-direction:column}
+ #gamesDialog .asteroids-active .asteroids-question:has(.asteroids-options){grid-template-columns:minmax(0,2fr) minmax(0,3fr);grid-template-rows:auto minmax(0,1fr) auto auto}
+ .asteroids-active .asteroids-options{grid-column:2;grid-row:1 / -1}
+ .asteroids-active .asteroids-term,.asteroids-active .asteroids-result,.asteroids-active .asteroids-continue{grid-column:1}
 }
 </style>
 <dialog id="gamesDialog" class="games-dialog" aria-labelledby="gamesTitle"><div id="gameSurface"><div class="games-heading"><div class="games-brand"><h2 id="gamesTitle">Gamify!</h2><button id="gameBack" type="button" hidden>Choose another game</button></div><div class="games-window-actions"><button id="gameFullscreen" type="button">Full screen</button><button id="gameClose" type="button">Close</button></div></div><section id="gameMenu"><p class="game-menu-intro">Choose your challenge. Build your skills. Beat your best.</p><label>Answer language <select id="gameLanguage"></select></label><div class="game-menu-options"><button type="button" data-game="quiz"><span class="game-icon">⚡</span><strong>Quick Quiz</strong><small>Trust your knowledge. Find the right definition.</small></button><button type="button" data-game="lines"><span class="game-icon">🔗</span><strong>Connect the Words</strong><small>Draw the connections. Outsmart the distractors.</small></button><button type="button" data-game="cards"><span class="game-icon">🧩</span><strong>Match the Cards</strong><small>Find every pair. Leave the decoys behind.</small></button><button type="button" data-game="asteroids"><span class="game-icon">🚀</span><strong>Vocabulary Asteroids</strong><small>Fuel up. Survive three rounds. Become captain.</small></button><button type="button" data-game="flappy"><span class="game-icon">🐦</span><strong>Flappy Vocab</strong><small>Choose your bird. Fly through the answers. Beat your best.</small></button><button type="button" data-game="snowblaster"><span class="game-icon">❄️</span><strong>Snowblaster!</strong><small>Melt the right answers. Brave the blizzard. Survive three rounds.</small></button><button type="button" data-game="chomp"><span class="game-icon">👻</span><strong>Chomp &amp; Charge</strong><small>Chomp the dots. Chase the ghosts. Power up with words.</small></button></div></section><section id="gameLobby" class="game-lobby" hidden><h2 id="lobbyTitle" tabindex="-1"></h2><p id="lobbyHelp"></p><h3 id="lobbyRankingTitle">Top 3</h3><ol id="lobbyScores"></ol><p id="lobbyNote" role="status"></p><button id="gameLaunch" class="game-launch" type="button">Launch</button></section><section id="gamePlay" hidden><h2 id="gameTitle" tabindex="-1"></h2><p id="gameHelp"></p><p id="gameProgress" role="status"></p><div id="gameBoard" class="game-board"></div><p id="gameFeedback" class="game-feedback" role="status" aria-live="polite"></p><button id="gameNext" type="button" hidden>Next</button><div class="game-footer"><button id="gameAgain" type="button">Play again</button></div></section></div></dialog>

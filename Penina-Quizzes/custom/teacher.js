@@ -65,10 +65,12 @@ function formatResultTime(value) {
 function render() {
     records.sort(QuizCorrection.compareStudents);
     document.getElementById('reports').innerHTML = records.map(r=>{
-        const g=r.grading;
+        const g=r.grading;let number=0;
         return `<details name="student-responses" class="card" id="submission-${esc(r.id)}"><summary>${esc(r.name)} · ${esc(r.email)}${QuizCorrection.correctionArrow('first')}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(formatResultTime(r.submittedAt))} · Receipt: ${esc(r.id)}</p><form class="correction" data-id="${r.id}" data-classroom-draft="${g.classroomDraft===true}">${questions.map((q,i)=>{
+            if(q.type==='section')return `<section class="section-content"><p class="muted">Title/Section Page</p>${q.prompt?`<h2 class="review-prompt" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.prompt)}</h2>`:''}${q.content?`<p class="section-paragraph" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</p>`:''}${q.image?QuizPicture.render(q):''}</section>`;
+            number++;
             const auto=g.automatic.find(item=>item.index===i),manual=g.manual.find(item=>item.index===i);
-            return QuizCorrection.question(q,i,q.type==='match'?r.answers[i].map((v,j)=>q.items[j]+': '+(v || '(Unanswered)')):r.answers[i],auto,manual,auto?.step ?? (q.allowHalfCredit===true?0.5:1));
+            return QuizCorrection.question({...q,number},i,q.type==='match'?r.answers[i].map((v,j)=>q.items[j]+': '+(v || '(Unanswered)')):r.answers[i],auto,manual,auto?.step ?? (q.allowHalfCredit===true?0.5:1));
         }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label><p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use ${g.baseMax} regular points${g.extraMax?', plus up to '+g.extraMax+' extra-credit points':''}.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send draft to Classroom</button><p class="muted">After saving the current grading as a draft in Classroom, send the corrected test to ${esc(r.email)}, including teacher overrides and your explanations. The answer key is not included.</p><button type="submit" name="emailStudent" value="yes" ${g.classroomDraft?'':'disabled'}>Send Email</button><p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
     }).join('');
 }
@@ -76,12 +78,15 @@ function renderSummary() {
     renderResultsGrid();
     document.getElementById('summaryPanel').hidden=false;
     document.getElementById('summaryCaption').textContent=records.length?`${records.length} submitted quiz${records.length===1?'':'zes'}. Counts and percentages update when you save corrections.`:'No submissions yet. Percentages will appear after students submit.';
+    let number=0;
     document.getElementById('summaryRows').innerHTML=questions.map((q,index)=>{
+        if(q.type==='section')return '';
+        number++;
         const counts={correct:0,incorrect:0,partial:0,pending:0};
         for(const r of records){const item=[...r.grading.automatic,...r.grading.manual].find(v=>v.index===index);counts[resultState(item)]++;}
-        const parts=renderPartSummary(q,index);
+        const parts=renderPartSummary({...q,number},index);
         const matches=q.type==='match' && !parts?`<div class="summary-matches"><span>Correct matches:</span><ul>${q.items.map((word,i)=>`<li><bdi dir="auto">${esc(word)}</bdi> — <bdi dir="auto">${esc(q.answer[i])}</bdi></li>`).join('')}</ul></div>`:'';
-        return `<tr><th scope="row"><span>Q${index+1}${q.extraCredit?' · Extra credit':''}</span><div class="summary-prompt" dir="auto">${esc(q.prompt)}</div>${matches}</th>${Object.values(counts).map(n=>`<td>${summaryCount(n)}</td>`).join('')}</tr>${parts}`;
+        return `<tr><th scope="row"><span>Q${number}${q.extraCredit?' · Extra credit':''}</span><div class="summary-prompt" dir="auto">${esc(q.prompt)}</div>${matches}</th>${Object.values(counts).map(n=>`<td>${summaryCount(n)}</td>`).join('')}</tr>${parts}`;
     }).join('');
 }
 function summaryCount(n) {
@@ -104,7 +109,7 @@ function renderPartSummary(q,index) {
         }).length;
         return [`<tr><th scope="row"><span class="summary-part-label">${label}</span><span class="summary-part-answer">${key}</span></th><td data-result="correct">${summaryCount(correct)}</td><td data-result="incorrect">${summaryCount(records.length-correct)}</td></tr>`];
     }).join('');
-    return `<tr class="summary-breakdown"><td colspan="5"><div class="summary-parts"><p class="summary-parts-heading">Q${index+1} · Breakdown by part</p><table class="summary-parts-table" aria-label="Question ${index+1} breakdown by part"><thead><tr><th scope="col">Part / correct answer</th><th scope="col">Correct</th><th scope="col">Wrong</th></tr></thead><tbody>${parts}</tbody></table></div></td></tr>`;
+    return `<tr class="summary-breakdown"><td colspan="5"><div class="summary-parts"><p class="summary-parts-heading">Q${q.number ?? index+1} · Breakdown by part</p><table class="summary-parts-table" aria-label="Question ${q.number ?? index+1} breakdown by part"><thead><tr><th scope="col">Part / correct answer</th><th scope="col">Correct</th><th scope="col">Wrong</th></tr></thead><tbody>${parts}</tbody></table></div></td></tr>`;
 }
 function resultState(item) {
     return !item || item.score==null?'pending':item.score>=(item.correctnessMax ?? item.max)?'correct':item.score===0?'incorrect':'partial';
@@ -113,12 +118,13 @@ function renderResultsGrid() {
     const labels={correct:'Correct',incorrect:'Incorrect',partial:'Partial credit',pending:'Teacher will correct',missing:'Not submitted'};
     const symbols={correct:'✓',incorrect:'✕',partial:'◐',pending:'…',missing:'—'};
     const head=document.getElementById('resultsHead');
-    head.innerHTML='<tr><th scope="col">Student</th><th scope="col">Grade</th>'+questions.map((q,i)=>`<th scope="col"><button type="button" data-question="${i}" title="${esc(q.prompt)}" aria-label="Question ${i+1}${q.extraCredit?', extra credit':''}: ${esc(q.prompt)}">${i+1}${q.extraCredit?'<span class="results-bonus">Bonus</span>':''}</button></th>`).join('')+'</tr>';
+    let number=0;
+    head.innerHTML='<tr><th scope="col">Student</th><th scope="col">Grade</th>'+questions.map((q,i)=>q.type==='section'?'':`<th scope="col"><button type="button" data-question="${i}" title="${esc(q.prompt)}" aria-label="Question ${++number}${q.extraCredit?', extra credit':''}: ${esc(q.prompt)}">${number}${q.extraCredit?'<span class="results-bonus">Bonus</span>':''}</button></th>`).join('')+'</tr>';
     const showQuestion=event=>{
         const button=event.target.closest('button[data-question]');
         if(!button)return;
         const index=Number(button.dataset.question),q=questions[index];
-        document.getElementById('resultsQuestion').textContent=`Question ${index+1}${q.extraCredit?' · Extra credit':''}: ${q.prompt}`;
+        document.getElementById('resultsQuestion').textContent=`Question ${questions.slice(0,index+1).filter(q=>q.type!=='section').length}${q.extraCredit?' · Extra credit':''}: ${q.prompt}`;
     };
     head.onmouseover=showQuestion;head.onfocusin=showQuestion;head.onclick=showQuestion;
     document.getElementById('resultsQuestion').textContent='Select a question number to read its text.';
@@ -137,12 +143,13 @@ function renderResultsGrid() {
         const items=new Map(g?[...g.automatic,...g.manual].map(item=>[item.index,item]):[]);
         const name=record?`<a href="#submission-${esc(record.id)}" data-submission="${esc(record.id)}">${esc(student.name)}</a>`:esc(student.name);
         return `<tr><th scope="row">${name}</th><td>${esc(grade)}</td>`+questions.map((q,index)=>{
+            if(q.type==='section')return '';
             const item=items.get(index),state=record?resultState(item):'missing';
             const points=state==='missing'?'':state==='pending'?'Teacher will correct':`${item.score} / ${item.max}`;
             const description=`${labels[state]}${points?' · '+points:''}`;
             return `<td data-result="${state}" title="${esc(description)}" aria-label="${esc(description)}"><span aria-hidden="true">${symbols[state]}</span> ${esc(points)}</td>`;
         }).join('')+'</tr>';
-    }).join('') || `<tr><td colspan="${questions.length+2}">No students or submissions to show yet.</td></tr>`;
+    }).join('') || `<tr><td colspan="${questions.filter(q=>q.type!=='section').length+2}">No students or submissions to show yet.</td></tr>`;
 }
 function renderRoster(roster) {
     document.getElementById('rosterPanel').hidden=false;
@@ -206,10 +213,11 @@ document.getElementById('reports').addEventListener('submit',async event=>{
     finally{fields.forEach(field=>field.disabled=false);buttons.forEach(button=>button.disabled=button.name==='emailStudent' && correction.dataset.classroomDraft!=='true');}
 });
 document.getElementById('export').addEventListener('click',()=>{
-    const columns = questions.map((q,i)=>`${i+1}. ${q.extraCredit?'[Extra credit] ':''}${q.prompt}`);
+    const gradedQuestions=questions.filter(q=>q.type!=='section');
+    const columns = gradedQuestions.map((q,i)=>`${i+1}. ${q.extraCredit?'[Extra credit] ':''}${q.prompt}`);
     // Prevent answers or names being interpreted as spreadsheet formulas.
     const csvCell = v => { let s = String(v); if (/^[\s]*[=+\-@]/.test(s)) s = "'" + s; return '"'+s.replace(/"/g,'""')+'"'; };
-    const rows = [['Name','School email','Submitted at (Eastern Time)','Receipt','Automatic points',...questions.flatMap((q,i)=>(q.type==='text'||q.type==='recording'||q.type==='gaps'&&q.wordBank===false)?['Q'+(i+1)+' points']:[]),'Final score','Questions awaiting correction','Teacher feedback',...columns],...records.map(r=>[r.name,r.email,formatResultTime(r.submittedAt),r.id,r.grading.automaticScore,...r.grading.manual.map(q=>q.score??''),r.grading.total??'',r.grading.pending,r.grading.feedback,...r.answers.map((values,i)=>questions[i].type==='recording'?(values[0]?'Recorded answer (listen in teacher tools)':'(No recording)'):values.join(' | '))])];
+    const rows = [['Name','School email','Submitted at (Eastern Time)','Receipt','Automatic points',...gradedQuestions.flatMap((q,i)=>(q.type==='text'||q.type==='recording'||q.type==='gaps'&&q.wordBank===false)?['Q'+(i+1)+' points']:[]),'Final score','Questions awaiting correction','Teacher feedback',...columns],...records.map(r=>[r.name,r.email,formatResultTime(r.submittedAt),r.id,r.grading.automaticScore,...r.grading.manual.map(q=>q.score??''),r.grading.total??'',r.grading.pending,r.grading.feedback,...r.answers.flatMap((values,i)=>questions[i].type==='section'?[]:[questions[i].type==='recording'?(values[0]?'Recorded answer (listen in teacher tools)':'(No recording)'):values.join(' | ')])])];
     const url = URL.createObjectURL(new Blob(['\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
     const a = document.createElement('a'); a.href = url; a.download = 'PP-Quiz-submissions.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 });

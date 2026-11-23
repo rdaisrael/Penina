@@ -18,6 +18,7 @@
     }
     function question(q,index,random){
         const choices=shuffled(q.choices || [],random),direction=q.direction==='rtl'?'rtl':'ltr';
+        if(q.type==='section')return `<article class="qp-section-page" aria-label="Title/Section Page">${q.prompt?`<h2 class="qp-prompt" dir="${direction}">${escape(q.prompt)}</h2>`:''}${q.content?`<p class="qp-section-paragraph" dir="${direction}">${escape(q.content)}</p>`:''}${picture.render(q)}</article>`;
         let instruction='',response='';
         if(q.type==='recording'){
             instruction='Record your answer in the online quiz (up to '+(q.recordingMinutes ?? 3)+' minute'+((q.recordingMinutes ?? 3)===1?'':'s')+'). Use this space to plan your answer.';
@@ -46,9 +47,10 @@
     function render(quiz,random=Math.random){
         const questions=quiz.questions || [];
         if(!questions.length)throw Error('Add at least one question before printing.');
+        const count=questions.filter(q=>q.type!=='section').length;let number=0;
         const total=questions.filter(q=>!q.extraCredit).reduce((sum,q)=>sum+scoring.maxPoints(q),0);
         const extra=questions.filter(q=>q.extraCredit).reduce((sum,q)=>sum+scoring.maxPoints(q),0);
-        return `<div class="qp-paper"><header class="qp-cover"><div class="qp-brand">PENINA <span>CLASSROOM QUIZ</span></div><h1 dir="auto">${escape(quiz.title?.trim() || 'Classroom quiz')}</h1><p class="qp-meta">${questions.length} question${questions.length===1?'':'s'} <span>·</span> ${total} ${total===1?'point':'points'}${extra?` <span>·</span> ${extra} extra-credit ${extra===1?'point':'points'}`:''}${quiz.durationMinutes?` <span>·</span> ${Number(quiz.durationMinutes)} minutes`:''}</p><div class="qp-student"><div class="qp-name">Name <span></span></div><div>Date <span></span></div><div>Class <span></span></div></div><p class="qp-directions"><strong>Before you begin</strong> Read each question carefully. Write neatly, and check your work when you finish.</p></header>${questions.map((q,i)=>question(q,i,random)).join('')}<p class="qp-finish">You’re finished! Check that you’ve answered every required question.</p></div>`;
+        return `<div class="qp-paper"><header class="qp-cover"><div class="qp-brand">PENINA <span>CLASSROOM QUIZ</span></div><h1 dir="auto">${escape(quiz.title?.trim() || 'Classroom quiz')}</h1><p class="qp-meta">${count} question${count===1?'':'s'} <span>·</span> ${total} ${total===1?'point':'points'}${extra?` <span>·</span> ${extra} extra-credit ${extra===1?'point':'points'}`:''}${quiz.durationMinutes?` <span>·</span> ${Number(quiz.durationMinutes)} minutes`:''}</p><div class="qp-student"><div class="qp-name">Name <span></span></div><div>Date <span></span></div><div>Class <span></span></div></div><p class="qp-directions"><strong>Before you begin</strong> Read each question carefully. Write neatly, and check your work when you finish.</p></header>${questions.map(q=>question(q,q.type==='section'?number:number++,random)).join('')}<p class="qp-finish">You’re finished! Check that you’ve answered every required question.</p></div>`;
     }
     let previousTitle='',previousScroll=0,returnFocus=null,active=false;
     function close(){

@@ -41,7 +41,7 @@ const server=http.createServer(async(req,res)=>{
         const current=()=>page.evaluate(()=>JSON.stringify(quiz));
         const pick=id=>page.locator('[data-draft-id="'+id+'"]');
         await page.goto(origin+'/Penina-Quizzes/builder/');await page.getByText('Connected as local@example.test').waitFor();
-        await page.locator('#title').fill('My saved lesson');await page.locator('#add').click();
+        await page.locator('#title').fill('My saved lesson');await page.locator('#type').selectOption('text');await page.locator('#add').click();
         await page.locator('[data-field="prompt"]').fill('Explain the lesson.');await page.locator('[data-field="answer"]').fill('My model answer');
         await page.locator('#save').click();await page.getByText('Draft saved.',{exact:true}).waitFor();
         const before=await current();await page.reload();await page.getByText('Connected as local@example.test').waitFor();

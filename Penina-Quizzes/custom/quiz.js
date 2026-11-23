@@ -34,6 +34,7 @@ function restoreAnswers(){
     });
 }
 function answer(q,i) {
+    if(q.type==='section')return [];
     if(q.type==='multi')return [...form.querySelectorAll(`[data-question="${i}"] input:checked`)].map(c=>c.value);
     const count=q.pictureResponseMode==='markers'?q.image?.markers?.length || 1:q.type==='gaps'?q.prompt.split('___').length-1:q.type==='match'?q.items.length:q.type==='order'?q.choices.length:1;
     return Array.from({length:count},(_,j)=>form.elements.namedItem(`q${i}-${j}`)?.value || '');
@@ -43,6 +44,7 @@ function shuffled(values) {
     for(let i=copy.length-1;i>0;i--) {const j=Math.floor(Math.random()*(i+1));[copy[i],copy[j]]=[copy[j],copy[i]];}
     return copy;
 }
+function sectionContent(q){return `<div class="section-content"><p class="number">Title/Section Page</p>${q.prompt?`<h2 class="prompt" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.prompt)}</h2>`:''}${q.content?`<p class="section-paragraph" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</p>`:''}${q.image?QuizPicture.render(q):''}</div>`;}
 function controls(q,i){return QuizInteractions.controls(q,i);}
 async function request(record) {
     if(previewQuiz){if(record.action==='start')return {id:'preview',token:'preview',deadline:previewQuiz.durationMinutes===null?null:Date.now()+previewQuiz.durationMinutes*60000};if(record.action==='state')return {lockedThrough:saved.lockedThrough??-1,forwardOnly:saved.forwardOnly===true,lockedAnswers:saved.lockedAnswers||[]};if(record.action==='advance'){lockedThrough=record.through;forwardOnly=true;saved.lockedAnswers=record.answers;saved.lockedThrough=lockedThrough;saved.forwardOnly=forwardOnly;store();return {lockedThrough,forwardOnly,lockedAnswers:record.answers};}if(record.action==='submit')return {accepted:true,answers:record.answers,submittedAt:new Date().toISOString(),automatic:QuizScoring.feedback(previewQuiz.questions,record.answers,true)};}
@@ -61,8 +63,8 @@ function navigate(value) {
     document.getElementById('previous').disabled=page===0 || expired || forwardOnly || moving;
     document.getElementById('next').hidden=onCheckpoint || page===questions.length;
     document.getElementById('next').disabled=expired || moving;
-    document.getElementById('next').textContent=forwardOnly?'Lock answer & next':'Next';
-    document.getElementById('progress').textContent=onCheckpoint?'Review checkpoint':page===questions.length?(forwardOnly?'Submit quiz':'Review and submit'):`Question ${page+1} of ${questions.length}`;
+    document.getElementById('next').textContent=forwardOnly && questions[page]?.type!=='section'?'Lock answer & next':'Next';
+    document.getElementById('progress').textContent=onCheckpoint?'Review checkpoint':page===questions.length?(forwardOnly?'Submit quiz':'Review and submit'):questions[page].type==='section'?'Title/Section Page':`Question ${questions.slice(0,page+1).filter(q=>q.type!=='section').length} of ${questions.filter(q=>q.type!=='section').length}`;
     document.getElementById('reviewHeading').textContent=forwardOnly?'Submit your quiz':'Review your answers';
     document.getElementById('reviewDescription').textContent=forwardOnly?'Your answers are locked. Submit them now to finish the quiz.':'Click the button to submit or go back to review your answers.';
     QuizInteractions.refresh(form);
@@ -79,7 +81,7 @@ function applyProgress(state) {
     }
     snapshot();
 }
-function incomplete(index){const values=answer(questions[index],index);if(questions[index].extraCredit)return questions[index].type==='order' && new Set(values.filter(Boolean)).size!==values.filter(Boolean).length;return !values.length || (questions[index].type==='match' && values.filter(Boolean).length<questions[index].responseCount) || (questions[index].type!=='match' && values.some(v=>!v.trim())) || (questions[index].type==='order' && new Set(values).size!==values.length);}
+function incomplete(index){if(questions[index].type==='section')return false;const values=answer(questions[index],index);if(questions[index].extraCredit)return questions[index].type==='order' && new Set(values.filter(Boolean)).size!==values.filter(Boolean).length;return !values.length || (questions[index].type==='match' && values.filter(Boolean).length<questions[index].responseCount) || (questions[index].type!=='match' && values.some(v=>!v.trim())) || (questions[index].type==='order' && new Set(values).size!==values.length);}
 async function advance(through) {
     if(moving || expired)return;
     for(let i=lockedThrough+1;i<=through;i++)if(incomplete(i)){navigate(i);status.textContent='Complete this answer before locking it and continuing.';return;}
@@ -108,7 +110,10 @@ function showReceipt() {
     if(previewQuiz){document.getElementById('receiptMessage').textContent='Preview complete. No student submission was sent.';document.getElementById('newStudent').textContent='Restart preview';}
     document.getElementById('receiptId').textContent = `Receipt: ${submission.id}`;
     const automatic = new Map((previewQuiz?QuizScoring.feedback(previewQuiz.questions,submission.answers,true):(submission.automatic || [])).map(q=>[q.index,q]));
+    let number=0;
     document.getElementById('answerFeedback').innerHTML=questions.map((q,i)=>{
+        if(q.type==='section')return sectionContent(q);
+        number++;
         const result=q.type==='text' || q.type==='recording' || q.type==='gaps' && q.wordBank===false?null:automatic.get(i);
         const key=result?.correctAnswers;
         const review=key && !result.correct?`<div class="response-review">${['match','gaps','order'].includes(q.type)?key.map((expected,j)=>{
@@ -116,7 +121,7 @@ function showReceipt() {
             const label=q.type==='match'?q.items[j]:`${q.type==='order'?'Position':'Blank'} ${j+1}`;
             return `<p dir="ltr"><strong><bdi dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(label)}</bdi></strong>: ${right?'✓ Correct':'✕ Incorrect'}<br>Your answer: <bdi dir="auto">${esc(actual || '(Unanswered)')}</bdi>${right?'':`<br>Correct answer: <bdi dir="auto">${esc(expected || 'Leave unmatched (distractor)')}</bdi>`}</p>`;
         }).join(''):`<p dir="ltr">Correct ${key.length>1?'answers':'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${key.map(v=>esc(v)).join('<br>')}</span></p>`}</div>`:'';
-        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${i+1}. ${esc(q.prompt)}</h3>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${q.type==='recording'?QuizRecording.player(i,submission.answers[i][0]):`<p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>`}${result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}${review}</section>`;
+        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${number}. ${esc(q.prompt)}</h3>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${q.type==='recording'?QuizRecording.player(i,submission.answers[i][0]):`<p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>`}${result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}${review}</section>`;
     }).join('');
 }
 function tick() {
@@ -152,7 +157,7 @@ async function enterQuiz() {
         if(!response.ok)throw new Error(identity.error || 'Sign in with Google to continue.');
         questions=identity.questions;
         document.querySelector('h1').textContent=identity.title;document.title=identity.title+' | PP Quiz';
-        document.getElementById('quizSummary').textContent=questions.length+' questions · '+questions.filter(q=>!q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' regular points · '+questions.filter(q=>q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' extra-credit points';
+        document.getElementById('quizSummary').textContent=questions.filter(q=>q.type!=='section').length+' questions · '+questions.filter(q=>!q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' regular points · '+questions.filter(q=>q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' extra-credit points';
         document.getElementById('durationDescription').textContent=identity.durationMinutes===null?'No time limit.':'Time limit: '+identity.durationMinutes+' minutes. The timer continues if you leave this page.';
         document.getElementById('timedNotice').hidden=identity.durationMinutes===null;
         forwardOnlyFrom=identity.forwardOnlyFrom ?? null;document.getElementById('checkpointText').textContent=identity.checkpointMessage || '';
@@ -163,7 +168,8 @@ async function enterQuiz() {
         document.getElementById('studentIdentity').textContent=identity.name+' · '+identity.email+' · '+identity.className;
         form.elements.studentName.value=identity.name;form.elements.studentEmail.value=identity.email;
         try { saved = JSON.parse((previewQuiz?sessionStorage:localStorage).getItem(previewQuiz?previewKey+':progress':DRAFT)) || {}; } catch (_) {}
-        document.getElementById('questions').innerHTML=questions.map((q,i)=>`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${i+1}${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${(q.type==='order' || q.type==='multi') && !q.perResponseCredit?' · All or nothing':q.scoringMode==='response'?' · '+q.points+' per correct response':q.scoringMode==='proportional'?' · Partial credit by correct response':''}</p><h2 class="prompt" dir="${q.direction}">${q.type==='gaps'?'Fill in the blanks':esc(q.prompt)}</h2>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${controls(q,i)}</section>`).join('');
+        let number=0;
+        document.getElementById('questions').innerHTML=questions.map((q,i)=>q.type==='section'?`<section class="card section-page" data-question="${i}" hidden>${sectionContent(q)}</section>`:`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${++number}${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${(q.type==='order' || q.type==='multi') && !q.perResponseCredit?' · All or nothing':q.scoringMode==='response'?' · '+q.points+' per correct response':q.scoringMode==='proportional'?' · Partial credit by correct response':''}</p><h2 class="prompt" dir="${q.direction}">${q.type==='gaps'?'Fill in the blanks':esc(q.prompt)}</h2>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${controls(q,i)}</section>`).join('');
         restoreAnswers();
         recorder=QuizRecording.bind({root:form,request,session:()=>({key:previewQuiz?previewKey:DRAFT,id:saved.id,token:saved.attempt?.token,preview:!!previewQuiz,expired}),canEdit:i=>!!saved.attempt && !expired && !moving && !preparing && !sending && !submission && i>lockedThrough,changed:snapshot});
         QuizRecording.bindPlayback(document.getElementById('answerFeedback'),(i,reference)=>recorder.load(i,reference));

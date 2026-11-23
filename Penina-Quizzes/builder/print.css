@@ -71,3 +71,8 @@ body.quiz-print-open > :not(#quizPrint){display:none!important}
     #quizPrint .qp-cover{break-inside:avoid;break-after:avoid}
     #quizPrint .qp-question{box-decoration-break:clone;-webkit-box-decoration-break:clone}
 }
+
+#quizPrint .qp-section-page{margin:24px 0;padding:20px 0;border-top:2px solid #315d4d;break-after:page}
+#quizPrint .qp-section-page:not(.qp-cover + article){break-before:page}
+#quizPrint .qp-section-paragraph{white-space:pre-wrap;overflow-wrap:anywhere;font-weight:400;line-height:1.8}
+#quizPrint .qp-section-page:last-of-type{break-after:auto}

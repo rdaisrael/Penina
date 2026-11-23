@@ -744,3 +744,22 @@ test('longer recordings upload in encrypted retryable parts under the teacher-se
  assert.equal((await h.call(h.submissions,h.req({...review,part:0},'other'))).code,403);
  for(const [pathname,value] of h.blobs)if(pathname.startsWith('quiz-recordings/'))assert(!value.includes('audio/webm'));
 });
+
+test('Section pages survive save, assignment, checkpoints, submission, correction, and point revisions without grading fields',async()=>{
+ const h=harness(),section={type:'section',prompt:'Part one',content:'Read and continue.'},quiz={title:'Sections',durationMinutes:null,forwardOnlyFrom:2,questions:[section,{type:'text',prompt:'Explain',answer:'Model',points:2},section,{type:'choice',prompt:'Choose',points:3,choices:['A','B'],answer:['B']},section]};
+ const link=await assigned(h,quiz),id='9'.repeat(32);
+ const identity=h.req({},'student',{action:'student',...link});identity.method='GET';
+ const student=await h.call(h.account.handle,identity);assert.equal(student.code,200);assert.equal(student.data.questions[0].content,section.content);assert.equal(student.data.questions[0].answer,undefined);
+ assert.equal(h.state.work.maxPoints,5);
+ assert.equal((await h.call(h.builder.handle,h.req({action:'list'}))).data.quizzes[0].count,2);
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));assert.equal(start.code,200);const attempt={...link,id,token:start.data.token};
+ const answers=[[],['My answer'],[],['B'],[]];
+ for(const through of [1,2,3,4]){const result=await h.call(h.submissions,h.req({...attempt,action:'advance',through,answers},'student'));assert.equal(result.code,200,JSON.stringify(result.data));assert.equal(result.data.lockedThrough,through);}
+ assert.equal((await h.call(h.submissions,h.req({...attempt,action:'submit',answers},'student'))).code,200);
+ const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.code,200);const g=report.data.submissions[0].grading;assert.equal(g.pending,1);assert.deepEqual(g.manual.map(q=>q.index),[1]);assert.deepEqual(g.automatic.map(q=>q.index),[3]);
+ const correction=await h.call(h.submissions,h.req({...link,id,action:'correct',scores:[2],feedback:'',sendToClassroom:true}));assert.equal(correction.code,200);assert.equal(correction.data.grading.total,5);assert.equal(h.state.grade.draftGrade,5);
+ const points=await h.call(h.builder.handle,h.req({action:'load-points',id:link.quiz}));assert.equal(points.code,200);assert.equal(points.data.questions.length,2);
+ assert.equal((await h.call(h.builder.handle,h.req({action:'save-points',id:link.quiz,revision:0,points:[1,2,1,3,1]}))).code,400);
+ const revised=await h.call(h.builder.handle,h.req({action:'save-points',id:link.quiz,revision:0,points:[4,6],scoringModes:['total','response']}));assert.equal(revised.code,200,JSON.stringify(revised.data));assert.equal(revised.data.revision,1);assert.deepEqual(revised.data.questions.map(q=>q.potentialPoints),[4,6]);
+ const loaded=await h.call(h.builder.handle,h.req({action:'load',id:link.quiz}));assert.equal(loaded.code,200);assert.deepEqual(loaded.data.quiz.questions.map(model.maxPoints),[0,4,0,6,0]);assert.equal(h.state.work.maxPoints,10);
+});

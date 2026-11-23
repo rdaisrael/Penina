@@ -30,7 +30,7 @@
         }));
         return rows.map((row,rowIndex)=>{
             const word=key(row.word),numbers=[];
-            questions.forEach((q,i)=>{
+            questions.filter(q=>q.type!=='section').forEach((q,i)=>{
                 const correct=answers(q).map(key);
                 if(row.kind==='knowledge'){
                     const saved=(q.vocabularyTerms||[]).some(term=>term.kind==='knowledge' && (row.sourceId?term.sourceId===row.sourceId:key(term.word)===word&&key(term.definition)===key(row.definition)));
@@ -138,7 +138,7 @@
         const suggestedCount=recommended?.length || 0;
         const entries=config.autoCount!==false?recommended:Number.isInteger(config.count) && config.count<=capacity?allocate(rows,available,types,config.count):null;
         const proposed=rows.map(()=>[]);
-        (entries || []).forEach((entry,i)=>entry.indices.forEach(index=>aliases[index].forEach(j=>proposed[j].push(questions.length+i+1))));
+        (entries || []).forEach((entry,i)=>entry.indices.forEach(index=>aliases[index].forEach(j=>proposed[j].push(questions.filter(q=>q.type!=='section').length+i+1))));
         const coveredWords=used.filter((numbers,i)=>numbers.length || proposed[i].length).length;
         let error='';
         if(!types.length)error=config.types.length?'These formats cannot represent the selected knowledge questions. Choose written answer, multiple choice, or fill-in-the-blanks to keep pictures. Ordering is for vocabulary; matching needs 4–6 questions without pictures.':'Select at least one question type.';

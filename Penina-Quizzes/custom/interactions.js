@@ -3,6 +3,7 @@ const QuizInteractions=(()=>{
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const shuffle=a=>a.map(v=>({v,r:Math.random()})).sort((a,b)=>a.r-b.r).map(x=>x.v);
 function controls(q,i){
+    if(q.type==='section')return '';
  const choices=shuffle(q.choices||[]), hidden=j=>`<input type="hidden" name="q${i}-${j}">`;
  if(q.type==='choice'||q.type==='multi')return `<fieldset><legend>${q.type==='choice'?'Choose one answer':'Check all that apply'}</legend>${choices.map(c=>`<label class="choice"><input type="${q.type==='choice'?'radio':'checkbox'}" name="${q.type==='choice'?`q${i}-0`:`q${i}-choice-${q.choices.indexOf(c)}`}" value="${esc(c)}"><span dir="auto">${esc(c)}</span></label>`).join('')}</fieldset>`;
  if(q.type==='text' && q.pictureResponseMode==='markers' && q.image?.markers)return q.image.markers.map((_,j)=>`<label>Marker ${j+1}<textarea name="q${i}-${j}" dir="auto" maxlength="5000"></textarea></label>`).join('');

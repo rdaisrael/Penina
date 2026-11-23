@@ -6,7 +6,7 @@
     const he=value=>`<bdi class="hebrew" lang="he" dir="rtl">${esc(value)}</bdi>`;
     const instructions={choice:'Circle the form that matches the subject and tense.',conjugate:'Write the correct form for the root and subject.',sentence:'Complete each sentence using the root in parentheses.',writing:'Write your own sentence using the given root, subject and tense.'};
     const tenseLabel=pair=>core.tenseNames[core.tenses.indexOf(pair.split('|')[1])];
-    const target=q=>q.person==='form'?'Infinitive':core.subject(q.person);
+    const target=q=>q.person==='form'?tenseLabel(q.pair):core.subject(q.person);
     function sentence(q,answer=false,rootCue=false){
         let text='',offset=0;
         for(const word of q.sentenceWords||[]){
@@ -16,7 +16,7 @@
             offset=end;
         }
         text+=esc(q.sentence.slice(offset));
-        text=text.replace('___',answer?`<strong>${esc(q.answer)}</strong>`:'<span class="sentence-blank" aria-label="Write the missing verb"></span>');
+        text=text.replace('___',answer?`<strong>${esc(q.answer)}</strong>`:'<span class="sentence-blank" aria-label="Write the missing word"></span>');
         return `<div class="sentence-line" dir="rtl" lang="he">${text}${rootCue?` <span class="root-cue">(${esc(q.root)})</span>`:''}</div>`;
     }
     function question(q,key,mixedTenses){
@@ -51,7 +51,9 @@
         const sections=types.map(type=>{
             const qs=questions.filter(q=>(q.exercise||'conjugate')===type);
             const tenses=[...new Set(qs.map(q=>tenseLabel(q.pair)))];
-            return `<section class="exercise-section" data-section="${esc(type)}"><h3>${esc(core.exerciseTypes[type])}${tenses.length===1?`<span class="section-tense"> · ${esc(tenses[0])}</span>`:''}</h3>${key?'':`<p class="exercise-instructions">${esc(instructions[type])}</p>`}${qs.map(q=>question(q,key,tenses.length>1)).join('')}${type==='writing'&&!key?'<p class="self-check">Check: Does your verb match the subject, gender, number and tense?</p>':''}</section>`;
+            const hasNouns=qs.some(q=>q.pair.endsWith('|שם פעולה'));
+            const instruction=hasNouns?({choice:'Circle the requested form. For verbal nouns, choose the action noun.',conjugate:'Write the requested form. For verbal nouns, give the action noun for the root and binyan.',sentence:'Complete each sentence with the requested form of the root.',writing:'Write your own sentence using the requested form. Use verbal nouns as nouns.'}[type]):instructions[type];
+            return `<section class="exercise-section" data-section="${esc(type)}"><h3>${esc(core.exerciseTypes[type])}${tenses.length===1?`<span class="section-tense"> · ${esc(tenses[0])}</span>`:''}</h3>${key?'':`<p class="exercise-instructions">${esc(instruction)}</p>`}${qs.map(q=>question(q,key,tenses.length>1)).join('')}${type==='writing'&&!key?`<p class="self-check">${hasNouns?'Check: Did you use the requested verb or verbal noun correctly in your sentence?':'Check: Does your verb match the subject, gender, number and tense?'}</p>`:''}</section>`;
         }).join('');
         return sections+(notes.length?`<aside class="vocabulary-notes" aria-label="Vocabulary notes"><h3>Vocabulary notes</h3><div class="vocabulary-note-list">${notes.map(note=>`<div class="vocabulary-note" data-note-id="${note.id}"><span>${note.id}.</span> ${he(note.word)} <span>— ${esc(note.translation)}</span></div>`).join('')}</div></aside>`:'');
     }

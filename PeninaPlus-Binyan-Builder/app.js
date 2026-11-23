@@ -59,9 +59,22 @@
         status('pair-status',!vocabulary?(mode()==='learn'?'Choose a binyan and tense now. Upload your workbook to build the worksheet.':'Upload your filled-in workbook to choose from its X-marked combinations.'):mode()==='practice'&&!vocabulary.binyanim.length?'No supported combinations are marked X in your workbook. Mark the learned combinations, or choose Learn.':selected.length?`${selected.length} combination${selected.length===1?'':'s'} selected: ${selected.map(pairLabel).join('; ')}`:'Add at least one combination.');
         updateTenses();updateButton();
     }
-    function request(){return core.validateRequest({mode:mode(),vocabulary,pairs:selectedPairs(),count:Number($('count').value),exercises:[...document.querySelectorAll('input[name=exercise]:checked')].map(input=>input.value),footnotes:$('footnotes').value});}
+    function request(){return core.validateRequest({mode:mode(),patternMode:$('pattern-mode').value,vocabulary,pairs:selectedPairs(),count:Number($('count').value),exercises:[...document.querySelectorAll('input[name=exercise]:checked')].map(input=>input.value),footnotes:$('footnotes').value});}
+    function showReference(){
+        $('reference-details').hidden=!vocabulary||!selectedPairs().length;
+        if($('reference-details').hidden)return;
+        $('reference-roots').innerHTML=selectedPairs().map(pair=>{
+            const roots=vocabulary.verbs.map(root=>core.catalogue.describe(root,pair));
+            const list=kind=>roots.filter(root=>root[kind]).map(root=>`<bdi dir="rtl">${esc(root.root)}</bdi>`).join(' · ')||'None';
+            return `<div class="root-reference"><p><strong>${esc(pairLabel(pair))}</strong></p><p>Standard: ${list('standard')}</p><p>Exceptions: ${list('exception')}</p><p class="muted">Not verified for this combination: ${list('unverified')}</p></div>`;
+        }).join('');
+    }
     function updateButton(){
-        let valid=true,reason='';try{request();}catch(error){valid=false;reason=error.message;}
+        let valid=true,reason='';try{
+            const input=request(),available=core.eligibleRoots(input),missing=input.pairs.filter(pair=>!available[pair].length);
+            if(missing.length)throw new Error(`No suitable roots verified for ${core.patternModes[input.patternMode]}: ${missing.map(pairLabel).join('; ')}. Try the other pattern selection or add roots. See “Which uploaded roots fit?” for details.`);
+        }catch(error){valid=false;reason=error.message;}
+        showReference();
         if(!busy&&!valid)status('generation-status',mode()==='practice'&&vocabulary&&!vocabulary.binyanim.length?'Practice needs X marks beside learned combinations in your workbook. Choose Learn to introduce a binyan or pattern without X marks.':reason);
         $('generate').disabled=busy||!valid;$('generate').textContent=busy?'Building your worksheet…':'Build worksheet';
     }
@@ -101,6 +114,7 @@
     $('binyan').addEventListener('change',()=>{updatePicker();dirty();renderPairs();});
     $('group').addEventListener('change',()=>{updateTenses();dirty();renderPairs();});
     $('tense').addEventListener('change',()=>{dirty();renderPairs();});
+    $('pattern-mode').addEventListener('change',()=>{dirty();renderPairs();});
     $('mix-patterns').addEventListener('change',()=>{
         if(mixing()&&!pairs.length&&eligiblePairs().includes(currentPair()))pairs=[currentPair()];
         dirty();renderPairs();
@@ -114,13 +128,19 @@
     document.querySelectorAll('input[name=exercise]').forEach(input=>input.addEventListener('change',dirty));
     $('count').addEventListener('change',()=>{dirty();if(selectedPairs().length>Number($('count').value))status('generation-status','Choose at least as many questions as selected combinations.',true);});
     $('title').addEventListener('input',dirty);
-            const header=(title,r,key=false)=>`<div class="worksheet-heading"><p class="eyebrow">PENINA BINYAN BUILDER${key?' · ANSWER KEY':''}</p><h2>${esc(title)}</h2><p>${esc(r.request.mode==='learn'?'Learn a new pattern':'Practice learned patterns')} · ${r.questions.length} questions</p><p>${r.request.pairs.map(p=>`<bdi>${esc(pairLabel(p))}</bdi>`).join(' / ')}</p>${key?'':'<div class="name-line"><span>Name: ____________________</span><span>Date: ______________</span></div>'}</div>`;
+    const header=(title,r,key=false)=>`<div class="worksheet-heading"><p class="eyebrow">PENINA BINYAN BUILDER${key?' · ANSWER KEY':''}</p><h2>${esc(title)}</h2><p>${esc(r.request.mode==='learn'?'Learn a new pattern':'Practice learned patterns')} · ${esc(core.patternModes[r.request.patternMode||'standard'])} · ${r.questions.length} questions</p><p>${r.request.pairs.map(p=>`<bdi>${esc(pairLabel(p))}</bdi>`).join(' / ')}</p>${key?'':'<div class="name-line"><span>Name: ____________________</span><span>Date: ______________</span></div>'}</div>`;
     function renderWorksheet(r,title){
         const footnotes=$('footnotes').value;
         $('empty-preview').hidden=true;$('output').hidden=false;
-        $('student-sheet').innerHTML=header(title,r)+r.lessons.map(lesson=>`<section class="lesson"><h3><bdi>${esc(pairLabel(lesson.pair))}</bdi></h3><p>Model root: <bdi class="hebrew">${esc(lesson.root)}</bdi> — ${esc(lesson.meaning)}</p><p>${esc(lesson.explanation)}</p><table class="model-table" dir="rtl"><thead><tr><th>Person / form</th><th>Model conjugation</th></tr></thead><tbody>${lesson.forms.map(row=>`<tr><td dir="rtl" lang="he">${esc(core.people[row.person])}</td><td dir="rtl" lang="he">${esc(row.answer)}</td></tr>`).join('')}</tbody></table></section>`).join('')+
+        $('student-sheet').innerHTML=header(title,r)+r.lessons.map(lesson=>`<section class="lesson"><h3><bdi>${esc(pairLabel(lesson.pair))}</bdi></h3><p>Model root: <bdi class="hebrew">${esc(lesson.root)}</bdi> — ${esc(lesson.meaning)}</p><p class="pattern-note">${esc(core.catalogue.reference(lesson.root,lesson.pair,r.request.patternMode).pattern.reason)}</p><p>${esc(lesson.explanation)}</p><table class="model-table" dir="rtl"><thead><tr><th>Person / form</th><th>Model form</th></tr></thead><tbody>${lesson.forms.map(row=>`<tr><td dir="rtl" lang="he">${esc(core.people[row.person])}</td><td dir="rtl" lang="he">${esc(row.answer)}</td></tr>`).join('')}</tbody></table></section>`).join('')+
             window.BinyanExercises.render(r.questions,{footnotes});
         $('answer-sheet').innerHTML=header(title,r,true)+window.BinyanExercises.render(r.questions,{key:true,footnotes});
+        const sources=[...new Map([...r.lessons,...r.questions].map(item=>{
+            const ref=core.catalogue.reference(item.root,item.pair,r.request.patternMode);return [ref.source,ref];
+        })).values()];
+        const attribution='<p>Forms adapted from <a href="https://kaikki.org/dictionary/Hebrew/index.html" target="_blank" rel="noopener">Wiktionary contributors via Kaikki.org</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.</p>';
+        $('student-sheet').innerHTML+=`<aside class="reference-sources">${attribution}</aside>`;
+        $('answer-sheet').innerHTML+=`<aside class="reference-sources">${attribution}<p>${sources.map(ref=>`<a href="${esc(ref.source)}" target="_blank" rel="noopener">${esc(ref.lemma)}</a>`).join(' · ')}</p></aside>`;
         window.BinyanPagination.paginate($('student-sheet'),footnotes);
         window.BinyanPagination.paginate($('answer-sheet'),footnotes);
     }

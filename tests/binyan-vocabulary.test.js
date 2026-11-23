@@ -13,7 +13,7 @@ test('all Reader sheets and context forms survive repeated request validation',(
  for(const key of core.vocabularyKeys)v[key]=['סֵפֶר','סֵפֶר'];
  const request=core.validateRequest({...input,vocabulary:v});
  assert.deepEqual(core.validateRequest(request),request);
- assert.deepEqual(request.vocabulary.binyanim,[...input.vocabulary.binyanim,'פיעל שלם|עבר']);
+ assert.deepEqual(request.vocabulary.binyanim,[...input.vocabulary.binyanim,'פיעל שלם|עבר','פעל שלם|שם פעולה']);
  assert.ok(request.vocabulary.forms.includes('פיעל שלם|עבר'));
  assert.ok(request.vocabulary.forms.includes('פעל שלם|שם פעולה'));
  for(const key of core.vocabularyKeys)assert.deepEqual(request.vocabulary[key],['סֵפֶר']);

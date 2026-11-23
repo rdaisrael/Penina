@@ -34,8 +34,8 @@ const binyanExamples=[
     ['הפעיל','BINYAN_HIFIL','כתב','הִכְתִּיב'],
     ['התפעל','BINYAN_HITPAEL','לבש','הִתְלַבֵּשׁ'],
     ['נפעל','BINYAN_NIFAL','כתב','נִכְתַּב'],
-    ['פועל','BINYAN_PUAL','למד','לֻמַּד'],
-    ['הופעל','BINYAN_HUFAL','כתב','הֻכְתַּב']
+    ['פועל','BINYAN_PUAL','ספר','סֻפַּר'],
+    ['הופעל','BINYAN_HUFAL','כנס','הֻכְנַס']
 ];
 const pastRow=(code,root,answer)=>({word:answer,menukad:answer,lex:root,POS:'VERB',Binyan:code,Tense:'PAST',Person:'PERSON_3',Number:'SINGULAR',Gender:'MASCULINE',Prefix:'',Suffix:'',fAramaic:'False'});
 test('verification accepts each selected binyan and rejects every wrong binyan',async()=>{

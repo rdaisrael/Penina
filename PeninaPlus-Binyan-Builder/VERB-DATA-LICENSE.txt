@@ -1,0 +1,29 @@
+Penina Binyan Builder verb reference data
+
+The dictionary data in verb-data.js is adapted from English Wiktionary entries
+by Wiktionary contributors, extracted by Kaikki.org / Wiktextract (Tatu Ylonen).
+It is licensed under Creative Commons Attribution-ShareAlike 4.0 International:
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Dictionary source and downloadable input:
+https://kaikki.org/dictionary/Hebrew/index.html
+https://kaikki.org/dictionary/Hebrew/kaikki.org-dictionary-Hebrew.jsonl
+Snapshot: enwiktionary dump 2026-10-01, extracted 2026-10-30.
+The input's SHA-256 checksum is retained in verb-data.js.
+
+Each retained entry includes its Wiktionary source URL. Contributor histories
+are available through the History tab of those entries. No quotations, example
+sentences, audio, images, or other separately licensed illustrations are used.
+
+Changes: selected verb entries with complete pointed paradigms; excluded senses
+marked archaic, rare, Biblical-only and other unsuitable registers; normalized
+root notation; supplied root/binyan identities for several explicit irregular
+tables; retained the first listed pointed form per cell and classroom shared
+feminine-plural future/imperative forms; classified each tense against a named
+reference pattern; kept source meanings and individual forms. Missing or
+incomplete paradigms are omitted. This is not a complete or independently
+reviewed inventory of Modern Hebrew verbs.
+
+The adapted data, including its pattern annotations, remains CC BY-SA 4.0.
+This notice applies to that data, not to unrelated application source code.
+Wiktionary, Kaikki.org and their contributors do not endorse this application.

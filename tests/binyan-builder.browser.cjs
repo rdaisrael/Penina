@@ -6,10 +6,11 @@ const core=require('../PeninaPlus-Binyan-Builder/core');
 const reader=require('../PeninaPlus-Reader/reader-core');
 const repo=path.resolve(__dirname,'..');
 const output=fs.mkdtempSync('/private/tmp/binyan-builder-');
-const past=['כָּתַבְתִּי','כָּתַבְתָּ','כָּתַבְתְּ','כָּתַב','כָּתְבָה','כָּתַבְנוּ','כְּתַבְתֶּם','כְּתַבְתֶּן','כָּתְבוּ','כָּתְבוּ'];
-const present=['כּוֹתֵב','כּוֹתֶבֶת','כּוֹתְבִים','כּוֹתְבוֹת'];
-function answer(pair,person){return (pair.endsWith('הווה')?present:past)[core.persons(pair).indexOf(person)];}
-function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({pair,root:'כתב',meaning:'write',explanation:'Start with the root כתב. Notice how the ending changes with the person or form.',forms:core.persons(pair).map(person=>({person,answer:answer(pair,person)}))})):[],questions:core.plan(req).map(q=>({...q,root:'כתב',meaning:'write',hint:'Use the model and check the ending.',answer:answer(q.pair,q.person),sentence:['sentence','writing'].includes(q.exercise)?`${core.subject(q.person)} ___ בַּמַּחְבֶּרֶת.`:'',alternative:q.exercise==='choice'?answer(core.alternativeTarget(q).pair,core.alternativeTarget(q).person):''}))};}
+function fixture(req){
+ const eligible=core.eligibleRoots(req),root=pair=>eligible[pair][0],ref=pair=>core.catalogue.reference(root(pair),pair,req.patternMode);
+ const answer=(pair,person)=>ref(pair).forms[person][0];
+ return {lessons:req.mode==='learn'?req.pairs.map(pair=>({pair,root:root(pair),meaning:ref(pair).meaning,explanation:'Notice how the ending changes with the person or form.',forms:core.persons(pair).map(person=>({person,answer:answer(pair,person)}))})):[],questions:core.plan(req).map(q=>({...q,root:root(q.pair),meaning:ref(q.pair).meaning,answer:answer(q.pair,q.person),sentence:['sentence','writing'].includes(q.exercise)?`${core.subject(q.person)} ___ בַּמַּחְבֶּרֶת.`:'',alternative:q.exercise==='choice'?core.alternativeAnswers({...q,root:root(q.pair)},req.patternMode).find(form=>core.normalize(form)!==core.normalize(answer(q.pair,q.person))):''}))};
+}
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE});
  try{
@@ -38,7 +39,7 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  for(const binyan of core.binyanim){
   await page.locator('#binyan').selectOption(binyan);
   assert.equal(await page.locator('#group').inputValue(),`${binyan} — כל הגזרות`);
-  assert.equal(await page.locator('#tense option').count(),['פועל','הופעל'].includes(binyan)?3:5);
+  assert.equal(await page.locator('#tense option').count(),['פועל','הופעל'].includes(binyan)?3:6);
  }
  await page.locator('#binyan').selectOption('פיעל');
  await page.locator('#group').selectOption('פיעל ל-ה');
@@ -54,7 +55,8 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  await page.screenshot({path:path.join(output,'desktop.png'),fullPage:true});
  await page.locator('#sample').click();
  await page.waitForFunction(()=>document.getElementById('upload-status').textContent.includes('6 roots'));
- assert.equal(await page.locator('#generate').isEnabled(),true,'upload immediately enables single-pattern build');
+ assert.equal(await page.locator('#generate').isDisabled(),true,'upload cannot enable a combination with no verified roots');
+ assert.match(await page.locator('#generation-status').innerText(),/No suitable roots verified/);
  assert.equal(await page.locator('#binyan').inputValue(),'פיעל','upload preserves the binyan chosen beforehand');
  assert.equal(await page.locator('#group').inputValue(),'פיעל ל-ה','upload preserves the chosen root type');
  assert.equal(await page.locator('#tense').inputValue(),'הווה','upload preserves the chosen tense');
@@ -62,7 +64,7 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.equal(await page.locator('#group').inputValue(),'פעל — כל הגזרות','a new binyan defaults to all root types');
  assert.equal(await page.locator('#binyan option').count(),7);
  assert.equal(await page.locator('#group option').count(),6);
- assert.equal(await page.locator('#tense option').count(),5);
+ assert.equal(await page.locator('#tense option').count(),6);
  assert.equal(await page.locator('#add-pair').isVisible(),false,'single-pattern needs no Add action');
  await page.locator('#group').selectOption('פעל שלם');
  await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('generation-status').textContent.startsWith('Worksheet ready.'));
@@ -136,8 +138,10 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  for(const binyan of core.binyanim){
   await page.locator('#binyan').selectOption(binyan);
   assert.equal(await page.locator('#group').inputValue(),`${binyan} — כל הגזרות`);
-  assert.equal(await page.locator('#tense option').count(),['פועל','הופעל'].includes(binyan)?3:5);
-  assert.equal(await page.locator('#generate').isEnabled(),true,`${binyan} available without any learned squares`);
+  assert.equal(await page.locator('#tense option').count(),['פועל','הופעל'].includes(binyan)?3:6);
+  const selected=`${binyan} — כל הגזרות|${await page.locator('#tense').inputValue()}`;
+  const available=core.eligibleRoots(core.validateRequest({mode:'learn',pairs:[selected],count:12,exercises:Object.keys(core.exerciseTypes),vocabulary:{verbs:['אכל','שתה','הלך'],binyanim:[]}}))[selected];
+  assert.equal(await page.locator('#generate').isEnabled(),available.length>0,`${binyan} needs a dictionary-backed uploaded root`);
   assert.ok((await page.locator('#binyan option:checked').innerText()).includes(binyan),'label names selected binyan');
  }
  await page.locator('#binyan').selectOption('פעל');await page.locator('#group').selectOption('פעל שלם');
@@ -227,10 +231,49 @@ function fixture(req){return {lessons:req.mode==='learn'?req.pairs.map(pair=>({p
  assert.equal(await page.locator('#generate').isDisabled(),true);
  await page.locator('#mix-patterns').uncheck();
  assert.equal(await page.locator('#generate').isEnabled(),true,'Practice uses the visible marked square');
+ // Standard, exceptional and unverified combinations remain distinct in the UI
+ // and in the request, including after Learn/Practice switching.
+ const catalogueBook=new ExcelJS.Workbook(),catalogueSheet=catalogueBook.addWorksheet('Verbs');
+ catalogueSheet.addRow(['שורשים','בניין','עבר','הווה','עתיד','שם הפועל','שם פעולה','ציווי']);
+ catalogueSheet.addRow(['למד','פיעל שלם','','X']);
+ catalogueSheet.addRow(['לבש','פעל שלם','','','','','X']);
+ catalogueSheet.addRow(['ברך']);catalogueSheet.addRow(['אבג']);
+ await page.locator('#vocabulary').setInputFiles({name:'catalogue.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(await catalogueBook.xlsx.writeBuffer())});
+ await page.waitForFunction(()=>document.getElementById('upload-status').textContent.startsWith('catalogue.xlsx:'));
+ await page.locator('input[value=learn]').check();
+ await page.locator('#binyan').selectOption('פיעל');await page.locator('#group').selectOption('פיעל שלם');await page.locator('#tense').selectOption('הווה');
+ for(const checkbox of await page.locator('input[name=exercise]').all())await checkbox.uncheck();
+ await page.locator('input[name=exercise][value=conjugate]').check();await page.locator('#count').selectOption('6');
+ await page.locator('#reference-details summary').click();
+ const rootLists=await page.locator('#reference-roots').innerText();
+ assert.match(rootLists,/Standard: למד/);assert.match(rootLists,/Exceptions: ברך/);
+ assert.match(rootLists,/Not verified for this combination: לבש · אבג/);
+ await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('preview-label').textContent==='Ready to review');
+ assert.equal(lastRequest.patternMode,'standard');assert.match(await page.locator('#student-sheet .worksheet-heading').innerText(),/Standard pattern/);
+ assert.match(await page.locator('#student-sheet .lesson').innerText(),/למד/);
+ for(const sheet of ['student-sheet','answer-sheet'])assert.match(await page.locator(`#${sheet} .reference-sources`).innerText(),/CC BY-SA 4.0/);
+ await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:path.join(output,'standard-reference.png'),fullPage:true});
+ await page.locator('#pattern-mode').selectOption('exception');
+ assert.match(await page.locator('#preview-label').innerText(),/Previous/);
+ await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('preview-label').textContent==='Ready to review');
+ assert.equal(lastRequest.patternMode,'exception');assert.match(await page.locator('#student-sheet .worksheet-heading').innerText(),/Exceptions/);
+ assert.match(await page.locator('#student-sheet .lesson').innerText(),/ברכ/);
+ assert.match(await page.locator('#student-sheet .pattern-note').innerText(),/differ/);
+ await page.screenshot({path:path.join(output,'exceptions-reference.png'),fullPage:true});
+ await page.locator('input[value=practice]').check();
+ await page.locator('#generate').click();await page.waitForFunction(()=>document.querySelectorAll('#student-sheet .lesson').length===0);
+ assert.equal(lastRequest.patternMode,'exception');assert.equal(lastRequest.mode,'practice');
+ await page.locator('input[value=learn]').check();await page.locator('#pattern-mode').selectOption('standard');
+ await page.locator('#binyan').selectOption('פעל');await page.locator('#group').selectOption('פעל שלם');await page.locator('#tense').selectOption('שם פעולה');
+ await page.locator('#generate').click();await page.waitForFunction(()=>document.getElementById('preview-label').textContent==='Ready to review');
+ assert.deepEqual(lastRequest.pairs,['פעל שלם|שם פעולה']);
+ assert.match(await page.locator('#student-sheet').innerText(),/Verbal noun/);assert.doesNotMatch(await page.locator('#student-sheet').innerText(),/Infinitive/);
+ await page.screenshot({path:path.join(output,'verbal-nouns.png'),fullPage:true});
  await page.locator('#vocabulary').setInputFiles({name:'bad.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('bad')});
  await page.waitForFunction(()=>document.getElementById('upload-status').classList.contains('error'));
  assert.equal(await page.locator('#generate').isDisabled(),true,'invalid upload clears vocabulary');
  await page.setViewportSize({width:390,height:844});
+ await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'no mobile horizontal overflow');
  await page.screenshot({path:path.join(output,'mobile.png'),fullPage:true});
  assert.deepEqual(errors,[]);

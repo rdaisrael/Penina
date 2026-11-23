@@ -176,11 +176,21 @@ test('edits after visiting Review and Practice reach both screens through the st
         {id: 'second', question: original, answer: 'מַלְאָכִים', distractors: {english: ['אֲנָשִׁים']}},
     ]};
     await byId('draft-file').onchange({target: {files: [{size: 100, text: async () => JSON.stringify(deck)}]}});
+    byId('flashcard').focus = () => {document.activeElement = byId('flashcard');};
+    byId('question').focus = () => {};
+    byId('next-card').onclick();
+    assert.equal(byId('save-card').textContent, 'View Card');
+    form.onsubmit({preventDefault() {}});
+    assert.equal(byId('study-stage').hidden, false);
+    assert.equal(byId('card-number').textContent, 'Card #2');
+    assert.equal(byId('card-content').children[0].innerHTML, original);
+    assert.equal(document.activeElement, byId('flashcard'));
+    byId('edit-current').onclick();
+    assert.equal(byId('question').value, original);
     go('practice');
     const rows = () => byId('practice-rows').children;
     const choices = index => rows()[index].lastElementChild.children.map(cell => cell.children[1].value);
     go('study');
-    byId('next').onclick();
     go('edit');
     assert.equal(byId('question').value, original);
     const multiline = 'Who came\nto סְדוֹם?';

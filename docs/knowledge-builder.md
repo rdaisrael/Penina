@@ -178,7 +178,7 @@ Picture pop-out regression: `node tests/knowledge-picture-popup.browser.cjs` (sa
 
 ## Card editing and formatting
 
-- Previous Card and Next Card sit between Save Card and Delete Card. They save valid pending edits before navigating, stop at the first/last card, and keep the current card open if required text or a picture upload is incomplete. From the empty Add Card form, Previous Card returns to the last saved card.
+- View Card opens the current card in Review with its latest edits, question side first. Edit This Card returns to the editor. New cards use Add Card. Previous Card and Next Card move through the set. They save valid pending edits before navigating, stop at the first/last card, and keep the current card open if required text or a picture upload is incomplete. From the empty Add Card form, Previous Card returns to the last saved card.
 - Question, Answer, and Additional Information support selected-text bold (also Ctrl/Cmd+B), automatic/LTR/RTL paragraph direction, and left/center/right paragraph alignment. Direction/alignment applies to the selected paragraphs or the paragraph containing the caret.
 - Drafts keep plain strings for matching and generation, with optional validated `textFormatting` paragraph/run metadata. Formatting-only edits preserve reviewed distractors. Pasted/dropped text is plain text; stored HTML is never accepted.
 - Formatting survives browser drafts, JSON downloads, study cards, paper cards, knowledge sheets/PDFs, and combined cards. XLSX exports preserve bold runs and use the first paragraph's direction/alignment for each cell.

@@ -174,7 +174,7 @@
         byId('picture-file').value = '';
         byId('reuse-pictures').open = false;
         byId('editor-title').textContent = card ? `Edit Card ${deck.cards.indexOf(card) + 1}` : 'Add a Card';
-        byId('save-card').textContent = card ? 'Save Card' : 'Add Card';
+        byId('save-card').textContent = card ? 'View Card' : 'Add Card';
         byId('delete-card').hidden = !card;
         dirty = false;
         message('');
@@ -239,7 +239,7 @@
         editingId = card.id;
         if (reviewCardId) reviewCardId = card.id;
         dirty = false;
-        byId('save-card').textContent = 'Save Card';
+        byId('save-card').textContent = 'View Card';
         byId('editor-title').textContent = `Edit Card ${deck.cards.indexOf(card) + 1}`;
         byId('delete-card').hidden = false;
         renderList();
@@ -473,8 +473,14 @@
     });
     byId('card-form').addEventListener('submit', event => {
         event.preventDefault();
-        if (!dirty && !editingId) dirty = true;
-        if (commitEditor()) message('Card saved. Add another card or open Electronic Flashcards.');
+        if (editingId) {
+            reviewCardId = editingId;
+            setStage('study');
+            if (stage === 'study') byId('flashcard').focus();
+            return;
+        }
+        dirty = true;
+        if (commitEditor()) message('Card added.');
     });
     byId('set-title').addEventListener('input', () => {deck.title = byId('set-title').value; scheduleSave();});
     function replaceDeck(next) {

@@ -47,7 +47,10 @@ const server=http.createServer((req,res)=>{
  await select('question',0,8);await toolbar('question').getByRole('button',{name:'Bold selected text',exact:true}).click();
  await toolbar('question').getByRole('button',{name:'Right-to-left paragraph',exact:true}).click();await toolbar('question').getByRole('button',{name:'Align right',exact:true}).click();
  assert.equal(await page.locator('#question strong,#question b').innerText(),'Question');
- await page.locator('#save-card').click();
+ await page.getByRole('button', {name:'View Card', exact:true}).click();
+ assert.equal(await page.locator('#card-number').innerText(), 'Card #2');
+ assert.equal(await page.locator('#card-content strong').innerText(), 'Question');
+ await page.getByRole('button', {name:'Edit This Card'}).click();
  assert.equal(await page.evaluate(()=>new Promise(resolve=>{const req=indexedDB.open('penina-knowledge-builder',1);req.onsuccess=()=>{const get=req.result.transaction('drafts').objectStore('drafts').get('current');get.onsuccess=()=>resolve(get.result.deck.cards[1].distractors.english.length);};})),5,'formatting alone preserves reviewed choices');
  const go=stage=>page.locator('.workflow-nav [data-stage="'+stage+'"]').click();
  const layout=selector=>page.locator(selector+' [data-rich-paragraph]').evaluateAll(nodes=>nodes.map(node=>[
@@ -75,7 +78,10 @@ const server=http.createServer((req,res)=>{
  await select('additional-information',0,5);await toolbar('additional-information').getByRole('button',{name:'Bold selected text',exact:true}).click();await toolbar('additional-information').getByRole('button',{name:'Left-to-right paragraph',exact:true}).click();await toolbar('additional-information').getByRole('button',{name:'Align left',exact:true}).click();
  await page.waitForTimeout(450);await page.reload();await page.waitForFunction(()=>!document.querySelector('.app').inert);
         await page.getByRole('button', {name: 'Resume Last Draft'}).click();assert.equal(await page.locator('#question strong').innerText(),'Question');
- await page.locator('#save-card').click();
+ await page.getByRole('button', {name:'View Card', exact:true}).click();
+ assert.equal(await page.locator('#card-number').innerText(), 'Card #2');
+ assert.equal(await page.locator('#card-content strong').innerText(), 'Question');
+ await page.getByRole('button', {name:'Edit This Card'}).click();
  // Reopening restores all paragraph and run formatting.
  await page.locator('#previous-card').click();await page.locator('#next-card').click();assert.equal(await page.locator('#question strong').innerText(),'Question');
  await toolbar('question').getByRole('button',{name:'Align left',exact:true}).click();assert.equal(await page.locator('#question [data-rich-paragraph]').evaluate(el=>el.style.textAlign),'left');await toolbar('question').getByRole('button',{name:'Align right',exact:true}).click();

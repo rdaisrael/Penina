@@ -53,7 +53,7 @@ const server = http.createServer((req, res) => {
         await page.locator('#target-surface').press('ArrowLeft');
         await page.locator('#question').fill('Which part collects sunlight?');
         await page.locator('#answer').fill('The leaf');
-        await page.locator('#save-card').click();
+        await page.getByRole('button', {name:'Add Card', exact:true}).click();
         async function readSaved() {
             return page.evaluate(() => new Promise((resolve, reject) => {
                 const request = indexedDB.open('penina-knowledge-builder', 1);
@@ -88,7 +88,8 @@ const server = http.createServer((req, res) => {
         assert.equal(await page.locator('#target-select-label').isVisible(),false);
         assert.equal((await readSaved()).editor.picture.targets,undefined);
         for(let i=1;i<5;i++)await page.locator('#add-target').click();
-        await page.locator('#save-card').click();
+        await page.getByRole('button', {name:'View Card', exact:true}).click();
+        await page.getByRole('button', {name:'Edit This Card'}).click();
         let saved=await readSaved();
         assert.equal(saved.deck.cards[0].picture.targets.length,5);
         const expected=structuredClone(saved.deck.cards[0].picture.targets);
@@ -181,7 +182,8 @@ const server = http.createServer((req, res) => {
         await page.locator('#add-arrow').click();
         assert.equal(await page.locator('#add-arrow').isDisabled(),true);
         assert.equal(await page.locator('#add-target').isDisabled(),true);
-        await page.locator('#save-card').click();
+        await page.getByRole('button', {name:'View Card', exact:true}).click();
+        await page.getByRole('button', {name:'Edit This Card'}).click();
         const mixed=(await readSaved()).deck.cards[0].picture.targets;
         assert.deepEqual(mixed.map(marker=>marker.type||'target'),['arrow','target','arrow','target','arrow']);
         for(const width of [1200,390]) {

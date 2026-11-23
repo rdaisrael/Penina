@@ -32,6 +32,8 @@ const server = http.createServer((req, res) => {
         await page.goto(origin + '/PeninaPlus-knowledge-builder/');
         await page.waitForFunction(() => !document.querySelector('.app').inert);
         assert.equal(await page.locator('#reuse-pictures').isVisible(), false);
+        assert.equal(await page.locator('#resume-draft').isVisible(), false);
+        await page.locator('#set-title').fill('Plant parts');
         const source = await page.evaluate(() => {
             const canvas = document.createElement('canvas');
             canvas.width = 480; canvas.height = 240;
@@ -94,6 +96,12 @@ const server = http.createServer((req, res) => {
         assert.equal(saved.deck.cards[2].picture.target, null);
         await page.reload();
         await page.waitForFunction(() => !document.querySelector('.app').inert);
+        assert.equal(await page.locator('#set-title').inputValue(), '');
+        assert.equal(await page.locator('#card-count').innerText(), '0');
+        assert.equal(await page.locator('#question').innerText(), '');
+        assert.equal(await page.locator('#picture-editor').isVisible(), false);
+        await page.getByRole('button', {name: 'Resume Last Draft'}).click();
+        assert.equal(await page.locator('#set-title').inputValue(), 'Plant parts');
         await page.locator('#new-card').click();
         await page.locator('#reuse-pictures summary').click();
         assert.equal(await page.locator('.reuse-picture').count(), 1, 'restored drafts retain reusable pictures');
@@ -114,6 +122,7 @@ const server = http.createServer((req, res) => {
         assert.equal(saved.editor.picture.src, source, 'unfinished reused picture is autosaved');
         await page.reload();
         await page.waitForFunction(() => !document.querySelector('.app').inert);
+        await page.getByRole('button', {name: 'Resume Last Draft'}).click();
         assert.equal(await page.locator('#target-surface img').getAttribute('src'), source);
         await page.locator('#remove-picture').click();
         await page.locator('#question').fill('A question without a picture');

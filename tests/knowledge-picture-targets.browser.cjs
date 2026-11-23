@@ -100,6 +100,7 @@ const server = http.createServer((req, res) => {
         }
         await page.reload();
         await page.waitForFunction(()=>!document.querySelector('.app').inert);
+        await page.getByRole('button', {name: 'Resume Last Draft'}).click();
         assert.deepEqual(await markers.allTextContents(),['A','B','C','D','E']);
         await page.locator('nav [data-stage="study"]').click();
         assert.deepEqual(await page.locator('#card-content .target-marker').allTextContents(),['A','B','C','D','E']);
@@ -192,6 +193,7 @@ const server = http.createServer((req, res) => {
             assert(Math.abs(imageBox.width-svgBox.width)<1&&Math.abs(imageBox.height-svgBox.height)<1);
         }
         await page.reload();await page.waitForFunction(()=>!document.querySelector('.app').inert);
+        await page.getByRole('button', {name: 'Resume Last Draft'}).click();
         assert.deepEqual((await readSaved()).deck.cards[0].picture.targets,mixed);
         await page.locator('nav [data-stage="study"]').click();
         assert.equal(await page.locator('#card-content .picture-arrow').count(),3);

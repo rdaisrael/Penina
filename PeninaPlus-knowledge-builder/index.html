@@ -28,12 +28,12 @@
       <button type="button" data-stage="practice" disabled>3. Create Practice Activities</button>
       <button type="button" data-stage="share" disabled>4. Share</button>
     </nav>
-    <p id="save-status" class="save-status" role="status">Your set is saved in this browser. Save a draft to keep a copy.</p>
+    <p id="save-status" class="save-status" role="status">Use Save Draft to keep a copy of your set.</p>
 
     <section id="edit-stage" aria-label="Add and edit cards">
       <div class="panel set-panel">
-        <label for="set-title">Set title</label><input id="set-title" type="text" placeholder="Name your knowledge set" maxlength="200">
-        <div class="set-actions"><button id="new-list" type="button">New List</button><button id="download-draft" type="button">Save Draft</button><button id="upload-draft" type="button">Open Draft</button><input id="draft-file" type="file" accept=".json,application/json" hidden><button id="open-published" type="button" aria-haspopup="dialog">Open Published Set</button></div>
+        <label for="set-title">Set title</label><input id="set-title" type="text" autocomplete="off" placeholder="Name your knowledge set" maxlength="200">
+        <div class="set-actions"><button id="new-list" type="button">New List</button><button id="download-draft" type="button">Save Draft</button><button id="upload-draft" type="button">Open Draft</button><button id="resume-draft" type="button" hidden>Resume Last Draft</button><input id="draft-file" type="file" accept=".json,application/json" hidden><button id="open-published" type="button" aria-haspopup="dialog">Open Published Set</button></div>
       </div>
       <div class="panel spreadsheet-panel">
         <h2>Import a Spreadsheet</h2>

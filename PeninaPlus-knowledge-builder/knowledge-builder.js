@@ -40,9 +40,15 @@
             textFormatting: Object.fromEntries(Object.entries(fields).filter(([,value]) => value.format).map(([field,value]) => [field,value.format])),
             picture: picture ? {...picture, alt: byId('picture-alt').value} : null, dirty};
     }
+    const resumeDraft = byId('resume-draft');
+    function dismissResume() {
+        resumeDraft.hidden = true;
+        resumeDraft.onclick = null;
+    }
     function persist() {
         clearTimeout(saveTimer);
         if (studentMode || !db) return;
+        dismissResume();
         try {
             const transaction = db.transaction('drafts', 'readwrite');
             transaction.objectStore('drafts').put({deck, editor: editorSnapshot()}, 'current');
@@ -53,6 +59,7 @@
         }
     }
     function scheduleSave() {
+        dismissResume();
         clearTimeout(saveTimer);
         saveTimer = setTimeout(persist, 350);
     }
@@ -728,6 +735,20 @@
         getDeck: () => deck, studentMode, setStage, openPublishedDeck, renderQuestion: card => cardContent(card,false),
         changed: () => {if(editingId)openEditor(deck.cards.find(card=>card.id===editingId));persist();}
     });
+    function restoreDraft(saved) {
+        deck = normalizeDeck(saved.deck);
+        if (saved.deck.title === '') deck.title = '';
+        byId('set-title').value = deck.title;
+        const editor = saved.editor;
+        openEditor(deck.cards.find(card => card.id === editor?.editingId) || null);
+        if (editor?.dirty) {
+            setText(editor);
+            picture = editor.picture || null;
+            byId('picture-alt').value = picture?.alt || '';
+            dirty = true;
+            renderEditorPicture();
+        }
+    }
     async function initialize() {
         if (studentMode) {
             try {
@@ -761,20 +782,15 @@
                 const request = db.transaction('drafts').objectStore('drafts').get('current');
                 request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
             });
-            if (saved) {
-                deck = normalizeDeck(saved.deck);
-                if (saved.deck.title === '') deck.title = '';
-                byId('set-title').value = deck.title;
-                const editor = saved.editor;
-                openEditor(deck.cards.find(card => card.id === editor?.editingId) || null);
-                if (editor?.dirty) {
-                    setText(editor);
-                    picture = editor.picture || null;
-                    byId('picture-alt').value = picture?.alt || '';
-                    dirty = true;
-                    renderEditorPicture();
-                }
-                storageMessage('Restored your draft from this browser.');
+            if (saved?.deck?.title || saved?.deck?.cards?.length || saved?.editor?.dirty) {
+                resumeDraft.hidden = false;
+                resumeDraft.onclick = () => {
+                    try {
+                        restoreDraft(saved);
+                        dismissResume();
+                        storageMessage('Restored your draft from this browser.');
+                    } catch (_) {storageMessage('This browser draft could not be opened.', true);}
+                };
             }
         } catch (_) {storageMessage('Browser saving is unavailable. Save your draft to keep your work.', true);}
         finally {app.inert = false; renderList();}

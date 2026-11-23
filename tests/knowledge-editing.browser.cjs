@@ -73,7 +73,8 @@ const server=http.createServer((req,res)=>{
  await page.locator('#additional-information').fill('First paragraph');await page.locator('#additional-information').press('End');await page.locator('#additional-information').press('Enter');await page.keyboard.insertText('פסקה שנייה');
  await select('additional-information',0,100);await toolbar('additional-information').getByRole('button',{name:'Right-to-left paragraph',exact:true}).click();await toolbar('additional-information').getByRole('button',{name:'Align right',exact:true}).click();
  await select('additional-information',0,5);await toolbar('additional-information').getByRole('button',{name:'Bold selected text',exact:true}).click();await toolbar('additional-information').getByRole('button',{name:'Left-to-right paragraph',exact:true}).click();await toolbar('additional-information').getByRole('button',{name:'Align left',exact:true}).click();
- await page.waitForTimeout(450);await page.reload();await page.waitForFunction(()=>!document.querySelector('.app').inert);assert.equal(await page.locator('#question strong').innerText(),'Question');
+ await page.waitForTimeout(450);await page.reload();await page.waitForFunction(()=>!document.querySelector('.app').inert);
+        await page.getByRole('button', {name: 'Resume Last Draft'}).click();assert.equal(await page.locator('#question strong').innerText(),'Question');
  await page.locator('#save-card').click();
  // Reopening restores all paragraph and run formatting.
  await page.locator('#previous-card').click();await page.locator('#next-card').click();assert.equal(await page.locator('#question strong').innerText(),'Question');

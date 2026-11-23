@@ -37,7 +37,7 @@ test('print and corrected email describe recorded work without leaking keys or r
 test('teacher-selected recording limits validate, persist, reach students and apply to uploads',()=>{
     const settings=require('../Penina-Quizzes/custom/recording-settings');
     assert.equal(settings.minutes(question),3,'previous questions keep their original default');
-    for(const recordingMinutes of [1,7,30]){
+    for(const recordingMinutes of [3,5,10]){
         const quiz=model.validateQuiz({title:'Oral work',questions:[{...question,recordingMinutes}]},true);
         assert.equal(model.publicQuestions(quiz)[0].recordingMinutes,recordingMinutes);
         assert.equal(model.validateQuiz(JSON.parse(JSON.stringify(quiz)),true).questions[0].recordingMinutes,recordingMinutes);
@@ -47,7 +47,7 @@ test('teacher-selected recording limits validate, persist, reach students and ap
         assert.throws(()=>validateRecording({...value,durationMs:value.durationMs+1},quiz.questions[0]));
         assert.match(require('../Penina-Quizzes/builder/print').render(quiz),new RegExp('up to '+recordingMinutes+' minute'));
     }
-    for(const recordingMinutes of [0,-1,31,1.5,'7',NaN,Infinity])assert.throws(()=>model.validateQuiz({title:'Invalid',questions:[{...question,recordingMinutes}]}),/1–30/);
+    for(const recordingMinutes of [0,-1,1,4,7,30,31,1.5,'5',NaN,Infinity])assert.throws(()=>model.validateQuiz({title:'Invalid',questions:[{...question,recordingMinutes}]}),/3, 5, or 10/);
     const long={audio:'data:audio/webm;base64,GkXfowAAAA==',durationMs:420000,recordingMinutes:30};
     assert.throws(()=>validateRecording(long,{recordingMinutes:1}),/1 minute/,'an upload cannot override the published question limit');
 });

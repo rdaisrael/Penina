@@ -65,16 +65,18 @@ const server=http.createServer(async(req,res)=>{
   await builder.locator('[data-field="answer"]').fill('PRIVATE RUBRIC');await builder.locator('[data-field="points"]').fill('3');await builder.locator('[data-field="allowHalfCredit"]').check();
   await builder.locator('[data-field="direction"][value="rtl"]').check();
   assert.equal(await builder.locator('[data-field="recordingMinutes"]').inputValue(),'3');
-  await builder.locator('[data-field="recordingMinutes"]').fill('7');
+  assert.deepEqual(await builder.locator('[data-field="recordingMinutes"] option').allTextContents(),['3 minutes','5 minutes','10 minutes']);
+  await builder.locator('[data-field="recordingMinutes"]').selectOption('10');assert.equal(await builder.evaluate(()=>quiz.questions[0].recordingMinutes),10);
+  await builder.locator('[data-field="recordingMinutes"]').selectOption('5');
   await builder.locator('[data-picture-file]').setInputFiles({name:'picture.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aV1sAAAAASUVORK5CYII=','base64')});
   await builder.locator('.quiz-picture img').waitFor();await builder.locator('#save').click();await builder.getByText('Draft saved.',{exact:true}).waitFor();
   await builder.reload();await builder.locator('#library [data-id]').click();await builder.getByText('Draft loaded.',{exact:true}).waitFor();
-  assert.equal(await builder.locator('[data-field="content"]').inputValue(),quiz.questions[0].content);assert.equal(quiz.questions[0].type,'recording');assert(quiz.questions[0].image);assert.equal(quiz.questions[0].recordingMinutes,7);assert.equal(await builder.locator('[data-field="recordingMinutes"]').inputValue(),'7');
+  assert.equal(await builder.locator('[data-field="content"]').inputValue(),quiz.questions[0].content);assert.equal(quiz.questions[0].type,'recording');assert(quiz.questions[0].image);assert.equal(quiz.questions[0].recordingMinutes,5);assert.equal(await builder.locator('[data-field="recordingMinutes"]').inputValue(),'5');
   await builder.locator('#type').selectOption('text');await builder.locator('#add').click();await builder.locator('[data-index="1"] [data-field="prompt"]').fill('What did you learn?');
   await builder.locator('#checkpoint').selectOption('1');await builder.locator('#save').click();await builder.getByText('Draft saved.',{exact:true}).waitFor();
   for(const width of [1200,390]){await builder.setViewportSize({width,height:900});assert(await builder.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await builder.screenshot({path:path.join(output,'builder-'+width+'.png'),fullPage:true});}
   const student=await context.newPage();await student.goto(origin+'/Penina-Quizzes/custom/?quiz='+quizId+'&class='+classId);await student.locator('#start').click();
-  const first=student.locator('[data-recorder="0"]');await first.getByText(/Maximum: 7 minutes/).waitFor();
+  const first=student.locator('[data-recorder="0"]');await first.getByText(/Maximum: 5 minutes/).waitFor();
   for(const width of [1200,390]){await student.setViewportSize({width,height:900});assert(await student.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await student.locator('[data-question="0"]').screenshot({path:path.join(output,'student-'+width+'.png')});}
   await first.locator('[data-recording-start]').click();await first.locator('[data-recording-stop]').waitFor();await student.waitForTimeout(1200);
   failUploads=true;await first.locator('[data-recording-stop]').click();await first.getByText(/Temporary upload failure/).waitFor();
@@ -108,23 +110,23 @@ const server=http.createServer(async(req,res)=>{
   const before=saves,submissionsBefore=records.length;const popupPromise=context.waitForEvent('page');await builder.locator('#preview').click();const preview=await popupPromise;
   await preview.locator('#start').click();await preview.locator('[data-recording-start]').click();await preview.locator('[data-recording-stop]').waitFor();await preview.waitForTimeout(1000);await preview.locator('[data-recording-stop]').click();await preview.getByText('Preview recording ready. Listen below.').waitFor();await preview.reload();await preview.locator('[data-recording-play]').click();await preview.waitForFunction(()=>document.querySelector('[data-recorder] audio').readyState>=2);assert.equal(saves,before);assert.equal(records.length,submissionsBefore);
   // Advance wall-clock time while using the real recorder to exercise each
-  // question's stop threshold without waiting seven minutes in the test.
-  quiz={...quiz,durationMinutes:null,forwardOnlyFrom:null,questions:[{...quiz.questions[0],recordingMinutes:7},{...quiz.questions[0],recordingMinutes:1}]};
+  // question's stop threshold without waiting ten minutes in the test.
+  quiz={...quiz,durationMinutes:null,forwardOnlyFrom:null,questions:[{...quiz.questions[0],recordingMinutes:10},{...quiz.questions[0],recordingMinutes:3}]};
   const limits=await context.newPage();await limits.addInitScript(()=>{const now=Date.now;window.recordingTestOffset=0;Date.now=()=>now()+window.recordingTestOffset;});
   await limits.goto(origin+'/Penina-Quizzes/custom/?quiz='+quizId+'&class='+'e'.repeat(32));await limits.locator('#start').click();
   await limits.locator('[data-recorder="0"] [data-recording-start]').click();await limits.locator('[data-recorder="0"] [data-recording-stop]').waitFor();await limits.waitForTimeout(1000);
-  await limits.evaluate(()=>{window.recordingTestOffset=181000;});await limits.waitForTimeout(400);assert(await limits.locator('[data-recorder="0"] [data-recording-stop]').isVisible(),'seven-minute question continues past three minutes');
-  assert.match(await limits.locator('[data-recorder="0"] [data-recording-status]').innerText(),/\/ 7:00/);
-  await limits.evaluate(()=>{window.recordingTestOffset=421000;});await limits.locator('[data-recorder="0"] [data-recording-status]').filter({hasText:'Recording saved.'}).waitFor();
-  assert.equal([...audio.values()].at(-1).durationMs,420000);
-  await limits.locator('#next').click();await limits.locator('[data-recorder="1"]').getByText(/Maximum: 1 minute\./).waitFor();
+  await limits.evaluate(()=>{window.recordingTestOffset=181000;});await limits.waitForTimeout(400);assert(await limits.locator('[data-recorder="0"] [data-recording-stop]').isVisible(),'ten-minute question continues past three minutes');
+  assert.match(await limits.locator('[data-recorder="0"] [data-recording-status]').innerText(),/\/ 10:00/);
+  await limits.evaluate(()=>{window.recordingTestOffset=601000;});await limits.locator('[data-recorder="0"] [data-recording-status]').filter({hasText:'Recording saved.'}).waitFor();
+  assert.equal([...audio.values()].at(-1).durationMs,600000);
+  await limits.locator('#next').click();await limits.locator('[data-recorder="1"]').getByText(/Maximum: 3 minutes\./).waitFor();
   await limits.locator('[data-recorder="1"] [data-recording-start]').click();await limits.locator('[data-recorder="1"] [data-recording-stop]').waitFor();await limits.waitForTimeout(1000);
-  await limits.evaluate(()=>{window.recordingTestOffset+=61000;});await limits.locator('[data-recorder="1"] [data-recording-status]').filter({hasText:'Recording saved.'}).waitFor();assert.equal([...audio.values()].at(-1).durationMs,60000);
+  await limits.evaluate(()=>{window.recordingTestOffset+=181000;});await limits.locator('[data-recorder="1"] [data-recording-status]').filter({hasText:'Recording saved.'}).waitFor();assert.equal([...audio.values()].at(-1).durationMs,180000);
   if(process.env.RECORDING_LONG_AUDIO){
    // Seed a stopped recording in the same recovery store used after a reload.
    // The optional fixture is a real MP4 audio file >2 MB and longer than 3 minutes.
    const bytes=fs.readFileSync(process.env.RECORDING_LONG_AUDIO);assert(bytes.length>2000000);
-   quiz={...quiz,questions:[{...quiz.questions[0],recordingMinutes:7}]};
+   quiz={...quiz,questions:[{...quiz.questions[0],recordingMinutes:10}]};
    const long=await context.newPage();await long.goto(origin+'/Penina-Quizzes/custom/?quiz='+quizId+'&class='+'f'.repeat(32));await long.locator('#start').click();
    const reference='recording:'+'f'.repeat(32),source='data:audio/mp4;base64,'+bytes.toString('base64');
    const id=await long.evaluate(async({audio,reference})=>{
@@ -143,6 +145,6 @@ const server=http.createServer(async(req,res)=>{
    assert.equal(await card.locator('audio').evaluate(a=>a.src),source);assert(await card.locator('audio').evaluate(a=>a.duration>199 && a.duration<201));await card.locator('audio').evaluate(a=>a.pause());
    console.log('Passed real 200-second audio file: multi-part upload, interrupted part recovery after reload, byte-exact restore, student submission, and teacher playback.');
   }
-  assert.deepEqual(errors,[]);console.log('Passed configurable per-question limits, automatic stop at 1 and 7 minutes, continuing beyond the old 3-minute cap, authoring, save/reload, real recording/playback, upload recovery, re-recording, checkpoint/reload, submission, teacher grading, timer expiry, denied permission, isolated preview, and responsive layout.');console.log('Screenshots: '+output);
+  assert.deepEqual(errors,[]);console.log('Passed configurable per-question limits, dropdown options 3/5/10 minutes and automatic stop at 3 and 10 minutes, continuing beyond the old 3-minute cap, authoring, save/reload, real recording/playback, upload recovery, re-recording, checkpoint/reload, submission, teacher grading, timer expiry, denied permission, isolated preview, and responsive layout.');console.log('Screenshots: '+output);
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

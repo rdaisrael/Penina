@@ -146,7 +146,7 @@ const QuizRecording=(()=>{
                 const mimeType=['audio/mp4;codecs=mp4a.40.2','audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'].find(type=>MediaRecorder.isTypeSupported(type));
                 if(!mimeType)throw Error('This browser cannot record a supported audio format. Try another browser.');
                 const minutes=Number(box(index).dataset.recordingMinutes),limitMs=minutes*60000;
-                if(!settings.validMinutes(minutes))throw Error('This question has an invalid recording time limit. Reload the quiz.');
+                if(!settings.validStoredMinutes(minutes))throw Error('This question has an invalid recording time limit. Reload the quiz.');
                 const recorder=new MediaRecorder(stream,{mimeType,audioBitsPerSecond:48000}),recording={index,stream,recorder,chunks:[],started:Date.now(),size:0,limitMs};
                 let resolveDone;recording.done=new Promise(resolve=>{resolveDone=resolve;});
                 recorder.ondataavailable=event=>{if(event.data.size){recording.chunks.push(event.data);recording.size+=event.data.size;if(recording.size>MAX_BYTES && recorder.state!=='inactive')recorder.stop();}};

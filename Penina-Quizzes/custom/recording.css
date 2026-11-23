@@ -1,0 +1,9 @@
+.recording-content{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.2rem;line-height:1.8;background:#f0f5f2;border:1px solid #cfddd5;border-radius:10px;padding:20px;margin:20px 0;text-align:start}
+.recording-controls{border:1px solid #b7cbbf;border-radius:12px;padding:18px;margin:20px 0;background:#f7faf8}
+.recording-controls p,.recording-player p{overflow-wrap:anywhere}
+.recording-actions{display:flex;flex-wrap:wrap;gap:10px}
+.recording-player audio{display:block;width:100%;max-width:480px;margin:12px 0}
+.recording-player audio[hidden],.recording-player [hidden],.recording-actions [hidden]{display:none}
+.recording-player a{font-size:0.9rem}
+.recording-controls [data-recording-status]{font-weight:600;font-variant-numeric:tabular-nums;min-height:1.5em}
+[data-recording-stop]{background:#9e3039;color:white}

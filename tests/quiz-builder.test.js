@@ -674,3 +674,73 @@ test('one multi-marker picture saves, publishes, collects all responses and grad
   assert.equal(points.data.questions[0].answer,mode==='markers'?'Marker 1: One\nMarker 2: Two\nMarker 3: Three':'Shared model');
  }
 });
+
+test('Recordings persist encrypted, require the matching attempt/question, and are manually corrected',async()=>{
+ const h=harness(),q={type:'recording',prompt:'Explain out loud',content:'A passage',answer:'Private rubric',points:3,allowHalfCredit:true},link=await assigned(h,{title:'Oral test',questions:[q,{...q,prompt:'Read aloud'}]});
+ const id='a'.repeat(32),reference='recording:'+'b'.repeat(32),second='recording:'+'c'.repeat(32);
+ const start=await h.call(h.submissions,h.req({action:'start',...link,id},'student'));assert.equal(start.code,200);
+ const attempt={...link,id,token:start.data.token};
+ const upload={...attempt,action:'recording-save',index:0,reference,audio:'data:audio/webm;codecs=opus;base64,GkXfowAAAA==',durationMs:1500};
+ assert.equal((await h.call(h.submissions,h.req(upload,'student'))).code,200);
+ assert.equal((await h.call(h.submissions,h.req(upload,'student'))).code,200,'upload retry is idempotent');
+ const audioPaths=[...h.blobs.keys()].filter(p=>p.startsWith('quiz-recordings/'));
+ assert.equal(audioPaths.length,1);assert(!h.blobs.get(audioPaths[0]).includes(upload.audio),'audio is encrypted');
+ assert.equal((await h.call(h.submissions,h.req({...attempt,action:'recording-load',index:0,reference},'student'))).data.audio,upload.audio);
+ assert.equal((await h.call(h.submissions,h.req({...attempt,action:'recording-load',index:0,reference},'student2'))).code,400);
+ assert.equal((await h.call(h.submissions,h.req({...attempt,action:'recording-load',index:1,reference},'student'))).code,400);
+ const before={...attempt,action:'submit',answers:[[reference],[second]]};
+ assert.equal((await h.call(h.submissions,h.req(before,'student'))).code,400,'a reference alone cannot stand in for an upload');
+ assert.equal((await h.call(h.submissions,h.req({...upload,index:1,reference:second},'student'))).code,200);
+ const submitted=await h.call(h.submissions,h.req(before,'student'));assert.equal(submitted.code,200);assert.deepEqual(submitted.data.automatic,[]);
+ const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.data.submissions[0].grading.pending,2);
+ assert(!JSON.stringify(report.data).includes(upload.audio),'reports do not inline media');
+ const review={...link,action:'recording-review',id,index:0};
+ assert.equal((await h.call(h.submissions,h.req(review))).data.audio,upload.audio);
+ assert.equal((await h.call(h.submissions,h.req(review,'other'))).code,403);
+ assert.equal((await h.call(h.submissions,h.req(review,'student'))).code,403);
+ assert.equal((await h.call(h.submissions,h.req({...upload,reference:'recording:'+'d'.repeat(32)},'student'))).code,409,'submitted answers cannot be replaced');
+ const corrected=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[2.5,3],feedback:'Good',explanations:{0:'Speak clearly'},sendToClassroom:true}));
+ assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,5.5);assert.equal(corrected.data.classroom.score,5.5);
+});
+test('Recording uploads enforce origin, format, question type, checkpoint locks and cross-attempt isolation',async()=>{
+ const h=harness(),link=await assigned(h,{title:'Locked oral work',forwardOnlyFrom:1,questions:[{type:'recording',prompt:'Read',content:'Words',answer:'',points:1},{type:'text',prompt:'Explain',answer:'',points:1}]});
+ const id='a'.repeat(32),reference='recording:'+'b'.repeat(32),start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ const attempt={...link,id,token:start.data.token},upload={...attempt,action:'recording-save',index:0,reference,audio:'data:audio/webm;base64,GkXfowAAAA==',durationMs:1000};
+ const cross=h.req(upload,'student');cross.headers.origin='https://other.test';assert.equal((await h.call(h.submissions,cross)).code,403);
+ assert.equal((await h.call(h.submissions,h.req({...upload,index:1},'student'))).code,400);
+ assert.equal((await h.call(h.submissions,h.req({...upload,audio:'data:text/html;base64,SGk='},'student'))).code,400);
+ assert.equal((await h.call(h.submissions,h.req({...upload,durationMs:180001},'student'))).code,400);
+ assert.equal((await h.call(h.submissions,h.req(upload,'student'))).code,200);
+ const otherId='c'.repeat(32),other=await h.call(h.submissions,h.req({...link,action:'start',id:otherId},'student2'));
+ assert.equal((await h.call(h.submissions,h.req({...link,action:'recording-load',id:otherId,token:other.data.token,index:0,reference},'student2'))).code,400);
+ assert.equal((await h.call(h.submissions,h.req({...attempt,action:'advance',through:0,answers:[[reference]]},'student'))).code,200);
+ assert.equal((await h.call(h.submissions,h.req({...upload,reference:'recording:'+'d'.repeat(32)},'student'))).code,409);
+ const restored=await h.call(h.submissions,h.req({...attempt,action:'state'},'student'));assert.equal(restored.data.lockedAnswers[0][0],reference);
+ assert.equal((await h.call(h.submissions,h.req({...attempt,action:'advance',through:1,answers:[['changed'],['done']]},'student'))).code,200);
+ const submitted=await h.call(h.submissions,h.req({...attempt,action:'submit',answers:[['changed'],['done']]},'student'));assert.equal(submitted.code,200);assert.equal(submitted.data.answers[0][0],reference);
+});
+
+test('longer recordings upload in encrypted retryable parts under the teacher-selected limit',async()=>{
+ const h=harness(),settings=require('../Penina-Quizzes/custom/recording-settings'),question={type:'recording',prompt:'Read aloud',answer:'',points:1,recordingMinutes:10};
+ const link=await assigned(h,{title:'Extended oral work',questions:[question]}),id='a'.repeat(32),reference='recording:'+'b'.repeat(32);
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student')),attempt={...link,id,token:start.data.token};
+ const bytes=Buffer.alloc(settings.UPLOAD_BYTES+101,17);bytes.set([0x1a,0x45,0xdf,0xa3]);
+ const audio='data:audio/webm;codecs=opus;base64,'+bytes.toString('base64'),parts=[...settings.uploads(audio,420000)];
+ const upload=piece=>h.call(h.submissions,h.req({...attempt,action:'recording-save',index:0,reference,...piece},'student'));
+ assert.equal((await upload({...parts[0],durationMs:600001,recordingMinutes:30})).code,400,'request cannot expand the teacher limit');
+ assert.equal((await upload(parts[1])).code,400,'final part alone cannot complete an answer');
+ assert.equal((await h.call(h.submissions,h.req({...attempt,action:'submit',answers:[[reference]]},'student'))).code,400);
+ assert.equal((await upload(parts[0])).data.partSaved,true);assert.equal((await upload(parts[0])).data.partSaved,true,'retry keeps an identical part');
+ assert.equal((await upload(parts[1])).data.saved,true);assert.equal((await upload(parts[1])).data.saved,true,'lost completion response is safe to retry');
+ const read={...attempt,action:'recording-load',index:0,reference};
+ const manifest=(await h.call(h.submissions,h.req(read,'student'))).data;assert.equal(manifest.totalParts,2);assert.equal(manifest.audio,undefined);
+ assert.equal((await h.call(h.submissions,h.req({...read,part:0},'student2'))).code,400);
+ assert.equal((await h.call(h.submissions,h.req({...read,part:2},'student'))).code,400);
+ const loaded=[];for(let part=0;part<2;part++)loaded.push((await h.call(h.submissions,h.req({...read,part},'student'))).data.audio.split(',')[1]);
+ assert.equal(manifest.header+','+loaded.join(''),audio);
+ assert.equal((await h.call(h.submissions,h.req({...attempt,action:'submit',answers:[[reference]]},'student'))).code,200);
+ const review={...link,action:'recording-review',id,index:0};assert.equal((await h.call(h.submissions,h.req(review))).data.totalParts,2);
+ assert.equal((await h.call(h.submissions,h.req({...review,part:1}))).data.audio,parts[1].audio);
+ assert.equal((await h.call(h.submissions,h.req({...review,part:0},'other'))).code,403);
+ for(const [pathname,value] of h.blobs)if(pathname.startsWith('quiz-recordings/'))assert(!value.includes('audio/webm'));
+});

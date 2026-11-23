@@ -14,7 +14,7 @@ const quiz={...model.validateQuiz({title:'Checkpoint regression',durationMinutes
 const classId='c'.repeat(32),blobs=new Map(),responses=[],errors=[];
 let failCheckpointResponse=false;
 const identity={sub:'student',email:'student@example.test',name:'Student',classId,className:'Local class',isClassTeacher:false};
-const ctx={module:{exports:{}},Buffer,URL,Date,console,process:{env:{BLOB_READ_WRITE_TOKEN:'local-test-only'}},
+const ctx={module:{exports:{}},Buffer,URL,Date,AbortSignal,console,process:{env:{BLOB_READ_WRITE_TOKEN:'local-test-only'}},
     fetch:async url=>({ok:blobs.has(url),text:async()=>blobs.get(url)}),require:name=>{
         if(name==='@vercel/blob')return {
             list:async({prefix})=>({blobs:[...blobs.keys()].filter(p=>p.startsWith(prefix)).map(p=>({pathname:p,url:p}))}),

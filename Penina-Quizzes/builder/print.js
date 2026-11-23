@@ -5,7 +5,7 @@
     else root.QuizPrint=factory(root.QuizScoring,QuizPicture);
 })(typeof globalThis!=='undefined'?globalThis:this,function(scoring,picture){
     const escape=value=>String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const names={text:'Written response',choice:'Multiple choice',multi:'Multiple answers',gaps:'Fill in the blanks',match:'Matching',order:'Put in order'};
+    const names={recording:'Recorded answer',text:'Written response',choice:'Multiple choice',multi:'Multiple answers',gaps:'Fill in the blanks',match:'Matching',order:'Put in order'};
     function letter(index){let label='';for(index++;index;index=Math.floor((index-1)/26))label=String.fromCharCode(65+(index-1)%26)+label;return label;}
     function shuffled(values,random){
         const copy=[...values];
@@ -19,7 +19,10 @@
     function question(q,index,random){
         const choices=shuffled(q.choices || [],random),direction=q.direction==='rtl'?'rtl':'ltr';
         let instruction='',response='';
-        if(q.type==='text'){
+        if(q.type==='recording'){
+            instruction='Record your answer in the online quiz (up to '+(q.recordingMinutes ?? 3)+' minute'+((q.recordingMinutes ?? 3)===1?'':'s')+'). Use this space to plan your answer.';
+            response=lines(3);
+        }else if(q.type==='text'){
             instruction='Write your answer clearly. Use the lines below.';
             response=q.pictureResponseMode==='markers' && q.image?.markers?.length?q.image.markers.map((_,i)=>`<div class="qp-marker-answer"><h3>Marker ${i+1}</h3>${lines(2)}</div>`).join(''):lines(4);
         }else if(q.type==='choice' || q.type==='multi'){
@@ -38,7 +41,7 @@
         }
         const prompt=q.type==='gaps'?escape(q.prompt).split('___').join('<span class="qp-blank" aria-label="Blank">&#160;</span>'):escape(q.prompt);
         const points=scoring.maxPoints(q);
-        return `<article class="qp-question" aria-label="Question ${index+1}"><div class="qp-question-head"><span class="qp-number">${index+1}</span><span class="qp-kind">${escape(names[q.type] || 'Question')}${q.extraCredit?' · Extra credit':''}</span><span class="qp-points">${points} ${points===1?'point':'points'}</span></div><p class="qp-instruction">${instruction}</p><h2 class="qp-prompt" dir="${direction}">${prompt || 'Question not entered yet.'}</h2>${picture.render(q)}${response}</article>`;
+        return `<article class="qp-question" aria-label="Question ${index+1}"><div class="qp-question-head"><span class="qp-number">${index+1}</span><span class="qp-kind">${escape(names[q.type] || 'Question')}${q.extraCredit?' · Extra credit':''}</span><span class="qp-points">${points} ${points===1?'point':'points'}</span></div><p class="qp-instruction">${instruction}</p><h2 class="qp-prompt" dir="${direction}">${prompt || 'Question not entered yet.'}</h2>${q.type==='recording' && q.content?`<p class="qp-prompt" dir="${direction}">${escape(q.content)}</p>`:''}${picture.render(q)}${response}</article>`;
     }
     function render(quiz,random=Math.random){
         const questions=quiz.questions || [];

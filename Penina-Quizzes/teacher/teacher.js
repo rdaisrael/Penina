@@ -39,10 +39,10 @@ function pointsValues(){const modes=[...$('pointsQuestions').querySelectorAll('s
 function pointsTotal(){if(!pointsQuiz)return;let regular=0,extra=0;pointsValues().forEach((n,i)=>{const value=n||0;if(pointsQuiz.questions[i].extraCredit)extra+=value;else regular+=value;});$('pointsTotal').textContent=regular+' regular points possible · '+extra+' extra-credit points';}
 function pointsAnswerKey(q){
     const panel=document.createElement('div');panel.className='points-answer-key';
-    const heading=document.createElement('h3');heading.textContent=q.type==='text'?'Model answer':'Correct answers';panel.append(heading);
+    const heading=document.createElement('h3');heading.textContent=['text','recording'].includes(q.type)?'Model answer':'Correct answers';panel.append(heading);
     const summary=document.createElement('p');summary.className='points-answer-count';panel.append(summary);
-    if(q.type==='text'){
-        summary.textContent='Written response · teacher graded';
+    if(q.type==='text' || q.type==='recording'){
+        summary.textContent=(q.type==='recording'?'Recorded answer':'Written response')+' · teacher graded';
         const answer=document.createElement('p');answer.className='points-answer-text';answer.dir='auto';answer.textContent=q.answer || 'No model answer provided.';panel.append(answer);return panel;
     }
     const answers=Array.isArray(q.answer)?q.answer:[];

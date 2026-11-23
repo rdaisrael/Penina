@@ -165,7 +165,7 @@ async function loadReport() {
         const response=await fetch(SUBMISSIONS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'report',courseId:document.getElementById('reportClass').value || undefined})});
         const result=await response.json();if(requestId!==reportRequest)return;if(!response.ok)throw new Error(result.error || 'Results could not be loaded.');
         questions=result.questions;records=result.submissions;document.querySelector('h1').textContent=result.title;
-        status.textContent=`${records.length} submission${records.length===1?'':'s'}. Open a submission to review answers and mark written questions.`;
+        status.textContent=`${records.length} submission${records.length===1?'':'s'}. Open a submission to review answers and mark written and recorded answers.`;
         document.getElementById('export').hidden=!records.length;currentRoster=result.roster;render();renderRoster(currentRoster);renderSummary();
     }catch(error){if(requestId===reportRequest)status.textContent=error.message;}
     finally{if(requestId===reportRequest)button.disabled=false;}
@@ -209,12 +209,21 @@ document.getElementById('export').addEventListener('click',()=>{
     const columns = questions.map((q,i)=>`${i+1}. ${q.extraCredit?'[Extra credit] ':''}${q.prompt}`);
     // Prevent answers or names being interpreted as spreadsheet formulas.
     const csvCell = v => { let s = String(v); if (/^[\s]*[=+\-@]/.test(s)) s = "'" + s; return '"'+s.replace(/"/g,'""')+'"'; };
-    const rows = [['Name','School email','Submitted at (Eastern Time)','Receipt','Automatic points',...questions.flatMap((q,i)=>(q.type==='text'||q.type==='gaps'&&q.wordBank===false)?['Q'+(i+1)+' points']:[]),'Final score','Questions awaiting correction','Teacher feedback',...columns],...records.map(r=>[r.name,r.email,formatResultTime(r.submittedAt),r.id,r.grading.automaticScore,...r.grading.manual.map(q=>q.score??''),r.grading.total??'',r.grading.pending,r.grading.feedback,...r.answers.map(values=>values.join(' | '))])];
+    const rows = [['Name','School email','Submitted at (Eastern Time)','Receipt','Automatic points',...questions.flatMap((q,i)=>(q.type==='text'||q.type==='recording'||q.type==='gaps'&&q.wordBank===false)?['Q'+(i+1)+' points']:[]),'Final score','Questions awaiting correction','Teacher feedback',...columns],...records.map(r=>[r.name,r.email,formatResultTime(r.submittedAt),r.id,r.grading.automaticScore,...r.grading.manual.map(q=>q.score??''),r.grading.total??'',r.grading.pending,r.grading.feedback,...r.answers.map((values,i)=>questions[i].type==='recording'?(values[0]?'Recorded answer (listen in teacher tools)':'(No recording)'):values.join(' | '))])];
     const url = URL.createObjectURL(new Blob(['\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
     const a = document.createElement('a'); a.href = url; a.download = 'PP-Quiz-submissions.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
 
 document.getElementById('classChoice').addEventListener('change',()=>{document.getElementById('classLink').hidden=true;});
+
+
+QuizRecording.bindPlayback(document.getElementById('reports'),async(index,reference,id,container)=>{
+    const submissionId=id || container.closest('form.correction')?.dataset.id;
+    return QuizRecording.loadRecording(async body=>{
+        const response=await fetch(SUBMISSIONS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});
+        const result=await response.json();if(!response.ok)throw Error(result.error || 'The recording could not be loaded.');return result;
+    },{action:'recording-review',id:submissionId,index});
+});
 
 for(const tableId of ['rosterRows','resultsRows'])document.getElementById(tableId).addEventListener('click',event=>{
     const link=event.target.closest('a[data-submission]');

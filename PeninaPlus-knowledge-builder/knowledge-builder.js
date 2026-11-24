@@ -321,10 +321,26 @@
         }
     }
     function fitStudy() {
-        fitCardLines(document.querySelectorAll('#card-content .card-text'));
+        const texts = document.querySelectorAll('#card-content .card-text');
+        fitCardLines(texts);
+        for (const text of texts) {
+            const box = text.parentElement;
+            if (!box.clientHeight || !text.clientWidth) continue;
+            const fits = () => text.scrollHeight <= box.clientHeight && text.scrollWidth <= text.clientWidth;
+            if (fits()) continue;
+            // Use the shared study viewer's binary-search fitting approach, preserving
+            // the authored-line fit above. Both views must fit the whole face, even
+            // when that requires text smaller than the usual 16 px line-fit minimum.
+            let low = 0, high = parseFloat(getComputedStyle(text).fontSize);
+            for (let step = 0; step < 18; step++) {
+                const size = (low + high) / 2;
+                text.style.fontSize = size + 'px';
+                if (fits()) low = size;
+                else high = size;
+            }
+            text.style.fontSize = low + 'px';
+        }
         if (studentMode) {
-            const text = byId('card-content').querySelector('.card-text');
-            if (text && text.scrollHeight > text.parentElement.clientHeight) window.PeninaStudyLayout.fitText(text, 16);
             window.PeninaStudyLayout.fitText(byId('additional-text'));
         }
     }

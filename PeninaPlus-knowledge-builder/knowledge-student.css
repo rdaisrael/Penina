@@ -1,15 +1,19 @@
 /* The page shell, controls, cards and background come from studyStyles().
    Only knowledge-specific content, enlargement, practice and print layouts live here. */
+/* Match the builder review's available card width, including its sidebar and gutters. */
+.app{max-width:1120px}
+.layout{grid-template-columns:280px minmax(0,1fr)}
+.stage{padding:24px}
 [hidden]{display:none!important}
 #edit-stage,#practice-stage,#share-stage,#save-status,#edit-current{display:none!important}
 #additional-panel[hidden]{display:flex!important;visibility:hidden}
 #additional-text{margin:0;line-height:1.5;white-space:pre-wrap;text-align:start}
 #quiz-information-text{text-align:start}
-#flashcard{padding:52px 20px 20px}
+#flashcard{width:100%;height:323px;min-height:323px;padding:52px 20px 20px}
 #card-content{width:100%;height:244px;max-height:244px;flex:none;overflow:visible}
 #card-content .student-card-main{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);align-items:center;width:100%;height:100%;gap:0}
 #card-content .student-card-main.has-picture{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:16px;direction:ltr}
-.student-question-copy{display:flex;align-items:safe center;justify-content:center;min-width:0;min-height:0;height:100%;overflow-y:auto}
+.student-question-copy{display:flex;align-items:safe center;justify-content:center;min-width:0;min-height:0;height:100%;overflow:hidden}
 .student-question-copy .card-text{width:100%;margin:0;font:inherit;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere}
 .picture-button{background:transparent;border:0;padding:0;min-width:0;max-width:100%;justify-self:center;position:relative;cursor:zoom-in;line-height:0;border-radius:4px}
 .picture-button img{display:block;max-width:100%;width:auto;height:auto;max-height:160px;border-radius:4px}
@@ -28,6 +32,8 @@ dialog{border:1px solid var(--line);border-radius:14px;padding:20px;color:var(--
 #print-pages .paper-card{overflow:visible}
 
 .print-settings select,.quiz-toolbar select{font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+@media(max-width:620px){.app{padding-left:12px;padding-right:12px}.stage{padding:14px}}
 @media(max-width:850px){.sheet-caption,.paper-sheet{margin-left:0}}
 @media(max-width:620px){.quiz-options{grid-template-columns:1fr}.knowledge-sheet{padding:12px}.knowledge-sheet td{padding:8px;font-size:13px}}
 @media print{body{padding:0;background:#fff}.bg-pattern,.app-header,.workflow-nav,.save-status,#edit-stage,#study-stage,.print-settings,.sheet-caption,dialog{display:none!important}.app{max-width:none;padding:0}#print-stage{display:block!important}.print-scroll{padding:0;overflow:visible}.paper-sheet{margin:0;box-shadow:none;break-after:page;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}.paper-sheet:last-child{break-after:auto;page-break-after:auto}}

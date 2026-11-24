@@ -56,27 +56,30 @@ const server = http.createServer(async (req, res) => {
         const page = await context.newPage(), errors = [];
         page.on('pageerror',error=>errors.push(error.message));
         async function expectSection(id) {
-            await page.locator('.library-navigation').waitFor({state:'visible'});
+            await page.locator('#'+id).waitFor({state:'visible'});
             await page.waitForFunction(id => {
-                const nav = document.querySelector('.library-navigation');
                 const heading = document.getElementById(id);
-                if (!heading || document.querySelector('.library-navigation-link[aria-current="location"]')?.hash !== '#' + id) return false;
-                const desired = Math.max(0,Math.min(window.scrollY + heading.getBoundingClientRect().top - nav.offsetHeight - 16,document.documentElement.scrollHeight - window.innerHeight));
+                if (!heading || document.querySelectorAll('.library-section-jump:not([hidden])').length !== 2) return false;
+                const desired = Math.max(0,Math.min(window.scrollY + heading.getBoundingClientRect().top - 16,document.documentElement.scrollHeight - window.innerHeight));
                 return Math.abs(window.scrollY - desired) < 2;
             }, id);
             const heading = await page.locator('#'+id).boundingBox();
-            const nav = await page.locator('.library-navigation').boundingBox();
-            assert(heading.y >= nav.y + nav.height - 1, 'The section heading stays below the pinned navigation');
+            assert(heading.y >= 0, 'The section heading stays on screen');
             assert(heading.y < page.viewportSize().height, 'The requested section is on screen');
         }
         async function checkNavigation() {
-            const nav = page.getByRole('navigation',{name:'Jump to card section'});
-            await nav.waitFor({state:'visible'});
-            await nav.getByRole('link',{name:'Go to Knowledge Cards',exact:true}).click();
+            assert.equal(await page.locator('.library-navigation').count(),0,'The sticky bar is removed');
+            const down = page.getByRole('link',{name:'Knowledge Cards',exact:true});
+            await down.waitFor({state:'visible'});
+            assert.equal(await down.locator('..').locator('h2').textContent(),'Vocabulary Cards');
+            assert.match(await down.textContent(),/↓/);
+            await down.click();
             await expectSection('knowledge-lists-heading');
             assert.equal(await page.evaluate(()=>document.activeElement.id),'knowledge-lists-heading');
             assert.equal(new URL(page.url()).hash,'#knowledge-lists-heading');
-            const returnLink = nav.getByRole('link',{name:'Back to Vocabulary Cards',exact:true});
+            const returnLink = page.getByRole('link',{name:'Vocabulary Cards',exact:true});
+            assert.equal(await returnLink.locator('..').locator('h2').textContent(),'Knowledge Cards');
+            assert.match(await returnLink.textContent(),/↑/);
             await returnLink.focus();
             await page.keyboard.press('Enter');
             await expectSection('vocabulary-lists-heading');
@@ -109,7 +112,7 @@ const server = http.createServer(async (req, res) => {
                 await search.fill(query);
                 assert.deepEqual(await page.locator('#sets .set h2').allTextContents(),['Week 1 Review'],query);
                 assert.equal(await page.locator('.knowledge-library .set').count(),0);
-                assert.equal(await page.locator('.library-navigation').isVisible(),false);
+                assert.equal(await page.locator('.library-section-jump:visible').count(),0);
                 assert(await page.locator('#sets .combine-select').isChecked());
                 if (query !== 'week 1') {
                     assert.equal(await page.locator('#sets .search-matches strong').textContent(),entry.term);
@@ -125,7 +128,7 @@ const server = http.createServer(async (req, res) => {
                 assert.equal(await page.locator('#sets .set').count(),0);
                 assert.deepEqual(await page.locator('.knowledge-library .set h2').allTextContents(),['Plants']);
                 assert.equal(await page.locator('#status').isVisible(),false);
-                assert.equal(await page.locator('.library-navigation').isVisible(),false);
+                assert.equal(await page.locator('.library-section-jump:visible').count(),0);
             }
             for (const query of ['no-such-term','secret','סוד','Hidden List']) {
                 await search.fill(query);
@@ -136,11 +139,11 @@ const server = http.createServer(async (req, res) => {
             assert.equal(await page.locator('.set').count(),3);
             assert.equal(await page.locator('.search-matches').count(),0);
             assert.equal(await page.locator('#combine-count').textContent(),'1 set selected');
-            assert.equal(await page.locator('.library-navigation').isVisible(),true);
+            assert.equal(await page.locator('.library-section-jump:visible').count(),2);
             assert(await page.locator('#sets .combine-select').first().isChecked());
             assert.equal(apiReads,readsBeforeSearch,'Typing only searches already-loaded content');
         }
-        // Longer libraries exercise pinned navigation and automatic scroll tracking.
+        // Longer libraries exercise both jumps without a persistent navigation bar.
         const extraSets = Array.from({length:9},(_,i)=>({...vocabulary[0],title:'Extra set '+i,pathname:'vocabulary-cards/sixth/extra-'+i+'.html'}));
         vocabulary.push(...extraSets);
         for (const width of [1200,390,320]) {
@@ -148,12 +151,16 @@ const server = http.createServer(async (req, res) => {
             await page.goto(origin+'/PeninaPlus-vocab-builder/flash-cards/?page=sixth');
             await page.locator('.knowledge-library .set').waitFor();
             await checkNavigation();
-            await page.evaluate(()=>window.scrollTo(0,0));
-            await page.waitForFunction(()=>document.querySelector('.library-navigation-link[aria-current="location"]')?.hash === '#vocabulary-lists-heading');
-            await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
-            await expectSection('knowledge-lists-heading');
             assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'navigation fits narrow screens');
             await page.screenshot({path:`/tmp/penina-navigation-${width}.png`});
+            await page.getByRole('link',{name:'Vocabulary Cards',exact:true}).click();
+            await expectSection('vocabulary-lists-heading');
+            if(width===1200) {
+                const heading=await page.locator('#vocabulary-lists-heading').boundingBox(),button=await page.getByRole('link',{name:'Knowledge Cards',exact:true}).boundingBox();
+                assert(button.x>=heading.x+heading.width,'The jump button sits beside the section heading');
+                assert(button.y<heading.y+heading.height&&button.y+button.height>heading.y,'The button and heading share a row');
+            }
+            await page.screenshot({path:`/tmp/penina-vocabulary-jump-${width}.png`});
             await page.locator('#search').fill('שלום');
             assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
             await page.screenshot({path:`/tmp/penina-search-${width}.png`,fullPage:true});
@@ -167,8 +174,8 @@ const server = http.createServer(async (req, res) => {
             showVocabulary = kind === 'vocabulary'; showKnowledge = kind === 'knowledge';
             await page.goto(origin+'/PeninaPlus-vocab-builder/flash-cards/?page=sixth');
             await page.waitForFunction(()=>document.querySelector('#sets')?.dataset.loaded === 'true' && document.querySelector('.knowledge-library .sets')?.dataset.loaded === 'true');
-            await page.locator('.library-navigation').waitFor({state:'attached'});
-            assert.equal(await page.locator('.library-navigation').isVisible(),false,kind+' page needs no section navigation');
+            await page.locator('.library-section-jump').first().waitFor({state:'attached'});
+            assert.equal(await page.locator('.library-section-jump:visible').count(),0,kind+' page needs no section navigation');
         }
         showVocabulary = true; showKnowledge = true;
         // Re-rendering results treats definitions as text, including HTML-looking content.
@@ -182,6 +189,6 @@ const server = http.createServer(async (req, res) => {
         await page.getByText('Show 2 more',{exact:true}).click();
         assert.equal(await page.locator('#sets .search-matches li:visible').count(),5);
         assert.deepEqual(errors,[]);
-        console.log('Passed class search and section navigation on all four page templates, both load orders, bookmarks, back navigation, keyboard return, focus, search visibility, automatic scroll tracking, selection retention, and desktop/mobile layouts down to 320px.');
+        console.log('Passed heading jump buttons and class search on all four page templates, both load orders, bookmarks, back navigation, keyboard return, focus, search visibility, selection retention, smooth scrolling, and desktop/mobile layouts down to 320px.');
     } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>server.close());

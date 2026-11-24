@@ -1,0 +1,124 @@
+<div id="penina-section-preview" class="viz-dotted-background">
+  <style>
+    #penina-section-preview { padding: 12px; }
+    #penina-section-preview .pn-screen { --pn-ink: light-dark(#20242b,#edf0f8); --pn-muted: light-dark(#687080,#afb7c9); --pn-line: light-dark(#d9dee7,#394154); --pn-blue: light-dark(#4353ff,#a8afff); --pn-active: light-dark(#4353ff,#8490ff); --pn-on-active: light-dark(#ffffff,#11152f); --pn-paper: light-dark(#ffffff,#202633); --pn-bg: light-dark(#f7f6f3,#161b25); --pn-soft: light-dark(#eef0ff,#2c3351); height: 620px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border: 1px solid var(--pn-line); border-radius: 18px; background: var(--pn-bg); color: var(--pn-ink); font-family: Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif; position: relative; }
+    #penina-section-preview .pn-screen * { box-sizing: border-box; }
+    #penina-section-preview .pn-header { padding: 30px 28px 22px; background: linear-gradient(135deg,var(--pn-soft),var(--pn-bg) 75%); }
+    #penina-section-preview .pn-brand { color: var(--pn-blue); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; margin: 0 0 12px; }
+    #penina-section-preview h1 { color: var(--pn-ink); font-size: clamp(26px,5vw,39px); line-height: 1.08; letter-spacing: -.04em; font-weight: 800; margin: 0; }
+    #penina-section-preview .pn-intro { color: var(--pn-muted); font-size: 14px; line-height: 1.5; margin: 12px 0 0; max-width: 480px; }
+    #penina-section-preview .pn-nav { position: sticky; top: 0; z-index: 2; padding: 12px 28px; background: var(--pn-bg); border-bottom: 1px solid var(--pn-line); }
+    #penina-section-preview .pn-pills { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; background: var(--pn-paper); border: 1px solid var(--pn-line); border-radius: 16px; box-shadow: 0 5px 18px #10182a0a; }
+    #penina-section-preview .pn-jump { display: flex; gap: 6px; align-items: center; justify-content: center; min-height: 56px; border: 1px solid var(--pn-blue); border-radius: 11px; padding: 10px 8px; background: var(--pn-paper); color: var(--pn-blue); font: inherit; font-size: 14px; font-weight: 750; text-decoration: none; text-align: center; }
+    #penina-section-preview .pn-jump:hover { background: var(--pn-soft); color: var(--pn-blue); }
+    #penina-section-preview .pn-jump[aria-current="location"] { background: var(--pn-active); color: var(--pn-on-active); }
+    #penina-section-preview .pn-jump:focus-visible { outline: 3px solid var(--pn-blue); outline-offset: 3px; }
+    #penina-section-preview .pn-direction { font-size: 17px; }
+    #penina-section-preview .pn-content { padding: 22px 28px 28px; }
+    #penina-section-preview .pn-section + .pn-section { border-top: 1px solid var(--pn-line); margin-top: 28px; padding-top: 24px; }
+    #penina-section-preview #pn-knowledge-cards { min-height: 490px; }
+    #penina-section-preview .pn-section-title { font-size: 23px; line-height: 1.25; letter-spacing: -.025em; font-weight: 750; color: var(--pn-ink); margin: 0 0 16px; }
+    #penina-section-preview .pn-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+    #penina-section-preview .pn-set { padding: 18px; border: 1px solid var(--pn-line); border-radius: 18px; background: var(--pn-paper); box-shadow: 0 8px 22px #10182a09; min-width: 0; }
+    #penina-section-preview .pn-set h3 { font-size: 17px; font-weight: 750; line-height: 1.3; margin: 0 0 10px; color: var(--pn-ink); }
+    #penina-section-preview .pn-date { font-size: 12px; color: var(--pn-muted); margin: 0 0 18px; }
+    #penina-section-preview .pn-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #penina-section-preview .pn-action-column { display: grid; gap: 8px; text-align: center; }
+    #penina-section-preview .pn-action-label { font-size: 12px; font-weight: 750; color: var(--pn-ink); }
+    #penina-section-preview .pn-action-example { border: 1px solid var(--pn-blue); border-radius: 10px; color: var(--pn-blue); font-size: 12px; font-weight: 750; padding: 11px 4px; }
+    #penina-section-preview .pn-footer { margin: 24px 0 0; text-align: center; color: var(--pn-muted); font-size: 12px; }
+    #penina-section-preview .pn-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    @media(max-width:480px) { #penina-section-preview { padding: 4px; } #penina-section-preview .pn-header { padding: 24px 16px 18px; } #penina-section-preview .pn-nav { padding: 10px 12px; } #penina-section-preview .pn-content { padding: 20px 16px; } #penina-section-preview .pn-jump { font-size: 12px; gap: 4px; padding-inline: 4px; } #penina-section-preview .pn-grid { grid-template-columns: 1fr; } }
+  </style>
+  <div class="pn-screen" role="region" aria-label="Sample Penina webpage with section navigation">
+    <header class="pn-header">
+      <p class="pn-brand">Penina Study Cards</p>
+      <h1>Sixth Grade Gemara Vocabulary</h1>
+      <p class="pn-intro">Choose a vocabulary or knowledge set to study its flashcards, sheets, and practice activities.</p>
+    </header>
+    <nav class="pn-nav" aria-label="Jump to card section">
+      <div class="pn-pills">
+        <a class="pn-jump cursor-interaction" href="#pn-vocabulary-cards" data-section="vocabulary" aria-current="location"><span class="pn-direction" aria-hidden="true"></span><span class="pn-jump-label">Vocabulary Cards</span></a>
+        <a class="pn-jump cursor-interaction" href="#pn-knowledge-cards" data-section="knowledge"><span class="pn-direction" aria-hidden="true">↓</span><span class="pn-jump-label">Go to Knowledge Cards</span></a>
+      </div>
+    </nav>
+    <div class="pn-content">
+      <section class="pn-section" id="pn-vocabulary-cards" aria-labelledby="pn-vocabulary-heading">
+        <h2 class="pn-section-title" id="pn-vocabulary-heading">Vocabulary Cards</h2>
+        <div class="pn-grid">
+          <article class="pn-set"><h3>Gemara Vocabulary 1</h3><p class="pn-date">November 24, 2026</p><div class="pn-actions"><div class="pn-action-column"><span class="pn-action-label">Flashcards</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div><div class="pn-action-column"><span class="pn-action-label">Sheets</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div></div></article>
+          <article class="pn-set"><h3>Gemara Vocabulary 2</h3><p class="pn-date">November 24, 2026</p><div class="pn-actions"><div class="pn-action-column"><span class="pn-action-label">Flashcards</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div><div class="pn-action-column"><span class="pn-action-label">Sheets</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div></div></article>
+          <article class="pn-set"><h3>Gemara Vocabulary 3</h3><p class="pn-date">November 24, 2026</p><div class="pn-actions"><div class="pn-action-column"><span class="pn-action-label">Flashcards</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div><div class="pn-action-column"><span class="pn-action-label">Sheets</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div></div></article>
+          <article class="pn-set"><h3>Gemara Vocabulary 4</h3><p class="pn-date">November 24, 2026</p><div class="pn-actions"><div class="pn-action-column"><span class="pn-action-label">Flashcards</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div><div class="pn-action-column"><span class="pn-action-label">Sheets</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div></div></article>
+        </div>
+      </section>
+      <section class="pn-section" id="pn-knowledge-cards" aria-labelledby="pn-knowledge-heading">
+        <h2 class="pn-section-title" id="pn-knowledge-heading">Knowledge Cards</h2>
+        <div class="pn-grid">
+          <article class="pn-set"><h3>Gemara Review 1</h3><p class="pn-date">November 24, 2026</p><div class="pn-actions"><div class="pn-action-column"><span class="pn-action-label">Flashcards</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div><div class="pn-action-column"><span class="pn-action-label">Sheets</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div></div></article>
+          <article class="pn-set"><h3>Key Concepts</h3><p class="pn-date">November 24, 2026</p><div class="pn-actions"><div class="pn-action-column"><span class="pn-action-label">Flashcards</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div><div class="pn-action-column"><span class="pn-action-label">Sheets</span><span class="pn-action-example">View</span><span class="pn-action-example">Print/PDF</span></div></div></article>
+        </div>
+      </section>
+      <p class="pn-footer">Sample card sets</p>
+    </div>
+    <span class="pn-announcement" aria-live="polite"></span>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('penina-section-preview');
+      const screen = root.querySelector('.pn-screen');
+      const nav = root.querySelector('.pn-nav');
+      const knowledge = root.querySelector('#pn-knowledge-cards');
+      const links = Array.from(root.querySelectorAll('.pn-jump'));
+      const announcement = root.querySelector('.pn-announcement');
+      const sections = { vocabulary: root.querySelector('#pn-vocabulary-cards'), knowledge };
+      let active = 'vocabulary';
+      let showArrows = true;
+      function select(section) {
+        active = section;
+        links.forEach(link => {
+          const current = link.dataset.section === section;
+          if (current) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+          link.querySelector('.pn-jump-label').textContent = link.dataset.section === 'vocabulary'
+            ? (current ? 'Vocabulary Cards' : 'Back to Vocabulary Cards')
+            : (current ? 'Knowledge Cards' : 'Go to Knowledge Cards');
+          link.querySelector('.pn-direction').textContent = current || !showArrows ? '' : link.dataset.section === 'vocabulary' ? '↑' : '↓';
+        });
+      }
+      function jump(section, smooth) {
+        if (!sections[section]) return;
+        const target = sections[section];
+        const targetTop = target.getBoundingClientRect().top - screen.getBoundingClientRect().top + screen.scrollTop - nav.offsetHeight - 16;
+        screen.scrollTo({top: Math.max(0,targetTop), behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'instant'});
+        select(section);
+      }
+      links.forEach(link => link.addEventListener('click', event => {
+        event.preventDefault();
+        const section = link.dataset.section;
+        jump(section, true);
+        announcement.textContent = section === 'knowledge' ? 'Jumped to Knowledge Cards' : 'Jumped to Vocabulary Cards';
+        if (window.openai?.setWidgetState) window.openai.setWidgetState({modelContent: {viewing: section === 'knowledge' ? 'Knowledge Cards' : 'Vocabulary Cards'}, privateContent: {section}}).catch(() => {});
+      }));
+      screen.addEventListener('scroll', () => {
+        const knowledgeTop = knowledge.getBoundingClientRect().top;
+        const screenTop = screen.getBoundingClientRect().top;
+        const atBottom = screen.scrollHeight - screen.clientHeight - screen.scrollTop < 3;
+        select(knowledgeTop <= screenTop + nav.offsetHeight + 60 || (atBottom && screen.scrollTop > 0) ? 'knowledge' : 'vocabulary');
+      }, {passive:true});
+      function restore(state) {
+        const section = state?.privateContent?.section;
+        if (sections[section]) requestAnimationFrame(() => jump(section, false));
+      }
+      restore(window.openai?.widgetState?.privateContent?.section ? window.openai.widgetState : {privateContent:{section:'knowledge'}});
+      window.addEventListener('openai:set_globals', event => {
+        if (event.detail?.globals?.widgetState) restore(event.detail.globals.widgetState);
+      });
+      if (globalThis.Tweak) {
+        const design = {directionArrows:true};
+        const tweak = new Tweak({container:nav,onChange:() => {showArrows = design.directionArrows;select(active);}});
+        tweak.addToggle(design,'directionArrows',{label:'Direction arrows'});
+      }
+    })();
+  </script>
+</div>

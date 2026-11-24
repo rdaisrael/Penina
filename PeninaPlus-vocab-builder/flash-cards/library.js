@@ -286,6 +286,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         }
         updateCombineControls();
         renderTeacherChoices();
+        window.dispatchEvent(new Event('penina-library-rendered'));
     }
 
     async function load() {
@@ -304,10 +305,13 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
             excludedWordlists = data.excludedWordlists || [];
             if (data.hiddenWordlists) hiddenWordlists = data.hiddenWordlists;
             classGamify.hidden = !studySets().some(set => set.hasGames && !hiddenWordlists.includes(set.pathname));
+            setsElement.dataset.loaded = 'true';
             render();
             window.dispatchEvent(new Event('penina-vocabulary-library-loaded'));
         } catch (error) {
             status.textContent = error && error.message ? error.message : 'Unable to load vocabulary sets.';
+            setsElement.dataset.loaded = 'true';
+            window.dispatchEvent(new Event('penina-library-rendered'));
         }
     }
 
@@ -633,6 +637,7 @@ const returnHomeScript=document.createElement('script');returnHomeScript.src='/r
         updateCombineControls();
         renderTeacherChoices();
     });
+    const libraryNavigation=document.createElement('script');libraryNavigation.src='/PeninaPlus-vocab-builder/flash-cards/library-navigation.js';document.head.append(libraryNavigation);
     const knowledgeLibrary=document.createElement('script');knowledgeLibrary.src='/PeninaPlus-knowledge-builder/knowledge-library.js';document.head.append(knowledgeLibrary);
     load();
 })();

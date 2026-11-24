@@ -5,7 +5,7 @@
     if(!grade)return;
     const section=document.createElement('section');section.className='knowledge-library';section.hidden=true;
     section.setAttribute('aria-labelledby','knowledge-lists-heading');
-    section.innerHTML='<h2 id="knowledge-lists-heading">Knowledge Lists</h2><p class="status" role="status"></p><div class="sets"></div>';
+    section.innerHTML='<h2 id="knowledge-lists-heading">Knowledge Cards</h2><p class="status" role="status"></p><div class="sets"></div>';
     document.getElementById('sets').after(section);
     const note=section.querySelector('p'),list=section.querySelector('.sets');
     const tools=document.createElement('fieldset');tools.className='teacher-choices';tools.hidden=true;

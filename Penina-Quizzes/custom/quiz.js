@@ -10,6 +10,7 @@ const ACCOUNT_API='/api/game-scores?game=quiz-account&quiz='+encodeURIComponent(
 const classId=new URLSearchParams(location.search).get('class') || '';
 let DRAFT, recorder, preparing=false, isClassTeacher = false;
 let forwardOnlyFrom=null,lockedThrough=-1,forwardOnly=false,onCheckpoint=false,moving=false;
+let ungraded=false;
 let questions, saved = {}, submission, page = 0, expired = false, sending = false, clock;
 const form = document.getElementById('quiz'), status = document.getElementById('status');
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -47,7 +48,7 @@ function shuffled(values) {
 function sectionContent(q){return `<div class="section-content"><p class="number">Title/Section Page</p>${q.prompt?`<h2 class="prompt" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.prompt)}</h2>`:''}${q.content?`<p class="section-paragraph" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</p>`:''}${q.image?QuizPicture.render(q):''}</div>`;}
 function controls(q,i){return QuizInteractions.controls(q,i);}
 async function request(record) {
-    if(previewQuiz){if(record.action==='start')return {id:'preview',token:'preview',deadline:previewQuiz.durationMinutes===null?null:Date.now()+previewQuiz.durationMinutes*60000};if(record.action==='state')return {lockedThrough:saved.lockedThrough??-1,forwardOnly:saved.forwardOnly===true,lockedAnswers:saved.lockedAnswers||[]};if(record.action==='advance'){lockedThrough=record.through;forwardOnly=true;saved.lockedAnswers=record.answers;saved.lockedThrough=lockedThrough;saved.forwardOnly=forwardOnly;store();return {lockedThrough,forwardOnly,lockedAnswers:record.answers};}if(record.action==='submit')return {accepted:true,answers:record.answers,submittedAt:new Date().toISOString(),automatic:QuizScoring.feedback(previewQuiz.questions,record.answers,true)};}
+    if(previewQuiz){if(record.action==='start')return {id:'preview',token:'preview',deadline:previewQuiz.durationMinutes===null?null:Date.now()+previewQuiz.durationMinutes*60000};if(record.action==='state')return {lockedThrough:saved.lockedThrough??-1,forwardOnly:saved.forwardOnly===true,lockedAnswers:saved.lockedAnswers||[]};if(record.action==='advance'){lockedThrough=record.through;forwardOnly=true;saved.lockedAnswers=record.answers;saved.lockedThrough=lockedThrough;saved.forwardOnly=forwardOnly;store();return {lockedThrough,forwardOnly,lockedAnswers:record.answers};}if(record.action==='submit')return {accepted:true,answers:record.answers,submittedAt:new Date().toISOString(),automatic:QuizScoring.feedback(previewQuiz.questions,record.answers,true,previewQuiz.gradingMode)};}
 
     const response = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,classId}),...(['recording-save','recording-load'].includes(record.action)?{signal:AbortSignal.timeout(45000)}:{})});
     const result = await response.json(); if(response.status===401)document.getElementById('googleLogin').hidden=false; if (!response.ok) throw new Error(result.error || 'Your quiz could not be saved.'); return result;
@@ -102,14 +103,14 @@ async function advance(through) {
 function showReceipt() {
     clearInterval(clock); form.hidden = true; status.textContent = '';
     document.getElementById('receipt').hidden = false;
-    if(!isClassTeacher)document.getElementById('receiptMessage').textContent=submission.classroom?.turnedIn?'Your answers are saved in Penina and your work is turned in to Classroom. Your teacher will review and return your grade.':(submission.classroom?.message || 'Your answers are saved in Penina. Open Classroom and mark this assignment as done.');
+    if(!isClassTeacher)document.getElementById('receiptMessage').textContent=submission.classroom?.turnedIn?'Your answers are saved in Penina and your work is turned in to Classroom. '+(ungraded?'This quiz is not graded.':'Your teacher will review and return your grade.'):(submission.classroom?.message || 'Your answers are saved in Penina. Open Classroom and mark this assignment as done.');
     if(isClassTeacher) {
         document.getElementById('receiptMessage').textContent='Teacher practice complete. You can take the quiz again. These answers are kept separate from student submissions.';
         document.getElementById('repeatQuiz').hidden=false;
     }
     if(previewQuiz){document.getElementById('receiptMessage').textContent='Preview complete. No student submission was sent.';document.getElementById('newStudent').textContent='Restart preview';}
     document.getElementById('receiptId').textContent = `Receipt: ${submission.id}`;
-    const automatic = new Map((previewQuiz?QuizScoring.feedback(previewQuiz.questions,submission.answers,true):(submission.automatic || [])).map(q=>[q.index,q]));
+    const automatic = new Map((ungraded?[]:previewQuiz?QuizScoring.feedback(previewQuiz.questions,submission.answers,true,previewQuiz.gradingMode):(submission.automatic || [])).map(q=>[q.index,q]));
     let number=0;
     document.getElementById('answerFeedback').innerHTML=questions.map((q,i)=>{
         if(q.type==='section')return sectionContent(q);
@@ -121,7 +122,7 @@ function showReceipt() {
             const label=q.type==='match'?q.items[j]:`${q.type==='order'?'Position':'Blank'} ${j+1}`;
             return `<p dir="ltr"><strong><bdi dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(label)}</bdi></strong>: ${right?'✓ Correct':'✕ Incorrect'}<br>Your answer: <bdi dir="auto">${esc(actual || '(Unanswered)')}</bdi>${right?'':`<br>Correct answer: <bdi dir="auto">${esc(expected || 'Leave unmatched (distractor)')}</bdi>`}</p>`;
         }).join(''):`<p dir="ltr">Correct ${key.length>1?'answers':'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${key.map(v=>esc(v)).join('<br>')}</span></p>`}</div>`:'';
-        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${number}. ${esc(q.prompt)}</h3>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${q.type==='recording'?QuizRecording.player(i,submission.answers[i][0]):`<p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>`}${result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}${review}</section>`;
+        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${number}. ${esc(q.prompt)}</h3>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${q.type==='recording'?QuizRecording.player(i,submission.answers[i][0]):`<p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>`}${ungraded?'':result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}${review}</section>`;
     }).join('');
 }
 function tick() {
@@ -155,9 +156,11 @@ async function enterQuiz() {
         const response = previewQuiz?{ok:true,json:async()=>({...previewQuiz,name:'Student preview',email:'',className:'Preview — answers are not submitted',questions:previewQuiz.questions.map(q=>({...q,maxPoints:QuizScoring.maxPoints(q),responseCount:QuizScoring.responseCount(q)}))})}:await fetch(ACCOUNT_API+'&action=student&classId='+encodeURIComponent(classId));
         const identity=await response.json();
         if(!response.ok)throw new Error(identity.error || 'Sign in with Google to continue.');
-        questions=identity.questions;
+        ungraded=identity.gradingMode==='ungraded';
+        questions=ungraded?identity.questions.map(q=>({...q,extraCredit:false})):identity.questions;
+        if(ungraded){document.getElementById('gradingDescription').textContent='This quiz is not graded.';document.getElementById('gradingReviewDescription').textContent='After submitting, you can review your answers.';}
         document.querySelector('h1').textContent=identity.title;document.title=identity.title+' | PP Quiz';
-        document.getElementById('quizSummary').textContent=questions.filter(q=>q.type!=='section').length+' questions · '+questions.filter(q=>!q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' regular points · '+questions.filter(q=>q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' extra-credit points';
+        document.getElementById('quizSummary').textContent=questions.filter(q=>q.type!=='section').length+' questions'+(ungraded?' · Not graded':' · '+questions.filter(q=>!q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' regular points · '+questions.filter(q=>q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' extra-credit points');
         document.getElementById('durationDescription').textContent=identity.durationMinutes===null?'No time limit.':'Time limit: '+identity.durationMinutes+' minutes. The timer continues if you leave this page.';
         document.getElementById('timedNotice').hidden=identity.durationMinutes===null;
         forwardOnlyFrom=identity.forwardOnlyFrom ?? null;document.getElementById('checkpointText').textContent=identity.checkpointMessage || '';
@@ -169,7 +172,7 @@ async function enterQuiz() {
         form.elements.studentName.value=identity.name;form.elements.studentEmail.value=identity.email;
         try { saved = JSON.parse((previewQuiz?sessionStorage:localStorage).getItem(previewQuiz?previewKey+':progress':DRAFT)) || {}; } catch (_) {}
         let number=0;
-        document.getElementById('questions').innerHTML=questions.map((q,i)=>q.type==='section'?`<section class="card section-page" data-question="${i}" hidden>${sectionContent(q)}</section>`:`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${++number}${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${(q.type==='order' || q.type==='multi') && !q.perResponseCredit?' · All or nothing':q.scoringMode==='response'?' · '+q.points+' per correct response':q.scoringMode==='proportional'?' · Partial credit by correct response':''}</p><h2 class="prompt" dir="${q.direction}">${q.type==='gaps'?'Fill in the blanks':esc(q.prompt)}</h2>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${controls(q,i)}</section>`).join('');
+        document.getElementById('questions').innerHTML=questions.map((q,i)=>q.type==='section'?`<section class="card section-page" data-question="${i}" hidden>${sectionContent(q)}</section>`:`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${++number}${ungraded?'':`${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${(q.type==='order' || q.type==='multi') && !q.perResponseCredit?' · All or nothing':q.scoringMode==='response'?' · '+q.points+' per correct response':q.scoringMode==='proportional'?' · Partial credit by correct response':''}`}</p><h2 class="prompt" dir="${q.direction}">${q.type==='gaps'?'Fill in the blanks':esc(q.prompt)}</h2>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${controls(q,i)}</section>`).join('');
         restoreAnswers();
         recorder=QuizRecording.bind({root:form,request,session:()=>({key:previewQuiz?previewKey:DRAFT,id:saved.id,token:saved.attempt?.token,preview:!!previewQuiz,expired}),canEdit:i=>!!saved.attempt && !expired && !moving && !preparing && !sending && !submission && i>lockedThrough,changed:snapshot});
         QuizRecording.bindPlayback(document.getElementById('answerFeedback'),(i,reference)=>recorder.load(i,reference));

@@ -17,6 +17,8 @@ test('Dashboard opens the denominator editor, totals changes, saves its revision
  const modes=$('pointsQuestions').querySelectorAll('select');assert.equal(modes.length,2);modes[0].value='response';modes[0].onchange();assert.equal($('pointsTotal').textContent,'15 regular points possible · 2 extra-credit points');
  fail=true;await $('pointsForm').onsubmit({preventDefault(){}});assert.equal(calls.at(-1).revision,4);assert.equal($('pointsStatus').textContent,'Close and reopen the editor');assert.equal(inputs[0].disabled,false);
  $('closePoints').onclick();assert.equal($('pointsDialog').open,false);
+ vm.runInNewContext("assignments[0].gradingMode='ungraded';render();",context);
+ assert.equal($('assignments').children[0].children.some(child=>child.textContent==='Edit Potential Points'),false);
 });
 
 

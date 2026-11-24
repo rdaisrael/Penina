@@ -24,7 +24,7 @@
         delete q.potentialPoints;
         return q;
     });}
-    function feedback(questions,answers,detailed=false){return questions.flatMap((q,index)=>{
+    function feedback(questions,answers,detailed=false,gradingMode='graded'){if(gradingMode==='ungraded')return [];return questions.flatMap((q,index)=>{
         if(q.type==='section' || q.type==='text' || q.type==='recording' || q.type==='gaps' && q.wordBank===false)return [];
         const points=score(q,answers[index]||[]),max=originalMax(q);
         return [{index,correct:points===max,partial:points>0 && points<max,...(detailed?{correctAnswers:[...q.answer]}:{})}];

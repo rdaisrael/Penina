@@ -117,9 +117,10 @@ window.QuizCorrection = (() => {
         const form=input.closest('form.correction');
         if(form) {
             form.dataset.classroomDraft='false';
-            form.querySelector('[name="emailStudent"]').disabled=true;
+            const emailButton=form.querySelector('[name="emailStudent"]');
+            if(emailButton)emailButton.disabled=true;
         }
-        if(input.matches('.correction textarea')) { input.closest('form').querySelector('.saveStatus').textContent='Unsaved changes — save corrections when you’re ready.'; return; }
+        if(input.matches('.correction textarea')) { const form=input.closest('form');form.querySelector('.saveStatus').textContent=form.dataset.gradingMode==='ungraded'?'Unsaved changes — save feedback when you’re ready.':'Unsaved changes — save corrections when you’re ready.'; return; }
         if (!input.matches('.correction input[name^="manual"], .correction input[name^="auto"]')) return;
         const card = input.closest('.review-question');
         if (!card) return;

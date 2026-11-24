@@ -28,7 +28,7 @@ test('Assigning never auto-loads correction reports',async()=>{
 function rosterView(records) {
  const elements=new Map();
  const document={getElementById(id){if(!elements.has(id))elements.set(id,{replaceChildren(){this.innerHTML='';}});return elements.get(id);}};
- const context={document,records,QuizCorrection,esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),formatResultTime:s=>s};
+ const context={ungraded:false,document,records,QuizCorrection,esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),formatResultTime:s=>s};
  vm.runInNewContext(source.slice(source.indexOf('function renderRoster('),source.indexOf('async function loadReport(')),context);
  return {render:context.renderRoster,elements};
 }
@@ -61,7 +61,7 @@ test('Answer cards are alphabetical and provide roster link targets',()=>{
  const records=['Amy Zimmer','Zoe Adams','ben Adams'].map((name,i)=>({id:String(i),name,email:'student@example.org',answers:[],grading:{automatic:[],manual:[],feedback:'',baseMax:0,pending:0}}));
  const reports={};
  vm.runInNewContext(source.slice(source.indexOf('function render()'),source.indexOf('function renderSummary()'))+'\nrender();',{
-  records,QuizCorrection,questions:[],document:{getElementById:()=>reports},esc:String,scoreText:()=>'',formatResultTime:()=>''
+  ungraded:false,records,QuizCorrection,questions:[],document:{getElementById:()=>reports},esc:String,scoreText:()=>'',formatResultTime:()=>''
  });
  assert.deepEqual(records.map(r=>r.name),['ben Adams','Zoe Adams','Amy Zimmer']);
  assert.match(reports.innerHTML,/id="submission-2"/);
@@ -87,7 +87,7 @@ for(const folder of ['custom','gemara-6-wl-2','gemara-6-intro-retake','gemara-8-
   const form={dataset:{id:'receipt',classroomDraft:'false'},matches:()=>true,reportValidity:()=>true,querySelector:()=>message,querySelectorAll:s=>s==='button'?buttons:[field],elements:{feedback:{value:''}},closest:()=>card};
   const record={id:'receipt',grading:{manual:[]}};
   vm.runInNewContext(script.slice(script.indexOf("document.getElementById('reports').addEventListener('submit'"),script.indexOf("document.getElementById('export').addEventListener")),{
-   document:{getElementById:()=>({addEventListener:(type,fn)=>handler=fn})},records:[record],form:{elements:{password:{value:''}}},SUBMISSIONS_API:'/test',QuizCorrection:{overrides:()=>({}),explanations:()=>({})},renderRoster(){},renderSummary(){},currentRoster:{},scoreText:()=>'',
+   ungraded:false,document:{getElementById:()=>({addEventListener:(type,fn)=>handler=fn})},records:[record],form:{elements:{password:{value:''}}},SUBMISSIONS_API:'/test',QuizCorrection:{overrides:()=>({}),explanations:()=>({})},renderRoster(){},renderSummary(){},currentRoster:{},scoreText:()=>'',
    fetch:async()=>{requests++;assert.equal(field.disabled,true);assert.equal(email.disabled,true);return {ok:true,json:async()=>result};}
   });
   const submit=name=>handler({preventDefault(){},target:form,submitter:{name}});
@@ -205,7 +205,7 @@ test('Question headings expose escaped prompts and show full text on hover, focu
 function summaryView(questions,answers,corrections=[]) {
  const model=require('../lib/quiz-builder-model'),elements=new Map();
  const records=answers.map((answer,i)=>({answers:answer,grading:model.grade({questions},answer,corrections[i])}));
- const context={questions,records,renderResultsGrid(){},esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
+ const context={ungraded:false,questions,records,renderResultsGrid(){},esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
  vm.runInNewContext(source.slice(source.indexOf('function renderSummary()'),source.indexOf('function renderResultsGrid()')),context);
  context.renderSummary();
  return {context,elements,html:()=>elements.get('summaryRows').innerHTML};
@@ -264,7 +264,7 @@ test('Per-response ordering checks positions and multiple-answer choices check s
 
 test('Student receipt always shows typed responses as needs correction, even with cached automatic results',()=>{
  const student=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/custom/quiz.js'),'utf8');
- const elements=new Map(),context={previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['a'],['b'],['c'],['d'],['e']],automatic:[{index:0,correct:true},{index:1,correct:false},{index:2,correct:true},{index:3,correct:false},{index:4,partial:true}]},questions:[{type:'text',prompt:'Written'},{type:'gaps',wordBank:false,prompt:'Typed ___'},{type:'choice',prompt:'Correct'},{type:'choice',prompt:'Incorrect'},{type:'multi',prompt:'Partial'}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
+ const elements=new Map(),context={ungraded:false,previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['a'],['b'],['c'],['d'],['e']],automatic:[{index:0,correct:true},{index:1,correct:false},{index:2,correct:true},{index:3,correct:false},{index:4,partial:true}]},questions:[{type:'text',prompt:'Written'},{type:'gaps',wordBank:false,prompt:'Typed ___'},{type:'choice',prompt:'Correct'},{type:'choice',prompt:'Incorrect'},{type:'multi',prompt:'Partial'}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
  vm.runInNewContext(student.slice(student.indexOf('function showReceipt()'),student.indexOf('function tick()')),context);context.showReceipt();
  const html=elements.get('answerFeedback').innerHTML;
  assert.equal((html.match(/class="needs-correction">Teacher will correct/g)||[]).length,2);
@@ -275,7 +275,7 @@ test('Student receipt always shows typed responses as needs correction, even wit
 
 test('Student feedback distinguishes correct matches and supplies corrections for wrong matches',()=>{
  const student=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/custom/quiz.js'),'utf8');
- const elements=new Map(),context={previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['animal','vehicle']],automatic:[{index:0,correct:false,partial:true,correctAnswers:['animal','building']}]},questions:[{type:'match',prompt:'Match',direction:'ltr',items:['cat','house']}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
+ const elements=new Map(),context={ungraded:false,previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['animal','vehicle']],automatic:[{index:0,correct:false,partial:true,correctAnswers:['animal','building']}]},questions:[{type:'match',prompt:'Match',direction:'ltr',items:['cat','house']}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
  vm.runInNewContext(student.slice(student.indexOf('function showReceipt()'),student.indexOf('function tick()')),context);context.showReceipt();
  const html=elements.get('answerFeedback').innerHTML;
  assert.match(html,/cat<\/bdi><\/strong>: ✓ Correct/);assert.match(html,/house<\/bdi><\/strong>: ✕ Incorrect/);

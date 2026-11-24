@@ -57,7 +57,7 @@ function updateQuestionConversion(){
         $('conversionError').textContent='';$('replaceQuestionType').disabled=questionConversion.uploading;
         const answer=q.type==='text'?`<p><strong>Model answer:</strong> <span dir="auto">${esc(q.answer)}</span></p>`:`<ul class="conversion-choices">${q.choices.map(choice=>`<li dir="auto">${esc(choice)}${q.answer.includes(choice)?' <strong>✓ Correct</strong>':''}</li>`).join('')}</ul>`;
         $('conversionPreview').innerHTML=`<h3>Replacement preview</h3>${conversionPictureMarkup(q)}<p class="conversion-prompt" dir="${q.direction}">${esc(q.prompt)}</p>${answer}`;
-        $('conversionImpact').textContent=`Question ${questionConversion.index+1} only · ${maxPoints(q)} ${q.extraCredit?'extra-credit':'total'} points · ${q.type==='text'?'Teacher graded':'Automatically graded'}`+(q.pictureQuestion&&!q.image?'. Upload a picture here or after replacing; a picture is required before publishing.':q.image?'. The picture and its marked locations are kept.':'');
+        $('conversionImpact').textContent=`Question ${questionConversion.index+1} only · ${quiz.gradingMode==='ungraded'?'Not graded':`${maxPoints(q)} ${q.extraCredit?'extra-credit':'total'} points · ${q.type==='text'?'Teacher graded':'Automatically graded'}`}`+(q.pictureQuestion&&!q.image?'. Upload a picture here or after replacing; a picture is required before publishing.':q.image?'. The picture and its marked locations are kept.':'');
     }catch(error){
         $('conversionError').textContent=error.message;$('replaceQuestionType').disabled=true;
         $('conversionPreview').innerHTML=conversionPictureMarkup(questionConversion.draft);$('conversionImpact').textContent='Your original question is unchanged.';

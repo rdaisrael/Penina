@@ -763,3 +763,50 @@ test('Section pages survive save, assignment, checkpoints, submission, correctio
  const revised=await h.call(h.builder.handle,h.req({action:'save-points',id:link.quiz,revision:0,points:[4,6],scoringModes:['total','response']}));assert.equal(revised.code,200,JSON.stringify(revised.data));assert.equal(revised.data.revision,1);assert.deepEqual(revised.data.questions.map(q=>q.potentialPoints),[4,6]);
  const loaded=await h.call(h.builder.handle,h.req({action:'load',id:link.quiz}));assert.equal(loaded.code,200);assert.deepEqual(loaded.data.quiz.questions.map(model.maxPoints),[0,4,0,6,0]);assert.equal(h.state.work.maxPoints,10);
 });
+
+test('Not graded quizzes discard grading settings and do not require choice answer keys',()=>{
+ const input={...fixture(),gradingMode:'ungraded'};
+ for(const q of input.questions){delete q.points;q.extraCredit=true;q.allowHalfCredit=true;q.scoringMode='invalid';if(['choice','multi'].includes(q.type))q.answer=[];}
+ const quiz=model.validateQuiz(input,true);
+ assert.equal(quiz.gradingMode,'ungraded');
+ assert(quiz.questions.every(q=>q.points===0 && !q.extraCredit && !q.allowHalfCredit && q.scoringMode==='total'));
+ assert(model.validAnswers(quiz,correctAnswers()));assert(!model.validAnswers(quiz,[[''],...correctAnswers().slice(1)]));
+ const grade=model.grade(quiz,correctAnswers(),{scores:[99],overrides:{1:99}});
+ assert.equal(grade.total,null);assert.equal(grade.pending,0);assert.deepEqual(grade.automatic,[]);assert.deepEqual(grade.manual,[]);
+ assert.deepEqual(model.summarize(quiz,[{grading:grade}]),[]);
+ assert(model.validCorrections(quiz,[]));assert(!model.validCorrections(quiz,[0]));
+ assert.deepEqual(require('../Penina-Quizzes/custom/scoring').feedback(input.questions,correctAnswers(),true,'ungraded'),[]);
+ assert.equal(model.validateQuiz(fixture(),true).gradingMode,'graded');
+ assert.throws(()=>model.validateQuiz({...fixture(),gradingMode:'unknown'}),/Choose Graded or Not graded/);
+ assert.throws(()=>model.validateQuiz({...quiz,gradingMode:'graded'},true),/whole points/);
+ assert.throws(()=>model.validateQuiz({...quiz,questions:[]},true),/1 and 100/);
+ assert.throws(()=>model.validateQuiz({...quiz,questions:[{type:'section',content:'Read this'}]},true),/regular question/);
+});
+
+test('Not graded quizzes persist, collect responses and feedback, and block every grading write',async()=>{
+ const h=harness(),input={...fixture(),gradingMode:'ungraded'};
+ input.questions[0].extraCredit=true;
+ const link=await assigned(h,input),id='f'.repeat(32);
+ assert.equal(h.state.work.maxPoints,undefined);assert.match(h.state.work.description,/not graded/);assert.doesNotMatch(h.state.work.description,/return your grade/);
+ const loaded=await h.call(h.builder.handle,h.req({action:'load',id:link.quiz}));assert.equal(loaded.data.quiz.gradingMode,'ungraded');
+ assert.equal((await h.builder.info(link.quiz)).maxPoints,0);
+ const identityRequest=h.req({},'student',{action:'student',quiz:link.quiz,classId:link.classId});identityRequest.method='GET';
+ const identity=await h.call(h.account.handle,identityRequest);assert.equal(identity.data.gradingMode,'ungraded');assert(identity.data.questions.every(q=>q.maxPoints===0 && q.extraCredit===false));
+ const posted=await h.call(h.account.handle,h.req({...link,action:'publish-assignment',courseId:'course'}));assert.equal(posted.code,200,JSON.stringify(posted.data));
+ const listings=h.req({},'owner',{action:'assignments'});listings.method='GET';listings.headers.cookie='__Host-penina-quiz-session='+h.account.seal({...h.account.session(listings),userId:7});
+ const assignments=await h.call(h.account.handle,listings);assert.equal(assignments.code,200,JSON.stringify(assignments.data));assert.equal(assignments.data.assignments[0].gradingMode,'ungraded');
+ for(const action of ['load-points','save-points']){
+  const result=await h.call(h.builder.handle,h.req({action,id:link.quiz,points:[5,5,5,5,5],revision:0}));assert.equal(result.code,400);assert.match(result.data.error,/not graded/);
+ }
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));assert.equal(start.code,200);
+ const submitted=await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));
+ assert.equal(submitted.code,200);assert.deepEqual(submitted.data.automatic,[]);
+ const correction={...link,action:'correct',id,scores:[],overrides:{},explanations:{},feedback:'Thanks for sharing.'};
+ const saved=await h.call(h.submissions,h.req(correction));assert.equal(saved.code,200);assert.equal(saved.data.grading.feedback,correction.feedback);assert.equal(saved.data.grading.total,null);
+ for(const changes of [{scores:[1]},{overrides:{1:1}},{sendToClassroom:true},{emailStudent:true}])assert.equal((await h.call(h.submissions,h.req({...correction,...changes}))).code,400);
+ await assert.rejects(()=>h.account.sendGrade(h.req({}),{classId:link.classId,sub:'student'},{pending:0,total:10},link.quiz),/not graded/);
+ assert.equal(h.state.grade,null);assert.equal(h.state.emailed,undefined);
+ const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.code,200);assert.equal(report.data.gradingMode,'ungraded');assert.deepEqual(report.data.summary,[]);
+ assert.equal(report.data.submissions[0].grading.feedback,correction.feedback);assert.equal(report.data.submissions[0].grading.pending,0);
+ const duplicate=await h.call(h.builder.handle,h.req({action:'save',quiz:{...loaded.data.quiz,title:'Ungraded copy'}}));assert.equal(duplicate.code,200);assert.notEqual(duplicate.data.quiz.id,link.quiz);assert.equal(duplicate.data.quiz.gradingMode,'ungraded');
+});

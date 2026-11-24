@@ -46,3 +46,9 @@ test('Hebrew, picture markers, marker answer spaces and potential points survive
     assert.doesNotMatch(print.render({questions:[question({image:{src:'javascript:alert(1)',alt:'Unsafe'}})]}),/javascript:|<img/);
     assert.throws(()=>print.render({questions:[]}),/Add at least one question/);
 });
+
+test('Not graded worksheets omit points and extra credit even before saving changed settings',()=>{
+ const html=require('../Penina-Quizzes/builder/print').render({title:'Reflection',gradingMode:'ungraded',questions:[{type:'text',prompt:'What did you learn?',points:5,extraCredit:true,answer:'PRIVATE MODEL'}]});
+ assert.match(html,/Not graded/);assert.match(html,/What did you learn/);
+ assert.doesNotMatch(html,/points|extra.credit|PRIVATE MODEL/i);
+});

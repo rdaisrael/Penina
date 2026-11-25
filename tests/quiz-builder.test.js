@@ -701,6 +701,19 @@ test('Recordings persist encrypted, require the matching attempt/question, and a
  assert.equal((await h.call(h.submissions,h.req({...upload,reference:'recording:'+'d'.repeat(32)},'student'))).code,409,'submitted answers cannot be replaced');
  const corrected=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[2.5,3],feedback:'Good',explanations:{0:'Speak clearly'},sendToClassroom:true}));
  assert.equal(corrected.code,200);assert.equal(corrected.data.grading.total,5.5);assert.equal(corrected.data.classroom.score,5.5);
+ const previewBody={...link,action:'recordings-delete-preview'};
+ assert.equal((await h.call(h.submissions,h.req(previewBody,'other'))).code,403);
+ assert.equal((await h.call(h.submissions,h.req(previewBody,'student'))).code,403);
+ const crossDelete=h.req(previewBody);crossDelete.headers.origin='https://other.test';assert.equal((await h.call(h.submissions,crossDelete)).code,403);
+ const preview=await h.call(h.submissions,h.req(previewBody));assert.equal(preview.code,200);assert.equal(preview.data.count,2);
+ const deleted=await h.call(h.submissions,h.req({...link,action:'recordings-delete',token:preview.data.token,confirmPermanentDeletion:true}));assert.equal(deleted.code,200);assert.equal(deleted.data.deleted,2);
+ assert(![...h.blobs.keys()].some(p=>p.startsWith('quiz-recordings/')));
+ assert.equal((await h.call(h.submissions,h.req(review))).code,410);
+ assert.equal((await h.call(h.submissions,h.req({...attempt,action:'recording-load',index:0,reference},'student'))).code,410);
+ assert.equal((await h.call(h.submissions,h.req(upload,'student'))).code,410,'an old retry cannot restore deleted audio');
+ const after=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(after.code,200);
+ assert.deepEqual(after.data.submissions[0].deletedRecordings,[0,1]);assert.equal(after.data.submissions[0].grading.total,5.5);
+ assert.equal(after.data.submissions[0].grading.feedback,'Good');
 });
 test('Recording uploads enforce origin, format, question type, checkpoint locks and cross-attempt isolation',async()=>{
  const h=harness(),link=await assigned(h,{title:'Locked oral work',forwardOnlyFrom:1,questions:[{type:'recording',prompt:'Read',content:'Words',answer:'',points:1},{type:'text',prompt:'Explain',answer:'',points:1}]});

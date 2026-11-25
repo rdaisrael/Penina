@@ -23,7 +23,7 @@ test('Cleanup discovers Google quizzes, isolates other owners, and remains retry
  const draft='quiz-builder/teachers/'+crypto.createHash('sha256').update('google-id').digest('hex')+'/'+id+'.txt';
  h.add(draft,{id,owner:'google-id'});h.add('quiz-builder/published/'+id+'.txt',{id,owner:'google-id'});
  h.add('quiz-builder/published/'+other+'.txt',{id:other,owner:'other-id'});
- for(const prefix of ['quiz-builder/points/','quiz-submissions/','quiz-corrections/','quiz-attempts/','quiz-practice/','quiz-progress/']){
+ for(const prefix of ['quiz-builder/points/','quiz-submissions/','quiz-corrections/','quiz-attempts/','quiz-practice/','quiz-progress/','quiz-recordings/','quiz-recording-retention/','quiz-recording-deletions/']){
  h.add(prefix+id+'/entry.txt',{});h.addQuiz(prefix+other+'/entry.txt',{sub:'other-id',classId:'other',id:'other-result'});
  }
  h.add('quiz-google/classes/class.txt',{owner:'google-id',quiz:id});h.add('quiz-google/assignment-claims/class.txt',{});

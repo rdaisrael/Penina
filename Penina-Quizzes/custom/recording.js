@@ -6,7 +6,8 @@ const QuizRecording=(()=>{
     const validReference=value=>/^recording:[a-f0-9]{32}$/.test(value);
     const validAudio=value=>!!settings.parseAudio(value);
     const content=q=>q.type==='recording' && q.content?`<div class="recording-content" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</div>`:'';
-    function player(index,reference,id=''){
+    function player(index,reference,id='',deleted=false){
+        if(deleted)return '<p class="recording-deleted">Recording deleted. Saved grades and feedback are retained.</p>';
         return validReference(reference)?`<div class="recording-player" data-recording-index="${index}" data-reference="${esc(reference)}" data-submission-id="${esc(id)}"><button type="button" data-recording-play>Load recording</button><audio controls preload="none" aria-label="Recorded answer for question ${index+1}" hidden></audio><a data-recording-download hidden>Download recording</a><p data-playback-status role="status"></p></div>`:'<p>No recording.</p>';
     }
     function controls(index,question={}){
@@ -61,7 +62,7 @@ const QuizRecording=(()=>{
                 audio.onerror=()=>{message.textContent='This browser could not play the recording. Download it to listen in an audio player.';};
                 audio.load();
                 audio.focus();
-            }catch(error){message.textContent=error.message+' Try loading again.';}
+            }catch(error){message.textContent=error.message+(error.status===410?'':' Try loading again.');if(error.status===410)button.hidden=true;}
             finally{button.disabled=false;}
         });
     }

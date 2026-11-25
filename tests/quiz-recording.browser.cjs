@@ -33,6 +33,8 @@ const server=http.createServer(async(req,res)=>{
      if(value.part===undefined){audio.set(key,value);saves++;result={saved:true};}
     }
     else if(action==='recording-load'){const key=body.id+':'+body.index+':'+body.reference;result=(body.part===undefined?audio.get(key):audioParts.get(key)?.get(body.part)) || (()=>{throw Error('Recording missing');})();}
+    else if(action==='recordings-delete-preview')result={count:audio.size,bytes:500000,token:'local-preview'};
+    else if(action==='recordings-delete'){assert.equal(body.token,'local-preview');assert.equal(body.confirmPermanentDeletion,true);result={deleted:audio.size};audio.clear();audioParts.clear();for(const r of records)r.deletedRecordings=[0];}
     else if(action==='recording-review'){const record=records.find(r=>r.id===body.id),key=body.id+':'+body.index+':'+record.answers[body.index][0];result=body.part===undefined?audio.get(key):audioParts.get(key)?.get(body.part);}
     else if(action==='advance'){assert(model.validAnswers({questions:quiz.questions.slice(0,body.through+1)},body.answers.slice(0,body.through+1)));Object.assign(attempt,{lockedThrough:body.through,forwardOnly:true,lockedAnswers:body.answers.slice(0,body.through+1)});result=attempt;}
     else if(action==='submit'){
@@ -55,9 +57,9 @@ const server=http.createServer(async(req,res)=>{
  try{
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;
   browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE,args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});
-  const context=await browser.newContext({viewport:{width:1200,height:900}}),errors=[];
+  const context=await browser.newContext({viewport:{width:1200,height:900}}),errors=[];let acceptDialogs=true;
   await context.route('**/*',route=>new URL(route.request().url()).origin===origin || route.request().url().startsWith('data:')?route.continue():route.abort());
-  context.on('page',page=>{page.on('pageerror',e=>{errors.push(e.message);console.error('Browser error:',e.message);});page.on('dialog',dialog=>dialog.accept());});
+  context.on('page',page=>{page.on('pageerror',e=>{errors.push(e.message);console.error('Browser error:',e.message);});page.on('dialog',dialog=>acceptDialogs?dialog.accept():dialog.dismiss());});
   const builder=await context.newPage();await builder.goto(origin+'/Penina-Quizzes/builder/');await builder.getByText('Connected as teacher@example.test').waitFor({timeout:10000}).catch(async error=>{console.error(await builder.locator('body').innerText());throw error;});
   await builder.locator('#title').fill('Recorded reading');await builder.locator('#type').selectOption('recording');await builder.locator('#add').click();
   await builder.locator('[data-field="prompt"]').fill('Read the text and describe the picture.');
@@ -143,6 +145,14 @@ const server=http.createServer(async(req,res)=>{
   await teacher.locator('[name="manual0"]').fill('2.5');await teacher.locator('[name="manual1"]').fill('1');await teacher.locator('[name="explanation0"]').fill('Speak more slowly.');await teacher.getByRole('button',{name:'Save corrections',exact:true}).click();await teacher.locator('.saveStatus').filter({hasText:'Corrections saved.'}).waitFor();
   assert.deepEqual(correction.scores,[2.5,1]);assert.equal(records[0].grading.total,3.5);assert.equal(correction.explanations[0],'Speak more slowly.');
   for(const width of [1200,390]){await teacher.setViewportSize({width,height:900});assert(await teacher.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await teacher.locator('.review-question').first().screenshot({path:path.join(output,'teacher-'+width+'.png')});}
+  await teacher.locator('#recordingRetention').waitFor();
+  assert.match(await teacher.locator('#recordingRetention').innerText(),/quiz owner receives email reminders 10 and 5 days/);
+  for(const width of [1200,390]){await teacher.setViewportSize({width,height:900});await teacher.locator('#recordingRetention').screenshot({path:path.join(output,'retention-'+width+'.png')});}
+  const recordingsBeforeDeletion=audio.size;acceptDialogs=false;await teacher.locator('#deleteRecordings').click();
+  await teacher.locator('#recordingRetentionStatus').filter({hasText:'Deletion canceled.'}).waitFor();assert.equal(audio.size,recordingsBeforeDeletion);
+  acceptDialogs=true;await teacher.locator('#deleteRecordings').click();await teacher.locator('#recordingRetentionStatus').filter({hasText:'Deleted'}).waitFor();
+  assert.equal(audio.size,0);assert.equal(records[0].grading.total,3.5);assert.equal(correction.explanations[0],'Speak more slowly.');
+  await teacher.locator('#reports details summary').click();await teacher.locator('.recording-deleted').waitFor();assert.equal(await teacher.locator('#reports [data-recording-play]').count(),0);
   // A real recording is stopped and uploaded before the timer submits.
   quiz={...quiz,durationMinutes:1,forwardOnlyFrom:null,questions:[quiz.questions[0]]};
   const timed=await context.newPage();await timed.goto(origin+'/Penina-Quizzes/custom/?quiz='+quizId+'&class='+'c'.repeat(32));await timed.locator('#start').click();await timed.locator('[data-recording-start]').click();await timed.locator('[data-recording-stop]').waitFor();await timed.waitForTimeout(1000);

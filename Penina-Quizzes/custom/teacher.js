@@ -62,7 +62,7 @@ function setGradingMode(mode){
     document.querySelectorAll('[data-grading-column],.results-jump-links').forEach(el=>el.hidden=ungraded);
 }
 function ungradedQuestion(q,i,answers){
-    return `<section class="review-question"><p class="question-number">Question ${q.number}</p><h2 class="review-prompt" dir="auto">${esc(q.prompt)}</h2>${QuizRecording.content(q)}${q.image?QuizPicture.render(q):''}<div class="student-response"><h3>Student’s answer</h3>${q.type==='recording'?QuizRecording.player(i,answers[0]):answers.map((a,j)=>`<p dir="auto">${esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':'')+(a || '(No answer)'))}</p>`).join('')}</div></section>`;
+    return `<section class="review-question"><p class="question-number">Question ${q.number}</p><h2 class="review-prompt" dir="auto">${esc(q.prompt)}</h2>${QuizRecording.content(q)}${q.image?QuizPicture.render(q):''}<div class="student-response"><h3>Student’s answer</h3>${q.type==='recording'?QuizRecording.player(i,answers[0],'',q.recordingDeleted):answers.map((a,j)=>`<p dir="auto">${esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':'')+(a || '(No answer)'))}</p>`).join('')}</div></section>`;
 }
 function scoreText(g) {
     if(g.gradingMode==='ungraded')return 'Not graded'+(g.studentSentAt?' · Feedback emailed to student':'');
@@ -82,8 +82,8 @@ function render() {
             if(q.type==='section')return `<section class="section-content"><p class="muted">Title/Section Page</p>${q.prompt?`<h2 class="review-prompt" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.prompt)}</h2>`:''}${q.content?`<p class="section-paragraph" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</p>`:''}${q.image?QuizPicture.render(q):''}</section>`;
             number++;
             const auto=g.automatic.find(item=>item.index===i),manual=g.manual.find(item=>item.index===i);
-            if(ungraded)return ungradedQuestion({...q,number},i,q.type==='match'?r.answers[i].map((v,j)=>q.items[j]+': '+(v || '(Unanswered)')):r.answers[i]);
-            return QuizCorrection.question({...q,number},i,q.type==='match'?r.answers[i].map((v,j)=>q.items[j]+': '+(v || '(Unanswered)')):r.answers[i],auto,manual,auto?.step ?? (q.allowHalfCredit===true?0.5:1));
+            if(ungraded)return ungradedQuestion({...q,number,recordingDeleted:r.deletedRecordings?.includes(i)},i,q.type==='match'?r.answers[i].map((v,j)=>q.items[j]+': '+(v || '(Unanswered)')):r.answers[i]);
+            return QuizCorrection.question({...q,number,recordingDeleted:r.deletedRecordings?.includes(i)},i,q.type==='match'?r.answers[i].map((v,j)=>q.items[j]+': '+(v || '(Unanswered)')):r.answers[i],auto,manual,auto?.step ?? (q.allowHalfCredit===true?0.5:1));
         }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label>${ungraded?`<button type="submit">Save feedback</button><p class="muted">Save and email your teacher feedback to ${esc(r.email)}.</p><button type="submit" name="emailStudent" value="yes">Save and email feedback</button>`:`<p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use ${g.baseMax} regular points${g.extraMax?', plus up to '+g.extraMax+' extra-credit points':''}.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send draft to Classroom</button><p class="muted">After saving the current grading as a draft in Classroom, send the corrected test to ${esc(r.email)}, including teacher overrides and your explanations. The answer key is not included.</p><button type="submit" name="emailStudent" value="yes" ${g.classroomDraft?'':'disabled'}>Send Email</button>`}<p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
     }).join('');
 }
@@ -186,6 +186,7 @@ async function loadReport() {
         const response=await fetch(SUBMISSIONS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'report',courseId:document.getElementById('reportClass').value || undefined})});
         const result=await response.json();if(requestId!==reportRequest)return;if(!response.ok)throw new Error(result.error || 'Results could not be loaded.');
         setGradingMode(result.gradingMode);questions=result.questions;records=result.submissions;document.querySelector('h1').textContent=result.title;
+        document.getElementById('recordingRetention').hidden=!questions.some(q=>q.type==='recording');
         status.textContent=`${records.length} submission${records.length===1?'':'s'}. ${ungraded?'Not graded. Open a submission to review answers.':'Open a submission to review answers and mark written and recorded answers.'}`;
         document.getElementById('export').hidden=!records.length;currentRoster=result.roster;render();renderRoster(currentRoster);renderSummary();
     }catch(error){if(requestId===reportRequest)status.textContent=error.message;}
@@ -193,6 +194,24 @@ async function loadReport() {
 }
 form.addEventListener('submit',event=>{event.preventDefault();loadReport();});
 document.getElementById('reportClass').addEventListener('change',loadReport);
+document.getElementById('deleteRecordings').addEventListener('click',async event=>{
+    const button=event.currentTarget,message=document.getElementById('recordingRetentionStatus');
+    button.disabled=true;message.textContent='Checking recordings across all classes…';
+    const send=async body=>{
+        const response=await fetch(SUBMISSIONS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(240000)});
+        const result=await response.json();if(!response.ok)throw Error(result.error || 'Recording deletion could not finish. Review and retry.');return result;
+    };
+    try{
+        const preview=await send({action:'recordings-delete-preview'});
+        if(!preview.count){message.textContent='There are no stored recordings for this quiz.';return;}
+        const size=(preview.bytes/1024/1024).toFixed(1);
+        if(!confirm(`Permanently delete ${preview.count} recording(s) (${size} MB) for this quiz across ALL classes?\n\nThis includes practice recordings, replaced takes, and unfinished attempts. Wait until all students finish; deleting audio from unfinished attempts can prevent submission. Download any recordings you want to keep first.\n\nGrades, feedback, written answers, and the quiz will remain. This cannot be undone.`)){message.textContent='Deletion canceled. Recordings were kept.';return;}
+        message.textContent='Deleting recordings…';
+        const result=await send({action:'recordings-delete',token:preview.token,confirmPermanentDeletion:true});
+        await loadReport();message.textContent=`Deleted ${result.deleted} recording(s). Grades, feedback, and written answers were kept.`;
+    }catch(error){message.textContent=error.message;}
+    finally{button.disabled=false;}
+});
 document.getElementById('reports').addEventListener('submit',async event=>{
     event.preventDefault(); const correction=event.target;
     if(!correction.matches('.correction') || !correction.reportValidity())return;
@@ -260,7 +279,7 @@ QuizRecording.bindPlayback(document.getElementById('reports'),async(index,refere
     const submissionId=id || container.closest('form.correction')?.dataset.id;
     return QuizRecording.loadRecording(async body=>{
         const response=await fetch(SUBMISSIONS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});
-        const result=await response.json();if(!response.ok)throw Error(result.error || 'The recording could not be loaded.');return result;
+        const result=await response.json();if(!response.ok)throw Object.assign(Error(result.error || 'The recording could not be loaded.'),{status:response.status});return result;
     },{action:'recording-review',id:submissionId,index});
 });
 

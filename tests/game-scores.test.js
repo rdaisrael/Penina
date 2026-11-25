@@ -18,7 +18,7 @@ test('Query actions cannot mask restricted assessment or live-game body actions'
   return ()=>{calls.push(name);};
  }};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../api/game-scores.js'),'utf8'),ctx);
- for(const [game,action] of [['assessment','report'],['assessment-custom','correct'],['assessment-retake','correct'],['assessment-retake-8','report'],['live','create']]){
+ for(const [game,action] of [['assessment','report'],['assessment-custom','correct'],['assessment-custom','recordings-delete-preview'],['assessment-custom','recordings-delete'],['assessment-retake','correct'],['assessment-retake-8','report'],['live','create']]){
   const res={setHeader(){},status(code){this.code=code;return this;},json(data){this.body=data;}};
   await ctx.module.exports({method:'POST',headers:{'content-type':'application/json'},query:{game,action:'student'},body:{grade:'sixth',action}},res);
   assert.equal(res.code,game==='live'?401:403);

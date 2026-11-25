@@ -2,6 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
     {
+      "src": "^/api/recording-retention$",
+      "dest": "/api/game-scores?game=quiz-recording-retention"
+    },
+    {
       "src": "^/upload$",
       "status": 308,
       "headers": {
@@ -163,6 +167,7 @@
       "includeFiles": "{PeninaPlus-knowledge-builder/{index.html,knowledge-builder.css,knowledge-builder.js,knowledge-workflow.js,cards.js},PeninaPlus-vocab-builder/{practice-exercises.js,peninaplus-logo.png,Penina-favicon.png}}"
     }
   },
+  "crons": [{"path":"/api/recording-retention","schedule":"0 13 * * *"}],
   "buildCommand": "npm run build",
   "outputDirectory": ".",
   "git": {

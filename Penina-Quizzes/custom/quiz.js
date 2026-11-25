@@ -51,7 +51,7 @@ async function request(record) {
     if(previewQuiz){if(record.action==='start')return {id:'preview',token:'preview',deadline:previewQuiz.durationMinutes===null?null:Date.now()+previewQuiz.durationMinutes*60000};if(record.action==='state')return {lockedThrough:saved.lockedThrough??-1,forwardOnly:saved.forwardOnly===true,lockedAnswers:saved.lockedAnswers||[]};if(record.action==='advance'){lockedThrough=record.through;forwardOnly=true;saved.lockedAnswers=record.answers;saved.lockedThrough=lockedThrough;saved.forwardOnly=forwardOnly;store();return {lockedThrough,forwardOnly,lockedAnswers:record.answers};}if(record.action==='submit')return {accepted:true,answers:record.answers,submittedAt:new Date().toISOString(),automatic:QuizScoring.feedback(previewQuiz.questions,record.answers,true,previewQuiz.gradingMode)};}
 
     const response = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,classId}),...(['recording-save','recording-load'].includes(record.action)?{signal:AbortSignal.timeout(45000)}:{})});
-    const result = await response.json(); if(response.status===401)document.getElementById('googleLogin').hidden=false; if (!response.ok) throw new Error(result.error || 'Your quiz could not be saved.'); return result;
+    const result = await response.json(); if(response.status===401)document.getElementById('googleLogin').hidden=false; if (!response.ok) throw Object.assign(new Error(result.error || 'Your quiz could not be saved.'),{status:response.status}); return result;
 }
 function navigate(value) {
     onCheckpoint=!expired && forwardOnlyFrom!==null && !forwardOnly && value>=forwardOnlyFrom;

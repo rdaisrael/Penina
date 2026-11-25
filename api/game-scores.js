@@ -6,6 +6,7 @@ const matching = require('../lib/matching-scores');
 module.exports = async function (req, res) {
     const receivedAt = Date.now();
     const game = typeof req.query?.game==='string'?req.query.game:'';
+    if(game==='quiz-recording-retention')return require('../lib/quiz-recording-retention').handle(req,res);
     const accountAction=req.query?.action || req.body?.action;
     const changingIdentity=game==='quiz-account' && ['login','callback','logout','config','email-login','email-verify','password-login','password-change'].includes(accountAction);
     try { if(!changingIdentity && (req.headers?.cookie || '').includes('__Host-penina-quiz-session=')){await require('../lib/quiz-teachers').rejectDeletedSession(req);require('../lib/quiz-account').touchSession(req,res);} }
@@ -13,7 +14,7 @@ module.exports = async function (req, res) {
     if(game==='app-page' || game==='app-api')return require('../lib/webapp-gateway').handle(req,res);
     // Match the action source used by each downstream handler; query strings must not mask body actions.
     const action=game==='quiz-account'?accountAction:req.body?.action;
-    const quizAction=game==='quiz-builder' || (game.startsWith('assessment') && ['report','correct','recording-review'].includes(action)) || (game==='quiz-account' && ['assignments','archive-assignment','publish-assignment','courses','assign'].includes(action));
+    const quizAction=game==='quiz-builder' || (game.startsWith('assessment') && ['report','correct','recording-review','recordings-delete-preview','recordings-delete'].includes(action)) || (game==='quiz-account' && ['assignments','archive-assignment','publish-assignment','courses','assign'].includes(action));
     if(quizAction) {
         try {await require('../lib/teacher-apps').requireApps(req,['quizzes']);}
         catch(error){res.setHeader('Cache-Control','no-store');return res.status(error.status || 503).json({error:error.status?error.message:'App access could not be checked.'});}

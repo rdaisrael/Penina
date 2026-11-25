@@ -75,18 +75,63 @@ const server=http.createServer(async(req,res)=>{
   await builder.locator('#type').selectOption('text');await builder.locator('#add').click();await builder.locator('[data-index="1"] [data-field="prompt"]').fill('What did you learn?');
   await builder.locator('#checkpoint').selectOption('1');await builder.locator('#save').click();await builder.getByText('Draft saved.',{exact:true}).waitFor();
   for(const width of [1200,390]){await builder.setViewportSize({width,height:900});assert(await builder.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await builder.screenshot({path:path.join(output,'builder-'+width+'.png'),fullPage:true});}
-  const student=await context.newPage();await student.goto(origin+'/Penina-Quizzes/custom/?quiz='+quizId+'&class='+classId);await student.locator('#start').click();
+  const student=await context.newPage();
+  // Keep the real encoder, but simulate a browser clearing its MIME label on
+  // stop. The actual captured chunks must still supply the correct container.
+  await student.addInitScript(()=>{
+   const descriptor=Object.getOwnPropertyDescriptor(MediaRecorder.prototype,'mimeType');
+   Object.defineProperty(MediaRecorder.prototype,'mimeType',{...descriptor,get(){return this.state==='inactive'?'':descriptor.get.call(this);}});
+  });
+  await student.goto(origin+'/Penina-Quizzes/custom/?quiz='+quizId+'&class='+classId);await student.locator('#start').click();
   const first=student.locator('[data-recorder="0"]');await first.getByText(/Maximum: 5 minutes/).waitFor();
   for(const width of [1200,390]){await student.setViewportSize({width,height:900});assert(await student.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await student.locator('[data-question="0"]').screenshot({path:path.join(output,'student-'+width+'.png')});}
   await first.locator('[data-recording-start]').click();await first.locator('[data-recording-stop]').waitFor();await student.waitForTimeout(1200);
   failUploads=true;await first.locator('[data-recording-stop]').click();await first.getByText(/Temporary upload failure/).waitFor();
   const reference=await first.locator('input').inputValue();assert.match(reference,/^recording:/);assert.equal(saves,0);
+  // An unsaved take from the old code may already have a quoted/spaced codec
+  // label. Recover and upload those real audio bytes without another recording.
+  await student.evaluate(async reference=>{
+   await new Promise((resolve,reject)=>{
+    const open=indexedDB.open('penina-quiz-recordings',1);open.onerror=()=>reject(open.error);
+    open.onsuccess=()=>{
+     const database=open.result,tx=database.transaction('audio','readwrite'),store=tx.objectStore('audio'),key=DRAFT+':'+saved.id+':'+reference,read=store.get(key);
+     read.onsuccess=()=>{
+      const value=read.result;value.audio=value.audio.replace(/^data:audio\/(mp4|webm|ogg);base64,/,(_,format)=>'data:audio/'+format+'; codecs="'+(format==='mp4'?'mp4a.40.2':'opus')+'";base64,');
+      if(!value.audio.includes('; codecs="'))return reject(Error('Expected a supported real audio container'));
+      store.put(value,key);
+     };
+     tx.oncomplete=()=>{database.close();resolve();};tx.onerror=()=>reject(tx.error);
+    };
+   });
+  },reference);
   await student.reload();await first.locator('[data-recording-play]').waitFor();assert.equal(await first.locator('input').inputValue(),reference);
   await first.locator('[data-recording-play]').click();await student.waitForFunction(()=>document.querySelector('[data-recorder] audio').readyState>=2,{},{timeout:8000}).catch(async error=>{console.error('Playback:',await first.innerText(),await first.locator('audio').evaluate(a=>({src:a.src.slice(0,150),error:a.error?.message,ready:a.readyState,network:a.networkState})));throw error;});
   failUploads=false;await student.locator('#next').click();await student.locator('#checkpointPage').waitFor();assert.equal(saves,1);
   await student.locator('#reviewEarlier').click();await first.locator('[data-recording-start]').click();await first.locator('[data-recording-stop]').waitFor();await student.waitForTimeout(1000);
   await student.locator('#next').click();await student.locator('#checkpointPage').waitFor();assert.equal(saves,2,'Next stops and saves the replacement');
-  const replacement=await first.locator('input').inputValue();assert.notEqual(replacement,reference);
+  let replacement=await first.locator('input').inputValue();assert.notEqual(replacement,reference);
+  // A failed redo retains the saved take; successful retry promotes the redo.
+  await student.locator('#reviewEarlier').click();
+  async function failedRedo(){
+   failUploads=true;
+   await first.locator('[data-recording-start]').click();await first.locator('[data-recording-stop]').waitFor();await student.waitForTimeout(1000);
+   await first.locator('[data-recording-stop]').click();await first.getByText(/Temporary upload failure/).waitFor();
+   await first.locator('[data-recording-previous]').waitFor();
+   const failed=await first.locator('input').inputValue();assert.notEqual(failed,replacement);return failed;
+  }
+  const retried=await failedRedo();failUploads=false;
+  await first.locator('[data-recording-retry]').click();await first.getByText('Recording saved. Listen below or record again.',{exact:true}).waitFor();
+  assert(await first.locator('[data-recording-previous]').isHidden());replacement=retried;assert.equal(saves,3);
+  // Repeated failures and reloads keep pointing back to the last saved answer,
+  // never to another unsaved redo. Recovery permits a normal quiz submission.
+  await failedRedo();await student.reload();await first.locator('[data-recording-previous]').waitFor();
+  for(const width of [1200,390]){await student.setViewportSize({width,height:900});assert(await student.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await first.screenshot({path:path.join(output,'recovery-'+width+'.png')});}
+  await failedRedo();await student.reload();await first.locator('[data-recording-previous]').waitFor();
+  await first.locator('[data-recording-previous]').click();await first.getByText(/Using your previous saved recording/).waitFor();
+  assert.equal(await first.locator('input').inputValue(),replacement);assert(await first.locator('[data-recording-retry]').isHidden());
+  await first.locator('[data-recording-play]').click();await student.waitForFunction(()=>document.querySelector('[data-recorder] audio').readyState>=2);
+  // Nothing new needs uploading when the student keeps the saved take.
+  await student.locator('#next').click();await student.locator('#checkpointPage').waitFor();assert.equal(saves,3);failUploads=false;
   await student.locator('#confirmCheckpoint').click();await student.locator('[name="q1-0"]').fill('I learned to read clearly.');assert(await first.locator('[data-recording-start]').isDisabled());
   await student.reload();await student.locator('[name="q1-0"]').waitFor();assert.equal(await first.locator('input').inputValue(),replacement);assert(await student.locator('#previous').isDisabled());
   await student.locator('#next').click();await student.locator('#reviewed').check();await student.locator('#submit').click();await student.locator('#receipt').waitFor();
@@ -145,6 +190,6 @@ const server=http.createServer(async(req,res)=>{
    assert.equal(await card.locator('audio').evaluate(a=>a.src),source);assert(await card.locator('audio').evaluate(a=>a.duration>199 && a.duration<201));await card.locator('audio').evaluate(a=>a.pause());
    console.log('Passed real 200-second audio file: multi-part upload, interrupted part recovery after reload, byte-exact restore, student submission, and teacher playback.');
   }
-  assert.deepEqual(errors,[]);console.log('Passed configurable per-question limits, dropdown options 3/5/10 minutes and automatic stop at 3 and 10 minutes, continuing beyond the old 3-minute cap, authoring, save/reload, real recording/playback, upload recovery, re-recording, checkpoint/reload, submission, teacher grading, timer expiry, denied permission, isolated preview, and responsive layout.');console.log('Screenshots: '+output);
+  assert.deepEqual(errors,[]);console.log('Passed configurable per-question limits, dropdown options 3/5/10 minutes and automatic stop at 3 and 10 minutes, continuing beyond the old 3-minute cap, authoring, save/reload, real recording/playback, cleared recorder MIME labels, quoted-label recovery, failed-redo retries and fallback after reload, checkpoint/reload, submission, teacher grading, timer expiry, denied permission, isolated preview, and responsive layout.');console.log('Screenshots: '+output);
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -26,6 +26,35 @@ test('audio uploads enforce container, size, canonical encoding and bounded dura
     }
     for(const audio of ['https://example.test/audio.mp3','data:text/html;base64,SGk=','data:audio/webm;base64,SGk=','data:audio/mp4;base64,GkXfow==','data:audio/webm;base64,GkXfow=','data:audio/webm;base64,'+Buffer.alloc(UPLOAD_BYTES+1).toString('base64')])assert.throws(()=>validateRecording({audio,durationMs:1000}));
 });
+test('browser format-label variations share validation without weakening audio checks',()=>{
+    const settings=require('../Penina-Quizzes/custom/recording-settings');
+    const bytes=Buffer.from('\0\0\0\x18ftypisom');
+    for(const mime of ['audio/mp4;codecs="mp4a.40.2"','audio/mp4; codecs=mp4a.40.2','AUDIO/MP4; CODECS = "mp4a.40.2"','audio/mp4;codecs="mp4a.40.2"; profiles="isom,iso2"']){
+        const audio='data:'+mime+';base64,'+bytes.toString('base64'),value={audio,durationMs:1000};
+        assert.equal(settings.parseAudio(audio).mime,'audio/mp4');
+        assert.deepEqual(validateRecording(value),value,'keep stored bytes and header stable for retries');
+        assert.deepEqual([...settings.uploads(audio,1000)],[value]);
+    }
+    for(const mime of ['text/html','video/mp4','audio/mp4;codecs="mp4a.40.2','audio/mp4;codecs=mp4a.40.2"','audio/mp4;codecs="<script>"','audio/mp4\n','audio/mp4;'+ ' '.repeat(300)+'codecs=mp4a.40.2']){
+        const audio='data:'+mime+';base64,'+bytes.toString('base64');
+        assert.equal(settings.parseAudio(audio),null);assert.throws(()=>validateRecording({audio,durationMs:1000}));
+    }
+    for(const encoded of ['GkXfowAAAA==','!!!!','AAAA\n','AAAA=']){
+        assert.throws(()=>validateRecording({audio:'data:audio/mp4; codecs="mp4a.40.2";base64,'+encoded,durationMs:1000}));
+    }
+});
+test('quoted format parameters containing commas survive split upload and playback',async()=>{
+    const settings=require('../Penina-Quizzes/custom/recording-settings'),vm=require('node:vm'),fs=require('node:fs');
+    const context={QuizRecordingSettings:settings};vm.runInNewContext(fs.readFileSync(require.resolve('../Penina-Quizzes/custom/recording.js'),'utf8')+'\nthis.recording=QuizRecording;',context);
+    const bytes=Buffer.alloc(UPLOAD_BYTES+101,17);bytes.write('ftyp',4);
+    const audio='data:audio/mp4; codecs="mp4a.40.2"; profiles="isom,iso2";base64,'+bytes.toString('base64');
+    const parts=[...settings.uploads(audio,1000)];
+    assert.equal(parts.length,2);
+    const manifest=completeRecording(parts,parts.at(-1),{});
+    const restored=await context.recording.loadRecording(async body=>body.part===undefined?manifest:parts[body.part],{});
+    assert.equal(restored.audio,audio);
+    assert.equal(manifest.totalBytes,bytes.length);
+});
 test('print and corrected email describe recorded work without leaking keys or raw recording identifiers',()=>{
     const quiz={title:'Oral work',questions:[question]},answers=[[reference]],grading=model.grade(quiz,answers,{scores:[3],feedback:'Well read.'});
     const paper=require('../Penina-Quizzes/builder/print').render(quiz);

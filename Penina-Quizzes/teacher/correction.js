@@ -118,7 +118,7 @@ window.QuizCorrection = (() => {
         if(form) {
             form.dataset.classroomDraft='false';
             const emailButton=form.querySelector('[name="emailStudent"]');
-            if(emailButton)emailButton.disabled=true;
+            if(emailButton)emailButton.disabled=form.dataset.gradingMode!=='ungraded';
         }
         if(input.matches('.correction textarea')) { const form=input.closest('form');form.querySelector('.saveStatus').textContent=form.dataset.gradingMode==='ungraded'?'Unsaved changes — save feedback when you’re ready.':'Unsaved changes — save corrections when you’re ready.'; return; }
         if (!input.matches('.correction input[name^="manual"], .correction input[name^="auto"]')) return;

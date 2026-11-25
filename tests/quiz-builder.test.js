@@ -798,15 +798,40 @@ test('Not graded quizzes persist, collect responses and feedback, and block ever
  for(const action of ['load-points','save-points']){
   const result=await h.call(h.builder.handle,h.req({action,id:link.quiz,points:[5,5,5,5,5],revision:0}));assert.equal(result.code,400);assert.match(result.data.error,/not graded/);
  }
+ h.blobs.set('quiz-google/students/student.txt',h.account.seal({scope:'https://www.googleapis.com/auth/classroom.coursework.me',refreshToken:'student-refresh'}));
+ h.state.submissionState='CREATED';
  const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));assert.equal(start.code,200);
  const submitted=await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));
- assert.equal(submitted.code,200);assert.deepEqual(submitted.data.automatic,[]);
+ assert.equal(submitted.code,200);assert.deepEqual(submitted.data.automatic,[]);assert.equal(submitted.data.classroom.turnedIn,true);assert.equal(h.state.turnInCalls,1);assert.equal(h.state.grade,null);
  const correction={...link,action:'correct',id,scores:[],overrides:{},explanations:{},feedback:'Thanks for sharing.'};
  const saved=await h.call(h.submissions,h.req(correction));assert.equal(saved.code,200);assert.equal(saved.data.grading.feedback,correction.feedback);assert.equal(saved.data.grading.total,null);
- for(const changes of [{scores:[1]},{overrides:{1:1}},{sendToClassroom:true},{emailStudent:true}])assert.equal((await h.call(h.submissions,h.req({...correction,...changes}))).code,400);
+ for(const changes of [{scores:[1]},{overrides:{1:1}},{sendToClassroom:true}])assert.equal((await h.call(h.submissions,h.req({...correction,...changes}))).code,400);
  await assert.rejects(()=>h.account.sendGrade(h.req({}),{classId:link.classId,sub:'student'},{pending:0,total:10},link.quiz),/not graded/);
  assert.equal(h.state.grade,null);assert.equal(h.state.emailed,undefined);
  const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.code,200);assert.equal(report.data.gradingMode,'ungraded');assert.deepEqual(report.data.summary,[]);
  assert.equal(report.data.submissions[0].grading.feedback,correction.feedback);assert.equal(report.data.submissions[0].grading.pending,0);
  const duplicate=await h.call(h.builder.handle,h.req({action:'save',quiz:{...loaded.data.quiz,title:'Ungraded copy'}}));assert.equal(duplicate.code,200);assert.notEqual(duplicate.data.quiz.id,link.quiz);assert.equal(duplicate.data.quiz.gradingMode,'ungraded');
+});
+
+test('Ungraded feedback saves and emails without a Classroom grade, survives failures, and tracks the current feedback',async()=>{
+ const h=harness(),link=await assigned(h,{...fixture(),gradingMode:'ungraded'}),id='e'.repeat(32);
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));
+ const body={...link,action:'correct',id,scores:[],overrides:{},explanations:{},feedback:'Thanks for sharing.\nכל הכבוד',emailStudent:true,email:'attacker@example.org'};
+ for(const user of ['student','other'])assert.equal((await h.call(h.submissions,h.req(body,user))).code,403);
+ const cross=h.req(body);cross.headers.origin='https://other.example';assert.equal((await h.call(h.submissions,cross)).code,403);
+ for(const feedback of ['', ' \n ', 'x'.repeat(2001)])assert.equal((await h.call(h.submissions,h.req({...body,feedback}))).code,400);
+ assert.equal(h.state.emailed,undefined);
+ const sent=await h.call(h.submissions,h.req(body));assert.equal(sent.code,200);assert.equal(sent.data.email.to,'student@school.org');assert.ok(sent.data.grading.studentSentAt);
+ assert.equal(sent.data.grading.total,null);assert.equal(sent.data.grading.classroomDraft,false);assert.equal(h.state.grade,null);
+ const payload=require('../lib/quiz-correction-email').correctedTest(h.state.emailed);assert.match(payload.text,/Thanks for sharing/);assert.doesNotMatch(payload.text,/Final score|points|Model answer/);
+ const report=()=>h.call(h.submissions,h.req({...link,action:'report'}));
+ assert.equal((await report()).data.submissions[0].grading.studentSentAt,sent.data.grading.studentSentAt);
+ const unchanged=await h.call(h.submissions,h.req({...body,emailStudent:false}));assert.equal(unchanged.data.grading.studentSentAt,sent.data.grading.studentSentAt);
+ h.state.emailFailure=true;
+ const changed={...body,feedback:'Please add an example.'};
+ const failed=await h.call(h.submissions,h.req(changed));assert.equal(failed.code,200);assert.equal(failed.data.emailError,'Email failed');assert.equal(failed.data.grading.studentSentAt,null);assert.equal(failed.data.grading.feedback,changed.feedback);
+ const reloaded=(await report()).data.submissions[0].grading;assert.equal(reloaded.feedback,changed.feedback);assert.equal(reloaded.studentSentAt,null);
+ h.state.emailFailure=false;const retried=await h.call(h.submissions,h.req(changed));assert.equal(retried.data.email.to,'student@school.org');assert.ok(retried.data.grading.studentSentAt);assert.equal(h.state.grade,null);
+ const saved=await h.call(h.submissions,h.req({...body,emailStudent:false,feedback:'Another revision.'}));assert.equal(saved.data.grading.studentSentAt,null);assert.equal((await report()).data.submissions[0].grading.studentSentAt,null);
 });

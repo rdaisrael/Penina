@@ -5,7 +5,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const model=require('../lib/quiz-builder-model'),scoring=require('../Penina-Quizzes/custom/scoring');
 const root=path.resolve(__dirname,'..'),output=fs.mkdtempSync(path.join(os.tmpdir(),'penina-ungraded-'));
 const quizId='custom-'+'a'.repeat(32),classId='b'.repeat(32),attempts=new Map(),records=[];
-let quiz,correction;
+let quiz,correction,emailFailure=false,emailed;
 const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://127.0.0.1');
@@ -28,7 +28,16 @@ const server=http.createServer(async(req,res)=>{
     else if(action==='submit'){
      assert(model.validAnswers(quiz,body.answers));const record={id:body.id,sub:'student',name:'Local Student',email:'student@example.test',classId,className:'Test class',answers:body.answers,submittedAt:new Date().toISOString(),grading:model.grade(quiz,body.answers)};records.push(record);result={accepted:true,answers:record.answers,submittedAt:record.submittedAt,automatic:scoring.feedback(quiz.questions,body.answers,true,quiz.gradingMode)};
     }else if(action==='report')result={title:quiz.title,gradingMode:quiz.gradingMode,questions:quiz.questions,submissions:records,roster:{className:'Test class',classId,assigned:true,students:[{name:'Local Student',status:'submitted',submissionId:records[0]?.id},{name:'Waiting Student',status:'not-started'}]}};
-    else if(action==='correct'){correction=body;const r=records.find(r=>r.id===body.id);assert(model.validCorrections(quiz,body.scores));r.grading=model.grade(quiz,r.answers,{...body,savedAt:new Date().toISOString()});result={grading:r.grading};}
+    else if(action==='correct'){
+     correction=body;const r=records.find(r=>r.id===body.id);assert(model.validCorrections(quiz,body.scores));assert.equal(body.sendToClassroom,false);
+     const studentSentAt=r.grading.feedback===body.feedback?r.grading.studentSentAt:null;
+     r.grading=model.grade(quiz,r.answers,{...body,savedAt:new Date().toISOString(),studentSentAt});result={grading:r.grading};
+     if(body.emailStudent){
+      emailed=require('../lib/quiz-correction-email').correctedTest({record:r,questions:quiz.questions,grading:r.grading,title:quiz.title});
+      if(emailFailure)result.emailError='Email unavailable';
+      else {r.grading.studentSentAt=new Date().toISOString();result.email={status:'accepted',to:r.email};}
+     }
+    }
     else throw Error('Unexpected submission action '+action);
    }
    res.setHeader('Content-Type','application/json');return res.end(JSON.stringify(result));
@@ -82,14 +91,26 @@ const server=http.createServer(async(req,res)=>{
   assert.match(await student.locator('#quizSummary').innerText(),/Not graded/);assert.doesNotMatch(await student.locator('#quiz').innerText(),/graded automatically|await.*correction|score is not shown/i);await complete(student);
   assert.equal(records.length,1);assert.equal(records[0].grading.total,null);assert.equal(records[0].grading.pending,0);
   const teacher=await context.newPage();await teacher.goto(origin+'/Penina-Quizzes/custom/teacher.html?quiz='+quizId);await teacher.locator('#reports details summary').click();
-  assert.match(await teacher.locator('#reportHeading').innerText(),/Review responses/);assert.equal(await teacher.locator('.review-question').count(),3);assert.equal(await teacher.locator('#reports input[type="number"]').count(),0);assert.equal(await teacher.locator('#reports').getByRole('button',{name:/Classroom|Send Email/}).count(),0);
+  assert.match(await teacher.locator('#reportHeading').innerText(),/Review responses/);assert.equal(await teacher.locator('.review-question').count(),3);assert.equal(await teacher.locator('#reports input[type="number"]').count(),0);assert.equal(await teacher.locator('#reports').getByRole('button',{name:/Classroom/}).count(),0);
   assert(await teacher.locator('#summaryPanel').isHidden());assert.equal(await teacher.locator('[data-grading-column]:visible').count(),0);
   assert.doesNotMatch(await teacher.locator('#reports').innerText(),/points|awaiting correction|correct answer|extra.credit|save corrections/i);
+  const sendFeedback=teacher.getByRole('button',{name:'Save and email feedback',exact:true});
+  assert(await sendFeedback.isEnabled());await sendFeedback.click();await teacher.locator('.saveStatus').filter({hasText:'Enter teacher feedback'}).waitFor();assert.equal(correction,undefined);
   await teacher.locator('[name="feedback"]').fill('Thanks for sharing.');await teacher.getByRole('button',{name:'Save feedback',exact:true}).click();await teacher.locator('.saveStatus').filter({hasText:'Feedback saved.'}).waitFor();assert.deepEqual(correction.scores,[]);assert.equal(correction.sendToClassroom,false);
+  emailFailure=true;await teacher.locator('[name="feedback"]').fill('Thanks for sharing. Please add an example.');assert(await sendFeedback.isEnabled());await sendFeedback.click();
+  await teacher.locator('.saveStatus').filter({hasText:'Your feedback is saved; you can retry emailing.'}).waitFor();assert.equal(correction.emailStudent,true);assert.equal(await teacher.locator('#reports details').getAttribute('open'),'');assert(await sendFeedback.isEnabled());
+  assert.equal(await teacher.locator('#rosterRows [aria-label="Emailed to student"]').count(),0);
+  await teacher.reload();await teacher.locator('#reports details summary').click();assert.equal(await teacher.locator('[name="feedback"]').inputValue(),'Thanks for sharing. Please add an example.');
+  emailFailure=false;await sendFeedback.click();await teacher.locator('#reports summary').filter({hasText:'Feedback emailed to student'}).waitFor();
+  assert.equal(await teacher.locator('#reports details').getAttribute('open'),null);assert.equal(await teacher.locator('#rosterRows [aria-label="Emailed to student"]').count(),1);
+  assert.match(emailed.text,/Please add an example/);assert.doesNotMatch(emailed.text,/score|points|I learned a new word/);
+  await teacher.reload();await teacher.locator('#reports details summary').click();assert.match(await teacher.locator('#reports summary').innerText(),/Feedback emailed/);
+  await teacher.locator('[name="feedback"]').fill('Thanks for sharing. Keep practicing!');assert(await sendFeedback.isEnabled());await teacher.getByRole('button',{name:'Save feedback',exact:true}).click();await teacher.locator('.saveStatus').filter({hasText:'Feedback saved.'}).waitFor();
+  assert.doesNotMatch(await teacher.locator('#reports summary').innerText(),/Feedback emailed/);assert.equal(await teacher.locator('#rosterRows [aria-label="Emailed to student"]').count(),0);
   const downloadPromise=teacher.waitForEvent('download');await teacher.locator('#export').click();const download=await downloadPromise;const csv=fs.readFileSync(await download.path(),'utf8');assert.match(csv,/I learned a new word/);assert.match(csv,/Thanks for sharing/);assert.doesNotMatch(csv,/points|score|awaiting correction/i);
   for(const width of [1200,390]){await teacher.setViewportSize({width,height:900});assert(await teacher.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await teacher.screenshot({path:path.join(output,'teacher-'+width+'.png'),fullPage:true});}
   const popupPromise=context.waitForEvent('page');await builder.locator('#preview').click();const preview=await popupPromise;await complete(preview);assert.equal(records.length,1);
   await builder.locator('#duplicate').click();assert.equal(await builder.locator('#gradingMode').inputValue(),'ungraded');assert(!(await builder.locator('#gradingMode').isDisabled()));assert.equal(await builder.locator(gradeControls).count(),0);
-  assert.deepEqual(errors,[]);console.log('Passed not-graded authoring, switching, save/reload, publication, duplication, student submission, preview, teacher feedback, CSV, print, and mobile layouts.');console.log('Artifacts: '+output);
+  assert.deepEqual(errors,[]);console.log('Passed not-graded authoring, switching, save/reload, publication, duplication, student submission, preview, teacher feedback email, blank-email validation, failure/retry, sent status, CSV, print, and mobile layouts.');console.log('Artifacts: '+output);
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

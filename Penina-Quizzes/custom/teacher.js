@@ -58,14 +58,14 @@ document.getElementById('chooseClass').addEventListener('submit',async event=>{
 function setGradingMode(mode){
     ungraded=mode==='ungraded';
     document.getElementById('reportHeading').textContent=ungraded?'Review responses in Penina':'Review and grade in Penina';
-    document.getElementById('reportDescription').textContent=ungraded?'This quiz is not graded. Review student answers and save feedback.':'Use the Google teacher account that created this quiz. Written and recorded answers need teacher correction; questions with answer choices are graded automatically.';
+    document.getElementById('reportDescription').textContent=ungraded?'This quiz is not graded. Review student answers, save feedback, and email it to students.':'Use the Google teacher account that created this quiz. Written and recorded answers need teacher correction; questions with answer choices are graded automatically.';
     document.querySelectorAll('[data-grading-column],.results-jump-links').forEach(el=>el.hidden=ungraded);
 }
 function ungradedQuestion(q,i,answers){
     return `<section class="review-question"><p class="question-number">Question ${q.number}</p><h2 class="review-prompt" dir="auto">${esc(q.prompt)}</h2>${QuizRecording.content(q)}${q.image?QuizPicture.render(q):''}<div class="student-response"><h3>Student’s answer</h3>${q.type==='recording'?QuizRecording.player(i,answers[0]):answers.map((a,j)=>`<p dir="auto">${esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':'')+(a || '(No answer)'))}</p>`).join('')}</div></section>`;
 }
 function scoreText(g) {
-    if(g.gradingMode==='ungraded')return 'Not graded';
+    if(g.gradingMode==='ungraded')return 'Not graded'+(g.studentSentAt?' · Feedback emailed to student':'');
     const score=g.pending ? `${g.pending} question${g.pending===1?'':'s'} awaiting correction` : `Final: ${g.total}/${g.baseMax}`;
     const lms=g.lmsSentAt ? 'Sent to LMS' : '';
     const student=g.studentSentAt ? 'Emailed to Student' : '';
@@ -84,7 +84,7 @@ function render() {
             const auto=g.automatic.find(item=>item.index===i),manual=g.manual.find(item=>item.index===i);
             if(ungraded)return ungradedQuestion({...q,number},i,q.type==='match'?r.answers[i].map((v,j)=>q.items[j]+': '+(v || '(Unanswered)')):r.answers[i]);
             return QuizCorrection.question({...q,number},i,q.type==='match'?r.answers[i].map((v,j)=>q.items[j]+': '+(v || '(Unanswered)')):r.answers[i],auto,manual,auto?.step ?? (q.allowHalfCredit===true?0.5:1));
-        }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label>${ungraded?'<button type="submit">Save feedback</button>':`<p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use ${g.baseMax} regular points${g.extraMax?', plus up to '+g.extraMax+' extra-credit points':''}.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send draft to Classroom</button><p class="muted">After saving the current grading as a draft in Classroom, send the corrected test to ${esc(r.email)}, including teacher overrides and your explanations. The answer key is not included.</p><button type="submit" name="emailStudent" value="yes" ${g.classroomDraft?'':'disabled'}>Send Email</button>`}<p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
+        }).join('')}<label>Teacher feedback<textarea name="feedback" maxlength="2000">${esc(g.feedback)}</textarea></label>${ungraded?`<button type="submit">Save feedback</button><p class="muted">Save and email your teacher feedback to ${esc(r.email)}.</p><button type="submit" name="emailStudent" value="yes">Save and email feedback</button>`:`<p class="muted">Leave a points field blank to keep that question awaiting correction. Final scores use ${g.baseMax} regular points${g.extraMax?', plus up to '+g.extraMax+' extra-credit points':''}.</p><button type="submit">Save corrections</button> <button type="submit" name="sendToClassroom" value="yes">Save and send draft to Classroom</button><p class="muted">After saving the current grading as a draft in Classroom, send the corrected test to ${esc(r.email)}, including teacher overrides and your explanations. The answer key is not included.</p><button type="submit" name="emailStudent" value="yes" ${g.classroomDraft?'':'disabled'}>Send Email</button>`}<p class="saveStatus" role="status" aria-live="polite"></p></form></details>`;
     }).join('');
 }
 function renderSummary() {
@@ -176,8 +176,8 @@ function renderRoster(roster) {
     rows.innerHTML=[...roster.students].sort(QuizCorrection.compareStudents).map(s=>{
         const submission=submissions.get(s.submissionId),graded=submission?.grading.savedAt && submission.grading.pending===0;
         const name=submission?`<a href="#submission-${esc(submission.id)}" data-submission="${esc(submission.id)}">${esc(s.name)}</a>`:esc(s.name);
-        return `<tr><th scope="row">${name}</th><td><span class="roster-status">${labels[s.status]}</span></td><td>${s.startedAt?esc(formatResultTime(s.startedAt)):'—'}</td><td>${s.submittedAt?esc(formatResultTime(s.submittedAt)):'—'}</td>${ungraded?'':`<td>${graded?'<span class="graded-check" role="img" aria-label="Graded" title="Graded">✓</span>':'<span aria-label="Not graded">—</span>'}</td><td>${submission?.grading.lmsSentAt?'<span class="graded-check" role="img" aria-label="Sent to LMS" title="Sent to LMS">✓</span>':'—'}</td><td>${submission?.grading.studentSentAt?'<span class="graded-check" role="img" aria-label="Emailed to student" title="Emailed to student">✓</span>':'—'}</td>`}</tr>`;
-    }).join('') || `<tr><td colspan="${ungraded?4:7}">No students are enrolled in this class.</td></tr>`;
+        return `<tr><th scope="row">${name}</th><td><span class="roster-status">${labels[s.status]}</span></td><td>${s.startedAt?esc(formatResultTime(s.startedAt)):'—'}</td><td>${s.submittedAt?esc(formatResultTime(s.submittedAt)):'—'}</td>${ungraded?'':`<td>${graded?'<span class="graded-check" role="img" aria-label="Graded" title="Graded">✓</span>':'<span aria-label="Not graded">—</span>'}</td><td>${submission?.grading.lmsSentAt?'<span class="graded-check" role="img" aria-label="Sent to LMS" title="Sent to LMS">✓</span>':'—'}</td>`}<td>${submission?.grading.studentSentAt?'<span class="graded-check" role="img" aria-label="Emailed to student" title="Emailed to student">✓</span>':'—'}</td></tr>`;
+    }).join('') || `<tr><td colspan="${ungraded?5:7}">No students are enrolled in this class.</td></tr>`;
 }
 async function loadReport() {
     const requestId=++reportRequest,button=form.querySelector('button[type="submit"]');button.disabled=true;
@@ -197,18 +197,19 @@ document.getElementById('reports').addEventListener('submit',async event=>{
     event.preventDefault(); const correction=event.target;
     if(!correction.matches('.correction') || !correction.reportValidity())return;
     const r=records.find(item=>item.id===correction.dataset.id),message=correction.querySelector('.saveStatus'),buttons=[...correction.querySelectorAll('button')],sendToClassroom=event.submitter?.name==='sendToClassroom',emailStudent=event.submitter?.name==='emailStudent';
-    if(emailStudent && correction.dataset.classroomDraft!=='true')return;
+    if(emailStudent && !ungraded && correction.dataset.classroomDraft!=='true')return;
+    if(emailStudent && ungraded && !correction.elements.feedback.value.trim()){message.textContent='Enter teacher feedback before sending email.';correction.elements.feedback.focus();return;}
     const fields=[...correction.querySelectorAll('input, textarea')];
     fields.forEach(field=>field.disabled=true);
     buttons.forEach(button=>button.disabled=true);message.textContent=emailStudent?'Sending email…':sendToClassroom?'Saving and sending grade…':ungraded?'Saving feedback…':'Saving corrections…';
     const scores=r.grading.manual.map(q=>{const value=correction.elements.namedItem('manual'+q.index).value;return value===''?null:Number(value);});
     try {
         const response=await fetch(SUBMISSIONS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'correct',pointsRevision:r.grading.pointsRevision || 0,id:r.id,scores,overrides:QuizCorrection.overrides(correction),explanations:QuizCorrection.explanations(correction),emailStudent,sendToClassroom,feedback:correction.elements.feedback.value})});
-        const result=await response.json();if(!response.ok)throw new Error(result.error||'Corrections were not saved.');
+        const result=await response.json();if(!response.ok)throw new Error(result.error||(ungraded?'Feedback was not saved.':'Corrections were not saved.'));
         correction.dataset.classroomDraft=String(result.grading.classroomDraft===true);
-        r.grading=result.grading;renderRoster(currentRoster);renderSummary();document.getElementById('score-'+r.id).textContent=scoreText(r.grading);message.textContent=(emailStudent?'':ungraded?'Feedback saved. ':'Corrections saved. ')+scoreText(r.grading);
-        if(result.email)message.textContent+=' Corrected test accepted for email delivery to '+result.email.to+'.';
-        if(result.emailError)message.textContent+=' Email not sent: '+result.emailError+' Your corrections are saved; you can retry emailing.';
+        r.grading=result.grading;renderRoster(currentRoster);renderSummary();document.getElementById('score-'+r.id).textContent=scoreText(r.grading);message.textContent=(ungraded?'Feedback saved. ':emailStudent?'':'Corrections saved. ')+scoreText(r.grading);
+        if(result.email)message.textContent+=(ungraded?' Feedback':' Corrected test')+' accepted for email delivery to '+result.email.to+'.';
+        if(result.emailError)message.textContent+=' Email not sent: '+result.emailError+(ungraded?' Your feedback is saved; you can retry emailing.':' Your corrections are saved; you can retry emailing.');
         if(result.classroomError)message.textContent+=' Classroom: '+result.classroomError;
         if(result.classroom)message.textContent+=' Draft grade saved to Classroom: '+result.classroom.score+'/'+result.classroom.maxPoints+'.';
         if(emailStudent && result.email && !result.emailError && !result.classroomError && r.grading.pending===0) {
@@ -223,8 +224,8 @@ document.getElementById('reports').addEventListener('submit',async event=>{
                 submission.querySelector('summary').focus({preventScroll:true});
             }
         }
-    }catch(error){message.textContent=error.message+' Your unsaved corrections remain in the fields.';}
-    finally{fields.forEach(field=>field.disabled=false);buttons.forEach(button=>button.disabled=button.name==='emailStudent' && correction.dataset.classroomDraft!=='true');}
+    }catch(error){message.textContent=error.message+(ungraded?' Your feedback remains in the field.':' Your unsaved corrections remain in the fields.');}
+    finally{fields.forEach(field=>field.disabled=false);buttons.forEach(button=>button.disabled=button.name==='emailStudent' && !ungraded && correction.dataset.classroomDraft!=='true');}
 });
 document.getElementById('export').addEventListener('click',()=>{
     const gradedQuestions=questions.filter(q=>q.type!=='section');

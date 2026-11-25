@@ -1,0 +1,8 @@
+.question-audio,.teacher-audio-tools{margin:1rem 0;padding:1rem;border:1px solid #c9d8d4;border-radius:12px;background:#f5faf8;min-width:0}
+.question-audio p:first-child,.teacher-audio-tools h3{margin-top:0}
+.question-audio audio,.teacher-audio-tools audio{display:block;width:100%;max-width:32rem;margin:.75rem 0}
+.question-audio audio[hidden],.teacher-audio-tools [hidden]{display:none}
+.teacher-audio-actions{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.teacher-audio-tools input[type=file]{max-width:100%;box-sizing:border-box}
+.teacher-audio-tools [role=status]{overflow-wrap:anywhere}
+@media print{.question-audio button,.question-audio audio{display:none}}

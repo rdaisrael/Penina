@@ -62,7 +62,7 @@ function setGradingMode(mode){
     document.querySelectorAll('[data-grading-column],.results-jump-links').forEach(el=>el.hidden=ungraded);
 }
 function ungradedQuestion(q,i,answers){
-    return `<section class="review-question"><p class="question-number">Question ${q.number}</p><h2 class="review-prompt" dir="auto">${esc(q.prompt)}</h2>${QuizRecording.content(q)}${q.image?QuizPicture.render(q):''}<div class="student-response"><h3>Student’s answer</h3>${q.type==='recording'?QuizRecording.player(i,answers[0],'',q.recordingDeleted):answers.map((a,j)=>`<p dir="auto">${esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':'')+(a || '(No answer)'))}</p>`).join('')}</div></section>`;
+    return `<section class="review-question"><p class="question-number">Question ${q.number}</p><h2 class="review-prompt" dir="auto">${esc(q.prompt)}</h2>${QuizRecording.content(q)}${q.image?QuizPicture.render(q):''}${QuizQuestionAudio.render(q)}<div class="student-response"><h3>Student’s answer</h3>${q.type==='recording'?QuizRecording.player(i,answers[0],'',q.recordingDeleted):answers.map((a,j)=>`<p dir="auto">${esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':'')+(a || '(No answer)'))}</p>`).join('')}</div></section>`;
 }
 function scoreText(g) {
     if(g.gradingMode==='ungraded')return 'Not graded'+(g.studentSentAt?' · Feedback emailed to student':'');
@@ -79,7 +79,7 @@ function render() {
     document.getElementById('reports').innerHTML = records.map(r=>{
         const g=r.grading;let number=0;
         return `<details name="student-responses" class="card" id="submission-${esc(r.id)}"><summary>${esc(r.name)} · ${esc(r.email)}${ungraded?'':QuizCorrection.correctionArrow('first')}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(formatResultTime(r.submittedAt))} · Receipt: ${esc(r.id)}</p>${ungraded?'<p class="reviewStatus" role="status"></p>':''}<form class="correction" data-grading-mode="${ungraded?'ungraded':'graded'}" data-id="${r.id}" data-classroom-draft="${g.classroomDraft===true}">${questions.map((q,i)=>{
-            if(q.type==='section')return `<section class="section-content"><p class="muted">Title/Section Page</p>${q.prompt?`<h2 class="review-prompt" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.prompt)}</h2>`:''}${q.content?`<p class="section-paragraph" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</p>`:''}${q.image?QuizPicture.render(q):''}</section>`;
+            if(q.type==='section')return `<section class="section-content"><p class="muted">Title/Section Page</p>${q.prompt?`<h2 class="review-prompt" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.prompt)}</h2>`:''}${q.content?`<p class="section-paragraph" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</p>`:''}${q.image?QuizPicture.render(q):''}${QuizQuestionAudio.render(q)}</section>`;
             number++;
             const auto=g.automatic.find(item=>item.index===i),manual=g.manual.find(item=>item.index===i);
             if(ungraded)return ungradedQuestion({...q,number,recordingDeleted:r.deletedRecordings?.includes(i)},i,q.type==='match'?r.answers[i].map((v,j)=>q.items[j]+': '+(v || '(Unanswered)')):r.answers[i]);
@@ -291,4 +291,9 @@ for(const tableId of ['rosterRows','resultsRows'])document.getElementById(tableI
     event.preventDefault();submission.open=true;
     submission.scrollIntoView({block:'start'});
     submission.querySelector('summary').focus({preventScroll:true});
+});
+
+QuizQuestionAudio.bind(document,async record=>{
+    const response=await fetch('/api/game-scores?game=quiz-builder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record),signal:AbortSignal.timeout(45000)});
+    const result=await response.json();if(!response.ok)throw Error(result.error || 'The teacher recording could not be loaded.');return result;
 });

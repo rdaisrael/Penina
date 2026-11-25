@@ -45,15 +45,16 @@ function shuffled(values) {
     for(let i=copy.length-1;i>0;i--) {const j=Math.floor(Math.random()*(i+1));[copy[i],copy[j]]=[copy[j],copy[i]];}
     return copy;
 }
-function sectionContent(q){return `<div class="section-content"><p class="number">Title/Section Page</p>${q.prompt?`<h2 class="prompt" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.prompt)}</h2>`:''}${q.content?`<p class="section-paragraph" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</p>`:''}${q.image?QuizPicture.render(q):''}</div>`;}
+function sectionContent(q){return `<div class="section-content"><p class="number">Title/Section Page</p>${q.prompt?`<h2 class="prompt" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.prompt)}</h2>`:''}${q.content?`<p class="section-paragraph" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</p>`:''}${q.image?QuizPicture.render(q):''}${QuizQuestionAudio.render(q)}</div>`;}
 function controls(q,i){return QuizInteractions.controls(q,i);}
 async function request(record) {
     if(previewQuiz){if(record.action==='start')return {id:'preview',token:'preview',deadline:previewQuiz.durationMinutes===null?null:Date.now()+previewQuiz.durationMinutes*60000};if(record.action==='state')return {lockedThrough:saved.lockedThrough??-1,forwardOnly:saved.forwardOnly===true,lockedAnswers:saved.lockedAnswers||[]};if(record.action==='advance'){lockedThrough=record.through;forwardOnly=true;saved.lockedAnswers=record.answers;saved.lockedThrough=lockedThrough;saved.forwardOnly=forwardOnly;store();return {lockedThrough,forwardOnly,lockedAnswers:record.answers};}if(record.action==='submit')return {accepted:true,answers:record.answers,submittedAt:new Date().toISOString(),automatic:QuizScoring.feedback(previewQuiz.questions,record.answers,true,previewQuiz.gradingMode)};}
 
-    const response = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,classId}),...(['recording-save','recording-load'].includes(record.action)?{signal:AbortSignal.timeout(45000)}:{})});
+    const response = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,classId}),...(['recording-save','recording-load','question-audio-load'].includes(record.action)?{signal:AbortSignal.timeout(45000)}:{})});
     const result = await response.json(); if(response.status===401)document.getElementById('googleLogin').hidden=false; if (!response.ok) throw Object.assign(new Error(result.error || 'Your quiz could not be saved.'),{status:response.status}); return result;
 }
 function navigate(value) {
+    for(const audio of document.querySelectorAll('.question-audio audio'))audio.pause();
     onCheckpoint=!expired && forwardOnlyFrom!==null && !forwardOnly && value>=forwardOnlyFrom;
     page=expired?questions.length:forwardOnly?Math.min(questions.length,lockedThrough+1):Math.max(0,Math.min(questions.length,value));
     if(onCheckpoint)page=forwardOnlyFrom;
@@ -122,7 +123,7 @@ function showReceipt() {
             const label=q.type==='match'?q.items[j]:`${q.type==='order'?'Position':'Blank'} ${j+1}`;
             return `<p dir="ltr"><strong><bdi dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(label)}</bdi></strong>: ${right?'✓ Correct':'✕ Incorrect'}<br>Your answer: <bdi dir="auto">${esc(actual || '(Unanswered)')}</bdi>${right?'':`<br>Correct answer: <bdi dir="auto">${esc(expected || 'Leave unmatched (distractor)')}</bdi>`}</p>`;
         }).join(''):`<p dir="ltr">Correct ${key.length>1?'answers':'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${key.map(v=>esc(v)).join('<br>')}</span></p>`}</div>`:'';
-        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${number}. ${esc(q.prompt)}</h3>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${q.type==='recording'?QuizRecording.player(i,submission.answers[i][0]):`<p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>`}${ungraded?'':result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}${review}</section>`;
+        return `<section class="${q.extraCredit?'extra-credit':''}">${q.extraCredit?'<p class="number">Extra credit</p>':''}<h3 dir="${q.direction==='rtl'?'rtl':'ltr'}">${number}. ${esc(q.prompt)}</h3>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${QuizQuestionAudio.render(q)}${q.type==='recording'?QuizRecording.player(i,submission.answers[i][0]):`<p class="answer" dir="ltr">Your ${submission.answers[i].length > 1 ? 'answers' : 'answer'}: <span class="answer-values" dir="${q.direction==='rtl'?'rtl':'ltr'}">${submission.answers[i].map((a,j)=>esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':q.type==='match'?q.items[j]+': ':'')+(a||'(Unanswered)'))).join('<br>')}</span></p>`}${ungraded?'':result?`<p class="${result.correct?'correct':result.partial?'partial':'incorrect'}">${result.correct?'Correct':result.partial?'Partial credit':'Incorrect'}</p>`:'<p class="needs-correction">Teacher will correct</p>'}${review}</section>`;
     }).join('');
 }
 function tick() {
@@ -172,7 +173,7 @@ async function enterQuiz() {
         form.elements.studentName.value=identity.name;form.elements.studentEmail.value=identity.email;
         try { saved = JSON.parse((previewQuiz?sessionStorage:localStorage).getItem(previewQuiz?previewKey+':progress':DRAFT)) || {}; } catch (_) {}
         let number=0;
-        document.getElementById('questions').innerHTML=questions.map((q,i)=>q.type==='section'?`<section class="card section-page" data-question="${i}" hidden>${sectionContent(q)}</section>`:`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${++number}${ungraded?'':`${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${(q.type==='order' || q.type==='multi') && !q.perResponseCredit?' · All or nothing':q.scoringMode==='response'?' · '+q.points+' per correct response':q.scoringMode==='proportional'?' · Partial credit by correct response':''}`}</p><h2 class="prompt" dir="${q.direction}">${q.type==='gaps'?'Fill in the blanks':esc(q.prompt)}</h2>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${controls(q,i)}</section>`).join('');
+        document.getElementById('questions').innerHTML=questions.map((q,i)=>q.type==='section'?`<section class="card section-page" data-question="${i}" hidden>${sectionContent(q)}</section>`:`<section class="card ${q.extraCredit?'extra-credit':''}" data-question="${i}" hidden><p class="number">Question ${++number}${ungraded?'':`${q.extraCredit?' · Extra credit (optional)':''} · ${q.maxPoints ?? q.points} point${(q.maxPoints ?? q.points)===1?'':'s'}${(q.type==='order' || q.type==='multi') && !q.perResponseCredit?' · All or nothing':q.scoringMode==='response'?' · '+q.points+' per correct response':q.scoringMode==='proportional'?' · Partial credit by correct response':''}`}</p><h2 class="prompt" dir="${q.direction}">${q.type==='gaps'?'Fill in the blanks':esc(q.prompt)}</h2>${q.type==='recording'?QuizRecording.content(q):''}${q.image?QuizPicture.render(q):''}${QuizQuestionAudio.render(q)}${controls(q,i)}</section>`).join('');
         restoreAnswers();
         recorder=QuizRecording.bind({root:form,request,session:()=>({key:previewQuiz?previewKey:DRAFT,id:saved.id,token:saved.attempt?.token,preview:!!previewQuiz,expired}),canEdit:i=>!!saved.attempt && !expired && !moving && !preparing && !sending && !submission && i>lockedThrough,changed:snapshot});
         QuizRecording.bindPlayback(document.getElementById('answerFeedback'),(i,reference)=>recorder.load(i,reference));
@@ -269,3 +270,9 @@ form.addEventListener('change',event=>{
 });
 
 QuizInteractions.bind(form,snapshot,i=>!expired && !moving && i>lockedThrough);
+
+QuizQuestionAudio.bind(document,async record=>{
+    if(!previewQuiz)return request(record);
+    const response=await fetch('/api/game-scores?game=quiz-builder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record),signal:AbortSignal.timeout(45000)});
+    const result=await response.json();if(!response.ok)throw Error(result.error || 'The teacher recording could not be loaded.');return result;
+});

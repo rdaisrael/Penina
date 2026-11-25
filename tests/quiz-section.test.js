@@ -11,7 +11,7 @@ test('Section pages accept a title, paragraph, picture, or both; empty drafts re
   assert.equal(saved.type,'section');assert.equal(saved.points,0);assert.equal(saved.scoringMode,'total');assert.equal(saved.answer,undefined);
  }
  assert.equal(model.validateQuiz(quiz([{type:'section'}])).questions[0].content,'');
- assert.throws(()=>model.validateQuiz(quiz([{type:'section'},text]),true),/title, paragraph, or picture/);
+ assert.throws(()=>model.validateQuiz(quiz([{type:'section'},text]),true),/title, paragraph, picture, or teacher recording/);
  assert.throws(()=>model.validateQuiz(quiz([section]),true),/regular question/);
  assert.throws(()=>model.validateQuiz(quiz([section,{...text,extraCredit:true}]),true),/regular question/);
  for(const change of [{content:42},{content:'a'.repeat(10001)},{prompt:'a'.repeat(5001)},{image:{src:'https://example.test/x.png',alt:''}}])assert.throws(()=>model.validateQuiz(quiz([{...section,...change},text]),true));

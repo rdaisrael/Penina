@@ -69,7 +69,7 @@ test('Answer cards are alphabetical and provide roster link targets',()=>{
 for(const tableId of ['rosterRows','resultsRows'])test('Clicking a name in '+tableId+' opens and focuses the submitted answers',()=>{
  let handler,scrolled=false,focused=false;
  const card={open:false,scrollIntoView(){scrolled=true;},querySelector(){return {focus(){focused=true;}};}};
- vm.runInNewContext(source.slice(source.indexOf("for(const tableId of ['rosterRows','resultsRows'])")),{
+ vm.runInNewContext(source.slice(source.indexOf("for(const tableId of ['rosterRows','resultsRows'])"),source.indexOf("QuizQuestionAudio.bind")),{
   document:{getElementById:id=>['rosterRows','resultsRows'].includes(id)?{addEventListener(type,fn){if(id===tableId)handler=fn;}}:id==='submission-receipt'?card:null}
  });
  let prevented=false;
@@ -264,7 +264,7 @@ test('Per-response ordering checks positions and multiple-answer choices check s
 
 test('Student receipt always shows typed responses as needs correction, even with cached automatic results',()=>{
  const student=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/custom/quiz.js'),'utf8');
- const elements=new Map(),context={ungraded:false,previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['a'],['b'],['c'],['d'],['e']],automatic:[{index:0,correct:true},{index:1,correct:false},{index:2,correct:true},{index:3,correct:false},{index:4,partial:true}]},questions:[{type:'text',prompt:'Written'},{type:'gaps',wordBank:false,prompt:'Typed ___'},{type:'choice',prompt:'Correct'},{type:'choice',prompt:'Incorrect'},{type:'multi',prompt:'Partial'}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
+ const elements=new Map(),context={QuizQuestionAudio:require('../Penina-Quizzes/question-audio'),ungraded:false,previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['a'],['b'],['c'],['d'],['e']],automatic:[{index:0,correct:true},{index:1,correct:false},{index:2,correct:true},{index:3,correct:false},{index:4,partial:true}]},questions:[{type:'text',prompt:'Written'},{type:'gaps',wordBank:false,prompt:'Typed ___'},{type:'choice',prompt:'Correct'},{type:'choice',prompt:'Incorrect'},{type:'multi',prompt:'Partial'}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
  vm.runInNewContext(student.slice(student.indexOf('function showReceipt()'),student.indexOf('function tick()')),context);context.showReceipt();
  const html=elements.get('answerFeedback').innerHTML;
  assert.equal((html.match(/class="needs-correction">Teacher will correct/g)||[]).length,2);
@@ -275,7 +275,7 @@ test('Student receipt always shows typed responses as needs correction, even wit
 
 test('Student feedback distinguishes correct matches and supplies corrections for wrong matches',()=>{
  const student=fs.readFileSync(path.join(__dirname,'../Penina-Quizzes/custom/quiz.js'),'utf8');
- const elements=new Map(),context={ungraded:false,previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['animal','vehicle']],automatic:[{index:0,correct:false,partial:true,correctAnswers:['animal','building']}]},questions:[{type:'match',prompt:'Match',direction:'ltr',items:['cat','house']}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
+ const elements=new Map(),context={QuizQuestionAudio:require('../Penina-Quizzes/question-audio'),ungraded:false,previewQuiz:null,clock:null,clearInterval(){},form:{},status:{},isClassTeacher:false,submission:{id:'receipt',answers:[['animal','vehicle']],automatic:[{index:0,correct:false,partial:true,correctAnswers:['animal','building']}]},questions:[{type:'match',prompt:'Match',direction:'ltr',items:['cat','house']}],esc:s=>s,document:{getElementById(id){if(!elements.has(id))elements.set(id,{});return elements.get(id);}}};
  vm.runInNewContext(student.slice(student.indexOf('function showReceipt()'),student.indexOf('function tick()')),context);context.showReceipt();
  const html=elements.get('answerFeedback').innerHTML;
  assert.match(html,/cat<\/bdi><\/strong>: ✓ Correct/);assert.match(html,/house<\/bdi><\/strong>: ✕ Incorrect/);

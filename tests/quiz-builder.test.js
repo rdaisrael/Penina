@@ -6,6 +6,40 @@ function fixture(){return {title:'Hebrew review',durationMinutes:30,questions:[
  {type:'multi',prompt:'Pick all',points:1,choices:['A','B','C'],answer:['A','C']},
  {type:'gaps',prompt:'___ and ___',points:2,choices:['א','ב'],answer:['א','א'],direction:'rtl'},
  {type:'order',prompt:'Order',points:1,choices:['א','ב'],answer:['ב','א'],direction:'rtl'}]};}
+test('teacher audio is encrypted, immutable, owner scoped, reusable, and only playable by enrolled students of an attached quiz',async()=>{
+ const h=harness(),audio=require('../Penina-Quizzes/question-audio'),crypto=require('crypto');
+ const bytes=Buffer.from(audio.encode(new Float32Array(audio.RATE*60))),audioId=crypto.createHash('sha256').update(bytes).digest('hex');
+ const upload=part=>({action:'question-audio-save',audioId,part,totalBytes:bytes.length,audio:bytes.subarray(part*audio.PART_BYTES,(part+1)*audio.PART_BYTES).toString('base64')});
+ assert.equal((await h.call(h.builder.handle,h.req(upload(0),'student'))).code,403);
+ const cross=h.req(upload(0));cross.headers.origin='https://other.example';assert.equal((await h.call(h.builder.handle,cross)).code,403);
+ const incomplete=await h.call(h.builder.handle,h.req(upload(1)));assert.equal(incomplete.code,400);
+ const missing=fixture();missing.questions[0].teacherAudio={id:audioId,durationMs:60000};
+ assert.equal((await h.call(h.builder.handle,h.req({action:'save',quiz:missing}))).code,400);
+ assert.equal((await h.call(h.builder.handle,h.req(upload(0)))).code,200);
+ const finished=await h.call(h.builder.handle,h.req(upload(1)));assert.equal(finished.code,200);assert.deepEqual(finished.data.teacherAudio,missing.questions[0].teacherAudio);
+ assert.equal((await h.call(h.builder.handle,h.req(upload(1)))).code,200,'retry is idempotent');
+ const bad=upload(0);bad.audio=Buffer.alloc(audio.PART_BYTES,1).toString('base64');assert.equal((await h.call(h.builder.handle,h.req(bad))).code,409,'published media cannot be overwritten');
+ for(const [key,value] of h.blobs)if(key.startsWith('quiz-question-audio/'))assert(!value.includes(upload(0).audio.slice(0,100)),'encrypted at rest');
+ const load={action:'question-audio-load',audioId,part:0};
+ assert.equal((await h.call(h.builder.handle,h.req(load,'other'))).code,400);
+ assert.equal((await h.call(h.builder.handle,h.req({action:'save',quiz:missing},'other'))).code,400,'cannot attach another author’s recording');
+ const wrongDuration=structuredClone(missing);wrongDuration.questions[0].teacherAudio.durationMs=1000;
+ assert.equal((await h.call(h.builder.handle,h.req({action:'save',quiz:wrongDuration}))).code,400);
+ const saved=await h.call(h.builder.handle,h.req({action:'save',quiz:missing}));assert.equal(saved.code,200);
+ const restored=await h.call(h.builder.handle,h.req({action:'load',id:saved.data.quiz.id}));assert.deepEqual(restored.data.quiz.questions[0].teacherAudio,finished.data.teacherAudio);
+ const {quiz,classId}=await assigned(h,missing);
+ assert.equal(JSON.stringify((await h.builder.published(quiz)).questions[0].teacherAudio),JSON.stringify(finished.data.teacherAudio));
+ const duplicate=await h.call(h.builder.handle,h.req({action:'save',quiz:restored.data.quiz}));assert.equal(duplicate.code,200);assert.notEqual(duplicate.data.quiz.id,saved.data.quiz.id);
+ const student=await h.call(h.submissions,h.req({...load,quiz,classId},'student'));assert.equal(student.code,200);assert.equal(student.data.audio,upload(0).audio);
+ assert.equal((await h.call(h.submissions,h.req({...load,quiz,classId,part:1},'student'))).data.audio,upload(1).audio);
+ h.state.enrolled=false;assert.equal((await h.call(h.submissions,h.req({...load,quiz,classId},'student'))).code,403);h.state.enrolled=true;
+ const other=await assigned(h);assert.equal((await h.call(h.submissions,h.req({...load,...other},'student'))).code,404,'a reference cannot unlock audio from another quiz');
+ const listing=await h.call(h.builder.handle,h.req({action:'list'}));assert.equal(listing.code,200);assert.equal(listing.data.quizzes.length,4,'attachments do not pollute the quiz library');
+ // Claimed duration cannot conceal an overlong or malformed WAV.
+ const excessive={...upload(0),totalBytes:audio.MAX_BYTES+2,durationMs:1};assert.equal((await h.call(h.builder.handle,h.req(excessive))).code,400);
+ const corrupt=Buffer.alloc(50),corruptId=crypto.createHash('sha256').update(corrupt).digest('hex');
+ assert.equal((await h.call(h.builder.handle,h.req({action:'question-audio-save',audioId:corruptId,part:0,totalBytes:corrupt.length,audio:corrupt.toString('base64'),durationMs:1}))).code,400);
+});
 function harness(){
  const blobs=new Map(),cache=new Map(),state={enrolled:true,teacher:true,work:null,grade:null,reads:[],logs:[],delays:[]},ORIGIN='https://www.penina-hebrew.org';
  class OAuth2Client {setCredentials(){} generateAuthUrl(options){state.oauth=options;return 'https://accounts.google.com/test';}async getToken(){return {tokens:{id_token:'test',refresh_token:'test',scope:state.oauth.scope.join(' ')}};}async verifyIdToken(){return {getPayload:()=>({sub:'owner',name:'Teacher',email:'teacher@school.org',email_verified:true,nonce:state.oauth.nonce})};}async request({url,method,data,params={}}){

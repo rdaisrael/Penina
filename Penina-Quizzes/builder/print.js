@@ -18,7 +18,7 @@
     }
     function question(q,index,random,ungraded=false){
         const choices=shuffled(q.choices || [],random),direction=q.direction==='rtl'?'rtl':'ltr';
-        if(q.type==='section')return `<article class="qp-section-page" aria-label="Title/Section Page">${q.prompt?`<h2 class="qp-prompt" dir="${direction}">${escape(q.prompt)}</h2>`:''}${q.content?`<p class="qp-section-paragraph" dir="${direction}">${escape(q.content)}</p>`:''}${picture.render(q)}</article>`;
+        if(q.type==='section')return `<article class="qp-section-page" aria-label="Title/Section Page">${q.prompt?`<h2 class="qp-prompt" dir="${direction}">${escape(q.prompt)}</h2>`:''}${q.content?`<p class="qp-section-paragraph" dir="${direction}">${escape(q.content)}</p>`:''}${picture.render(q)}${q.teacherAudio?'<p class="qp-instruction">Listen to the teacher recording in the online quiz.</p>':''}</article>`;
         let instruction='',response='';
         if(q.type==='recording'){
             instruction='Record your answer in the online quiz (up to '+(q.recordingMinutes ?? 3)+' minute'+((q.recordingMinutes ?? 3)===1?'':'s')+'). Use this space to plan your answer.';
@@ -42,7 +42,7 @@
         }
         const prompt=q.type==='gaps'?escape(q.prompt).split('___').join('<span class="qp-blank" aria-label="Blank">&#160;</span>'):escape(q.prompt);
         const points=scoring.maxPoints(q);
-        return `<article class="qp-question" aria-label="Question ${index+1}"><div class="qp-question-head"><span class="qp-number">${index+1}</span><span class="qp-kind">${escape(names[q.type] || 'Question')}${!ungraded && q.extraCredit?' · Extra credit':''}</span>${ungraded?'':`<span class="qp-points">${points} ${points===1?'point':'points'}</span>`}</div><p class="qp-instruction">${instruction}</p><h2 class="qp-prompt" dir="${direction}">${prompt || 'Question not entered yet.'}</h2>${q.type==='recording' && q.content?`<p class="qp-prompt" dir="${direction}">${escape(q.content)}</p>`:''}${picture.render(q)}${response}</article>`;
+        return `<article class="qp-question" aria-label="Question ${index+1}"><div class="qp-question-head"><span class="qp-number">${index+1}</span><span class="qp-kind">${escape(names[q.type] || 'Question')}${!ungraded && q.extraCredit?' · Extra credit':''}</span>${ungraded?'':`<span class="qp-points">${points} ${points===1?'point':'points'}</span>`}</div><p class="qp-instruction">${instruction}</p><h2 class="qp-prompt" dir="${direction}">${prompt || 'Question not entered yet.'}</h2>${q.type==='recording' && q.content?`<p class="qp-prompt" dir="${direction}">${escape(q.content)}</p>`:''}${picture.render(q)}${q.teacherAudio?'<p class="qp-instruction">Listen to the teacher recording in the online quiz.</p>':''}${response}</article>`;
     }
     function render(quiz,random=Math.random){
         const questions=quiz.questions || [],ungraded=quiz.gradingMode==='ungraded';

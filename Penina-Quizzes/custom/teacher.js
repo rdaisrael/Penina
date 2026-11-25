@@ -78,7 +78,7 @@ function render() {
     records.sort(QuizCorrection.compareStudents);
     document.getElementById('reports').innerHTML = records.map(r=>{
         const g=r.grading;let number=0;
-        return `<details name="student-responses" class="card" id="submission-${esc(r.id)}"><summary>${esc(r.name)} · ${esc(r.email)}${ungraded?'':QuizCorrection.correctionArrow('first')}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(formatResultTime(r.submittedAt))} · Receipt: ${esc(r.id)}</p><form class="correction" data-grading-mode="${ungraded?'ungraded':'graded'}" data-id="${r.id}" data-classroom-draft="${g.classroomDraft===true}">${questions.map((q,i)=>{
+        return `<details name="student-responses" class="card" id="submission-${esc(r.id)}"><summary>${esc(r.name)} · ${esc(r.email)}${ungraded?'':QuizCorrection.correctionArrow('first')}<br><span id="score-${r.id}">${esc(scoreText(g))}</span></summary><p class="muted">Class: ${esc(r.className || 'Earlier submission')} · Submitted: ${esc(formatResultTime(r.submittedAt))} · Receipt: ${esc(r.id)}</p>${ungraded?'<p class="reviewStatus" role="status"></p>':''}<form class="correction" data-grading-mode="${ungraded?'ungraded':'graded'}" data-id="${r.id}" data-classroom-draft="${g.classroomDraft===true}">${questions.map((q,i)=>{
             if(q.type==='section')return `<section class="section-content"><p class="muted">Title/Section Page</p>${q.prompt?`<h2 class="review-prompt" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.prompt)}</h2>`:''}${q.content?`<p class="section-paragraph" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</p>`:''}${q.image?QuizPicture.render(q):''}</section>`;
             number++;
             const auto=g.automatic.find(item=>item.index===i),manual=g.manual.find(item=>item.index===i);
@@ -240,6 +240,21 @@ document.getElementById('export').addEventListener('click',()=>{
 
 document.getElementById('classChoice').addEventListener('change',()=>{document.getElementById('classLink').hidden=true;});
 
+
+document.getElementById('reports').addEventListener('toggle',async event=>{
+    const card=event.target;
+    if(!ungraded || !card.matches('details.card') || !card.open)return;
+    const record=records.find(r=>card.id==='submission-'+r.id);
+    if(!record || record.reviewedAt || record.grading.savedAt || record.reviewSaving)return;
+    const message=card.querySelector('.reviewStatus');
+    record.reviewSaving=true;
+    try{
+        const response=await fetch(SUBMISSIONS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'review',id:record.id}),signal:AbortSignal.timeout(15000)});
+        const result=await response.json();if(!response.ok)throw Error(result.error || 'Viewed status could not be saved.');
+        record.reviewedAt=result.reviewedAt;message.textContent='';
+    }catch(error){message.textContent='Viewed status could not be saved. Close and reopen this submission to retry.';}
+    finally{record.reviewSaving=false;}
+},true);
 
 QuizRecording.bindPlayback(document.getElementById('reports'),async(index,reference,id,container)=>{
     const submissionId=id || container.closest('form.correction')?.dataset.id;

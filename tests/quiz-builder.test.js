@@ -17,7 +17,7 @@ function harness(){
   }
   if(method==='PATCH'){state.grade=data;return {data};}if(url.endsWith(':return'))return {data:{}};
   if(url.endsWith('/studentSubmissions'))return {data:{studentSubmissions:[{id:'submission',userId:'student',courseId:'course',courseWorkId:'work',associatedWithDeveloper:true,state:state.submissionState || 'TURNED_IN'}]}};
-  if(url.endsWith('/courseWork/work'))return {data:{...state.work,state:'PUBLISHED',maxPoints:state.work.maxPoints}};
+  if(url.endsWith('/courseWork/work'))return {data:{...state.work,state:state.draft?'DRAFT':'PUBLISHED',maxPoints:state.work.maxPoints}};
   if(url.endsWith('/courseWork')){if(method==='POST'){state.work={...data,id:'work',associatedWithDeveloper:true};return {data:state.work};}return {data:{courseWork:state.work?[state.work]:[]}};}
   if(url.includes('/teachers/')){if(!state.teacher || !url.endsWith('/owner'))throw {response:{status:404}};return {data:{userId:'owner'}};}
   if(url.endsWith('/students')){if(state.rosterFailure)throw {response:{status:403}};const students=[{userId:'student',profile:{name:{fullName:'Alex Student'}}},{userId:'student2',profile:{name:{fullName:'Blair Student'}}},{userId:'student3',profile:{name:{fullName:'Casey Student'}}}];return {data:params.pageToken?{students:students.slice(2)}:{students:students.slice(0,2),nextPageToken:'next'}};}
@@ -38,7 +38,7 @@ function harness(){
  function req(body={},user='owner',query={}){return {method:'POST',query,body,headers:{origin:ORIGIN,cookie:'__Host-penina-quiz-session='+account.seal({kind:'session',sub:user,role:user.startsWith('student')?'student':'teacher',name:user,email:user+'@school.org',exp:Date.now()+86400000})}};}
  async function call(handler,request){const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(code){this.code=code;return this;},json(data){this.data=JSON.parse(JSON.stringify(data));return this;},end(){return this;}};await handler(request,res);return res;}
  async function publish(quiz=fixture()){const saved=await call(builder.handle,req({action:'save',quiz}));assert.equal(saved.code,200);const id=saved.data.quiz.id;assert.equal((await call(builder.handle,req({action:'publish',id}))).code,200);return id;}
- return {blobs,account,builder,submissions,state,req,call,publish};
+ return {blobs,account,builder,submissions,state,req,call,publish,storage:load('quiz-submission-storage')};
 }
 test('All five types validate; blank count, answer keys, duplicates and scores are enforced',()=>{
  assert.equal(model.validateQuiz(fixture(),true).questions.length,5);
@@ -834,4 +834,87 @@ test('Ungraded feedback saves and emails without a Classroom grade, survives fai
  const reloaded=(await report()).data.submissions[0].grading;assert.equal(reloaded.feedback,changed.feedback);assert.equal(reloaded.studentSentAt,null);
  h.state.emailFailure=false;const retried=await h.call(h.submissions,h.req(changed));assert.equal(retried.data.email.to,'student@school.org');assert.ok(retried.data.grading.studentSentAt);assert.equal(h.state.grade,null);
  const saved=await h.call(h.submissions,h.req({...body,emailStudent:false,feedback:'Another revision.'}));assert.equal(saved.data.grading.studentSentAt,null);assert.equal((await report()).data.submissions[0].grading.studentSentAt,null);
+});
+
+async function assignmentListings(h,query={}){
+ const request=h.req({},'owner',{action:'assignments',submissionCounts:'true',...query});request.method='GET';
+ request.headers.cookie='__Host-penina-quiz-session='+h.account.seal({...h.account.session(request),userId:7});
+ const result=await h.call(h.account.handle,request);assert.equal(result.code,200,JSON.stringify(result.data));return result.data.assignments;
+}
+test('Assignment counts follow saved grading per class, refresh after corrections, and exclude practice and unfinished attempts',async()=>{
+ const h=harness(),link=await assigned(h),id='1'.repeat(32);
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));assert.equal(start.code,200);
+ assert.equal((await assignmentListings(h))[0].ungradedCount,0);
+ const submitted=await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));assert.equal(submitted.code,200);
+ assert.equal((await assignmentListings(h))[0].ungradedCount,1);
+ const partial=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[null],feedback:''}));assert.equal(partial.code,200);
+ assert.equal((await assignmentListings(h))[0].ungradedCount,1);
+ const complete=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[0],feedback:''}));assert.equal(complete.code,200);
+ assert.equal((await assignmentListings(h))[0].ungradedCount,0);
+ const reopened=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[null],feedback:''}));assert.equal(reopened.code,200);
+ assert.equal((await assignmentListings(h))[0].ungradedCount,1);
+ const otherClass='2'.repeat(32),emptyClass='3'.repeat(32),foreignClass='4'.repeat(32);
+ const original=h.account.unseal(h.blobs.get('quiz-google/classes/'+link.classId+'.txt'));
+ for(const [classId,owner] of [[otherClass,'owner'],[emptyClass,'owner'],[foreignClass,'someone-else']])h.blobs.set('quiz-google/classes/'+classId+'.txt',h.account.seal({...original,owner,courseId:classId,className:classId}));
+ const {encrypt}=h.storage.createStorage(link.quiz);
+ for(const [recordId,classId] of [['5'.repeat(32),otherClass],['6'.repeat(32),otherClass],['7'.repeat(32),foreignClass]])h.blobs.set('quiz-submissions/'+link.quiz+'/'+recordId+'.json',encrypt({id:recordId,classId,answers:correctAnswers()}));
+ h.blobs.set('quiz-practice/'+link.quiz+'/practice.json',encrypt({id:'practice',classId:link.classId,answers:correctAnswers()}));
+ h.blobs.set('quiz-submissions/'+link.quiz+'/legacy.json',encrypt({id:'legacy',answers:correctAnswers()}));
+ h.state.pageSize=1;h.state.reads=[];
+ const items=await assignmentListings(h),counts=new Map(items.map(a=>[a.classId,a.ungradedCount]));
+ assert.deepEqual([...counts.values()].sort(),[0,1,2]);assert.equal(counts.get(otherClass),2);assert.equal(counts.get(emptyClass),0);assert(!counts.has(foreignClass));
+ assert.equal(h.state.reads.filter(p=>p==='quiz-submissions/'+link.quiz+'/'+id+'.json').length,1);
+ assert(!JSON.stringify(items).includes('answers'));assert(!JSON.stringify(items).includes('student@'));
+ h.state.reads=[];const plain=await assignmentListings(h,{submissionCounts:'false'});assert(plain.every(a=>a.ungradedCount===undefined));assert(!h.state.reads.some(p=>p.startsWith('quiz-submissions/')));
+ const archiveRequest=h.req({action:'archive-assignment',classId:link.classId,archived:true});archiveRequest.headers.cookie='__Host-penina-quiz-session='+h.account.seal({...h.account.session(archiveRequest),userId:7});
+ const archived=await h.call(h.account.handle,archiveRequest);assert.equal(archived.code,200);
+ assert.equal((await assignmentListings(h,{archived:'true'}))[0].ungradedCount,1);
+});
+test('Automatic-only submissions count until saved; count failures stay unavailable and isolated to the affected quiz',async()=>{
+ const h=harness(),quiz=fixture();quiz.questions=quiz.questions.slice(1);
+ const link=await assigned(h,quiz),{encrypt}=h.storage.createStorage(link.quiz),id='a'.repeat(32);
+ h.blobs.set('quiz-submissions/'+link.quiz+'/'+id+'.json',encrypt({id,classId:link.classId,answers:correctAnswers().slice(1)}));
+ assert.equal((await assignmentListings(h))[0].ungradedCount,1);
+ const saved=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[],feedback:''}));assert.equal(saved.code,200);
+ assert.equal((await assignmentListings(h))[0].ungradedCount,0);
+ const other=await assigned(h);
+ h.state.listFailure=prefix=>{if(prefix==='quiz-corrections/'+link.quiz+'/')throw Error('Storage unavailable');};
+ let items=await assignmentListings(h);assert.equal(items.find(a=>a.quiz===link.quiz).ungradedCount,null);assert.equal(items.find(a=>a.quiz===other.quiz).ungradedCount,0);
+ h.state.listFailure=null;h.blobs.set('quiz-submissions/'+link.quiz+'/'+id+'.json','invalid encrypted record');
+ items=await assignmentListings(h);assert.equal(items.find(a=>a.quiz===link.quiz).ungradedCount,null);assert.equal(items.find(a=>a.quiz===other.quiz).ungradedCount,0);
+});
+test('Not graded counts persist viewed submissions without requiring feedback and enforce author access',async()=>{
+ const h=harness(),link=await assigned(h,{...fixture(),gradingMode:'ungraded'}),id='a'.repeat(32);
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));assert.equal(start.code,200);
+ assert.equal((await assignmentListings(h))[0].unreviewedCount,0);
+ const submitted=await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));assert.equal(submitted.code,200);
+ const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.data.submissions[0].reviewedAt,null);
+ assert.equal((await assignmentListings(h))[0].unreviewedCount,1);
+ for(const user of ['student','other'])assert.equal((await h.call(h.submissions,h.req({...link,action:'review',id},user))).code,403);
+ const cross=h.req({...link,action:'review',id});cross.headers.origin='https://other.example';assert.equal((await h.call(h.submissions,cross)).code,403);
+ assert.equal((await h.call(h.submissions,h.req({...link,action:'review',id:'b'.repeat(32)}))).code,404);
+ const viewed=await h.call(h.submissions,h.req({...link,action:'review',id}));assert.equal(viewed.code,200);assert(viewed.data.reviewedAt);
+ const reloaded=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(reloaded.data.submissions[0].reviewedAt,viewed.data.reviewedAt);assert.equal(reloaded.data.submissions[0].grading.savedAt,null);
+ assert.equal((await assignmentListings(h))[0].unreviewedCount,0);assert.equal(h.state.emailed,undefined);assert.equal(h.state.grade,null);
+ assert.equal((await h.call(h.submissions,h.req({...link,action:'review',id}))).code,200);assert.equal([...h.blobs.keys()].filter(p=>p.startsWith('quiz-reviews/')).length,1);
+ const second='c'.repeat(32),{encrypt}=h.storage.createStorage(link.quiz);
+ h.blobs.set('quiz-submissions/'+link.quiz+'/'+second+'.json',encrypt({id:second,classId:link.classId,answers:correctAnswers()}));
+ assert.equal((await assignmentListings(h))[0].unreviewedCount,1);
+ const saved=await h.call(h.submissions,h.req({...link,action:'correct',id:second,scores:[],feedback:'Already reviewed'}));assert.equal(saved.code,200);
+ assert.equal((await assignmentListings(h))[0].unreviewedCount,0);
+ h.state.listFailure=prefix=>{if(prefix.startsWith('quiz-reviews/'))throw Error('Unavailable');};assert.equal((await assignmentListings(h))[0].unreviewedCount,null);
+});
+test('Classroom drafts skip grading counts',async()=>{
+ const h=harness();await assigned(h);h.state.draft=true;
+ h.state.listFailure=prefix=>{if(prefix.startsWith('quiz-submissions/') || prefix.startsWith('quiz-corrections/'))throw Error('Should not read draft submissions');};
+ const items=await assignmentListings(h);assert.equal(items[0].state,'DRAFT');assert.equal(items[0].ungradedCount,undefined);assert(!h.state.logs.some(entry=>String(entry[0]).includes('counts failed')));
+});
+for(const quiz of ['gemara-6-wl-2','gemara-6-intro-retake','gemara-8-intro-retake'])test(quiz+': assignment counts use the imported quiz grading rules',async()=>{
+ const h=harness(),classId='b'.repeat(32),id='c'.repeat(32),{encrypt}=h.storage.createStorage(quiz);
+ h.blobs.set('quiz-google/classes/'+classId+'.txt',h.account.seal({quiz,owner:'owner',courseId:'course',courseWorkId:'work',className:'Gemara'}));h.state.work={maxPoints:8};
+ const questions=require('../Penina-Quizzes/'+quiz+'/questions.json');
+ h.blobs.set('quiz-submissions/'+quiz+'/'+id+'.json',encrypt({id,classId,answers:questions.map(()=>['answer'])}));
+ assert.equal((await assignmentListings(h))[0].ungradedCount,1);
+ h.blobs.set('quiz-corrections/'+quiz+'/'+id+'/saved.json',encrypt({id,scores:quiz==='gemara-6-wl-2'?[0,0,0,0]:[0,0],savedAt:'2026-11-25T12:00:00Z'}));
+ assert.equal((await assignmentListings(h))[0].ungradedCount,0);
 });

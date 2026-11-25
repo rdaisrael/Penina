@@ -28,6 +28,7 @@ const server=http.createServer(async(req,res)=>{
     else if(action==='submit'){
      assert(model.validAnswers(quiz,body.answers));const record={id:body.id,sub:'student',name:'Local Student',email:'student@example.test',classId,className:'Test class',answers:body.answers,submittedAt:new Date().toISOString(),grading:model.grade(quiz,body.answers)};records.push(record);result={accepted:true,answers:record.answers,submittedAt:record.submittedAt,automatic:scoring.feedback(quiz.questions,body.answers,true,quiz.gradingMode)};
     }else if(action==='report')result={title:quiz.title,gradingMode:quiz.gradingMode,questions:quiz.questions,submissions:records,roster:{className:'Test class',classId,assigned:true,students:[{name:'Local Student',status:'submitted',submissionId:records[0]?.id},{name:'Waiting Student',status:'not-started'}]}};
+    else if(action==='review'){const record=records.find(r=>r.id===body.id);record.reviewedAt=new Date().toISOString();result={id:record.id,reviewedAt:record.reviewedAt};}
     else if(action==='correct'){
      correction=body;const r=records.find(r=>r.id===body.id);assert(model.validCorrections(quiz,body.scores));assert.equal(body.sendToClassroom,false);
      const studentSentAt=r.grading.feedback===body.feedback?r.grading.studentSentAt:null;
@@ -90,7 +91,7 @@ const server=http.createServer(async(req,res)=>{
   const student=await context.newPage();await student.goto(origin+'/Penina-Quizzes/custom/?quiz='+quizId+'&class='+classId);await student.locator('#start').waitFor();
   assert.match(await student.locator('#quizSummary').innerText(),/Not graded/);assert.doesNotMatch(await student.locator('#quiz').innerText(),/graded automatically|await.*correction|score is not shown/i);await complete(student);
   assert.equal(records.length,1);assert.equal(records[0].grading.total,null);assert.equal(records[0].grading.pending,0);
-  const teacher=await context.newPage();await teacher.goto(origin+'/Penina-Quizzes/custom/teacher.html?quiz='+quizId);await teacher.locator('#reports details summary').click();
+  const teacher=await context.newPage();await teacher.goto(origin+'/Penina-Quizzes/custom/teacher.html?quiz='+quizId);await teacher.locator('#reports details summary').waitFor();assert.equal(records[0].reviewedAt,undefined);const viewed=teacher.waitForResponse(r=>r.request().postDataJSON()?.action==='review');await teacher.locator('#reports details summary').click();await viewed;assert(records[0].reviewedAt);
   assert.match(await teacher.locator('#reportHeading').innerText(),/Review responses/);assert.equal(await teacher.locator('.review-question').count(),3);assert.equal(await teacher.locator('#reports input[type="number"]').count(),0);assert.equal(await teacher.locator('#reports').getByRole('button',{name:/Classroom/}).count(),0);
   assert(await teacher.locator('#summaryPanel').isHidden());assert.equal(await teacher.locator('[data-grading-column]:visible').count(),0);
   assert.doesNotMatch(await teacher.locator('#reports').innerText(),/points|awaiting correction|correct answer|extra.credit|save corrections/i);

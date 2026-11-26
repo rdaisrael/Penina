@@ -812,7 +812,7 @@ test('Section pages survive save, assignment, checkpoints, submission, correctio
  const loaded=await h.call(h.builder.handle,h.req({action:'load',id:link.quiz}));assert.equal(loaded.code,200);assert.deepEqual(loaded.data.quiz.questions.map(model.maxPoints),[0,4,0,6,0]);assert.equal(h.state.work.maxPoints,10);
 });
 
-test('Not graded quizzes discard grading settings and do not require choice answer keys',()=>{
+test('No grade quizzes discard grading settings and do not require choice answer keys',()=>{
  const input={...fixture(),gradingMode:'ungraded'};
  for(const q of input.questions){delete q.points;q.extraCredit=true;q.allowHalfCredit=true;q.scoringMode='invalid';if(['choice','multi'].includes(q.type))q.answer=[];}
  const quiz=model.validateQuiz(input,true);
@@ -825,17 +825,17 @@ test('Not graded quizzes discard grading settings and do not require choice answ
  assert(model.validCorrections(quiz,[]));assert(!model.validCorrections(quiz,[0]));
  assert.deepEqual(require('../Penina-Quizzes/custom/scoring').feedback(input.questions,correctAnswers(),true,'ungraded'),[]);
  assert.equal(model.validateQuiz(fixture(),true).gradingMode,'graded');
- assert.throws(()=>model.validateQuiz({...fixture(),gradingMode:'unknown'}),/Choose Graded or Not graded/);
+ assert.throws(()=>model.validateQuiz({...fixture(),gradingMode:'unknown'}),/Choose Graded or No grade/);
  assert.throws(()=>model.validateQuiz({...quiz,gradingMode:'graded'},true),/whole points/);
  assert.throws(()=>model.validateQuiz({...quiz,questions:[]},true),/1 and 100/);
  assert.throws(()=>model.validateQuiz({...quiz,questions:[{type:'section',content:'Read this'}]},true),/regular question/);
 });
 
-test('Not graded quizzes persist, collect responses and feedback, and block every grading write',async()=>{
+test('No grade quizzes persist, collect responses and feedback, and block every grading write',async()=>{
  const h=harness(),input={...fixture(),gradingMode:'ungraded'};
  input.questions[0].extraCredit=true;
  const link=await assigned(h,input),id='f'.repeat(32);
- assert.equal(h.state.work.maxPoints,undefined);assert.match(h.state.work.description,/not graded/);assert.doesNotMatch(h.state.work.description,/return your grade/);
+ assert.equal(h.state.work.maxPoints,undefined);assert.match(h.state.work.description,/no grade quiz/);assert.doesNotMatch(h.state.work.description,/return your grade/);
  const loaded=await h.call(h.builder.handle,h.req({action:'load',id:link.quiz}));assert.equal(loaded.data.quiz.gradingMode,'ungraded');
  assert.equal((await h.builder.info(link.quiz)).maxPoints,0);
  const identityRequest=h.req({},'student',{action:'student',quiz:link.quiz,classId:link.classId});identityRequest.method='GET';
@@ -844,7 +844,7 @@ test('Not graded quizzes persist, collect responses and feedback, and block ever
  const listings=h.req({},'owner',{action:'assignments'});listings.method='GET';listings.headers.cookie='__Host-penina-quiz-session='+h.account.seal({...h.account.session(listings),userId:7});
  const assignments=await h.call(h.account.handle,listings);assert.equal(assignments.code,200,JSON.stringify(assignments.data));assert.equal(assignments.data.assignments[0].gradingMode,'ungraded');
  for(const action of ['load-points','save-points']){
-  const result=await h.call(h.builder.handle,h.req({action,id:link.quiz,points:[5,5,5,5,5],revision:0}));assert.equal(result.code,400);assert.match(result.data.error,/not graded/);
+  const result=await h.call(h.builder.handle,h.req({action,id:link.quiz,points:[5,5,5,5,5],revision:0}));assert.equal(result.code,400);assert.match(result.data.error,/no grade quiz/);
  }
  h.blobs.set('quiz-google/students/student.txt',h.account.seal({scope:'https://www.googleapis.com/auth/classroom.coursework.me',refreshToken:'student-refresh'}));
  h.state.submissionState='CREATED';
@@ -854,14 +854,14 @@ test('Not graded quizzes persist, collect responses and feedback, and block ever
  const correction={...link,action:'correct',id,scores:[],overrides:{},explanations:{},feedback:'Thanks for sharing.'};
  const saved=await h.call(h.submissions,h.req(correction));assert.equal(saved.code,200);assert.equal(saved.data.grading.feedback,correction.feedback);assert.equal(saved.data.grading.total,null);
  for(const changes of [{scores:[1]},{overrides:{1:1}},{sendToClassroom:true}])assert.equal((await h.call(h.submissions,h.req({...correction,...changes}))).code,400);
- await assert.rejects(()=>h.account.sendGrade(h.req({}),{classId:link.classId,sub:'student'},{pending:0,total:10},link.quiz),/not graded/);
+ await assert.rejects(()=>h.account.sendGrade(h.req({}),{classId:link.classId,sub:'student'},{pending:0,total:10},link.quiz),/no grade quiz/);
  assert.equal(h.state.grade,null);assert.equal(h.state.emailed,undefined);
  const report=await h.call(h.submissions,h.req({...link,action:'report'}));assert.equal(report.code,200);assert.equal(report.data.gradingMode,'ungraded');assert.deepEqual(report.data.summary,[]);
  assert.equal(report.data.submissions[0].grading.feedback,correction.feedback);assert.equal(report.data.submissions[0].grading.pending,0);
- const duplicate=await h.call(h.builder.handle,h.req({action:'save',quiz:{...loaded.data.quiz,title:'Ungraded copy'}}));assert.equal(duplicate.code,200);assert.notEqual(duplicate.data.quiz.id,link.quiz);assert.equal(duplicate.data.quiz.gradingMode,'ungraded');
+ const duplicate=await h.call(h.builder.handle,h.req({action:'save',quiz:{...loaded.data.quiz,title:'No grade quiz copy'}}));assert.equal(duplicate.code,200);assert.notEqual(duplicate.data.quiz.id,link.quiz);assert.equal(duplicate.data.quiz.gradingMode,'ungraded');
 });
 
-test('Ungraded feedback saves and emails without a Classroom grade, survives failures, and tracks the current feedback',async()=>{
+test('No grade quiz feedback saves and emails without a Classroom grade, survives failures, and tracks the current feedback',async()=>{
  const h=harness(),link=await assigned(h,{...fixture(),gradingMode:'ungraded'}),id='e'.repeat(32);
  const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
  await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));
@@ -884,7 +884,7 @@ test('Ungraded feedback saves and emails without a Classroom grade, survives fai
  const saved=await h.call(h.submissions,h.req({...body,emailStudent:false,feedback:'Another revision.'}));assert.equal(saved.data.grading.studentSentAt,null);assert.equal((await report()).data.submissions[0].grading.studentSentAt,null);
 });
 
-test('Ungraded Classroom return failures retry without emailing, changing grades, or replacing feedback',async()=>{
+test('No grade quiz Classroom return failures retry without emailing, changing grades, or replacing feedback',async()=>{
  const h=harness(),link=await assigned(h,{...fixture(),gradingMode:'ungraded'}),id='f'.repeat(32);
  const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
  await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));
@@ -919,7 +919,7 @@ test('Ungraded Classroom return failures retry without emailing, changing grades
  const request=h.state.requests.filter(r=>r.url.endsWith(':return')).at(-1);assert.equal(request.method,'POST');assert.equal(request.url,'https://classroom.googleapis.com/v1/courses/course/courseWork/work/studentSubmissions/submission:return');assert.deepEqual(JSON.parse(JSON.stringify(request.data)),{});
 });
 
-test('Ungraded returns verify Classroom ownership, membership, assignment settings, and submission state',async()=>{
+test('No grade quiz returns verify Classroom ownership, membership, assignment settings, and submission state',async()=>{
  for(const mutate of [
   h=>h.state.teacher=false,h=>h.state.enrolled=false,h=>h.state.active=false,h=>h.state.draft=true,
   h=>h.state.work.maxPoints=10,h=>h.state.work.associatedWithDeveloper=false,
@@ -984,7 +984,7 @@ test('Automatic-only submissions count until saved; count failures stay unavaila
  h.state.listFailure=null;h.blobs.set('quiz-submissions/'+link.quiz+'/'+id+'.json','invalid encrypted record');
  items=await assignmentListings(h);assert.equal(items.find(a=>a.quiz===link.quiz).ungradedCount,null);assert.equal(items.find(a=>a.quiz===other.quiz).ungradedCount,0);
 });
-test('Not graded counts persist viewed submissions without requiring feedback and enforce author access',async()=>{
+test('No grade quiz counts persist viewed submissions without requiring feedback and enforce author access',async()=>{
  const h=harness(),link=await assigned(h,{...fixture(),gradingMode:'ungraded'}),id='a'.repeat(32);
  const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));assert.equal(start.code,200);
  assert.equal((await assignmentListings(h))[0].unreviewedCount,0);

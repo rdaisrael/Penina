@@ -104,7 +104,7 @@ async function advance(through) {
 function showReceipt() {
     clearInterval(clock); form.hidden = true; status.textContent = '';
     document.getElementById('receipt').hidden = false;
-    if(!isClassTeacher)document.getElementById('receiptMessage').textContent=submission.classroom?.turnedIn?'Your answers are saved in Penina and your work is turned in to Classroom. '+(ungraded?'This quiz is not graded.':'Your teacher will review and return your grade.'):(submission.classroom?.message || 'Your answers are saved in Penina. Open Classroom and mark this assignment as done.');
+    if(!isClassTeacher)document.getElementById('receiptMessage').textContent=submission.classroom?.turnedIn?'Your answers are saved in Penina and your work is turned in to Classroom. '+(ungraded?'This is a no grade quiz.':'Your teacher will review and return your grade.'):(submission.classroom?.message || 'Your answers are saved in Penina. Open Classroom and mark this assignment as done.');
     if(isClassTeacher) {
         document.getElementById('receiptMessage').textContent='Teacher practice complete. You can take the quiz again. These answers are kept separate from student submissions.';
         document.getElementById('repeatQuiz').hidden=false;
@@ -159,9 +159,9 @@ async function enterQuiz() {
         if(!response.ok)throw new Error(identity.error || 'Sign in with Google to continue.');
         ungraded=identity.gradingMode==='ungraded';
         questions=ungraded?identity.questions.map(q=>({...q,extraCredit:false})):identity.questions;
-        if(ungraded){document.getElementById('gradingDescription').textContent='This quiz is not graded.';document.getElementById('gradingReviewDescription').textContent='After submitting, you can review your answers.';}
+        if(ungraded){document.getElementById('gradingDescription').textContent='This is a no grade quiz.';document.getElementById('gradingReviewDescription').textContent='After submitting, you can review your answers.';}
         document.querySelector('h1').textContent=identity.title;document.title=identity.title+' | PP Quiz';
-        document.getElementById('quizSummary').textContent=questions.filter(q=>q.type!=='section').length+' questions'+(ungraded?' · Not graded':' · '+questions.filter(q=>!q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' regular points · '+questions.filter(q=>q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' extra-credit points');
+        document.getElementById('quizSummary').textContent=questions.filter(q=>q.type!=='section').length+' questions'+(ungraded?' · No grade quiz':' · '+questions.filter(q=>!q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' regular points · '+questions.filter(q=>q.extraCredit).reduce((n,q)=>n+(q.maxPoints ?? q.points),0)+' extra-credit points');
         document.getElementById('durationDescription').textContent=identity.durationMinutes===null?'No time limit.':'Time limit: '+identity.durationMinutes+' minutes. The timer continues if you leave this page.';
         document.getElementById('timedNotice').hidden=identity.durationMinutes===null;
         forwardOnlyFrom=identity.forwardOnlyFrom ?? null;document.getElementById('checkpointText').textContent=identity.checkpointMessage || '';

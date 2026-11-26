@@ -70,7 +70,7 @@ const server=http.createServer(async(req,res)=>{
   await builder.locator('#gradingMode').selectOption('ungraded');
   const gradeControls='[data-field="points"],[data-field="extraCredit"],[data-field="allowHalfCredit"],[data-field="scoringMode"]';
   assert.equal(await builder.locator(gradeControls).count(),0);assert.equal(await builder.locator('[data-field="direction"]').count(),2);
-  await builder.locator('[data-field="prompt"]').fill('What did you learn?');assert.equal(await builder.locator('.extra-credit-badge:visible').count(),0);assert.equal(await builder.locator('.question.extra-credit').count(),0);assert.match(await builder.locator('#summary').innerText(),/Not graded/);assert.doesNotMatch(await builder.locator('#questions').innerText(),/credit|points|graded by you/i);
+  await builder.locator('[data-field="prompt"]').fill('What did you learn?');assert.equal(await builder.locator('.extra-credit-badge:visible').count(),0);assert.equal(await builder.locator('.question.extra-credit').count(),0);assert.match(await builder.locator('#summary').innerText(),/No grade quiz/);assert.doesNotMatch(await builder.locator('#questions').innerText(),/credit|points|graded by you/i);
   // Re-selecting grading before saving restores the original settings.
   await builder.locator('#gradingMode').selectOption('graded');assert.equal(await builder.locator('[data-field="points"]').inputValue(),'5');assert(await builder.locator('[data-field="extraCredit"]').isChecked());
   await builder.locator('#gradingMode').selectOption('ungraded');
@@ -83,11 +83,11 @@ const server=http.createServer(async(req,res)=>{
   assert.equal(quiz.gradingMode,'ungraded');assert(quiz.questions.every(q=>q.points===0 && !q.extraCredit));
   await builder.reload();await builder.locator('#library [data-id]').click();await builder.getByText('Draft loaded.',{exact:true}).waitFor();
   assert.equal(await builder.locator('#gradingMode').inputValue(),'ungraded');assert.equal(await builder.locator(gradeControls).count(),0);
-  // A saved ungraded quiz can become graded again with valid default points.
+  // A saved no grade quiz can become graded again with valid default points.
   await builder.locator('#gradingMode').selectOption('graded');assert.equal(await builder.locator('[data-index="0"] [data-field="points"]').inputValue(),'1');
   await builder.locator('#gradingMode').selectOption('ungraded');
   for(const width of [1200,390]){await builder.setViewportSize({width,height:900});assert(await builder.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await builder.screenshot({path:path.join(output,'builder-'+width+'.png'),fullPage:true});}
-  await builder.locator('#printQuiz').click();assert.match(await builder.locator('.qp-meta').innerText(),/Not graded/);assert.equal(await builder.locator('.qp-points').count(),0);assert.doesNotMatch(await builder.locator('.qp-paper').innerText(),/points|extra.credit/i);await builder.locator('#closeQuizPrint').click();
+  await builder.locator('#printQuiz').click();assert.match(await builder.locator('.qp-meta').innerText(),/No grade quiz/);assert.equal(await builder.locator('.qp-points').count(),0);assert.doesNotMatch(await builder.locator('.qp-paper').innerText(),/points|extra.credit/i);await builder.locator('#closeQuizPrint').click();
   await builder.locator('#publish').click();await builder.locator('#confirmPublish').click();await builder.getByText('Published. Open teacher tools to assign this quiz to a class.',{exact:true}).waitFor();assert(await builder.locator('#gradingMode').isDisabled());assert.equal(quiz.gradingMode,'ungraded');
   async function complete(page){
    await page.locator('#start').click();assert.doesNotMatch(await page.locator('[data-question="0"]').innerText(),/point|credit/i);
@@ -96,7 +96,7 @@ const server=http.createServer(async(req,res)=>{
    assert.doesNotMatch(await page.locator('#answerFeedback').innerText(),/correct|credit|point/i);assert.match(await page.locator('#answerFeedback').innerText(),/I learned a new word/);
   }
   const student=await context.newPage();await student.goto(origin+'/Penina-Quizzes/custom/?quiz='+quizId+'&class='+classId);await student.locator('#start').waitFor();
-  assert.match(await student.locator('#quizSummary').innerText(),/Not graded/);assert.doesNotMatch(await student.locator('#quiz').innerText(),/graded automatically|await.*correction|score is not shown/i);await complete(student);
+  assert.match(await student.locator('#quizSummary').innerText(),/No grade quiz/);assert.doesNotMatch(await student.locator('#quiz').innerText(),/graded automatically|await.*correction|score is not shown/i);await complete(student);
   assert.equal(records.length,1);assert.equal(records[0].grading.total,null);assert.equal(records[0].grading.pending,0);
   const teacher=await context.newPage();await teacher.goto(origin+'/Penina-Quizzes/custom/teacher.html?quiz='+quizId);await teacher.locator('#reports details summary').waitFor();assert.equal(records[0].reviewedAt,undefined);const viewed=teacher.waitForResponse(r=>r.request().postDataJSON()?.action==='review');await teacher.locator('#reports details summary').click();await viewed;assert(records[0].reviewedAt);
   assert.match(await teacher.locator('#reportHeading').innerText(),/Review responses/);assert.equal(await teacher.locator('.review-question').count(),3);assert.equal(await teacher.locator('#reports input[type="number"]').count(),0);assert.equal(await teacher.locator('#reports').getByRole('button',{name:/Classroom/}).count(),0);
@@ -131,6 +131,6 @@ const server=http.createServer(async(req,res)=>{
   for(const width of [1200,390]){await teacher.setViewportSize({width,height:900});assert(await teacher.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await teacher.screenshot({path:path.join(output,'teacher-'+width+'.png'),fullPage:true});}
   const popupPromise=context.waitForEvent('page');await builder.locator('#preview').click();const preview=await popupPromise;await complete(preview);assert.equal(records.length,1);
   await builder.locator('#duplicate').click();assert.equal(await builder.locator('#gradingMode').inputValue(),'ungraded');assert(!(await builder.locator('#gradingMode').isDisabled()));assert.equal(await builder.locator(gradeControls).count(),0);
-  assert.deepEqual(errors,[]);console.log('Passed not-graded authoring, switching, save/reload, publication, duplication, student submission, preview, teacher feedback email, blank-email validation, failure/retry, Classroom return and email-free retry, saved completion, unsaved feedback preservation, sent status, CSV, print, and mobile layouts.');console.log('Artifacts: '+output);
+  assert.deepEqual(errors,[]);console.log('Passed no grade quiz authoring, switching, save/reload, publication, duplication, student submission, preview, teacher feedback email, blank-email validation, failure/retry, Classroom return and email-free retry, saved completion, unsaved feedback preservation, sent status, CSV, print, and mobile layouts.');console.log('Artifacts: '+output);
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

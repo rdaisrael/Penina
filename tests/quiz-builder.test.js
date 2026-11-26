@@ -41,29 +41,30 @@ test('teacher audio is encrypted, immutable, owner scoped, reusable, and only pl
  assert.equal((await h.call(h.builder.handle,h.req({action:'question-audio-save',audioId:corruptId,part:0,totalBytes:corrupt.length,audio:corrupt.toString('base64'),durationMs:1}))).code,400);
 });
 function harness(){
- const blobs=new Map(),cache=new Map(),state={enrolled:true,teacher:true,work:null,grade:null,reads:[],logs:[],delays:[]},ORIGIN='https://www.penina-hebrew.org';
+ const blobs=new Map(),cache=new Map(),state={enrolled:true,teacher:true,work:null,grade:null,reads:[],logs:[],delays:[],requests:[]},ORIGIN='https://www.penina-hebrew.org';
  class OAuth2Client {setCredentials(){} generateAuthUrl(options){state.oauth=options;return 'https://accounts.google.com/test';}async getToken(){return {tokens:{id_token:'test',refresh_token:'test',scope:state.oauth.scope.join(' ')}};}async verifyIdToken(){return {getPayload:()=>({sub:'owner',name:'Teacher',email:'teacher@school.org',email_verified:true,nonce:state.oauth.nonce})};}async request({url,method,data,params={}}){
+  state.requests.push({url,method,data,params});
   if(url.endsWith(':turnIn')){state.turnInCalls=(state.turnInCalls || 0)+1;if(state.turnInFailure)throw {response:{status:503}};return {data:{}};}
   if(method==='PATCH' && params.updateMask==='maxPoints'){
    (state.pointsPatches ||= []).push({url,data,params});
    if(state.pointsFailure)throw {response:{status:403}};
    state.work={...state.work,...data};return {data:state.work};
   }
-  if(method==='PATCH'){state.grade=data;return {data};}if(url.endsWith(':return'))return {data:{}};
-  if(url.endsWith('/studentSubmissions'))return {data:{studentSubmissions:[{id:'submission',userId:'student',courseId:'course',courseWorkId:'work',associatedWithDeveloper:true,state:state.submissionState || 'TURNED_IN'}]}};
+  if(method==='PATCH'){state.grade=data;return {data};}if(url.endsWith(':return')){state.returnCalls=(state.returnCalls || 0)+1;assert(state.emailed,'return follows feedback email');if(state.returnFailure)throw {response:{status:503}};state.submissionState='RETURNED';return {data:{}};}
+  if(url.endsWith('/studentSubmissions'))return {data:{studentSubmissions:[{id:'submission',userId:'student',courseId:'course',courseWorkId:'work',associatedWithDeveloper:true,state:state.submissionState || 'TURNED_IN',...state.submissionOverride}]}};
   if(url.endsWith('/courseWork/work'))return {data:{...state.work,state:state.draft?'DRAFT':'PUBLISHED',maxPoints:state.work.maxPoints}};
   if(url.endsWith('/courseWork')){if(method==='POST'){state.work={...data,id:'work',associatedWithDeveloper:true};return {data:state.work};}return {data:{courseWork:state.work?[state.work]:[]}};}
   if(url.includes('/teachers/')){if(!state.teacher || !url.endsWith('/owner'))throw {response:{status:404}};return {data:{userId:'owner'}};}
   if(url.endsWith('/students')){if(state.rosterFailure)throw {response:{status:403}};const students=[{userId:'student',profile:{name:{fullName:'Alex Student'}}},{userId:'student2',profile:{name:{fullName:'Blair Student'}}},{userId:'student3',profile:{name:{fullName:'Casey Student'}}}];return {data:params.pageToken?{students:students.slice(2)}:{students:students.slice(0,2),nextPageToken:'next'}};}
   if(url.includes('/students/')){if(!state.enrolled)throw {response:{status:404}};return {data:{userId:url.split('/').pop()}};}
-  return {data:{id:'course',name:'Test class',courseState:'ACTIVE'}};
+  return {data:{id:'course',name:'Test class',courseState:state.active===false?'ARCHIVED':'ACTIVE'}};
  }}
  function load(name){if(cache.has(name))return cache.get(name).exports;const module={exports:{}};cache.set(name,module);const context={module,exports:module.exports,Date:class extends Date {static now(){return state.now ?? Date.now();}},console:{...console,warn:(...args)=>state.logs.push(args),error:(...args)=>state.logs.push(args)},AbortSignal,URL,URLSearchParams,Buffer,__dirname:path.join(__dirname,'../lib'),process:{env:{BLOB_READ_WRITE_TOKEN:'test',GOOGLE_CLASSROOM_CLIENT_ID:'test',GOOGLE_CLASSROOM_CLIENT_SECRET:'test'}},fetch:async (url,options)=>{state.reads.push(url);if(state.readFailure){const response=state.readFailure(url,options);if(response)return response;}return {ok:blobs.has(url),status:blobs.has(url)?200:404,text:async()=>blobs.get(url)};},require:n=>{
    if(n==='node:timers/promises')return {setTimeout:async ms=>state.delays.push(ms)};
    if(n==='./openai-text')return {generateOpenAIText:async(...args)=>{if(!state.aiGenerator)throw Error('No test AI response configured');return state.aiGenerator(...args);}};
-   if(n==='./quiz-correction-email')return {sendCorrectedTest:async data=>{state.emailed=data;if(state.emailFailure)throw Error('Email failed');return {status:'accepted',to:data.record.email};}};
+   if(n==='./quiz-correction-email')return {sendCorrectedTest:async data=>{state.emailCalls=(state.emailCalls || 0)+1;state.emailed=data;if(state.emailFailure)throw Error('Email failed');return {status:'accepted',to:data.record.email};}};
    if(n==='google-auth-library')return {OAuth2Client};
-   if(n==='@vercel/blob')return {list:async({prefix,cursor,limit})=>{if(state.listFailure)state.listFailure(prefix);const found=[...blobs.keys()].filter(p=>p.startsWith(prefix)),start=Number(cursor)||0,size=Math.min(limit,state.pageSize || limit);return {blobs:found.slice(start,start+size).map(p=>({pathname:p,url:p})),hasMore:start+size<found.length,cursor:String(start+size)};},put:async(p,s,o)=>{if(!o.allowOverwrite&&blobs.has(p))throw Error('exists');blobs.set(p,s);},del:async p=>blobs.delete(p)};
+   if(n==='@vercel/blob')return {list:async({prefix,cursor,limit})=>{if(state.listFailure)state.listFailure(prefix);const found=[...blobs.keys()].filter(p=>p.startsWith(prefix)),start=Number(cursor)||0,size=Math.min(limit,state.pageSize || limit);return {blobs:found.slice(start,start+size).map(p=>({pathname:p,url:p})),hasMore:start+size<found.length,cursor:String(start+size)};},put:async(p,s,o)=>{if(state.putFailure)state.putFailure(p);if(!o.allowOverwrite&&blobs.has(p))throw Error('exists');blobs.set(p,s);},del:async p=>blobs.delete(p)};
    if(n==='./vocabulary-pages')return {getPage:async()=>({}),authenticatePage:(_,pw)=>pw==='secret'?null:{status:401,error:'Bad password'}};
    if(n.startsWith('./quiz-'))return load(n.slice(2));return require(n);
  }};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../lib/'+name+'.js'),'utf8'),context);return module.exports;}
@@ -870,7 +871,7 @@ test('Ungraded feedback saves and emails without a Classroom grade, survives fai
  for(const feedback of ['', ' \n ', 'x'.repeat(2001)])assert.equal((await h.call(h.submissions,h.req({...body,feedback}))).code,400);
  assert.equal(h.state.emailed,undefined);
  const sent=await h.call(h.submissions,h.req(body));assert.equal(sent.code,200);assert.equal(sent.data.email.to,'student@school.org');assert.ok(sent.data.grading.studentSentAt);
- assert.equal(sent.data.grading.total,null);assert.equal(sent.data.grading.classroomDraft,false);assert.equal(h.state.grade,null);
+ assert.equal(sent.data.grading.total,null);assert.equal(sent.data.grading.classroomDraft,false);assert.equal(h.state.grade,null);assert.equal(sent.data.classroom.returned,true);assert(sent.data.grading.classroomReturnedAt);assert.equal(h.state.returnCalls,1);
  const payload=require('../lib/quiz-correction-email').correctedTest(h.state.emailed);assert.match(payload.text,/Thanks for sharing/);assert.doesNotMatch(payload.text,/Final score|points|Model answer/);
  const report=()=>h.call(h.submissions,h.req({...link,action:'report'}));
  assert.equal((await report()).data.submissions[0].grading.studentSentAt,sent.data.grading.studentSentAt);
@@ -881,6 +882,59 @@ test('Ungraded feedback saves and emails without a Classroom grade, survives fai
  const reloaded=(await report()).data.submissions[0].grading;assert.equal(reloaded.feedback,changed.feedback);assert.equal(reloaded.studentSentAt,null);
  h.state.emailFailure=false;const retried=await h.call(h.submissions,h.req(changed));assert.equal(retried.data.email.to,'student@school.org');assert.ok(retried.data.grading.studentSentAt);assert.equal(h.state.grade,null);
  const saved=await h.call(h.submissions,h.req({...body,emailStudent:false,feedback:'Another revision.'}));assert.equal(saved.data.grading.studentSentAt,null);assert.equal((await report()).data.submissions[0].grading.studentSentAt,null);
+});
+
+test('Ungraded Classroom return failures retry without emailing, changing grades, or replacing feedback',async()=>{
+ const h=harness(),link=await assigned(h,{...fixture(),gradingMode:'ungraded'}),id='f'.repeat(32);
+ const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+ await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));
+ const body={...link,action:'correct',id,scores:[],overrides:{},explanations:{},feedback:'Thank you for the thoughtful answer.',emailStudent:true};
+ const retry={...link,action:'return-classroom',id,emailStudent:true,feedback:'Do not email or save this.'};
+ const report=async()=>(await h.call(h.submissions,h.req({...link,action:'report'}))).data.submissions[0].grading;
+ assert.equal((await h.call(h.submissions,h.req(retry))).code,409,'saved email confirmation is required');
+ h.state.emailFailure=true;const mailFailed=await h.call(h.submissions,h.req(body));assert(mailFailed.data.emailError);assert.equal(h.state.returnCalls,undefined);
+ h.state.emailFailure=false;h.state.returnFailure=true;
+ const failed=await h.call(h.submissions,h.req(body));assert.equal(failed.code,200);assert(failed.data.email);assert(failed.data.classroomError);assert.equal(failed.data.emailError,undefined);
+ assert(failed.data.grading.studentSentAt);assert.equal(failed.data.grading.classroomReturnedAt,null);assert.equal(h.state.returnCalls,1);assert.equal(h.state.emailCalls,2);
+ assert.equal((await report()).studentSentAt,failed.data.grading.studentSentAt);
+ for(const user of ['student','other'])assert.equal((await h.call(h.submissions,h.req(retry,user))).code,403);
+ const cross=h.req(retry);cross.headers.origin='https://other.example';assert.equal((await h.call(h.submissions,cross)).code,403);
+ assert.equal((await h.call(h.submissions,h.req({...retry,id:'bad'}))).code,400);
+ assert.equal((await h.call(h.submissions,h.req({...retry,id:'0'.repeat(32)}))).code,404);
+ const stillFailed=await h.call(h.submissions,h.req(retry));assert(stillFailed.data.classroomError);assert.equal(h.state.emailCalls,2);
+ // If the latest saved feedback hasn't been emailed, retry cannot claim it is complete.
+ await h.call(h.submissions,h.req({...body,emailStudent:false,feedback:'Updated feedback.'}));
+ assert.equal((await h.call(h.submissions,h.req(retry))).code,409);assert.equal((await report()).feedback,'Updated feedback.');
+ await h.call(h.submissions,h.req({...body,feedback:'Updated feedback.'}));assert.equal(h.state.emailCalls,3);
+ h.state.returnFailure=false;
+ h.state.putFailure=path=>{if(path.startsWith('quiz-classroom-returns/'))throw Error('Storage unavailable');};
+ const storageFailed=await h.call(h.submissions,h.req(retry));assert(storageFailed.data.classroomError);assert.equal(h.state.emailCalls,3);assert.equal(h.state.submissionState,'RETURNED');
+ const returnCalls=h.state.returnCalls;h.state.putFailure=null;
+ const returned=await h.call(h.submissions,h.req(retry));assert.equal(h.state.returnCalls,returnCalls,'a retry recognizes an already returned Google submission');assert.equal(returned.code,200);assert.equal(returned.data.classroom.returned,true);assert(returned.data.grading.classroomReturnedAt);assert.equal(returned.data.email,undefined);
+ assert.equal(h.state.emailCalls,3);assert.equal(h.state.grade,null);assert.equal(returned.data.grading.feedback,'Updated feedback.');
+ assert.equal((await report()).classroomReturnedAt,returned.data.grading.classroomReturnedAt);
+ const calls=h.state.returnCalls;await h.call(h.submissions,h.req(retry));assert.equal(h.state.returnCalls,calls);assert.equal(h.state.emailCalls,3);
+ const saved=await h.call(h.submissions,h.req({...body,emailStudent:false,feedback:'A later edit.'}));assert.equal(saved.data.grading.classroomReturnedAt,returned.data.grading.classroomReturnedAt);
+ assert(!h.state.requests.some(r=>r.method==='PATCH'),'return never writes scores');
+ const request=h.state.requests.filter(r=>r.url.endsWith(':return')).at(-1);assert.equal(request.method,'POST');assert.equal(request.url,'https://classroom.googleapis.com/v1/courses/course/courseWork/work/studentSubmissions/submission:return');assert.deepEqual(JSON.parse(JSON.stringify(request.data)),{});
+});
+
+test('Ungraded returns verify Classroom ownership, membership, assignment settings, and submission state',async()=>{
+ for(const mutate of [
+  h=>h.state.teacher=false,h=>h.state.enrolled=false,h=>h.state.active=false,h=>h.state.draft=true,
+  h=>h.state.work.maxPoints=10,h=>h.state.work.associatedWithDeveloper=false,
+  h=>h.state.submissionOverride={userId:'another-student'},h=>h.state.submissionOverride={courseId:'another-course'},
+  h=>h.state.submissionOverride={courseWorkId:'another-work'},h=>h.state.submissionOverride={associatedWithDeveloper:false},
+  h=>h.state.submissionState='NEW',h=>h.state.submissionState='RECLAIMED_BY_STUDENT'
+ ]){
+  const h=harness(),link=await assigned(h,{...fixture(),gradingMode:'ungraded'}),id='d'.repeat(32);
+  const start=await h.call(h.submissions,h.req({...link,action:'start',id},'student'));
+  await h.call(h.submissions,h.req({...link,action:'submit',id,token:start.data.token,answers:correctAnswers()},'student'));
+  mutate(h);
+  const sent=await h.call(h.submissions,h.req({...link,action:'correct',id,scores:[],overrides:{},explanations:{},feedback:'Reviewed.',emailStudent:true}));
+  assert(sent.data.email);assert(sent.data.classroomError);assert.equal(h.state.returnCalls,undefined);assert.equal(h.state.grade,null);
+ }
+ const h=harness(),link=await assigned(h);assert.equal((await h.call(h.submissions,h.req({...link,action:'return-classroom',id:'a'.repeat(32)}))).code,400);
 });
 
 async function assignmentListings(h,query={}){

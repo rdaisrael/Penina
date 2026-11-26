@@ -5,7 +5,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const model=require('../lib/quiz-builder-model'),scoring=require('../Penina-Quizzes/custom/scoring');
 const root=path.resolve(__dirname,'..'),output=fs.mkdtempSync(path.join(os.tmpdir(),'penina-ungraded-'));
 const quizId='custom-'+'a'.repeat(32),classId='b'.repeat(32),attempts=new Map(),records=[];
-let quiz,correction,emailFailure=false,emailed;
+let quiz,correction,emailFailure=false,classroomFailure=false,emailed,emailCalls=0,returnCalls=0;
+function returnClassroom(record,result){
+ if(!record.grading.classroomReturnedAt){returnCalls++;if(classroomFailure){result.classroomError='Classroom unavailable. Retry the Classroom update.';return;}record.grading.classroomReturnedAt=new Date().toISOString();}
+ result.classroom={returned:true};
+}
 const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://127.0.0.1');
@@ -29,14 +33,17 @@ const server=http.createServer(async(req,res)=>{
      assert(model.validAnswers(quiz,body.answers));const record={id:body.id,sub:'student',name:'Local Student',email:'student@example.test',classId,className:'Test class',answers:body.answers,submittedAt:new Date().toISOString(),grading:model.grade(quiz,body.answers)};records.push(record);result={accepted:true,answers:record.answers,submittedAt:record.submittedAt,automatic:scoring.feedback(quiz.questions,body.answers,true,quiz.gradingMode)};
     }else if(action==='report')result={title:quiz.title,gradingMode:quiz.gradingMode,questions:quiz.questions,submissions:records,roster:{className:'Test class',classId,assigned:true,students:[{name:'Local Student',status:'submitted',submissionId:records[0]?.id},{name:'Waiting Student',status:'not-started'}]}};
     else if(action==='review'){const record=records.find(r=>r.id===body.id);record.reviewedAt=new Date().toISOString();result={id:record.id,reviewedAt:record.reviewedAt};}
+    else if(action==='return-classroom'){
+     assert.deepEqual(Object.keys(body).sort(),['action','id']);const record=records.find(r=>r.id===body.id);assert(record.grading.studentSentAt);result={grading:record.grading};returnClassroom(record,result);
+    }
     else if(action==='correct'){
      correction=body;const r=records.find(r=>r.id===body.id);assert(model.validCorrections(quiz,body.scores));assert.equal(body.sendToClassroom,false);
-     const studentSentAt=r.grading.feedback===body.feedback?r.grading.studentSentAt:null;
-     r.grading=model.grade(quiz,r.answers,{...body,savedAt:new Date().toISOString(),studentSentAt});result={grading:r.grading};
+     const studentSentAt=r.grading.feedback===body.feedback?r.grading.studentSentAt:null,classroomReturnedAt=r.grading.classroomReturnedAt || null;
+     r.grading={...model.grade(quiz,r.answers,{...body,savedAt:new Date().toISOString(),studentSentAt}),classroomReturnedAt};result={grading:r.grading};
      if(body.emailStudent){
-      emailed=require('../lib/quiz-correction-email').correctedTest({record:r,questions:quiz.questions,grading:r.grading,title:quiz.title});
+      emailCalls++;emailed=require('../lib/quiz-correction-email').correctedTest({record:r,questions:quiz.questions,grading:r.grading,title:quiz.title});
       if(emailFailure)result.emailError='Email unavailable';
-      else {r.grading.studentSentAt=new Date().toISOString();result.email={status:'accepted',to:r.email};}
+      else {r.grading.studentSentAt=new Date().toISOString();result.email={status:'accepted',to:r.email};returnClassroom(r,result);}
      }
     }
     else throw Error('Unexpected submission action '+action);
@@ -102,16 +109,28 @@ const server=http.createServer(async(req,res)=>{
   await teacher.locator('.saveStatus').filter({hasText:'Your feedback is saved; you can retry emailing.'}).waitFor();assert.equal(correction.emailStudent,true);assert.equal(await teacher.locator('#reports details').getAttribute('open'),'');assert(await sendFeedback.isEnabled());
   assert.equal(await teacher.locator('#rosterRows [aria-label="Emailed to student"]').count(),0);
   await teacher.reload();await teacher.locator('#reports details summary').click();assert.equal(await teacher.locator('[name="feedback"]').inputValue(),'Thanks for sharing. Please add an example.');
-  emailFailure=false;await sendFeedback.click();await teacher.locator('#reports summary').filter({hasText:'Feedback emailed to student'}).waitFor();
-  assert.equal(await teacher.locator('#reports details').getAttribute('open'),null);assert.equal(await teacher.locator('#rosterRows [aria-label="Emailed to student"]').count(),1);
+  emailFailure=false;classroomFailure=true;await sendFeedback.click();await teacher.locator('#reports summary').filter({hasText:'Classroom return pending'}).waitFor();
+  assert.equal(await teacher.locator('#reports details').getAttribute('open'),'');assert.equal(await teacher.locator('#rosterRows [aria-label="Emailed to student"]').count(),1);
   assert.match(emailed.text,/Please add an example/);assert.doesNotMatch(emailed.text,/score|points|I learned a new word/);
-  await teacher.reload();await teacher.locator('#reports details summary').click();assert.match(await teacher.locator('#reports summary').innerText(),/Feedback emailed/);
+  assert.equal(emailCalls,2);assert.equal(returnCalls,1);
+  await teacher.reload();await teacher.locator('#reports details summary').click();
+  const retry=teacher.getByRole('button',{name:'Retry Classroom update',exact:true});assert(await retry.isVisible());
+  await teacher.locator('[name="feedback"]').fill('Unsent feedback edit.');await retry.click();
+  await teacher.locator('.saveStatus').filter({hasText:'Feedback was already emailed. Classroom:'}).waitFor();assert.equal(emailCalls,2);assert.equal(returnCalls,2);
+  assert.equal(records[0].grading.feedback,'Thanks for sharing. Please add an example.');assert.equal(await teacher.locator('[name="feedback"]').inputValue(),'Unsent feedback edit.');
+  for(const width of [1200,390]){await teacher.setViewportSize({width,height:900});assert(await teacher.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await teacher.screenshot({path:path.join(output,'classroom-retry-'+width+'.png'),fullPage:true});}
+  classroomFailure=false;await retry.click();await teacher.locator('.saveStatus').filter({hasText:'Returned in Classroom. No additional email was sent.'}).waitFor();
+  assert.equal(emailCalls,2);assert.equal(returnCalls,3);assert(await retry.isHidden());assert.equal(await teacher.locator('[name="feedback"]').inputValue(),'Unsent feedback edit.');
+  await teacher.reload();await teacher.locator('#reports details summary').click();assert.match(await teacher.locator('#reports summary').innerText(),/Returned in Classroom/);assert(await retry.isHidden());
+
   await teacher.locator('[name="feedback"]').fill('Thanks for sharing. Keep practicing!');assert(await sendFeedback.isEnabled());await teacher.getByRole('button',{name:'Save feedback',exact:true}).click();await teacher.locator('.saveStatus').filter({hasText:'Feedback saved.'}).waitFor();
   assert.doesNotMatch(await teacher.locator('#reports summary').innerText(),/Feedback emailed/);assert.equal(await teacher.locator('#rosterRows [aria-label="Emailed to student"]').count(),0);
+  await sendFeedback.click();await teacher.locator('#reports details').evaluate(async card=>{while(card.open)await new Promise(resolve=>setTimeout(resolve,20));});
+  assert.equal(emailCalls,3);assert.equal(returnCalls,3,'already returned work is not returned twice');assert.match(await teacher.locator('#reports summary').innerText(),/Returned in Classroom/);
   const downloadPromise=teacher.waitForEvent('download');await teacher.locator('#export').click();const download=await downloadPromise;const csv=fs.readFileSync(await download.path(),'utf8');assert.match(csv,/I learned a new word/);assert.match(csv,/Thanks for sharing/);assert.doesNotMatch(csv,/points|score|awaiting correction/i);
   for(const width of [1200,390]){await teacher.setViewportSize({width,height:900});assert(await teacher.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await teacher.screenshot({path:path.join(output,'teacher-'+width+'.png'),fullPage:true});}
   const popupPromise=context.waitForEvent('page');await builder.locator('#preview').click();const preview=await popupPromise;await complete(preview);assert.equal(records.length,1);
   await builder.locator('#duplicate').click();assert.equal(await builder.locator('#gradingMode').inputValue(),'ungraded');assert(!(await builder.locator('#gradingMode').isDisabled()));assert.equal(await builder.locator(gradeControls).count(),0);
-  assert.deepEqual(errors,[]);console.log('Passed not-graded authoring, switching, save/reload, publication, duplication, student submission, preview, teacher feedback email, blank-email validation, failure/retry, sent status, CSV, print, and mobile layouts.');console.log('Artifacts: '+output);
+  assert.deepEqual(errors,[]);console.log('Passed not-graded authoring, switching, save/reload, publication, duplication, student submission, preview, teacher feedback email, blank-email validation, failure/retry, Classroom return and email-free retry, saved completion, unsaved feedback preservation, sent status, CSV, print, and mobile layouts.');console.log('Artifacts: '+output);
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

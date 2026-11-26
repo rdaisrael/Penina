@@ -141,7 +141,7 @@ const server=http.createServer(async(req,res)=>{
   await student.locator('#answerFeedback [data-recording-play]').click();await student.waitForFunction(()=>document.querySelector('#answerFeedback audio').readyState>=2);
   assert(!await student.locator('#answerFeedback').innerText().then(s=>s.includes(replacement)||s.includes('PRIVATE RUBRIC')));
   const teacher=await context.newPage();await teacher.goto(origin+'/Penina-Quizzes/custom/teacher.html?quiz='+quizId);await teacher.locator('#reports details summary').click();
-  await teacher.locator('#reports [data-recording-play]').click();await teacher.waitForFunction(()=>document.querySelector('#reports audio').readyState>=2);
+  await teacher.waitForFunction(()=>document.querySelector('#reports audio').readyState>=2);assert(await teacher.locator('#reports [data-recording-play]').isHidden());assert(await teacher.locator('#reports audio').evaluate(a=>a.paused));
   await teacher.locator('[name="manual0"]').fill('2.5');await teacher.locator('[name="manual1"]').fill('1');await teacher.locator('[name="explanation0"]').fill('Speak more slowly.');await teacher.getByRole('button',{name:'Save corrections',exact:true}).click();await teacher.locator('.saveStatus').filter({hasText:'Corrections saved.'}).waitFor();
   assert.deepEqual(correction.scores,[2.5,1]);assert.equal(records[0].grading.total,3.5);assert.equal(correction.explanations[0],'Speak more slowly.');
   for(const width of [1200,390]){await teacher.setViewportSize({width,height:900});assert(await teacher.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await teacher.locator('.review-question').first().screenshot({path:path.join(output,'teacher-'+width+'.png')});}
@@ -195,7 +195,7 @@ const server=http.createServer(async(req,res)=>{
    assert.equal(await long.locator('[data-recorder] audio').evaluate(a=>a.src),source,'all uploaded bytes return intact');
    await long.locator('#next').click();await long.locator('#reviewed').check();await long.locator('#submit').click();await long.locator('#receipt').waitFor();
    const review=await context.newPage();await review.goto(origin+'/Penina-Quizzes/custom/teacher.html?quiz='+quizId);const card=review.locator('#submission-'+id);
-   await card.locator('summary').click();await card.locator('[data-recording-play]').click();await review.waitForFunction(id=>document.querySelector('#submission-'+id+' audio').readyState>=2,id);
+   await card.locator('summary').click();await review.waitForFunction(id=>document.querySelector('#submission-'+id+' audio').readyState>=2,id);
    await card.locator('audio').evaluate(audio=>audio.play());await review.waitForFunction(id=>document.querySelector('#submission-'+id+' audio').currentTime>0.1,id);
    assert.equal(await card.locator('audio').evaluate(a=>a.src),source);assert(await card.locator('audio').evaluate(a=>a.duration>199 && a.duration<201));await card.locator('audio').evaluate(a=>a.pause());
    console.log('Passed real 200-second audio file: multi-part upload, interrupted part recovery after reload, byte-exact restore, student submission, and teacher playback.');

@@ -49,7 +49,7 @@ const QuizRecording=(()=>{
             tx.oncomplete=()=>resolve(request.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
         });
     }
-    function bindPlayback(root,load){
+    function bindPlayback(root,load,{loadOnOpen=false}={}){
         root.addEventListener('change',event=>{
             const select=event.target.closest('[data-recording-speed]');if(!select || !root.contains(select))return;
             select.closest('.recording-player').querySelector('audio').playbackRate=Number(select.value);
@@ -58,22 +58,34 @@ const QuizRecording=(()=>{
             const audio=event.target;if(!audio.matches('.recording-player audio'))return;
             const select=audio.closest('.recording-player').querySelector('[data-recording-speed]');if(select)select.value=String(audio.playbackRate);
         },true);
-        root.addEventListener('click',async event=>{
-            const button=event.target.closest('[data-recording-play]');if(!button || !root.contains(button))return;
-            const container=button.closest('.recording-player'),message=container.querySelector('[data-playback-status]');
-            button.disabled=true;message.textContent='Loading recording…';
+        async function loadPlayer(container,focus=false){
+            const button=container.querySelector('[data-recording-play]'),message=container.querySelector('[data-playback-status]');
+            if(button.disabled || button.hidden)return;
+            button.disabled=true;button.hidden=true;message.textContent='Loading recording…';
             try{
                 const result=await load(Number(container.dataset.recordingIndex),container.dataset.reference,container.dataset.submissionId,container);
+                if(!root.contains(container))return;
                 if(!validAudio(result.audio))throw Error('This recording could not be played.');
                 const audio=container.querySelector('audio');audio.preload='auto';audio.src=result.audio;container.querySelector('.recording-playback').hidden=false;button.hidden=true;message.textContent='';
                 const mime=settings.parseAudio(result.audio).mime;
                 const link=container.querySelector('[data-recording-download]');link.href=result.audio;link.download='recorded-answer.'+(mime==='audio/mp4'?'m4a':mime==='audio/ogg'?'ogg':'webm');link.hidden=false;
                 audio.onerror=()=>{message.textContent='This browser could not play the recording. Download it to listen in an audio player.';};
                 audio.load();
-                audio.focus();
-            }catch(error){message.textContent=error.message+(error.status===410?'':' Try loading again.');if(error.status===410)button.hidden=true;}
+                if(focus && audio.getClientRects().length)audio.focus();
+            }catch(error){message.textContent=error.message+(error.status===410?'':' Try loading again.');button.textContent='Retry loading recording';button.hidden=error.status===410;}
             finally{button.disabled=false;}
+        }
+        root.addEventListener('click',event=>{
+            const button=event.target.closest('[data-recording-play]');if(!button || !root.contains(button))return;
+            loadPlayer(button.closest('.recording-player'),true);
         });
+        if(loadOnOpen)root.addEventListener('toggle',async event=>{
+            const card=event.target;if(!card.matches('details.card') || !card.open)return;
+            for(const container of card.querySelectorAll('.recording-player')){
+                if(!card.open || !root.contains(card))break;
+                await loadPlayer(container);
+            }
+        },true);
     }
     function bind({root,request,session,canEdit,changed}){
         const memory=new Map(),uploads=new Map(),errors=new Map(),previousSaved=new Map();

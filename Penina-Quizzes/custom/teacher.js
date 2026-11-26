@@ -286,7 +286,7 @@ QuizRecording.bindPlayback(document.getElementById('reports'),async(index,refere
         const response=await fetch(SUBMISSIONS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});
         const result=await response.json();if(!response.ok)throw Object.assign(Error(result.error || 'The recording could not be loaded.'),{status:response.status});return result;
     },{action:'recording-review',id:submissionId,index});
-});
+},{loadOnOpen:true});
 
 for(const tableId of ['rosterRows','resultsRows'])document.getElementById(tableId).addEventListener('click',event=>{
     const link=event.target.closest('a[data-submission]');

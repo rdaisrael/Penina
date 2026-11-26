@@ -5,10 +5,11 @@ const QuizRecording=(()=>{
     const esc=value=>String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const validReference=value=>/^recording:[a-f0-9]{32}$/.test(value);
     const validAudio=value=>!!settings.parseAudio(value);
+    const playbackSpeeds=[0.5,0.75,1,1.25,1.5,1.75,2];
     const content=q=>q.type==='recording' && q.content?`<div class="recording-content" dir="${q.direction==='rtl'?'rtl':'ltr'}">${esc(q.content)}</div>`:'';
-    function player(index,reference,id='',deleted=false){
+    function player(index,reference,id='',deleted=false,showSpeed=false){
         if(deleted)return '<p class="recording-deleted">Recording deleted. Saved grades and feedback are retained.</p>';
-        return validReference(reference)?`<div class="recording-player" data-recording-index="${index}" data-reference="${esc(reference)}" data-submission-id="${esc(id)}"><button type="button" data-recording-play>Load recording</button><audio controls preload="none" aria-label="Recorded answer for question ${index+1}" hidden></audio><a data-recording-download hidden>Download recording</a><p data-playback-status role="status"></p></div>`:'<p>No recording.</p>';
+        return validReference(reference)?`<div class="recording-player" data-recording-index="${index}" data-reference="${esc(reference)}" data-submission-id="${esc(id)}"><button type="button" data-recording-play>Load recording</button><div class="recording-playback" hidden><audio controls${showSpeed?' controlslist="noplaybackrate"':''} preload="none" aria-label="Recorded answer for question ${index+1}"></audio>${showSpeed?`<label class="recording-speed">Speed <select data-recording-speed aria-label="Playback speed for question ${index+1}">${playbackSpeeds.map(speed=>`<option value="${speed}"${speed===1?' selected':''}>${speed}×${speed===1?' (normal)':''}</option>`).join('')}</select></label>`:''}</div><a data-recording-download hidden>Download recording</a><p data-playback-status role="status"></p></div>`:'<p>No recording.</p>';
     }
     function controls(index,question={}){
         return `<div class="recording-controls" data-recorder="${index}" data-recording-minutes="${esc(settings.minutes(question))}"><input type="hidden" name="q${index}-0"><p>Record your answer, then listen to check it. You can record again before locking or submitting. Maximum: ${esc(settings.label(question))}.</p><div class="recording-actions"><button type="button" data-recording-start>Record answer</button><button type="button" data-recording-stop hidden>Stop recording</button><button type="button" data-recording-retry hidden>Retry saving recording</button><button type="button" data-recording-previous hidden>Use previous saved recording</button></div><p data-recording-status role="status" aria-live="polite">Ready to record.</p><div data-recording-preview></div></div>`;
@@ -49,6 +50,14 @@ const QuizRecording=(()=>{
         });
     }
     function bindPlayback(root,load){
+        root.addEventListener('change',event=>{
+            const select=event.target.closest('[data-recording-speed]');if(!select || !root.contains(select))return;
+            select.closest('.recording-player').querySelector('audio').playbackRate=Number(select.value);
+        });
+        root.addEventListener('ratechange',event=>{
+            const audio=event.target;if(!audio.matches('.recording-player audio'))return;
+            const select=audio.closest('.recording-player').querySelector('[data-recording-speed]');if(select)select.value=String(audio.playbackRate);
+        },true);
         root.addEventListener('click',async event=>{
             const button=event.target.closest('[data-recording-play]');if(!button || !root.contains(button))return;
             const container=button.closest('.recording-player'),message=container.querySelector('[data-playback-status]');
@@ -56,7 +65,7 @@ const QuizRecording=(()=>{
             try{
                 const result=await load(Number(container.dataset.recordingIndex),container.dataset.reference,container.dataset.submissionId,container);
                 if(!validAudio(result.audio))throw Error('This recording could not be played.');
-                const audio=container.querySelector('audio');audio.preload='auto';audio.src=result.audio;audio.hidden=false;button.hidden=true;message.textContent='';
+                const audio=container.querySelector('audio');audio.preload='auto';audio.src=result.audio;container.querySelector('.recording-playback').hidden=false;button.hidden=true;message.textContent='';
                 const mime=settings.parseAudio(result.audio).mime;
                 const link=container.querySelector('[data-recording-download]');link.href=result.audio;link.download='recorded-answer.'+(mime==='audio/mp4'?'m4a':mime==='audio/ogg'?'ogg':'webm');link.hidden=false;
                 audio.onerror=()=>{message.textContent='This browser could not play the recording. Download it to listen in an audio player.';};

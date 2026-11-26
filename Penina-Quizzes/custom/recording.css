@@ -2,7 +2,10 @@
 .recording-controls{border:1px solid #b7cbbf;border-radius:12px;padding:18px;margin:20px 0;background:#f7faf8}
 .recording-controls p,.recording-player p{overflow-wrap:anywhere}
 .recording-actions{display:flex;flex-wrap:wrap;gap:10px}
-.recording-player audio{display:block;width:100%;max-width:480px;margin:12px 0}
+.recording-playback{display:flex;align-items:center;flex-wrap:wrap;gap:12px;max-width:680px;margin:12px 0}
+.recording-player audio{display:block;flex:1 1 220px;min-width:0;width:100%;max-width:480px;margin:0}
+.recording-player .recording-speed{display:flex;align-items:center;gap:8px;margin:0;font-size:0.9rem;font-weight:600;white-space:nowrap}
+.recording-speed select{width:auto;min-height:40px;margin:0;padding:8px;border:1px solid #8ca59b;border-radius:7px;background:white;color:inherit;font:inherit}
 .recording-player audio[hidden],.recording-player [hidden],.recording-actions [hidden]{display:none}
 .recording-player a{font-size:0.9rem}
 .recording-controls [data-recording-status]{font-weight:600;font-variant-numeric:tabular-nums;min-height:1.5em}

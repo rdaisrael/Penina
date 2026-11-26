@@ -62,7 +62,7 @@ function setGradingMode(mode){
     document.querySelectorAll('[data-grading-column],.results-jump-links').forEach(el=>el.hidden=ungraded);
 }
 function ungradedQuestion(q,i,answers){
-    return `<section class="review-question"><p class="question-number">Question ${q.number}</p><h2 class="review-prompt" dir="auto">${esc(q.prompt)}</h2>${QuizRecording.content(q)}${q.image?QuizPicture.render(q):''}${QuizQuestionAudio.render(q)}<div class="student-response"><h3>Student’s answer</h3>${q.type==='recording'?QuizRecording.player(i,answers[0],'',q.recordingDeleted):answers.map((a,j)=>`<p dir="auto">${esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':'')+(a || '(No answer)'))}</p>`).join('')}</div></section>`;
+    return `<section class="review-question"><p class="question-number">Question ${q.number}</p><h2 class="review-prompt" dir="auto">${esc(q.prompt)}</h2>${QuizRecording.content(q)}${q.image?QuizPicture.render(q):''}${QuizQuestionAudio.render(q)}<div class="student-response"><h3>Student’s answer</h3>${q.type==='recording'?QuizRecording.player(i,answers[0],'',q.recordingDeleted,true):answers.map((a,j)=>`<p dir="auto">${esc((q.pictureResponseMode==='markers'?'Marker '+(j+1)+': ':'')+(a || '(No answer)'))}</p>`).join('')}</div></section>`;
 }
 function scoreText(g) {
     if(g.gradingMode==='ungraded')return 'Not graded'+(g.studentSentAt?' · Feedback emailed to student':'');
@@ -262,7 +262,12 @@ document.getElementById('classChoice').addEventListener('change',()=>{document.g
 
 document.getElementById('reports').addEventListener('toggle',async event=>{
     const card=event.target;
-    if(!ungraded || !card.matches('details.card') || !card.open)return;
+    if(!card.matches('details.card'))return;
+    if(!card.open){
+        card.querySelectorAll('audio').forEach(audio=>audio.pause());
+        return;
+    }
+    if(!ungraded)return;
     const record=records.find(r=>card.id==='submission-'+r.id);
     if(!record || record.reviewedAt || record.grading.savedAt || record.reviewSaving)return;
     const message=card.querySelector('.reviewStatus');
